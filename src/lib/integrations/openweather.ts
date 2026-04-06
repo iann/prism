@@ -16,6 +16,7 @@ import type {
   CurrentWeather,
   ForecastDay,
   ForecastPeriod,
+  HourlyForecast,
 } from '@/components/widgets/WeatherWidget';
 
 /**
@@ -162,6 +163,7 @@ export async function fetchCurrentWeather(
 async function fetchForecastRaw(location?: string): Promise<{
   forecast: ForecastDay[];
   raw: OpenWeatherForecast['list'];
+  hourly: HourlyForecast[];
   locationName: string;
 }> {
   const config = getConfig();
@@ -239,9 +241,23 @@ async function fetchForecastRaw(location?: string): Promise<{
     count++;
   }
 
+  const now = Date.now();
+  const cutoff = now + 24 * 3_600_000;
+  const hourly: HourlyForecast[] = data.list
+    .filter((item) => {
+      const t = item.dt * 1000;
+      return t >= now && t <= cutoff;
+    })
+    .map((item) => ({
+      time: new Date(item.dt * 1000),
+      condition: mapCondition(item.weather[0]?.id ?? 800),
+      temp: kelvinToFahrenheit(item.main.temp),
+    }));
+
   return {
     forecast,
     raw: data.list,
+    hourly,
     locationName: `${data.city.name}, ${data.city.country}`,
   };
 }
@@ -318,6 +334,7 @@ export async function fetchWeatherData(location?: string): Promise<WeatherData> 
       description: currentData.description,
     },
     forecast: forecastData.forecast,
+    hourly: forecastData.hourly,
     periods,
     lastUpdated: new Date(),
   };
