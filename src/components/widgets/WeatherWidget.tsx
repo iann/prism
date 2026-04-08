@@ -67,6 +67,7 @@ export interface ForecastDay {
   high: number;
   low: number;
   condition: WeatherCondition;
+  precipProbability?: number; // 0–100
 }
 
 /** One hour of forecast data for the 24-hour timeline. */
@@ -110,6 +111,48 @@ export interface WeatherWidgetProps {
   className?: string;
 }
 
+
+/**
+ * ABSOLUTE TEMPERATURE COLOR SCALE
+ * Maps a Fahrenheit value to a color on a fixed scale.
+ * Since ForecastDay temps are always stored in °F, this works for both
+ * display units — pass the raw °F value regardless of useCelsius.
+ */
+const TEMP_COLOR_STOPS: Array<{ temp: number; rgb: [number, number, number] }> = [
+  { temp:  0, rgb: [147, 197, 253] }, // blue-300    — very cold
+  { temp: 32, rgb: [ 96, 165, 250] }, // blue-400    — freezing
+  { temp: 45, rgb: [103, 232, 249] }, // cyan-300    — cold
+  { temp: 55, rgb: [134, 239, 172] }, // green-300   — cool
+  { temp: 65, rgb: [253, 230, 138] }, // amber-200   — mild
+  { temp: 75, rgb: [252, 211,  77] }, // amber-300   — warm
+  { temp: 85, rgb: [249, 115,  22] }, // orange-500  — hot
+  { temp: 95, rgb: [239,  68,  68] }, // red-500     — very hot
+];
+
+function tempToColor(fahrenheit: number): string {
+  const stops = TEMP_COLOR_STOPS;
+  if (fahrenheit <= stops[0]!.temp) {
+    const [r, g, b] = stops[0]!.rgb;
+    return `rgb(${r},${g},${b})`;
+  }
+  if (fahrenheit >= stops[stops.length - 1]!.temp) {
+    const [r, g, b] = stops[stops.length - 1]!.rgb;
+    return `rgb(${r},${g},${b})`;
+  }
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i]!;
+    const b = stops[i + 1]!;
+    if (fahrenheit >= a.temp && fahrenheit <= b.temp) {
+      const t = (fahrenheit - a.temp) / (b.temp - a.temp);
+      const r = Math.round(a.rgb[0] + t * (b.rgb[0] - a.rgb[0]));
+      const g = Math.round(a.rgb[1] + t * (b.rgb[1] - a.rgb[1]));
+      const bl = Math.round(a.rgb[2] + t * (b.rgb[2] - a.rgb[2]));
+      return `rgb(${r},${g},${bl})`;
+    }
+  }
+  const [r, g, b] = stops[stops.length - 1]!.rgb;
+  return `rgb(${r},${g},${b})`;
+}
 
 /**
  * CONDITION → TIMELINE COLOR MAPPING
@@ -223,7 +266,6 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
   return (
     <WidgetContainer
-      title="Weather"
       icon={<Cloud className="h-4 w-4" />}
       size="medium"
       loading={loading}
@@ -330,8 +372,9 @@ function CurrentConditions({
 
 /**
  * DAY HEADER
- * Equal-width columns showing day name, condition icon, and hi/lo temps.
- * Driven by the forecastDays prop — independent of the hourly timeline.
+ * Dark Sky-style row list: day name + precip %, icon, lo | range bar | hi.
+ * The bar track spans the full week's min–max range so each day's segment
+ * is positioned proportionally.
  */
 function DayHeader({
   days,
@@ -340,31 +383,71 @@ function DayHeader({
   days: ForecastDay[];
   useCelsius: boolean;
 }) {
+  const globalMin = Math.min(...days.map((d) => d.low));
+  const globalMax = Math.max(...days.map((d) => d.high));
+  const span = globalMax - globalMin || 1;
+
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+
+  const fmt = (f: number) =>
+    useCelsius ? Math.round((f - 32) * 5 / 9) : Math.round(f);
+
   return (
-    <div className="flex mt-2">
-      {days.map((day, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-          <span className="text-[10px] font-bold uppercase tracking-wide text-foreground">
-            {day.dayName}
-          </span>
-          <div className="flex items-center gap-0.5">
-            <WeatherIcon
-              condition={day.condition}
-              className="h-3 w-3 text-muted-foreground"
-            />
-            <span className="text-[10px] font-semibold">
-              {useCelsius
-                ? `${Math.round((day.high - 32) * 5 / 9)}°`
-                : `${Math.round(day.high)}°`}
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              /{useCelsius
-                ? `${Math.round((day.low - 32) * 5 / 9)}°`
-                : `${Math.round(day.low)}°`}
-            </span>
+    <div className="flex flex-col mt-1">
+      {days.map((day, i) => {
+        const dayMidnight = new Date(day.date);
+        dayMidnight.setHours(0, 0, 0, 0);
+        const isToday = dayMidnight.getTime() === todayMidnight.getTime();
+        const label = isToday ? 'TODAY' : day.dayName.toUpperCase();
+
+        const leftPct  = ((day.low  - globalMin) / span) * 100;
+        const widthPct = ((day.high - day.low)   / span) * 100;
+        const rightPct = ((day.high - globalMin)  / span) * 100;
+
+        return (
+          <div key={i} className="flex items-center gap-2 py-1">
+
+            {/* Day label + precip % + icon — all one left cell */}
+            <div className="flex items-center gap-1.5 w-24 flex-shrink-0">
+              <div className="w-12 flex-shrink-0 h-8 flex flex-col justify-center">
+                <div className="text-[11px] font-bold tracking-wide text-foreground leading-tight whitespace-nowrap">
+                  {label}
+                </div>
+                {day.precipProbability !== undefined && (
+                  <div className="flex items-center gap-0.5 text-[10px] text-blue-500 leading-tight">
+                    <Droplets className="h-2.5 w-2.5 flex-shrink-0" />
+                    <span>{day.precipProbability}%</span>
+                  </div>
+                )}
+              </div>
+              <WeatherIcon
+                condition={day.condition}
+                className="h-5 w-5 flex-shrink-0 text-muted-foreground"
+              />
+            </div>
+
+            {/* Track: proportional flex spacers keep temps outside the pill, no overflow */}
+            <div className="flex-1 flex items-center min-w-0">
+              <div style={{ flex: leftPct }} />
+              <span className="flex-none text-[11px] text-muted-foreground tabular-nums pr-1">
+                {fmt(day.low)}°
+              </span>
+              <div
+                className="h-4 rounded-full"
+                style={{
+                  flex: Math.max(widthPct, 4),
+                  background: `linear-gradient(to right, ${tempToColor(day.low)}, ${tempToColor(day.high)})`,
+                }}
+              />
+              <span className="flex-none text-[11px] font-semibold tabular-nums pl-1">
+                {fmt(day.high)}°
+              </span>
+              <div style={{ flex: Math.max(100 - rightPct, 0) }} />
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -486,23 +569,25 @@ function getDemoWeatherData(location: string): WeatherData {
     'sunny',
   ];
 
-  const highs = [52, 61, 47, 44, 39, 34, 58];
-  const lows  = [38, 45, 36, 31, 27, 22, 40];
+  const highs   = [52, 61, 47, 44, 39, 34, 58];
+  const lows    = [38, 45, 36, 31, 27, 22, 40];
+  const precips = [78,  0,  0, 86, 97,  2, 20];
 
   const forecast: ForecastDay[] = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
     return {
       date,
-      dayName:   dayNames[date.getDay()] ?? 'Day',
-      high:      highs[i] ?? 55,
-      low:       lows[i] ?? 40,
-      condition: conditions[i] ?? 'sunny',
+      dayName:          dayNames[date.getDay()] ?? 'Day',
+      high:             highs[i] ?? 55,
+      low:              lows[i] ?? 40,
+      condition:        conditions[i] ?? 'sunny',
+      precipProbability: precips[i] ?? 0,
     };
   });
 
   return {
-    location:    location || 'Springfield, IL',
+    location:    location || 'Melrose, MA',
     current: {
       temperature: 52,
       feelsLike:   48,
