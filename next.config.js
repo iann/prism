@@ -44,7 +44,7 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'date-fns', '@radix-ui/react-dropdown-menu', '@radix-ui/react-dialog', '@radix-ui/react-select'],
     serverActions: {
-      allowedOrigins: ['localhost:3000'],
+      allowedOrigins: ['localhost:3000', 'localhost:3005'],
     },
   },
 

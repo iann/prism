@@ -23,7 +23,7 @@
     "touchscreen"
   ],
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3005",
     "build": "next build",
     "start": "next start",
     "deploy": "bash scripts/deploy-local.sh",
