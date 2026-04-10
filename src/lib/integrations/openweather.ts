@@ -189,7 +189,7 @@ async function fetchForecastRaw(location?: string): Promise<{
 
   for (const item of data.list) {
     const date = new Date(item.dt * 1000);
-    const dateKey = date.toISOString().split('T')[0]!;
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
     if (!dailyData.has(dateKey)) {
       dailyData.set(dateKey, {
@@ -246,7 +246,8 @@ async function fetchForecastRaw(location?: string): Promise<{
   const hourly: HourlyForecast[] = data.list
     .filter((item) => {
       const t = item.dt * 1000;
-      return t >= now && t <= cutoff;
+      // Include the currently-active 3-hour interval (its timestamp may be up to 3h in the past)
+      return t > now - 3 * 3_600_000 && t <= cutoff;
     })
     .map((item) => ({
       time: new Date(item.dt * 1000),
@@ -279,7 +280,7 @@ export async function fetchForecast(location?: string): Promise<{
  */
 function extractPeriods(forecastList: OpenWeatherForecast['list']): ForecastPeriod[] {
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const periods: ForecastPeriod[] = [];
 
   // Morning: 6am-12pm, Afternoon: 12pm-6pm, Evening: 6pm-12am
@@ -292,7 +293,7 @@ function extractPeriods(forecastList: OpenWeatherForecast['list']): ForecastPeri
   for (const def of periodDefs) {
     const matching = forecastList.filter((item) => {
       const d = new Date(item.dt * 1000);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const hour = d.getHours();
       return dateStr === todayStr && hour >= def.minHour && hour < def.maxHour;
     });
@@ -323,6 +324,15 @@ export async function fetchWeatherData(location?: string): Promise<WeatherData> 
 
   const periods = extractPeriods(forecastData.raw);
 
+  // Override the currently-active hourly interval with observed current conditions,
+  // since the forecast model can disagree with what's actually happening right now.
+  const nowMs = Date.now();
+  const patchedHourly = forecastData.hourly.map((h) =>
+    h.time.getTime() <= nowMs
+      ? { ...h, condition: currentData.condition, temp: currentData.temperature }
+      : h
+  );
+
   return {
     location: currentData.locationName,
     current: {
@@ -334,7 +344,7 @@ export async function fetchWeatherData(location?: string): Promise<WeatherData> 
       description: currentData.description,
     },
     forecast: forecastData.forecast,
-    hourly: forecastData.hourly,
+    hourly: patchedHourly,
     periods,
     lastUpdated: new Date(),
   };
