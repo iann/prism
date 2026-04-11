@@ -209,7 +209,7 @@ async function fetchForecastRaw(location?: LocationParam): Promise<{
 
   for (const item of data.list) {
     const date = new Date(item.dt * 1000);
-    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateKey = date.toISOString().split('T')[0]!; // group by UTC date (matches OWM's UTC-based data)
 
     if (!dailyData.has(dateKey)) {
       dailyData.set(dateKey, {
@@ -249,7 +249,7 @@ async function fetchForecastRaw(location?: LocationParam): Promise<{
       }
     }
 
-    const dayIndex = dayData.date.getDay();
+    const dayIndex = dayData.date.getUTCDay(); // use UTC day to match UTC-based grouping
     forecast.push({
       date: dayData.date,
       dayName: dayNames[dayIndex] || 'Day',

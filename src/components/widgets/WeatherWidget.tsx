@@ -399,8 +399,7 @@ function DayHeader({
   const globalMax = Math.max(...days.map((d) => d.high));
   const span = globalMax - globalMin || 1;
 
-  const todayMidnight = new Date();
-  todayMidnight.setHours(0, 0, 0, 0);
+  const todayUTCDate = new Date().toISOString().split('T')[0]!;
 
   const fmt = (f: number) =>
     useCelsius ? Math.round((f - 32) * 5 / 9) : Math.round(f);
@@ -408,11 +407,11 @@ function DayHeader({
   return (
     <div className="flex flex-col mt-1">
       {days.map((day, i) => {
-        const dayMidnight = new Date(day.date);
-        dayMidnight.setHours(0, 0, 0, 0);
-        const isToday = dayMidnight.getTime() === todayMidnight.getTime();
-        const localDayName = DAYS_SHORT_ARRAY[new Date(day.date).getDay()];
-        const label = isToday ? 'TODAY' : (localDayName?.toUpperCase() ?? day.dayName.toUpperCase());
+        // Compare UTC dates — server groups by UTC date (matching OWM's UTC data),
+        // so isToday must also use UTC to avoid timezone-shift duplicates/gaps.
+        const dayUTCDate = new Date(day.date).toISOString().split('T')[0]!;
+        const isToday = dayUTCDate === todayUTCDate;
+        const label = isToday ? 'TODAY' : day.dayName.toUpperCase();
 
         const leftPct  = ((day.low  - globalMin) / span) * 100;
         const widthPct = ((day.high - day.low)   / span) * 100;
