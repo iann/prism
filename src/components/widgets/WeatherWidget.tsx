@@ -90,6 +90,8 @@ export interface WeatherData {
   /** Next 24 hours of hourly forecast data for the timeline. */
   hourly?: HourlyForecast[];
   periods?: ForecastPeriod[];
+  sunrise?: Date;
+  sunset?: Date;
   lastUpdated: Date;
 }
 
@@ -306,6 +308,16 @@ export const WeatherWidget = React.memo(function WeatherWidget({
                 </span>
                 <WeatherTimeline hourly={hourlyData} />
                 <ConditionLegend hourly={hourlyData} />
+              </div>
+            )}
+
+            {/* Sunrise / sunset arc */}
+            {weatherData.sunrise && weatherData.sunset && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Sun
+                </span>
+                <SunriseSunsetArc sunrise={weatherData.sunrise} sunset={weatherData.sunset} />
               </div>
             )}
 
@@ -552,6 +564,189 @@ function WeatherIcon({
 
 
 /**
+ * SUNRISE / SUNSET ARC
+ * Full 24-hour timeline: right edge = 12 AM (midnight), left edge = next 12 AM.
+ * The single arc rises above the horizon between sunrise and sunset, and dips
+ * below at night. The sun/moon dot moves right-to-left as the day progresses,
+ * resetting to the right edge at midnight.
+ */
+function SunriseSunsetArc({ sunrise, sunset }: { sunrise: Date; sunset: Date }) {
+  const [width, setWidth] = React.useState(220);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const nowMs  = Date.now();
+  const riseMs = sunrise.getTime();
+  const setMs  = sunset.getTime();
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const midnightMs = today.getTime();
+
+  const dayMs   = setMs - riseMs;
+  const nightMs = 24 * 3_600_000 - dayMs;
+  const isDay   = nowMs >= riseMs && nowMs <= setMs;
+
+  const H        = 110;
+  const horizonY = 66;
+  const pad      = 8;
+  const arcWidth = width - 2 * pad;
+  const ryTop    = horizonY - 10;      // peak height above horizon during day
+  const ryBot    = H - horizonY - 10;  // depth below horizon during night
+
+  // Y for any absolute timestamp — sinusoidal within each day/night half
+  const getY = (tAbs: number): number => {
+    if (tAbs >= riseMs && tAbs <= setMs) {
+      return horizonY - ryTop * Math.sin(Math.PI * (tAbs - riseMs) / dayMs);
+    } else if (tAbs > setMs) {
+      return horizonY + ryBot * Math.sin(Math.PI * (tAbs - setMs) / nightMs);
+    } else {
+      // Before sunrise: late-night phase (fraction from previous sunset)
+      return horizonY + ryBot * Math.sin(Math.PI * (1 - (riseMs - tAbs) / nightMs));
+    }
+  };
+
+  // X: frac=0 (midnight) → left edge; frac=1 (next midnight) → right edge
+  const xOf = (frac: number) => pad + frac * arcWidth;
+
+  const nowFrac  = Math.max(0, Math.min(1, (nowMs - midnightMs) / 86_400_000));
+  const riseFrac = (riseMs - midnightMs) / 86_400_000;
+  const setFrac  = (setMs  - midnightMs) / 86_400_000;
+
+  const sunX  = xOf(nowFrac);
+  const sunY  = getY(nowMs);
+  const riseX = xOf(riseFrac);
+  const setX  = xOf(setFrac);
+
+  // Build an SVG polyline path between two time fractions
+  const buildPath = (fromFrac: number, toFrac: number, steps: number): string => {
+    const pts: string[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const f = fromFrac + (i / steps) * (toFrac - fromFrac);
+      pts.push(`${i === 0 ? 'M' : 'L'} ${xOf(f).toFixed(1)} ${getY(midnightMs + f * 86_400_000).toFixed(1)}`);
+    }
+    return pts.join(' ');
+  };
+
+  const fullPath = buildPath(0, 1, 96);
+
+  // Elapsed arcs — scoped to avoid amber appearing on the wrong side of the horizon.
+  // Daytime:       amber from sunrise → now (in progress).
+  // After sunset:  amber from sunrise → sunset (completed day) + gray from sunset → now.
+  // Before sunrise: gray from midnight → now (still in overnight).
+  let elapsedDayPath: string | null = null;
+  let elapsedNightPath: string | null = null;  // post-sunset night portion
+  let elapsedPreDawnPath: string | null = null; // midnight → sunrise portion
+
+  if (isDay) {
+    if (nowFrac > riseFrac + 0.002) {
+      elapsedDayPath = buildPath(riseFrac, nowFrac, Math.max(4, Math.round(96 * (nowFrac - riseFrac))));
+    }
+  } else if (nowMs > setMs) {
+    // Full day completed: pre-dawn night + full day arc + post-sunset night so far
+    elapsedPreDawnPath = buildPath(0, riseFrac, Math.max(4, Math.round(96 * riseFrac)));
+    elapsedDayPath     = buildPath(riseFrac, setFrac, Math.max(8, Math.round(96 * (setFrac - riseFrac))));
+    if (nowFrac > setFrac + 0.002) {
+      elapsedNightPath = buildPath(setFrac, nowFrac, Math.max(4, Math.round(96 * (nowFrac - setFrac))));
+    }
+  } else {
+    if (nowFrac > 0.01) {
+      elapsedNightPath = buildPath(0, nowFrac, Math.max(4, Math.round(96 * nowFrac)));
+    }
+  }
+
+  const fmt  = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const dayH = Math.floor(dayMs / 3_600_000);
+  const dayM = Math.round((dayMs % 3_600_000) / 60_000);
+
+  return (
+    <div ref={containerRef} className="flex flex-col gap-1 w-full">
+      <svg width={width} height={H} style={{ display: 'block', overflow: 'visible' }}>
+        {/* Horizon line */}
+        <line
+          x1={pad - 4} y1={horizonY} x2={width - pad + 4} y2={horizonY}
+          stroke="currentColor" strokeOpacity={0.12} strokeWidth={1}
+        />
+
+        {/* Sunrise / sunset tick marks */}
+        <line x1={riseX} y1={horizonY - 5} x2={riseX} y2={horizonY + 5}
+          stroke="currentColor" strokeOpacity={0.3} strokeWidth={1.5} />
+        <line x1={setX}  y1={horizonY - 5} x2={setX}  y2={horizonY + 5}
+          stroke="currentColor" strokeOpacity={0.3} strokeWidth={1.5} />
+
+        {/* Full 24-hour arc — dashed */}
+        <path
+          d={fullPath}
+          fill="none" stroke="currentColor"
+          strokeOpacity={0.2} strokeWidth={2} strokeDasharray="4 3"
+        />
+
+        {/* Elapsed daytime arc — amber */}
+        {elapsedDayPath && (
+          <path
+            d={elapsedDayPath}
+            fill="none" stroke="#FBBF24"
+            strokeOpacity={0.7} strokeWidth={2.5} strokeLinecap="round"
+          />
+        )}
+
+        {/* Elapsed pre-dawn arc — muted (midnight → sunrise) */}
+        {elapsedPreDawnPath && (
+          <path
+            d={elapsedPreDawnPath}
+            fill="none" stroke="#94A3B8"
+            strokeOpacity={0.45} strokeWidth={2.5} strokeLinecap="round"
+          />
+        )}
+
+        {/* Elapsed post-sunset arc — muted (sunset → now) */}
+        {elapsedNightPath && (
+          <path
+            d={elapsedNightPath}
+            fill="none" stroke="#94A3B8"
+            strokeOpacity={0.45} strokeWidth={2.5} strokeLinecap="round"
+          />
+        )}
+
+        {/* Sun glow */}
+        {isDay && <circle cx={sunX} cy={sunY} r={16} fill="#FBBF24" opacity={0.2} />}
+
+        {/* Sun / moon dot */}
+        <circle
+          cx={sunX} cy={sunY}
+          r={isDay ? 7 : 5}
+          fill={isDay ? '#FBBF24' : '#94A3B8'}
+          opacity={isDay ? 1 : 0.65}
+        />
+      </svg>
+
+      {/* Labels: sunrise/sunset at their x positions, daylight duration between */}
+      <div className="relative h-4 text-[11px] text-muted-foreground/70 select-none">
+        <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: riseX }}>
+          {fmt(sunrise)}
+        </span>
+        <span className="absolute -translate-x-1/2 whitespace-nowrap opacity-60" style={{ left: (riseX + setX) / 2 }}>
+          {dayH}h {dayM}m
+        </span>
+        <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: setX }}>
+          {fmt(sunset)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+
+/**
  * DEMO DATA
  * Realistic variety for development/testing.
  */
@@ -586,6 +781,11 @@ function getDemoWeatherData(location: string): WeatherData {
     };
   });
 
+  const sunrise = new Date(today);
+  sunrise.setHours(6, 27, 0, 0);
+  const sunset = new Date(today);
+  sunset.setHours(19, 48, 0, 0);
+
   return {
     location:    location || 'Melrose, MA',
     current: {
@@ -598,6 +798,8 @@ function getDemoWeatherData(location: string): WeatherData {
     },
     forecast,
     hourly: generateHourlyFromForecast(forecast),
+    sunrise,
+    sunset,
     lastUpdated: new Date(),
   };
 }
