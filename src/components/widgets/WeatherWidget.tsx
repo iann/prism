@@ -156,78 +156,6 @@ function tempToColor(fahrenheit: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-/**
- * CONDITION → TIMELINE COLOR MAPPING
- */
-const CONDITION_COLORS: Record<WeatherCondition, string> = {
-  'sunny':         '#FBBF24',  // amber-400
-  'partly-cloudy': '#7DD3FC',  // sky-300
-  'cloudy':        '#94A3B8',  // slate-400
-  'rainy':         '#60A5FA',  // blue-400
-  'snowy':         '#BAE6FD',  // sky-200
-  'stormy':        '#64748B',  // slate-500
-};
-
-const CONDITION_LABELS: Record<WeatherCondition, string> = {
-  'sunny':         'Sunny',
-  'partly-cloudy': 'Partly Cloudy',
-  'cloudy':        'Cloudy',
-  'rainy':         'Rainy',
-  'snowy':         'Snowy',
-  'stormy':        'Stormy',
-};
-
-/**
- * Build merry-timeline items from hourly forecast data.
- *
- * text = condition name so it appears on the colored stripe.
- * The library derives time ticks from the `time` field automatically.
- * Adjacent hours sharing the same condition merge into one labeled block,
- * matching the Dark Sky-style presentation.
- */
-function buildHourlyTimelineItems(
-  hourly: HourlyForecast[],
-): Array<{ time: number; color: string; text: string }> {
-  return hourly.slice(0, 24).map((h) => ({
-    time:  Math.floor(h.time.getTime() / 1000),
-    color: CONDITION_COLORS[h.condition],
-    text:  CONDITION_LABELS[h.condition],
-  }));
-}
-
-/**
- * Derive hourly forecast from daily data when no explicit hourly data is provided.
- * Assigns each hour the condition of its forecast day and uses a sine-curve
- * temperature that peaks around 2pm and bottoms out around 6am.
- */
-function generateHourlyFromForecast(forecast: ForecastDay[]): HourlyForecast[] {
-  if (forecast.length === 0) return [];
-
-  const now = new Date();
-  const startHour = new Date(now);
-  startHour.setMinutes(0, 0, 0);
-
-  return Array.from({ length: 24 }, (_, i) => {
-    const time = new Date(startHour.getTime() + i * 3_600_000);
-
-    // Match this hour to a forecast day by calendar date
-    const timeDate = new Date(time);
-    timeDate.setHours(0, 0, 0, 0);
-    const day =
-      forecast.find((d) => {
-        const fd = new Date(d.date);
-        fd.setHours(0, 0, 0, 0);
-        return fd.getTime() === timeDate.getTime();
-      }) ?? forecast[0]!;
-
-    // Smooth temperature curve: low at 6am, peak at 2pm (hour 14)
-    const h = time.getHours();
-    const fraction = Math.max(0, Math.sin(((h - 6) / 16) * Math.PI));
-    const temp = Math.round(day.low + (day.high - day.low) * fraction);
-
-    return { time, condition: day.condition, temp };
-  });
-}
 
 function formatTempDisplay(fahrenheit: number, useCelsius: boolean): string {
   if (useCelsius) {
@@ -259,12 +187,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
   // Clamp forecast days: default 5, max 7, min 1
   const resolvedDays = forecastDays ?? Math.min(5, Math.max(1, weatherData.forecast.length));
 
-  // Resolve hourly data — use explicit field or derive from daily forecast
-  const hourlyData: HourlyForecast[] =
-    weatherData.hourly ?? generateHourlyFromForecast(weatherData.forecast);
-
-  const hasDays   = weatherData.forecast.length > 0;
-  const hasHourly = hourlyData.length > 0;
+  const hasDays = weatherData.forecast.length > 0;
 
   return (
     <WidgetContainer
@@ -284,32 +207,19 @@ export const WeatherWidget = React.memo(function WeatherWidget({
         />
 
         {/* FORECAST SECTION */}
-        {showForecast && (hasDays || hasHourly) && (
+        {showForecast && hasDays && (
           <div className="border-t border-border pt-3 flex-1 min-h-0 flex flex-col gap-3">
 
             {/* Multi-day summary */}
-            {hasDays && (
-              <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {resolvedDays}-Day Forecast
-                </span>
-                <DayHeader
-                  days={weatherData.forecast.slice(0, resolvedDays)}
-                  useCelsius={useCelsius}
-                />
-              </div>
-            )}
-
-            {/* 24-hour hourly timeline */}
-            {hasHourly && (
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Next 24 Hours
-                </span>
-                <WeatherTimeline hourly={hourlyData} />
-                <ConditionLegend hourly={hourlyData} />
-              </div>
-            )}
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {resolvedDays}-Day Forecast
+              </span>
+              <DayHeader
+                days={weatherData.forecast.slice(0, resolvedDays)}
+                useCelsius={useCelsius}
+              />
+            </div>
 
             {/* Sunrise / sunset arc */}
             {weatherData.sunrise && weatherData.sunset && (
@@ -471,75 +381,6 @@ function DayHeader({
  * Each stripe = one hour, colored by condition, labeled with the time.
  */
 // Cache the import promise so the module is only fetched once.
-const timelineLibPromise =
-  typeof window !== 'undefined' ? import('merry-timeline') : null;
-
-function WeatherTimeline({ hourly }: { hourly: HourlyForecast[] }) {
-  const timelineRef = React.useRef<HTMLDivElement>(null);
-
-  const items = React.useMemo(
-    () => buildHourlyTimelineItems(hourly),
-    [hourly]
-  );
-
-  React.useEffect(() => {
-    if (!timelineRef.current || items.length === 0 || !timelineLibPromise) return;
-    const container = timelineRef.current;
-    let cancelled = false;
-
-    timelineLibPromise.then((mod) => {
-      if (cancelled || !timelineRef.current) return;
-      container.innerHTML = '';
-      mod.default(container, items, {
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      });
-    });
-
-    return () => { cancelled = true; };
-  }, [items]);
-
-  return (
-    <div
-      ref={timelineRef}
-      className={cn(
-        'rounded-lg overflow-hidden w-full',
-        'bg-slate-50 dark:bg-slate-700',
-        '[&>*]:!max-w-full',
-      )}
-      style={{ minHeight: '64px' }}
-      aria-label="Next 24 hours weather timeline"
-    />
-  );
-}
-
-
-/**
- * CONDITION LEGEND
- * Color swatches for each unique condition appearing in the hourly data.
- * Hidden when all 24 hours share the same condition.
- */
-function ConditionLegend({ hourly }: { hourly: HourlyForecast[] }) {
-  const unique = Array.from(new Set(hourly.map((h) => h.condition)));
-
-  if (unique.length <= 1) return null;
-
-  return (
-    <div className="flex flex-wrap gap-x-3 gap-y-1">
-      {unique.map((condition) => (
-        <div key={condition} className="flex items-center gap-1">
-          <span
-            className="inline-block h-2 w-2 rounded-sm flex-shrink-0"
-            style={{ backgroundColor: CONDITION_COLORS[condition] }}
-          />
-          <span className="text-[10px] text-muted-foreground capitalize">
-            {condition.replace('-', ' ')}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 
 /**
  * WEATHER ICON
@@ -799,7 +640,7 @@ function getDemoWeatherData(location: string): WeatherData {
       description: 'Partly cloudy',
     },
     forecast,
-    hourly: generateHourlyFromForecast(forecast),
+
     sunrise,
     sunset,
     lastUpdated: new Date(),
