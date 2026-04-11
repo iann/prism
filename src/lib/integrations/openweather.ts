@@ -37,6 +37,10 @@ interface OpenWeatherCurrent {
     description: string;
     icon: string;
   }>;
+  sys: {
+    sunrise: number; // Unix timestamp
+    sunset: number;  // Unix timestamp
+  };
   name: string;
 }
 
@@ -126,7 +130,7 @@ function mpsToMph(mps: number): number {
  */
 export async function fetchCurrentWeather(
   location?: string
-): Promise<CurrentWeather & { locationName: string }> {
+): Promise<CurrentWeather & { locationName: string; sunrise: Date; sunset: Date }> {
   const config = getConfig();
   const loc = location || config.location;
 
@@ -154,6 +158,8 @@ export async function fetchCurrentWeather(
     windSpeed: mpsToMph(data.wind.speed),
     description: weather.description,
     locationName: data.name,
+    sunrise: new Date(data.sys.sunrise * 1000),
+    sunset: new Date(data.sys.sunset * 1000),
   };
 }
 
@@ -346,6 +352,8 @@ export async function fetchWeatherData(location?: string): Promise<WeatherData> 
     forecast: forecastData.forecast,
     hourly: patchedHourly,
     periods,
+    sunrise: currentData.sunrise,
+    sunset: currentData.sunset,
     lastUpdated: new Date(),
   };
 }
