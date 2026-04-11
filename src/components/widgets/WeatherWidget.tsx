@@ -411,7 +411,8 @@ function DayHeader({
         const dayMidnight = new Date(day.date);
         dayMidnight.setHours(0, 0, 0, 0);
         const isToday = dayMidnight.getTime() === todayMidnight.getTime();
-        const label = isToday ? 'TODAY' : day.dayName.toUpperCase();
+        const localDayName = DAYS_SHORT_ARRAY[new Date(day.date).getDay()];
+        const label = isToday ? 'TODAY' : (localDayName?.toUpperCase() ?? day.dayName.toUpperCase());
 
         const leftPct  = ((day.low  - globalMin) / span) * 100;
         const widthPct = ((day.high - day.low)   / span) * 100;
