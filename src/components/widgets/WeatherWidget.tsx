@@ -184,8 +184,8 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
   const isVertical = gridH > gridW;
 
-  // Clamp forecast days: default 5, max 7, min 1
-  const resolvedDays = forecastDays ?? Math.min(5, Math.max(1, weatherData.forecast.length));
+  // Clamp forecast days: default 7, max 7, min 1
+  const resolvedDays = forecastDays ?? Math.min(7, Math.max(1, weatherData.forecast.length));
 
   const hasDays = weatherData.forecast.length > 0;
 

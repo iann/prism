@@ -231,7 +231,7 @@ async function fetchForecastRaw(location?: LocationParam): Promise<{
   let count = 0;
 
   for (const [, dayData] of dailyData) {
-    if (count >= 5) break;
+    if (count >= 7) break;
 
     const high = Math.max(...dayData.temps);
     const low = Math.min(...dayData.temps);
