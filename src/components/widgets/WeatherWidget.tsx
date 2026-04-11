@@ -648,6 +648,8 @@ function SunriseSunsetArc({ sunrise, sunset }: { sunrise: Date; sunset: Date }) 
   let elapsedPreDawnPath: string | null = null; // midnight → sunrise portion
 
   if (isDay) {
+    // Midnight → sunrise has already passed
+    elapsedPreDawnPath = buildPath(0, riseFrac, Math.max(4, Math.round(96 * riseFrac)));
     if (nowFrac > riseFrac + 0.002) {
       elapsedDayPath = buildPath(riseFrac, nowFrac, Math.max(4, Math.round(96 * (nowFrac - riseFrac))));
     }
@@ -664,7 +666,7 @@ function SunriseSunsetArc({ sunrise, sunset }: { sunrise: Date; sunset: Date }) 
     }
   }
 
-  const fmt  = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const fmt  = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
   const dayH = Math.floor(dayMs / 3_600_000);
   const dayM = Math.round((dayMs % 3_600_000) / 60_000);
 
