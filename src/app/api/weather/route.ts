@@ -1,6 +1,6 @@
 /**
  *
- * Provides weather data from OpenWeatherMap API.
+ * Provides weather data via the configured weather provider (see WEATHER_PROVIDER env var).
  *
  * ENDPOINT: /api/weather
  * - GET: Fetch current weather and forecast
@@ -12,7 +12,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { optionalAuth } from '@/lib/auth';
-import { fetchWeatherData, type LocationParam } from '@/lib/integrations/openweather';
+import { fetchWeatherData } from '@/lib/integrations/weather';
+import type { LocationParam } from '@/lib/integrations/openweather';
 import { getCached } from '@/lib/cache/redis';
 import { db } from '@/lib/db/client';
 import { settings } from '@/lib/db/schema';

@@ -75,12 +75,20 @@ export interface HourlyForecast {
   time: Date;
   condition: WeatherCondition;
   temp: number; // °F
+  precipProbability?: number; // 0–100
 }
 
 export interface ForecastPeriod {
   label: string;
   temp: number;
   condition: WeatherCondition;
+}
+
+/** One minute of precipitation data from the minutely forecast. */
+export interface MinutelyData {
+  time: number;           // unix timestamp
+  precipIntensity: number;  // mm/hr
+  precipProbability: number; // 0–1
 }
 
 export interface WeatherData {
@@ -90,6 +98,8 @@ export interface WeatherData {
   /** Next 24 hours of hourly forecast data for the timeline. */
   hourly?: HourlyForecast[];
   periods?: ForecastPeriod[];
+  /** Next 60 minutes of minute-by-minute precipitation data. */
+  minutely?: MinutelyData[];
   sunrise?: Date;
   sunset?: Date;
   lastUpdated: Date;
@@ -189,6 +199,9 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
   const hasDays = weatherData.forecast.length > 0;
 
+  // Show precipitation chart automatically when rain is imminent (any minute > 0.01 mm/hr)
+  const hasImminentRain = (weatherData.minutely ?? []).some((m) => m.precipIntensity > 0.01);
+
   return (
     <WidgetContainer
       icon={<Cloud className="h-4 w-4" />}
@@ -205,6 +218,13 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           location={weatherData.location}
           useCelsius={useCelsius}
         />
+
+        {/* 24-HOUR TIMELINE */}
+        {weatherData.hourly && weatherData.hourly.length > 0 && (
+          <div className="border-t border-border pt-3">
+            <HourlyTimeline hourly={weatherData.hourly} useCelsius={useCelsius} />
+          </div>
+        )}
 
         {/* FORECAST SECTION */}
         {showForecast && hasDays && (
@@ -228,6 +248,13 @@ export const WeatherWidget = React.memo(function WeatherWidget({
                   Sun
                 </span>
                 <SunriseSunsetArc sunrise={weatherData.sunrise} sunset={weatherData.sunset} />
+              </div>
+            )}
+
+            {/* Precipitation chart — auto-shown when rain is imminent */}
+            {hasImminentRain && weatherData.minutely && weatherData.minutely.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <PrecipitationChart minutely={weatherData.minutely} />
               </div>
             )}
 
@@ -401,6 +428,133 @@ function WeatherIcon({
     'stormy':        <Zap className={className} />,
   };
   return <>{icons[condition] ?? <Cloud className={className} />}</>;
+}
+
+
+/**
+ * HOURLY TIMELINE
+ * Dark Sky-style horizontal scrollable strip showing the next 24 hours.
+ * Each column: time label, condition icon, temperature (color-coded), precip bar.
+ */
+function HourlyTimeline({
+  hourly,
+  useCelsius,
+}: {
+  hourly: HourlyForecast[];
+  useCelsius: boolean;
+}) {
+  const fmt = (f: number) =>
+    useCelsius ? Math.round((f - 32) * 5 / 9) : Math.round(f);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Next 24 Hours
+      </span>
+      {/* Horizontally scrollable strip */}
+      <div className="overflow-x-auto pb-0.5 -mx-1 px-1">
+        <div className="flex gap-0.5" style={{ minWidth: 'max-content' }}>
+          {hourly.map((h, i) => {
+            const isNow = i === 0;
+            const timeLabel = h.time
+              .toLocaleTimeString([], { hour: 'numeric', hour12: true })
+              .toLowerCase()
+              .replace(' ', '');
+            const precip = h.precipProbability ?? 0;
+
+            return (
+              <div
+                key={i}
+                className={cn(
+                  'flex flex-col items-center gap-0.5 w-9 pt-1 pb-1 px-0.5 rounded',
+                  isNow && 'bg-muted/50'
+                )}
+              >
+                {/* Time */}
+                <span className="text-[9px] text-muted-foreground/70 leading-none whitespace-nowrap">
+                  {isNow ? 'Now' : timeLabel}
+                </span>
+                {/* Condition icon */}
+                <WeatherIcon
+                  condition={h.condition}
+                  className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0"
+                />
+                {/* Temperature */}
+                <span
+                  className="text-[11px] font-semibold leading-none tabular-nums"
+                  style={{ color: tempToColor(h.temp) }}
+                >
+                  {fmt(h.temp)}°
+                </span>
+                {/* Precipitation probability bar */}
+                <div className="w-full flex flex-col items-center gap-px mt-0.5">
+                  <div className="w-full h-5 flex items-end">
+                    <div
+                      className="w-full rounded-sm bg-blue-400"
+                      style={{
+                        height: `${Math.max(precip > 0 ? 12 : 0, precip)}%`,
+                        opacity: precip > 0 ? 0.4 + 0.5 * (precip / 100) : 0.1,
+                      }}
+                    />
+                  </div>
+                  {precip >= 10 && (
+                    <span className="text-[9px] text-blue-400/80 leading-none tabular-nums">
+                      {precip}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/**
+ * PRECIPITATION CHART
+ * Bar chart showing minute-by-minute precipitation intensity over the next 60 minutes.
+ * Auto-shown when any minute has precipIntensity > 0.01 mm/hr.
+ */
+function PrecipitationChart({ minutely }: { minutely: MinutelyData[] }) {
+  const maxIntensity = Math.max(...minutely.map((m) => m.precipIntensity), 0.1);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+        <CloudRain className="h-3 w-3 text-blue-400" />
+        Rain next 60 min
+      </span>
+      {/* Bars */}
+      <div className="flex items-end gap-px h-10 w-full">
+        {minutely.map((m, i) => {
+          const heightPct =
+            m.precipIntensity > 0
+              ? Math.max(8, (m.precipIntensity / maxIntensity) * 100)
+              : 0;
+          const opacity = 0.4 + 0.6 * (m.precipIntensity / maxIntensity);
+          return (
+            <div
+              key={i}
+              className="flex-1 rounded-sm bg-blue-400"
+              style={{
+                height: `${heightPct}%`,
+                opacity: m.precipIntensity > 0 ? opacity : 0.08,
+              }}
+            />
+          );
+        })}
+      </div>
+      {/* Time labels */}
+      <div className="flex justify-between text-[10px] text-muted-foreground/60 select-none">
+        <span>Now</span>
+        <span>+30m</span>
+        <span>+60m</span>
+      </div>
+    </div>
+  );
 }
 
 
@@ -629,6 +783,36 @@ function getDemoWeatherData(location: string): WeatherData {
   const sunset = new Date(today);
   sunset.setHours(19, 48, 0, 0);
 
+  // Demo hourly data: 24 hours starting now
+  const hourlyConditions: WeatherCondition[] = [
+    'partly-cloudy', 'partly-cloudy', 'cloudy', 'rainy', 'rainy',
+    'rainy', 'cloudy', 'cloudy', 'partly-cloudy', 'sunny',
+    'sunny', 'sunny', 'partly-cloudy', 'cloudy', 'rainy',
+    'rainy', 'cloudy', 'cloudy', 'partly-cloudy', 'partly-cloudy',
+    'cloudy', 'cloudy', 'rainy', 'rainy',
+  ];
+  const hourlyTemps = [
+    52, 51, 50, 49, 48, 47, 47, 48, 50, 53,
+    55, 57, 57, 56, 54, 52, 51, 50, 49, 48,
+    47, 47, 46, 46,
+  ];
+  const hourlyPrecips = [
+    20, 25, 35, 65, 80, 75, 55, 40, 20, 5,
+    0, 0, 10, 30, 70, 85, 60, 40, 25, 15,
+    20, 30, 60, 75,
+  ];
+  const hourly: HourlyForecast[] = Array.from({ length: 24 }, (_, i) => {
+    const t = new Date(today);
+    t.setMinutes(0, 0, 0);
+    t.setHours(t.getHours() + i);
+    return {
+      time: t,
+      condition: hourlyConditions[i] ?? 'cloudy',
+      temp: hourlyTemps[i] ?? 50,
+      precipProbability: hourlyPrecips[i] ?? 0,
+    };
+  });
+
   return {
     location:    location || 'Melrose, MA',
     current: {
@@ -640,7 +824,7 @@ function getDemoWeatherData(location: string): WeatherData {
       description: 'Partly cloudy',
     },
     forecast,
-
+    hourly,
     sunrise,
     sunset,
     lastUpdated: new Date(),
