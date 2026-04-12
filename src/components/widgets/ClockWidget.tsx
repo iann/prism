@@ -402,8 +402,16 @@ export const ClockWidget = React.memo(function ClockWidget({
 
     // Sticky selection: use date string to create a deterministic index
     const list = greetings[bucket];
-    const hash = dateStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const index = hash % list.length;
+    
+    // djb2 hash algorithm for better distribution across large lists
+    // This ensures we reach all items and that similar dates produce different results
+    const hash = dateStr.split('').reduce((acc, char) => {
+      // (acc << 5) + acc is equivalent to acc * 33
+      return ((acc << 5) + acc) + char.charCodeAt(0);
+    }, 5381); // 5381 is a common magic number for djb2
+
+    // Use Math.abs because bitwise operations in JS treat operands as 32-bit signed ints
+    const index = Math.abs(hash) % list.length;
 
     return list[index];
   };
