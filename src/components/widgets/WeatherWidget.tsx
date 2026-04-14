@@ -497,7 +497,14 @@ function HourlyTimeline({ hourly }: { hourly: HourlyForecast[] }) {
       text: conditionLabel(h.condition, h.precipIntensity),
     }));
 
-    timeline(el, data, {});
+    // Use ResizeObserver to pass the actual pixel width to merry-timeline
+    // so it renders correctly even before the layout has fully settled.
+    const ro = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) timeline(el, data, { width });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [hourly]);
 
   return (
