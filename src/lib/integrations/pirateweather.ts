@@ -135,7 +135,7 @@ function mapIcon(icon: string): WeatherCondition {
  * @param locationNameOverride  Optional display name override (e.g. from DB or
  *                              query param). Coordinates always come from env.
  */
-export async function fetchWeatherData(locationNameOverride?: string): Promise<WeatherData> {
+export async function fetchWeatherData(_locationNameOverride?: string): Promise<WeatherData> {
   const config = getConfig();
 
   const url =
@@ -238,7 +238,7 @@ export async function fetchWeatherData(locationNameOverride?: string): Promise<W
   const minutelyData: MinutelyData[] | undefined = minutely?.data;
 
   return {
-    location: locationNameOverride ?? config.locationName,
+    location: config.locationName,
     current,
     forecast,
     hourly: patchedHourly,
