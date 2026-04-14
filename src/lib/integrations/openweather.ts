@@ -61,6 +61,7 @@ interface OpenWeatherForecast {
   city: {
     name: string;
     country: string;
+    timezone: number; // UTC offset in seconds (e.g., -18000 for CDT)
   };
 }
 
@@ -201,7 +202,11 @@ async function fetchForecastRaw(location?: LocationParam): Promise<{
   const data: OpenWeatherForecast = await response.json();
   const dayNames = DAYS_SHORT_ARRAY;
 
-  // Group forecast by day and find daily highs/lows
+  // Group forecast by location-local day (using the city's UTC offset)
+  // so that day boundaries align with midnight at the weather location,
+  // not UTC midnight (which can be as early as 7 PM in US time zones).
+  const tzOffsetSec = data.city.timezone;
+
   const dailyData = new Map<
     string,
     { date: Date; temps: number[]; conditions: number[] }
@@ -209,7 +214,9 @@ async function fetchForecastRaw(location?: LocationParam): Promise<{
 
   for (const item of data.list) {
     const date = new Date(item.dt * 1000);
-    const dateKey = date.toISOString().split('T')[0]!; // group by UTC date (matches OWM's UTC-based data)
+    // Shift by the location's UTC offset so the ISO date reflects local date
+    const localShifted = new Date((item.dt + tzOffsetSec) * 1000);
+    const dateKey = localShifted.toISOString().split('T')[0]!;
 
     if (!dailyData.has(dateKey)) {
       dailyData.set(dateKey, {
@@ -249,7 +256,9 @@ async function fetchForecastRaw(location?: LocationParam): Promise<{
       }
     }
 
-    const dayIndex = dayData.date.getUTCDay(); // use UTC day to match UTC-based grouping
+    // Use location-local day of week (shift by timezone offset, then read UTC day)
+    const localShiftedDate = new Date(dayData.date.getTime() + tzOffsetSec * 1000);
+    const dayIndex = localShiftedDate.getUTCDay();
     forecast.push({
       date: dayData.date,
       dayName: dayNames[dayIndex] || 'Day',

@@ -336,7 +336,10 @@ function DayHeader({
   const globalMax = Math.max(...days.map((d) => d.high));
   const span = globalMax - globalMin || 1;
 
-  const todayUTCDate = new Date().toISOString().split('T')[0]!;
+  // Use local date comparison — server now groups by location-local date,
+  // and the browser is assumed to be in the same timezone as the location.
+  const now = new Date();
+  const todayLocalStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const fmt = (f: number) =>
     useCelsius ? Math.round((f - 32) * 5 / 9) : Math.round(f);
@@ -344,10 +347,9 @@ function DayHeader({
   return (
     <div className="flex flex-col mt-1">
       {days.map((day, i) => {
-        // Compare UTC dates — server groups by UTC date (matching OWM's UTC data),
-        // so isToday must also use UTC to avoid timezone-shift duplicates/gaps.
-        const dayUTCDate = new Date(day.date).toISOString().split('T')[0]!;
-        const isToday = dayUTCDate === todayUTCDate;
+        const d = new Date(day.date);
+        const dayLocalStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const isToday = dayLocalStr === todayLocalStr;
         const label = isToday ? 'TODAY' : day.dayName.toUpperCase();
 
         const leftPct  = ((day.low  - globalMin) / span) * 100;
