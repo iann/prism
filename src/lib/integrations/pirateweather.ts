@@ -185,7 +185,7 @@ export async function fetchWeatherData(locationNameOverride?: string): Promise<W
 
   // ── Hourly: next 24 hours ─────────────────────────────────────────────────
   const nowMs = Date.now();
-  const cutoff = nowMs + 24 * 3_600_000;
+  const cutoff = nowMs + 12 * 3_600_000;
   const hourlyData: HourlyForecast[] = hourly.data
     .filter((h) => {
       const t = h.time * 1000;
@@ -196,13 +196,14 @@ export async function fetchWeatherData(locationNameOverride?: string): Promise<W
       condition: mapIcon(h.icon),
       temp: Math.round(h.temperature),
       precipProbability: Math.round(h.precipProbability * 100),
+      precipIntensity: h.precipIntensity,
     }));
 
-  // Override the currently-active hour with observed current conditions
-  // (keep precipProbability from the forecast — the observed value isn't in currently{})
+  // Override the currently-active hour with observed current conditions.
+  // Use currently.precipIntensity for intensity so the label reflects reality.
   const patchedHourly = hourlyData.map((h) =>
     h.time.getTime() <= nowMs
-      ? { ...h, condition: current.condition, temp: current.temperature }
+      ? { ...h, condition: current.condition, temp: current.temperature, precipIntensity: currently.precipIntensity }
       : h
   );
 

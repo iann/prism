@@ -36,6 +36,7 @@ import {
   Droplets,
   Zap,
 } from 'lucide-react';
+import timeline from 'merry-timeline';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import { WidgetContainer } from './WidgetContainer';
@@ -76,6 +77,7 @@ export interface HourlyForecast {
   condition: WeatherCondition;
   temp: number; // °F
   precipProbability?: number; // 0–100
+  precipIntensity?: number;   // mm/hr
 }
 
 export interface ForecastPeriod {
@@ -167,6 +169,13 @@ function tempToColor(fahrenheit: number): string {
 }
 
 
+/** Normalize "City,State,Country" → "City, State" regardless of upstream format. */
+function formatLocation(location: string): string {
+  const parts = location.split(',').map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 1) return parts[0]!;
+  return location;
+}
+
 function formatTempDisplay(fahrenheit: number, useCelsius: boolean): string {
   if (useCelsius) {
     return `${Math.round((fahrenheit - 32) * 5 / 9)}°C`;
@@ -222,7 +231,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
         {/* 24-HOUR TIMELINE */}
         {weatherData.hourly && weatherData.hourly.length > 0 && (
           <div className="border-t border-border pt-3">
-            <HourlyTimeline hourly={weatherData.hourly} useCelsius={useCelsius} />
+            <HourlyTimeline hourly={weatherData.hourly} />
           </div>
         )}
 
@@ -296,7 +305,7 @@ function CurrentConditions({
           </div>
           {location && (
             <div className="text-xs text-muted-foreground/70 mt-0.5 truncate max-w-[140px]">
-              {location}
+              {formatLocation(location)}
             </div>
           )}
         </div>
@@ -405,11 +414,47 @@ function DayHeader({
 
 
 /**
- * WEATHER TIMELINE
- * Renders the merry-timeline library for the next 24 hours of hourly data.
- * Each stripe = one hour, colored by condition, labeled with the time.
+ * CONDITION HELPERS (for merry-timeline stripes)
  */
-// Cache the import promise so the module is only fetched once.
+
+/** Map a WeatherCondition (+ optional precipIntensity) to a hex color for merry-timeline. */
+function conditionToHex(condition: WeatherCondition, precipIntensity?: number): string {
+  if (condition === 'rainy' && precipIntensity !== undefined) {
+    if (precipIntensity < 0.1) return '#B8D0E8'; // drizzle — very light blue
+    if (precipIntensity < 2.5) return '#7B9EC7'; // light rain
+    if (precipIntensity < 10)  return '#5A7DB5'; // moderate rain
+    return '#3A5C9A';                             // heavy rain — dark blue
+  }
+  const map: Record<WeatherCondition, string> = {
+    'sunny':         '#EAECF0', // near-white gray — Clear
+    'partly-cloudy': '#C8CBD6', // light gray
+    'cloudy':        '#A8ADB8', // medium gray
+    'rainy':         '#7B9EC7', // muted periwinkle blue (fallback, no intensity)
+    'snowy':         '#B8D4E8', // icy light blue
+    'stormy':        '#4A6FA5', // dark slate blue
+  };
+  return map[condition] ?? '#A8ADB8';
+}
+
+/** Map a WeatherCondition (+ optional precipIntensity) to a text label for merry-timeline. */
+function conditionLabel(condition: WeatherCondition, precipIntensity?: number): string {
+  if (condition === 'rainy' && precipIntensity !== undefined) {
+    if (precipIntensity < 0.1) return 'Drizzle';
+    if (precipIntensity < 2.5) return 'Light Rain';
+    if (precipIntensity < 10)  return 'Rain';
+    return 'Heavy Rain';
+  }
+  const map: Record<WeatherCondition, string> = {
+    'sunny':         'Clear',
+    'partly-cloudy': 'Partly Cloudy',
+    'cloudy':        'Cloudy',
+    'rainy':         'Rain',
+    'snowy':         'Snow',
+    'stormy':        'Thunderstorm',
+  };
+  return map[condition] ?? 'Cloudy';
+}
+
 
 /**
  * WEATHER ICON
@@ -435,81 +480,32 @@ function WeatherIcon({
 
 /**
  * HOURLY TIMELINE
- * Dark Sky-style horizontal scrollable strip showing the next 24 hours.
- * Each column: time label, condition icon, temperature (color-coded), precip bar.
+ * Dark Sky-style color strip rendered by merry-timeline.
+ * Consecutive hours sharing the same condition merge into one labeled stripe.
+ * A red tracker line marks the current time. Hour labels appear below.
  */
-function HourlyTimeline({
-  hourly,
-  useCelsius,
-}: {
-  hourly: HourlyForecast[];
-  useCelsius: boolean;
-}) {
-  const fmt = (f: number) =>
-    useCelsius ? Math.round((f - 32) * 5 / 9) : Math.round(f);
+function HourlyTimeline({ hourly }: { hourly: HourlyForecast[] }) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el || hourly.length === 0) return;
+
+    const data = hourly.map((h) => ({
+      time: Math.floor(h.time.getTime() / 1000),
+      color: conditionToHex(h.condition, h.precipIntensity),
+      text: conditionLabel(h.condition, h.precipIntensity),
+    }));
+
+    timeline(el, data, {});
+  }, [hourly]);
 
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Next 24 Hours
+        Next 12 Hours
       </span>
-      {/* Horizontally scrollable strip */}
-      <div className="overflow-x-auto pb-0.5 -mx-1 px-1">
-        <div className="flex gap-0.5" style={{ minWidth: 'max-content' }}>
-          {hourly.map((h, i) => {
-            const isNow = i === 0;
-            const timeLabel = h.time
-              .toLocaleTimeString([], { hour: 'numeric', hour12: true })
-              .toLowerCase()
-              .replace(' ', '');
-            const precip = h.precipProbability ?? 0;
-
-            return (
-              <div
-                key={i}
-                className={cn(
-                  'flex flex-col items-center gap-0.5 w-9 pt-1 pb-1 px-0.5 rounded',
-                  isNow && 'bg-muted/50'
-                )}
-              >
-                {/* Time */}
-                <span className="text-[9px] text-muted-foreground/70 leading-none whitespace-nowrap">
-                  {isNow ? 'Now' : timeLabel}
-                </span>
-                {/* Condition icon */}
-                <WeatherIcon
-                  condition={h.condition}
-                  className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0"
-                />
-                {/* Temperature */}
-                <span
-                  className="text-[11px] font-semibold leading-none tabular-nums"
-                  style={{ color: tempToColor(h.temp) }}
-                >
-                  {fmt(h.temp)}°
-                </span>
-                {/* Precipitation probability bar */}
-                <div className="w-full flex flex-col items-center gap-px mt-0.5">
-                  <div className="w-full h-5 flex items-end">
-                    <div
-                      className="w-full rounded-sm bg-blue-400"
-                      style={{
-                        height: `${Math.max(precip > 0 ? 12 : 0, precip)}%`,
-                        opacity: precip > 0 ? 0.4 + 0.5 * (precip / 100) : 0.1,
-                      }}
-                    />
-                  </div>
-                  {precip >= 10 && (
-                    <span className="text-[9px] text-blue-400/80 leading-none tabular-nums">
-                      {precip}%
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <div ref={containerRef} className="w-full" />
     </div>
   );
 }
