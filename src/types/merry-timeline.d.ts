@@ -7,6 +7,7 @@ declare module 'merry-timeline' {
   interface TimelineOptions {
     timezone?: string;
     width?: number;
+    tracker?: number;
   }
   function timeline(
     el: HTMLElement,

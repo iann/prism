@@ -501,7 +501,7 @@ function HourlyTimeline({ hourly }: { hourly: HourlyForecast[] }) {
     // so it renders correctly even before the layout has fully settled.
     const ro = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width;
-      if (width) timeline(el, data, { width });
+      if (width) timeline(el, data, { width, tracker: 0 });
     });
     ro.observe(el);
     return () => ro.disconnect();
