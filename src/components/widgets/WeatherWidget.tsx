@@ -208,8 +208,10 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
   const hasDays = weatherData.forecast.length > 0;
 
-  // Show precipitation chart automatically when rain is imminent (any minute > 0.01 mm/hr)
+  // Show precipitation chart when rain is imminent (any minute > 0.01 mm/hr) and data is available
   const hasImminentRain = (weatherData.minutely ?? []).some((m) => m.precipIntensity > 0.01);
+  const showPrecipChart = hasImminentRain && !!weatherData.minutely?.length;
+  const showSunArc = !!weatherData.sunrise && !!weatherData.sunset && !showPrecipChart;
 
   return (
     <WidgetContainer
@@ -250,20 +252,20 @@ export const WeatherWidget = React.memo(function WeatherWidget({
               />
             </div>
 
-            {/* Sunrise / sunset arc */}
-            {weatherData.sunrise && weatherData.sunset && (
+            {/* Sunrise / sunset arc — replaced by precip chart when rain is imminent */}
+            {showSunArc && (
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Sun
                 </span>
-                <SunriseSunsetArc sunrise={weatherData.sunrise} sunset={weatherData.sunset} />
+                <SunriseSunsetArc sunrise={weatherData.sunrise!} sunset={weatherData.sunset!} />
               </div>
             )}
 
-            {/* Precipitation chart — auto-shown when rain is imminent */}
-            {hasImminentRain && weatherData.minutely && weatherData.minutely.length > 0 && (
+            {/* Precipitation chart — replaces sunrise/sunset arc when rain is coming in the next hour */}
+            {showPrecipChart && (
               <div className="flex flex-col gap-1">
-                <PrecipitationChart minutely={weatherData.minutely} />
+                <PrecipitationChart minutely={weatherData.minutely!} />
               </div>
             )}
 
@@ -520,46 +522,143 @@ function HourlyTimeline({ hourly }: { hourly: HourlyForecast[] }) {
 
 /**
  * PRECIPITATION CHART
- * Bar chart showing minute-by-minute precipitation intensity over the next 60 minutes.
+ * Smooth SVG area chart showing minute-by-minute precipitation intensity over
+ * the next 60 minutes.  Y-axis shows HEAVY / MED / LIGHT intensity bands with
+ * dotted reference lines; x-axis shows 10-minute interval labels.
  * Auto-shown when any minute has precipIntensity > 0.01 mm/hr.
  */
 function PrecipitationChart({ minutely }: { minutely: MinutelyData[] }) {
-  const maxIntensity = Math.max(...minutely.map((m) => m.precipIntensity), 0.1);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [width, setWidth] = React.useState(220);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Layout — no left padding needed since labels are inside the chart
+  const PAD_LEFT  = 4;
+  const PAD_RIGHT = 4;
+  const PAD_TOP   = 4;
+  const CHART_H   = 56;
+  const AXIS_H    = 14;
+  const totalH    = PAD_TOP + CHART_H + AXIS_H;
+  const chartW    = Math.max(1, width - PAD_LEFT - PAD_RIGHT);
+  const baseY     = PAD_TOP + CHART_H;
+
+  // Linear scale: 0–5 mm/hr maps to baseY..PAD_TOP (heavy rain clips to top, common events fill chart)
+  const MAX_MM = 5;
+  const intensityToY = (mm: number) =>
+    baseY - (Math.min(mm, MAX_MM) / MAX_MM) * CHART_H;
+
+  // Three equal zones — dotted lines are the boundaries, labels go in the middle of each zone
+  const ZONE_H       = CHART_H / 3;
+  const HEAVY_LINE_Y = PAD_TOP + ZONE_H;
+  const MED_LINE_Y   = PAD_TOP + ZONE_H * 2;
+
+  // Vertical center of each zone
+  const HEAVY_LABEL_Y = PAD_TOP + ZONE_H * 0.5;
+  const MED_LABEL_Y   = PAD_TOP + ZONE_H * 1.5;
+  const LIGHT_LABEL_Y = PAD_TOP + ZONE_H * 2.5;
+
+  // Convert minutely data to SVG points
+  const n = minutely.length;
+  const pts = minutely.map((m, i) => ({
+    x: PAD_LEFT + (i / Math.max(n - 1, 1)) * chartW,
+    y: intensityToY(m.precipIntensity),
+  }));
+
+  const linePath = catmullRomPath(pts);
+  const areaPath =
+    linePath +
+    ` L ${(PAD_LEFT + chartW).toFixed(1)} ${baseY} L ${PAD_LEFT} ${baseY} Z`;
+
+  const xTicks = [10, 20, 30, 40, 50].map((min) => ({
+    min,
+    x: PAD_LEFT + (min / 60) * chartW,
+  }));
 
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
         <CloudRain className="h-3 w-3 text-blue-400" />
-        Rain next 60 min
+        Rain next hour
       </span>
-      {/* Bars */}
-      <div className="flex items-end gap-px h-10 w-full">
-        {minutely.map((m, i) => {
-          const heightPct =
-            m.precipIntensity > 0
-              ? Math.max(8, (m.precipIntensity / maxIntensity) * 100)
-              : 0;
-          const opacity = 0.4 + 0.6 * (m.precipIntensity / maxIntensity);
-          return (
-            <div
-              key={i}
-              className="flex-1 rounded-sm bg-blue-400"
-              style={{
-                height: `${heightPct}%`,
-                opacity: m.precipIntensity > 0 ? opacity : 0.08,
-              }}
-            />
-          );
-        })}
-      </div>
-      {/* Time labels */}
-      <div className="flex justify-between text-[10px] text-muted-foreground/60 select-none">
-        <span>Now</span>
-        <span>+30m</span>
-        <span>+60m</span>
+      <div ref={containerRef} className="w-full">
+        <svg width={width} height={totalH} style={{ display: 'block' }}>
+          <defs>
+            <linearGradient id="precip-area-gradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#60A5FA" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.08" />
+            </linearGradient>
+          </defs>
+
+          {/* Zone boundary lines (between labels) */}
+          <line x1={PAD_LEFT} y1={HEAVY_LINE_Y} x2={PAD_LEFT + chartW} y2={HEAVY_LINE_Y}
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
+          <line x1={PAD_LEFT} y1={MED_LINE_Y} x2={PAD_LEFT + chartW} y2={MED_LINE_Y}
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
+
+          {/* Zone labels — vertically centered in their zone, inside the chart */}
+          <text x={PAD_LEFT + 4} y={HEAVY_LABEL_Y} textAnchor="start" fontSize={7.5}
+            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">HEAVY</text>
+          <text x={PAD_LEFT + 4} y={MED_LABEL_Y} textAnchor="start" fontSize={7.5}
+            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">MED</text>
+          <text x={PAD_LEFT + 4} y={LIGHT_LABEL_Y} textAnchor="start" fontSize={7.5}
+            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">LIGHT</text>
+
+          {/* Filled area */}
+          <path d={areaPath} fill="url(#precip-area-gradient)" />
+
+          {/* Top stroke */}
+          <path d={linePath} fill="none" stroke="#60A5FA" strokeWidth={1.5}
+            strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* Baseline */}
+          <line x1={PAD_LEFT} y1={baseY} x2={PAD_LEFT + chartW} y2={baseY}
+            stroke="currentColor" strokeOpacity={0.15} strokeWidth={1} />
+
+          {/* X-axis labels */}
+          {xTicks.map(({ min, x }) => (
+            <text key={min} x={x} y={baseY + 11} textAnchor="middle" fontSize={7.5}
+              fill="currentColor" fillOpacity={0.5}>{min} min</text>
+          ))}
+        </svg>
       </div>
     </div>
   );
+}
+
+/** Catmull-Rom spline → cubic bezier SVG path.  Produces a smooth curve that
+ *  passes through every data point without wild oscillations. */
+function catmullRomPath(pts: { x: number; y: number }[]): string {
+  if (pts.length === 0) return '';
+  if (pts.length === 1) return `M ${pts[0]!.x} ${pts[0]!.y}`;
+
+  const d: string[] = [`M ${pts[0]!.x.toFixed(1)} ${pts[0]!.y.toFixed(1)}`];
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)]!;
+    const p1 = pts[i]!;
+    const p2 = pts[i + 1]!;
+    const p3 = pts[Math.min(pts.length - 1, i + 2)]!;
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    d.push(
+      `C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+    );
+  }
+
+  return d.join(' ');
 }
 
 
@@ -818,6 +917,24 @@ function getDemoWeatherData(location: string): WeatherData {
     };
   });
 
+  // Demo minutely: trace → light rain starting ~20 min in, plateaus, matches screenshot
+  const nowSec = Math.floor(Date.now() / 1000);
+  const minutely: MinutelyData[] = Array.from({ length: 61 }, (_, i) => {
+    let intensity = 0;
+    if (i >= 16 && i < 22) {
+      intensity = 2.5 * ((i - 16) / 6);   // ramp up to LIGHT
+    } else if (i >= 22 && i <= 55) {
+      intensity = 2.2 + 0.5 * Math.sin((i - 22) / 8); // plateau near LIGHT
+    } else if (i > 55) {
+      intensity = 2.5 * ((61 - i) / 6);   // taper off
+    }
+    return {
+      time: nowSec + i * 60,
+      precipIntensity: parseFloat(intensity.toFixed(3)),
+      precipProbability: intensity > 0 ? 0.8 : 0,
+    };
+  });
+
   return {
     location:    location || 'Melrose, MA',
     current: {
@@ -830,6 +947,7 @@ function getDemoWeatherData(location: string): WeatherData {
     },
     forecast,
     hourly,
+    minutely,
     sunrise,
     sunset,
     lastUpdated: new Date(),
