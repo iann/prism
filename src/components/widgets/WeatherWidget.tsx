@@ -512,7 +512,7 @@ function HourlyTimeline({ hourly }: { hourly: HourlyForecast[] }) {
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Next 12 Hours
       </span>
-      <div ref={containerRef} className="w-full" />
+      <div ref={containerRef} className="w-full" data-keep-bg="" />
     </div>
   );
 }
