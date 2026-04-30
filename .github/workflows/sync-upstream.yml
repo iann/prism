@@ -1,0 +1,23 @@
+name: Sync fork with upstream
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # daily at 6am UTC
+  workflow_dispatch:       # allow manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch upstream and reset master
+        run: |
+          git remote add upstream https://github.com/sandydargoport/prism.git
+          git fetch upstream
+          git reset --hard upstream/master
+          git push origin master --force-with-lease
