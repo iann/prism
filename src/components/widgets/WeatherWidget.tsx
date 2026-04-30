@@ -1,14 +1,13 @@
 /**
  *
  * Displays current weather conditions, a multi-day forecast summary,
- * and a 24-hour hourly timeline.
- * Uses merry-timeline to render the next 24 hours as a color-coded strip.
+ * and a 12-hour hourly timeline.
  *
  * FEATURES:
  * - Current temperature and conditions
  * - "Feels like" temperature, humidity, wind
  * - Multi-day forecast summary (day name, hi/lo, icon)
- * - Next 24 Hours timeline at hourly resolution (merry-timeline)
+ * - Next 12 Hours timeline at hourly resolution (homegrown SVG-free strip)
  * - Configurable number of days in the summary (forecastDays prop)
  * - Celsius/Fahrenheit toggle
  * - Responsive layout
@@ -36,7 +35,6 @@ import {
   Droplets,
   Zap,
 } from 'lucide-react';
-import timeline from 'merry-timeline';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import { WidgetContainer } from './WidgetContainer';
@@ -230,16 +228,14 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           useCelsius={useCelsius}
         />
 
-        {/* 24-HOUR TIMELINE */}
-        {weatherData.hourly && weatherData.hourly.length > 0 && (
-          <div className="border-t border-border pt-3">
-            <HourlyTimeline hourly={weatherData.hourly} />
-          </div>
-        )}
-
         {/* FORECAST SECTION */}
         {showForecast && hasDays && (
           <div className="border-t border-border pt-3 flex-1 min-h-0 flex flex-col gap-3">
+
+            {/* 12-HOUR TIMELINE */}
+            {weatherData.hourly && weatherData.hourly.length > 0 && (
+              <HourlyTimeline hourly={weatherData.hourly} />
+            )}
 
             {/* Multi-day summary */}
             <div>
@@ -416,10 +412,10 @@ function DayHeader({
 
 
 /**
- * CONDITION HELPERS (for merry-timeline stripes)
+ * CONDITION HELPERS
  */
 
-/** Map a WeatherCondition (+ optional precipIntensity) to a hex color for merry-timeline. */
+/** Map a WeatherCondition (+ optional precipIntensity) to a hex color. */
 function conditionToHex(condition: WeatherCondition, precipIntensity?: number): string {
   if (condition === 'rainy' && precipIntensity !== undefined) {
     if (precipIntensity < 0.1) return '#B8D0E8'; // drizzle — very light blue
@@ -438,7 +434,7 @@ function conditionToHex(condition: WeatherCondition, precipIntensity?: number): 
   return map[condition] ?? '#A8ADB8';
 }
 
-/** Map a WeatherCondition (+ optional precipIntensity) to a text label for merry-timeline. */
+/** Map a WeatherCondition (+ optional precipIntensity) to a text label. */
 function conditionLabel(condition: WeatherCondition, precipIntensity?: number): string {
   if (condition === 'rainy' && precipIntensity !== undefined) {
     if (precipIntensity < 0.1) return 'Drizzle';
@@ -482,39 +478,60 @@ function WeatherIcon({
 
 /**
  * HOURLY TIMELINE
- * Dark Sky-style color strip rendered by merry-timeline.
- * Consecutive hours sharing the same condition merge into one labeled stripe.
- * A red tracker line marks the current time. Hour labels appear below.
+ * Dark Sky-style color strip. Consecutive hours sharing the same condition
+ * merge into one labeled segment. Hour labels appear below every 3 hours.
  */
 function HourlyTimeline({ hourly }: { hourly: HourlyForecast[] }) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
+  const hours = hourly.slice(0, 12);
+  if (hours.length === 0) return null;
 
-  React.useEffect(() => {
-    const el = containerRef.current;
-    if (!el || hourly.length === 0) return;
+  type Segment = { color: string; label: string; count: number };
+  const segments: Segment[] = [];
+  for (const h of hours) {
+    const color = conditionToHex(h.condition, h.precipIntensity);
+    const label = conditionLabel(h.condition, h.precipIntensity);
+    const last = segments[segments.length - 1];
+    if (last && last.color === color) {
+      last.count++;
+    } else {
+      segments.push({ color, label, count: 1 });
+    }
+  }
 
-    const data = hourly.map((h) => ({
-      time: Math.floor(h.time.getTime() / 1000),
-      color: conditionToHex(h.condition, h.precipIntensity),
-      text: conditionLabel(h.condition, h.precipIntensity),
-    }));
-
-    // Use ResizeObserver to pass the actual pixel width to merry-timeline
-    // so it renders correctly even before the layout has fully settled.
-    const ro = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
-      if (width) timeline(el, data, { width, tracker: 0 });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [hourly]);
+  const fmtHour = (d: Date) => {
+    const h = d.getHours();
+    if (h === 0) return '12am';
+    if (h === 12) return '12pm';
+    return h < 12 ? `${h}am` : `${h - 12}pm`;
+  };
 
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Next 12 Hours
       </span>
-      <div ref={containerRef} className="w-full" data-keep-bg="" />
+      <div className="flex w-full h-7 rounded overflow-hidden">
+        {segments.map((seg, i) => (
+          <div
+            key={i}
+            style={{ flex: seg.count, backgroundColor: seg.color }}
+            title={seg.label}
+            data-testid="timeline-segment"
+            data-label={seg.label}
+          />
+        ))}
+      </div>
+      <div className="flex w-full">
+        {hours.map((h, i) => (
+          <div
+            key={i}
+            style={{ flex: 1 }}
+            className="text-[9px] text-muted-foreground/60 text-center"
+          >
+            {i % 3 === 0 ? fmtHour(h.time) : ''}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
