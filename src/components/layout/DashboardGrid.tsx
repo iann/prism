@@ -33,6 +33,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { AwayModeToggle } from '@/components/away-mode';
 import { BabysitterModeToggle } from '@/components/babysitter-mode';
+import { PerformanceModeBadge } from '@/components/layout/PerformanceModeBadge';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { RefreshCw } from 'lucide-react';
 
@@ -212,11 +213,13 @@ export function DashboardHeader({
   const hidden = uiHidden || measureHideChrome;
   return (
     <header className={cn(
-      'flex-shrink-0 bg-card/95 backdrop-blur-sm px-4 transition-all duration-500 ease-in-out overflow-hidden',
+      // 'relative z-10' is load-bearing: WallpaperBackground is fixed at z-0,
+      // and without our own stacking context the toolbar would paint underneath
+      // it whenever backdrop-blur is disabled (e.g. perf mode).
+      'relative z-10 flex-shrink-0 bg-card/95 backdrop-blur-sm px-4 transition-all duration-500 ease-in-out overflow-hidden',
       hidden ? 'opacity-0 max-h-0 py-0' : 'max-h-20 py-2 delay-200'
     )}>
       <div className="flex items-center justify-end gap-2">
-        {/* Edit layout button */}
         {onEditClick && (
           <button
             onClick={onEditClick}
@@ -227,7 +230,6 @@ export function DashboardHeader({
           </button>
         )}
 
-        {/* Refresh page */}
         <button
           onClick={() => window.location.reload()}
           className="p-2 rounded-md hover:bg-accent transition-colors"
@@ -236,13 +238,10 @@ export function DashboardHeader({
           <RefreshCw className="h-5 w-5" />
         </button>
 
-        {/* Babysitter mode button */}
+        <PerformanceModeBadge />
         <BabysitterModeToggle />
-
-        {/* Away mode button */}
         <AwayModeToggle />
 
-        {/* Screensaver button */}
         {onScreensaverClick && (
           <button
             onMouseDown={(e) => { e.stopPropagation(); }}
@@ -253,7 +252,6 @@ export function DashboardHeader({
             <ScreensaverIcon />
           </button>
         )}
-
       </div>
     </header>
   );

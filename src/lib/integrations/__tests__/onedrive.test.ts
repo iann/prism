@@ -3,23 +3,17 @@
  *
  * Tests OAuth URL generation, token exchange, token refresh,
  * photo listing with pagination, MIME type filtering, and error handling.
+ *
+ * The onedrive module reads OAuth credentials via `getMicrosoftCredentials()`
+ * from credentialStore (which queries the DB / decrypts secrets). We mock
+ * that whole module so tests don't touch the database.
  */
 
-const originalEnv = process.env;
+jest.mock('@/lib/integrations/credentialStore', () => ({
+  getMicrosoftCredentials: jest.fn(),
+}));
 
-beforeAll(() => {
-  process.env = {
-    ...originalEnv,
-    MICROSOFT_CLIENT_ID: 'test-client-id',
-    MICROSOFT_CLIENT_SECRET: 'test-client-secret',
-    MICROSOFT_REDIRECT_URI: 'http://localhost:3000/api/auth/onedrive/callback',
-  };
-});
-
-afterAll(() => {
-  process.env = originalEnv;
-});
-
+import { getMicrosoftCredentials } from '@/lib/integrations/credentialStore';
 import {
   getMicrosoftAuthUrl,
   exchangeCodeForTokens,
@@ -29,9 +23,26 @@ import {
   downloadPhoto,
 } from '../onedrive';
 
+const mockGetCreds = getMicrosoftCredentials as jest.MockedFunction<typeof getMicrosoftCredentials>;
+
+const TEST_CREDS = {
+  clientId: 'test-client-id',
+  clientSecret: 'test-client-secret',
+  redirectUri: 'http://localhost:3000/api/auth/onedrive/callback',
+  tasksRedirectUri: 'http://localhost:3000/api/auth/microsoft/callback',
+};
+
+beforeEach(() => {
+  mockGetCreds.mockResolvedValue(TEST_CREDS);
+});
+
+afterEach(() => {
+  jest.clearAllMocks();
+});
+
 describe('getMicrosoftAuthUrl', () => {
-  it('generates URL with required OAuth parameters', () => {
-    const url = getMicrosoftAuthUrl();
+  it('generates URL with required OAuth parameters', async () => {
+    const url = await getMicrosoftAuthUrl();
 
     expect(url).toContain('https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize');
     expect(url).toContain('client_id=test-client-id');
@@ -40,29 +51,25 @@ describe('getMicrosoftAuthUrl', () => {
     expect(url).toContain('scope=');
   });
 
-  it('includes state parameter when provided', () => {
-    const url = getMicrosoftAuthUrl('my-state-value');
+  it('includes state parameter when provided', async () => {
+    const url = await getMicrosoftAuthUrl('my-state-value');
     expect(url).toContain('state=my-state-value');
   });
 
-  it('does not include state parameter when not provided', () => {
-    const url = getMicrosoftAuthUrl();
+  it('does not include state parameter when not provided', async () => {
+    const url = await getMicrosoftAuthUrl();
     expect(url).not.toContain('state=');
   });
 
-  it('includes required scopes', () => {
-    const url = getMicrosoftAuthUrl();
+  it('includes required scopes', async () => {
+    const url = await getMicrosoftAuthUrl();
     expect(url).toContain('Files.Read');
     expect(url).toContain('offline_access');
   });
 
-  it('throws when config is missing', () => {
-    const saved = process.env.MICROSOFT_CLIENT_ID;
-    delete process.env.MICROSOFT_CLIENT_ID;
-
-    expect(() => getMicrosoftAuthUrl()).toThrow('Missing Microsoft OAuth configuration');
-
-    process.env.MICROSOFT_CLIENT_ID = saved;
+  it('throws when credentials are missing', async () => {
+    mockGetCreds.mockResolvedValueOnce(null);
+    await expect(getMicrosoftAuthUrl()).rejects.toThrow('Missing Microsoft OAuth configuration');
   });
 });
 

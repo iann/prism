@@ -239,11 +239,18 @@
     @apply flex flex-row items-center gap-4;
   }
 
+  /* Respect the OS-level "reduce motion" accessibility preference. Disables
+   * animations and collapses transitions site-wide. Standard accessible
+   * pattern — keeps a 0.01ms animation-duration so animations still "fire"
+   * (so callbacks like onAnimationEnd run) but are imperceptible. */
   @media (prefers-reduced-motion: reduce) {
-    .animate-spin,
-    .animate-pulse,
-    .animate-bounce {
-      animation: none;
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 
@@ -252,37 +259,26 @@
     transition: none !important;
   }
 
-  /* Performance mode: removes GPU-intensive effects for low-end hardware (thin clients, etc.)
-   * Toggled via Settings → Appearance → Performance Mode.
-   *
-   * What this actually helps on thin clients (Wyse 3040, etc.):
-   *   - backdrop-filter forces GPU compositor layers on every blurred element — very expensive
-   *   - box-shadow on many elements adds re-paint cost
-   *
-   * What it does NOT meaningfully help:
-   *   - CSS transitions/animations run on the compositor thread and are essentially free;
-   *     stripping them just makes the UI feel broken with no real perf benefit
-   */
-  html.performance-mode * {
+  /* Performance mode: minimum-viable stylesheet. The only CSS effect
+   * we are confident gives a meaningful perf win on weak GPUs is
+   * disabling backdrop-filter, and only on elements that actually
+   * declare it (the .backdrop-blur* utility classes). An earlier
+   * version applied this to a universal `*` selector and that turned
+   * out to make toolbar SVG icons render invisibly in light theme on
+   * Chrome — applying `backdrop-filter: none` to descendants that
+   * never had backdrop-filter set creates new stacking contexts and
+   * compositor layers that can change rendering in subtle ways.
+   * Bigger perf wins come from JS-side changes (polling stretch, photo
+   * widget lite, structural-shared polling). */
+  html.performance-mode .backdrop-blur,
+  html.performance-mode .backdrop-blur-sm,
+  html.performance-mode .backdrop-blur-md,
+  html.performance-mode .backdrop-blur-lg,
+  html.performance-mode .backdrop-blur-xl,
+  html.performance-mode .backdrop-blur-2xl,
+  html.performance-mode .backdrop-blur-3xl {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-  }
-
-  /* Cap transitions at 150ms — fast enough to feel snappy, still visible so
-   * the UI doesn't feel broken. Transitions are compositor-thread work and
-   * essentially free on any GPU; stripping them entirely just breaks the UX. */
-  html.performance-mode * {
-    transition-duration: 150ms !important;
-  }
-
-  /* When backdrop-blur is disabled, semi-transparent surfaces look washed out.
-   * Force full opacity on UI chrome so text/icons remain visible. */
-  html.performance-mode .bg-card\/95,
-  html.performance-mode .bg-card\/85,
-  html.performance-mode .bg-background\/95,
-  html.performance-mode .bg-background\/80 {
-    background-color: hsl(var(--card)) !important;
-    opacity: 1 !important;
   }
 }
 

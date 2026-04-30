@@ -3,270 +3,68 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { format, parseISO } from 'date-fns';
-import type { TravelPin } from '../types';
-import { STATUS_CONFIG, BUCKET_LIST_COLOR, NPS_COLOR } from '../types';
+import type { TravelPin, TravelTrip } from '../types';
+import { STATUS_CONFIG, NPS_COLOR } from '../types';
+import { createPinElement, getZoomTier } from './globeMarkers';
+import { buildTooltipHTML } from './globeTooltip';
+import { addTripLinesLayer, buildTripFeatures, buildTripContextMap } from './globeLayers';
+import { useGlobeRotation } from './useGlobeRotation';
 
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
-
-function pinSize(zoom: number, selected: boolean, isChild: boolean): number {
-  let base: number;
-  if (zoom < 3)       base = isChild ? 10 : 14;
-  else if (zoom < 5)  base = isChild ? 13 : 18;
-  else if (zoom < 7)  base = isChild ? 16 : 22;
-  else if (zoom < 9)  base = isChild ? 19 : 26;
-  else                base = isChild ? 22 : 30;
-  return selected ? base + 8 : base;
-}
-
-function createPinElement(pin: TravelPin, selected: boolean, zoom: number): HTMLElement {
-  const isChild = !!pin.parentId;
-  const isNP = pin.pinType === 'national_park';
-  const isStop = pin.pinType === 'stop';
-  const size = pinSize(zoom, selected, isChild);
-
-  // National park child pin: tree badge style
-  if (isNP) {
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = `position: relative; cursor: pointer; width: ${size}px; height: ${size}px;`;
-    const circle = document.createElement('div');
-    const fontSize = Math.max(8, Math.round(size * 0.55));
-    circle.style.cssText = `
-      width: ${size}px;
-      height: ${size}px;
-      border-radius: 50%;
-      background-color: ${NPS_COLOR};
-      border: ${selected ? '2px solid white' : '1.5px solid rgba(255,255,255,0.85)'};
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3)${selected ? `, 0 0 0 2px ${NPS_COLOR}55` : ''};
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: ${fontSize}px;
-      user-select: none;
-    `;
-    circle.textContent = '🌲';
-    wrapper.appendChild(circle);
-    wrapper.title = pin.name;
-    return wrapper;
-  }
-
-  // Stop child pin: smaller purple dot
-  if (isStop) {
-    const stopColor = pin.color || '#8B5CF6';
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = `position: relative; cursor: pointer; width: ${size}px; height: ${size}px;`;
-    const circle = document.createElement('div');
-    const fontSize = Math.max(7, Math.round(size * 0.4));
-    circle.style.cssText = `
-      width: ${size}px;
-      height: ${size}px;
-      border-radius: 50%;
-      background-color: ${stopColor};
-      border: ${selected ? '2px solid white' : '1.5px solid rgba(255,255,255,0.85)'};
-      box-shadow: 0 2px 6px rgba(0,0,0,0.25)${selected ? `, 0 0 0 2px ${stopColor}55` : ''};
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: ${fontSize}px;
-      user-select: none;
-      color: white;
-      font-weight: bold;
-    `;
-    circle.textContent = '·';
-    wrapper.appendChild(circle);
-    wrapper.title = pin.name;
-    return wrapper;
-  }
-
-  // Root location pin
-  const color = pin.color || (pin.isBucketList ? BUCKET_LIST_COLOR : STATUS_CONFIG[pin.status].color);
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = `position: relative; cursor: pointer; width: ${size}px; height: ${size}px;`;
-
-  const circle = document.createElement('div');
-  const fontSize = Math.max(8, Math.round(size * 0.45));
-  circle.style.cssText = `
-    width: ${size}px;
-    height: ${size}px;
-    border-radius: 50%;
-    background-color: ${color};
-    border: ${selected ? '2px solid white' : '1.5px solid rgba(255,255,255,0.85)'};
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3)${selected ? `, 0 0 0 2px ${color}55` : ''};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: ${fontSize}px;
-    user-select: none;
-    color: white;
-    font-weight: bold;
-  `;
-  circle.textContent = pin.status === 'been_there' ? '✓' : '→';
-  wrapper.appendChild(circle);
-
-  // Star badge for bucket list
-  if (pin.isBucketList) {
-    const badgeSize = Math.max(10, Math.round(size * 0.45));
-    const star = document.createElement('div');
-    star.style.cssText = `
-      position: absolute;
-      top: ${-badgeSize / 2}px;
-      right: ${-badgeSize / 2}px;
-      width: ${badgeSize}px;
-      height: ${badgeSize}px;
-      background: #F59E0B;
-      border-radius: 50%;
-      border: 1.5px solid white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: ${Math.max(6, badgeSize - 4)}px;
-      line-height: 1;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    `;
-    star.textContent = '⭐';
-    wrapper.appendChild(star);
-  }
-
-  // Tree badge for national parks (JSONB legacy tags on root pins)
-  if (pin.nationalParks && pin.nationalParks.length > 0) {
-    const badgeSize = Math.max(10, Math.round(size * 0.45));
-    const tree = document.createElement('div');
-    const offset = pin.isBucketList ? badgeSize * 0.6 : 0;
-    tree.style.cssText = `
-      position: absolute;
-      top: ${-badgeSize / 2}px;
-      left: ${-badgeSize / 2 - offset}px;
-      width: ${badgeSize}px;
-      height: ${badgeSize}px;
-      background: ${NPS_COLOR};
-      border-radius: 50%;
-      border: 1.5px solid white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: ${Math.max(6, badgeSize - 4)}px;
-      line-height: 1;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    `;
-    tree.textContent = '🌲';
-    wrapper.appendChild(tree);
-  }
-
-  wrapper.title = pin.name;
-  return wrapper;
-}
-
-function buildTooltipHTML(pin: TravelPin): string {
-  const statusLabel = pin.isBucketList ? '⭐ Bucket List' : STATUS_CONFIG[pin.status].label;
-
-  let dateStr = '';
-  if (pin.visitedDate) {
-    const start = format(parseISO(pin.visitedDate), 'MMM d, yyyy');
-    const end = pin.visitedEndDate ? ` – ${format(parseISO(pin.visitedEndDate), 'MMM d, yyyy')}` : '';
-    dateStr = `${start}${end}`;
-  }
-
-  const tags = (pin.tags || []).slice(0, 3).join(' · ');
-  const parks = (pin.nationalParks || []).slice(0, 2).join(', ');
-  const stops = (pin.stops || []).slice(0, 3).join(' · ');
-
-  if (pin.pinType === 'national_park') {
-    return `
-      <div style="font-family: system-ui, sans-serif; min-width: 120px; max-width: 200px;">
-        <div style="font-weight: 600; font-size: 13px; margin-bottom: 3px;">🌲 ${pin.name}</div>
-        ${dateStr ? `<div style="font-size: 11px; color: #6B7280;">🗓 ${dateStr}</div>` : ''}
-        <div style="font-size: 11px; color: #2D6A4F;">National Park</div>
-      </div>
-    `;
-  }
-
-  if (pin.pinType === 'stop') {
-    return `
-      <div style="font-family: system-ui, sans-serif; min-width: 120px; max-width: 200px;">
-        <div style="font-weight: 600; font-size: 13px; margin-bottom: 3px;">📍 ${pin.name}</div>
-        ${dateStr ? `<div style="font-size: 11px; color: #6B7280;">🗓 ${dateStr}</div>` : ''}
-      </div>
-    `;
-  }
-
-  return `
-    <div style="font-family: system-ui, sans-serif; min-width: 160px; max-width: 240px;">
-      <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${pin.name}</div>
-      ${pin.tripLabel ? `<div style="font-size: 12px; color: #6B7280; margin-bottom: 3px;">📅 ${pin.tripLabel}</div>` : ''}
-      ${stops ? `<div style="font-size: 12px; color: #6B7280; margin-bottom: 3px;">📍 ${stops}</div>` : ''}
-      ${dateStr ? `<div style="font-size: 12px; color: #6B7280; margin-bottom: 3px;">🗓 ${dateStr}</div>` : ''}
-      ${parks ? `<div style="font-size: 12px; color: #2D6A4F; margin-bottom: 3px;">🌲 ${parks}</div>` : ''}
-      <div style="font-size: 11px; color: #9CA3AF;">${statusLabel}${tags ? ` · ${tags}` : ''}</div>
-    </div>
-  `;
-}
+const STYLE_LIGHT = 'https://tiles.openfreemap.org/styles/liberty';
 
 interface TravelGlobeProps {
   pins: TravelPin[];
+  trips: TravelTrip[];
   selectedPinId: string | null;
+  selectedTripId: string | null;
+  darkMode: boolean;
+  overlayOpen: boolean;
   onPinClick: (pin: TravelPin) => void;
+  onTripStopClick: (pin: TravelPin, trip: TravelTrip) => void;
   onMapClick: (lat: number, lng: number) => void;
 }
 
-export function TravelGlobe({ pins, selectedPinId, onPinClick, onMapClick }: TravelGlobeProps) {
+export function TravelGlobe({
+  pins, trips, selectedPinId, selectedTripId, darkMode, overlayOpen,
+  onPinClick, onTripStopClick, onMapClick,
+}: TravelGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const onPinClickRef = useRef(onPinClick);
+  const onTripStopClickRef = useRef(onTripStopClick);
   const onMapClickRef = useRef(onMapClick);
   const pinsRef = useRef(pins);
+  const tripsRef = useRef(trips);
+  const updateCullingRef = useRef<(() => void) | null>(null);
   const [zoomTier, setZoomTier] = useState(0);
 
+  const { startRotation, stopRotation, scheduleResume, cleanup, overlayOpenRef } =
+    useGlobeRotation(mapRef, overlayOpen);
+
   useEffect(() => { onPinClickRef.current = onPinClick; }, [onPinClick]);
+  useEffect(() => { onTripStopClickRef.current = onTripStopClick; }, [onTripStopClick]);
   useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { pinsRef.current = pins; }, [pins]);
-
-  function getZoomTier(zoom: number): number {
-    if (zoom < 3) return 0;
-    if (zoom < 5) return 1;
-    if (zoom < 7) return 2;
-    if (zoom < 9) return 3;
-    return 4;
-  }
+  useEffect(() => { tripsRef.current = trips; }, [trips]);
 
   // Initialize map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLE,
-      zoom: 2,
-      center: [0, 20],
-      pitchWithRotate: false,
-      attributionControl: false,
+      style: STYLE_LIGHT,
+      zoom: 2.8, center: [0, 20], pitchWithRotate: false, attributionControl: false,
     });
-
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
-    map.on('load', () => {
+    map.on('style.load', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (map as any).setProjection({ type: 'globe' });
-
-      // Trip lines: GeoJSON source updated when a parent pin is selected
-      map.addSource('trip-lines', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-      map.addLayer({
-        id: 'trip-lines',
-        type: 'line',
-        source: 'trip-lines',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: {
-          'line-color': ['get', 'color'],
-          'line-width': 1.5,
-          'line-opacity': 0.55,
-          'line-dasharray': [3, 2],
-        },
-      });
+      addTripLinesLayer(map);
+      if (!overlayOpenRef.current) startRotation();
     });
 
     map.on('zoomend', () => {
@@ -274,147 +72,171 @@ export function TravelGlobe({ pins, selectedPinId, onPinClick, onMapClick }: Tra
       setZoomTier((prev) => (prev !== tier ? tier : prev));
     });
 
-    popupRef.current = new maplibregl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      offset: 14,
-      className: 'travel-pin-popup',
-    });
+    // Far-side culling — hide/fade pins behind the globe
+    const updateCulling = () => {
+      const { lng: cLng, lat: cLat } = map.getCenter();
+      const toRad = (d: number) => (d * Math.PI) / 180;
+      const cx = Math.cos(toRad(cLat)) * Math.cos(toRad(cLng));
+      const cy = Math.cos(toRad(cLat)) * Math.sin(toRad(cLng));
+      const cz = Math.sin(toRad(cLat));
+      for (const [id, marker] of markersRef.current) {
+        const pin = pinsRef.current.find((p) => p.id === id);
+        if (!pin) continue;
+        const px = Math.cos(toRad(pin.latitude)) * Math.cos(toRad(pin.longitude));
+        const py = Math.cos(toRad(pin.latitude)) * Math.sin(toRad(pin.longitude));
+        const pz = Math.sin(toRad(pin.latitude));
+        const dot = cx * px + cy * py + cz * pz;
+        const el = marker.getElement();
+        if (dot < 0.05) {
+          el.classList.add('travel-pin-hidden');
+          el.style.opacity = '';
+          el.style.pointerEvents = 'none';
+        } else {
+          el.classList.remove('travel-pin-hidden');
+          const base = parseFloat(el.dataset.baseOpacity ?? '1');
+          const factor = dot < 0.2 ? (dot - 0.05) / 0.15 : 1;
+          el.style.opacity = String(base * factor);
+          el.style.pointerEvents = '';
+        }
+      }
+    };
+    updateCullingRef.current = updateCulling;
+    map.on('move', updateCulling);
 
+    const onInteraction = () => { stopRotation(); scheduleResume(); };
+    map.on('mousedown', onInteraction);
+    map.on('touchstart', onInteraction);
+    map.on('wheel', onInteraction);
+
+    popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 14, className: 'travel-pin-popup' });
     map.on('click', (e) => {
-      onMapClickRef.current(e.lngLat.lat, e.lngLat.lng);
+      const lng = ((e.lngLat.lng + 180) % 360 + 360) % 360 - 180;
+      onMapClickRef.current(e.lngLat.lat, lng);
     });
-
     mapRef.current = map;
 
     return () => {
+      cleanup();
       markersRef.current.forEach((m) => m.remove());
       markersRef.current.clear();
       popupRef.current?.remove();
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync markers whenever pins, selection, or zoom tier changes
+  // Sync markers whenever pins, trips, or zoom tier change
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-
     const zoom = map.getZoom();
+    const tripCtx = buildTripContextMap(pins, trips, selectedTripId);
     const currentIds = new Set(pins.map((p) => p.id));
 
-    // Remove stale markers
     for (const [id, marker] of markersRef.current) {
-      if (!currentIds.has(id)) {
-        marker.remove();
-        markersRef.current.delete(id);
-      }
+      if (!currentIds.has(id)) { marker.remove(); markersRef.current.delete(id); }
     }
 
     for (const pin of pins) {
       if (pin.latitude === 0 && pin.longitude === 0) continue;
-
       const isSelected = pin.id === selectedPinId;
+      const ctx = tripCtx.get(pin.id);
+      const { el, anchor } = createPinElement(pin, isSelected, zoom, ctx);
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popupRef.current?.remove();
+        if (pin.tripId) {
+          const trip = tripsRef.current.find((t) => t.id === pin.tripId);
+          if (trip) { onTripStopClickRef.current(pin, trip); return; }
+        }
+        onPinClickRef.current(pin);
+      });
+      el.addEventListener('mouseenter', () => {
+        if (!map) return;
+        popupRef.current?.setLngLat([pin.longitude, pin.latitude]).setHTML(buildTooltipHTML(pin, ctx)).addTo(map);
+      });
+      el.addEventListener('mouseleave', () => { popupRef.current?.remove(); });
+
       const existing = markersRef.current.get(pin.id);
-
-      const buildMarker = () => {
-        const el = createPinElement(pin, isSelected, zoom);
-
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          popupRef.current?.remove();
-          onPinClickRef.current(pin);
-        });
-
-        el.addEventListener('mouseenter', () => {
-          if (!map) return;
-          popupRef.current
-            ?.setLngLat([pin.longitude, pin.latitude])
-            .setHTML(buildTooltipHTML(pin))
-            .addTo(map);
-        });
-
-        el.addEventListener('mouseleave', () => {
-          popupRef.current?.remove();
-        });
-
-        return el;
-      };
-
-      if (existing) {
-        existing.remove();
-        markersRef.current.delete(pin.id);
-      }
-      const marker = new maplibregl.Marker({ element: buildMarker() })
+      if (existing) { existing.remove(); markersRef.current.delete(pin.id); }
+      el.dataset.baseOpacity = el.style.opacity || '1';
+      const marker = new maplibregl.Marker({ element: el, anchor })
         .setLngLat([pin.longitude, pin.latitude])
         .addTo(map);
       markersRef.current.set(pin.id, marker);
     }
-  }, [pins, selectedPinId, zoomTier]);
+    updateCullingRef.current?.();
+  }, [pins, trips, selectedPinId, zoomTier]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update trip lines when selection or pins change
+  // Trip lines — all trips rendered; active gets full style, others are faded
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
     const source = map.getSource('trip-lines') as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
 
-    const parent = selectedPinId ? pins.find((p) => p.id === selectedPinId) : null;
-    if (!parent || parent.latitude === 0 && parent.longitude === 0) {
-      source.setData({ type: 'FeatureCollection', features: [] });
+    const tripFeatures: GeoJSON.Feature[] = trips.flatMap((trip) => {
+      const tripStops = pins.filter((p) => p.tripId === trip.id);
+      const color = trip.color || STATUS_CONFIG[trip.status].color;
+      return buildTripFeatures(tripStops, trip.tripStyle, color, trip.id === selectedTripId);
+    });
+
+    const spokeFeatures: GeoJSON.Feature[] = [];
+    if (selectedPinId) {
+      const parent = pins.find((p) => p.id === selectedPinId);
+      if (parent && !parent.tripId && (parent.latitude !== 0 || parent.longitude !== 0)) {
+        const children = pins.filter((p) => p.parentId === selectedPinId && (p.latitude !== 0 || p.longitude !== 0));
+        children.forEach((c) => {
+          spokeFeatures.push({
+            type: 'Feature' as const,
+            properties: { color: c.pinType === 'national_park' ? NPS_COLOR : '#8B5CF6', active: true },
+            geometry: { type: 'LineString' as const, coordinates: [[parent.longitude, parent.latitude], [c.longitude, c.latitude]] },
+          });
+        });
+      }
+    }
+
+    source.setData({ type: 'FeatureCollection', features: [...tripFeatures, ...spokeFeatures] });
+  }, [pins, trips, selectedPinId, selectedTripId]);
+
+  // Fly to selected trip (fit bounds) or selected pin
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (selectedTripId) {
+      const tripStops = pins.filter((p) => p.tripId === selectedTripId && (p.latitude !== 0 || p.longitude !== 0));
+      if (tripStops.length === 0) return;
+      const firstStop = tripStops[0]!;
+      if (tripStops.length === 1) {
+        map.flyTo({ center: [firstStop.longitude, firstStop.latitude], zoom: Math.max(map.getZoom(), 4), duration: 800, essential: true });
+        return;
+      }
+      const bounds = tripStops.reduce(
+        (b, p) => b.extend([p.longitude, p.latitude]),
+        new maplibregl.LngLatBounds([firstStop.longitude, firstStop.latitude], [firstStop.longitude, firstStop.latitude])
+      );
+      map.fitBounds(bounds, { padding: 80, duration: 800, essential: true, maxZoom: 10 });
       return;
     }
 
-    const children = pins.filter(
-      (p) => p.parentId === selectedPinId && (p.latitude !== 0 || p.longitude !== 0)
-    );
-
-    const features = children.map((c) => ({
-      type: 'Feature' as const,
-      properties: {
-        color: c.pinType === 'national_park' ? NPS_COLOR : '#8B5CF6',
-      },
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: [
-          [parent.longitude, parent.latitude],
-          [c.longitude, c.latitude],
-        ],
-      },
-    }));
-
-    source.setData({ type: 'FeatureCollection', features });
-  }, [pins, selectedPinId]);
-
-  // Fly to selected pin
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !selectedPinId) return;
-    const pin = pins.find((p) => p.id === selectedPinId);
-    if (!pin || (pin.latitude === 0 && pin.longitude === 0)) return;
-    map.flyTo({
-      center: [pin.longitude, pin.latitude],
-      zoom: Math.max(map.getZoom(), 4),
-      duration: 800,
-      essential: true,
-    });
-  }, [selectedPinId, pins]);
+    if (selectedPinId) {
+      const pin = pins.find((p) => p.id === selectedPinId);
+      if (!pin || (pin.latitude === 0 && pin.longitude === 0)) return;
+      map.flyTo({ center: [pin.longitude, pin.latitude], zoom: Math.max(map.getZoom(), 4), duration: 800, essential: true });
+    }
+  }, [selectedPinId, selectedTripId, pins]);
 
   return (
     <>
       <style>{`
-        .travel-pin-popup .maplibregl-popup-content {
-          padding: 10px 12px;
-          border-radius: 8px;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-          border: 1px solid rgba(0,0,0,0.08);
-        }
-        .travel-pin-popup .maplibregl-popup-tip {
-          border-top-color: white;
-        }
+        .travel-pin-popup .maplibregl-popup-content { padding: 10px 12px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.18); border: 1px solid rgba(0,0,0,0.08); }
+        .travel-pin-popup .maplibregl-popup-tip { border-top-color: white; }
+        .globe-dark .maplibregl-canvas-container { filter: brightness(0.72) saturate(0.55) contrast(1.08) hue-rotate(5deg); }
+        .travel-pin-hidden { opacity: 0 !important; pointer-events: none !important; visibility: hidden !important; }
       `}</style>
-      <div ref={containerRef} className="flex-1 rounded-lg overflow-hidden" />
+      <div ref={containerRef} className={`flex-1 rounded-lg overflow-hidden${darkMode ? ' globe-dark' : ''}`} />
     </>
   );
 }

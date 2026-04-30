@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getDisplayAuth } from '@/lib/auth';
+import { rateLimitGuard } from '@/lib/cache/rateLimit';
 import { logError } from '@/lib/utils/logError';
 
 interface NominatimResult {
@@ -27,6 +28,7 @@ interface NominatimResult {
     country?: string;
     country_code?: string;
   };
+  class?: string;
   type?: string;
   importance?: number;
 }
@@ -46,6 +48,9 @@ function shortDisplayName(result: NominatimResult): string {
 export async function GET(request: NextRequest) {
   const auth = await getDisplayAuth();
   if (!auth) return NextResponse.json({ results: [] });
+
+  const limited = await rateLimitGuard(auth.userId, 'geocode', 10, 60);
+  if (limited) return limited;
 
   const { searchParams } = new URL(request.url);
   const rawQ = searchParams.get('q');
@@ -82,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     const response = await fetch(url.toString(), {
       headers: {
-        'User-Agent': 'Prism-Family-Dashboard/1.0',
+        'User-Agent': 'Prism-Family-Dashboard/1.0 (https://github.com/sandydargoport/prism)',
         'Accept-Language': 'en',
       },
     });
@@ -93,13 +98,30 @@ export async function GET(request: NextRequest) {
 
     const data = (await response.json()) as NominatimResult[];
 
-    const results = data.map((item) => ({
-      placeId: item.place_id,
-      displayName: shortDisplayName(item),
-      fullName: item.display_name,
-      latitude: parseFloat(item.lat),
-      longitude: parseFloat(item.lon),
-    }));
+    // When searching for a national park/monument, prefer boundary results over
+    // natural features (peaks, volcanoes) which often have wrong centroids.
+    const isNationalParkSearch = /national (park|monument|recreation area)/i.test(q);
+    if (isNationalParkSearch) {
+      data.sort((a, b) => {
+        const score = (r: NominatimResult) =>
+          r.type === 'national_park' ? 0 :
+          r.class === 'boundary' ? 1 :
+          r.class === 'leisure' ? 2 : 3;
+        return score(a) - score(b) || (b.importance ?? 0) - (a.importance ?? 0);
+      });
+    }
+
+    const results = data
+      .map((item) => ({
+        placeId: item.place_id,
+        displayName: shortDisplayName(item),
+        fullName: item.display_name,
+        latitude: parseFloat(item.lat),
+        longitude: parseFloat(item.lon),
+      }))
+      .filter(r => isFinite(r.latitude) && isFinite(r.longitude) &&
+        r.latitude >= -90 && r.latitude <= 90 &&
+        r.longitude >= -180 && r.longitude <= 180);
 
     return NextResponse.json({ results });
   } catch (error) {

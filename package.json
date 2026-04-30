@@ -1,9 +1,9 @@
 {
   "name": "prism",
-  "version": "1.2.0",
+  "version": "1.6.0",
   "description": "Prism - Your family's digital home. An open-source family dashboard for calendars, tasks, chores, and more.",
   "private": true,
-  "license": "AGPL-3.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "author": {
     "name": "Prism Community"
   },
@@ -37,6 +37,12 @@
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:visual": "playwright test e2e/visual-regression.spec.ts",
+    "test:visual:update": "playwright test e2e/visual-regression.spec.ts --update-snapshots",
+    "test:migration-replay": "bash scripts/test-migration-replay.sh",
+    "scan:pii": "bash scripts/scan-pii.sh",
+    "scan:pii:install-hook": "echo '#!/usr/bin/env bash\\nbash scripts/scan-pii.sh' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push && echo 'Pre-push PII hook installed at .git/hooks/pre-push'",
+    "scan:examples": "bash scripts/scan-examples.sh",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -82,6 +88,7 @@
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.3",
     "drizzle-orm": "^0.38.2",
+    "exifr": "^7.1.3",
     "ioredis": "^5.4.1",
     "lucide-react": "^0.468.0",
     "maplibre-gl": "^5.23.0",
@@ -100,6 +107,7 @@
     "simple-keyboard": "^3.7.3",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
+    "undici": "^6.25.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
