@@ -589,8 +589,3 @@
   flex-grow: 1;
   font-size: 20px;
 }
-
-/* Hide merry-timeline now-tracker */
-.stripes > div:not(.stripe):not(.ticks) {
-  display: none !important;
-}
