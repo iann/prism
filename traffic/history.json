@@ -81,29 +81,8 @@
       }
     ]
   },
-  "referrers": [
-    {
-      "count": 181,
-      "referrer": "reddit.com",
-      "uniques": 55
-    },
-    {
-      "count": 72,
-      "referrer": "community.home-assistant.io",
-      "uniques": 19
-    },
-    {
-      "count": 46,
-      "referrer": "github.com",
-      "uniques": 14
-    },
-    {
-      "count": 10,
-      "referrer": "com.reddit.frontpage",
-      "uniques": 6
-    }
-  ],
-  "updated_at": "2026-04-29T15:13:05Z",
+  "referrers": [],
+  "updated_at": "2026-04-30T05:25:22Z",
   "views": {
     "2026-04-14": {
       "count": 64,
