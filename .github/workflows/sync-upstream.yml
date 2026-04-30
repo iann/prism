@@ -15,9 +15,25 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fetch upstream and reset master
+      - name: Configure git
         run: |
-          git remote add upstream https://github.com/sandydargoport/prism.git
-          git fetch upstream
-          git reset --hard upstream/master
-          git push origin master --force-with-lease
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: git remote add upstream https://github.com/sandydargoport/prism.git && git fetch upstream
+
+      # Reset the upstream tracking branch to exactly match upstream/master.
+      # This branch is the clean base for PRs sent back to the upstream repo.
+      - name: Update upstream branch
+        run: |
+          git checkout -B upstream upstream/master
+          git push origin upstream --force-with-lease
+
+      # Merge upstream changes into master so personal customizations stay current.
+      # Fails loudly on conflicts so they can be resolved manually.
+      - name: Merge upstream into master
+        run: |
+          git checkout master
+          git merge --no-edit upstream/master
+          git push origin master
