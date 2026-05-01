@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: master
+          ref: personal
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -23,17 +23,17 @@ jobs:
       - name: Fetch upstream
         run: git remote add upstream https://github.com/sandydargoport/prism.git && git fetch upstream
 
-      # Reset the upstream tracking branch to exactly match upstream/master.
-      # This branch is the clean base for PRs sent back to the upstream repo.
-      - name: Update upstream branch
-        run: |
-          git checkout -B upstream upstream/master
-          git push origin upstream --force-with-lease
-
-      # Merge upstream changes into master so personal customizations stay current.
-      # Fails loudly on conflicts so they can be resolved manually.
-      - name: Merge upstream into master
+      # Keep master as a clean mirror of upstream — no personal commits ever land here.
+      - name: Reset master to upstream
         run: |
           git checkout master
+          git reset --hard upstream/master
+          git push origin master --force
+
+      # Merge upstream changes into personal so customizations stay current.
+      # Fails loudly on conflicts so they can be resolved manually.
+      - name: Merge upstream into personal
+        run: |
+          git checkout personal
           git merge --no-edit upstream/master
-          git push origin master
+          git push origin personal
