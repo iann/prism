@@ -153,11 +153,12 @@ describe('merry-timeline integration', () => {
     expect(items).toHaveLength(24);
   });
 
-  it('passes width and tracker options', async () => {
+  it('passes a timezone string in options', async () => {
     await renderAndWaitForTimeline(<WeatherWidget data={makeWeatherData()} />);
 
     const [, , opts] = mockTimeline.mock.calls[0]!;
-    expect(opts).toMatchObject({ width: expect.any(Number), tracker: 0 });
+    expect(typeof opts?.timezone).toBe('string');
+    expect(opts!.timezone!.length).toBeGreaterThan(0);
   });
 
   it('does not call timeline() when hourly data is empty', async () => {
@@ -166,7 +167,7 @@ describe('merry-timeline integration', () => {
     expect(mockTimeline).not.toHaveBeenCalled();
   });
 
-  it('does NOT call timeline() when showForecast is false', async () => {
+  it('does not call timeline() when showForecast is false', async () => {
     render(<WeatherWidget data={makeWeatherData()} showForecast={false} />);
     await act(async () => {});
     expect(mockTimeline).not.toHaveBeenCalled();
@@ -254,9 +255,10 @@ describe('timeline items structure', () => {
   });
 
   it('each item color matches its condition', async () => {
+    // All rainy → every item should be #60A5FA
     const items = await getItemsForHourly(makeHourlyForecast('rainy'));
     for (const item of items) {
-      expect(item.color).toBe('#7B9EC7');
+      expect(item.color).toBe('#60A5FA');
     }
   });
 
@@ -268,25 +270,38 @@ describe('timeline items structure', () => {
     ];
     const items = await getItemsForHourly(makeHourlyForecast(conditions));
 
-    for (const item of items.slice(0, 12)) expect(item.color).toBe('#EAECF0');
-    for (const item of items.slice(12))    expect(item.color).toBe('#7B9EC7');
+    for (const item of items.slice(0, 12)) expect(item.color).toBe('#FBBF24');
+    for (const item of items.slice(12))    expect(item.color).toBe('#60A5FA');
   });
 
-  it('item text is a condition label', async () => {
+  it('item text is a formatted time label (e.g. "2pm")', async () => {
     const items = await getItemsForHourly(makeHourlyForecast('sunny'));
-    // All items are 'sunny' → label is 'Clear'
-    for (const item of items) expect(item.text).toBe('Clear');
+
+    // Hour 0 → '12am', hour 12 → '12pm', hour 14 → '2pm'
+    expect(items[0]!.text).toBe('12am');
+    expect(items[12]!.text).toBe('12pm');
+    expect(items[14]!.text).toBe('2pm');
   });
 
-  it('rainy condition uses "Rain" label', async () => {
-    const items = await getItemsForHourly(makeHourlyForecast('rainy'));
-    for (const item of items) expect(item.text).toBe('Rain');
+  it('formats am hours correctly', async () => {
+    const items = await getItemsForHourly(makeHourlyForecast('sunny'));
+    expect(items[1]!.text).toBe('1am');
+    expect(items[6]!.text).toBe('6am');
+    expect(items[11]!.text).toBe('11am');
   });
 
-  it('all 24 items share the same label when condition is uniform', async () => {
-    const items = await getItemsForHourly(makeHourlyForecast('cloudy'));
-    const labels = new Set(items.map((it) => it.text));
-    expect(labels.size).toBe(1);
+  it('formats pm hours correctly', async () => {
+    const items = await getItemsForHourly(makeHourlyForecast('sunny'));
+    expect(items[13]!.text).toBe('1pm');
+    expect(items[18]!.text).toBe('6pm');
+    expect(items[23]!.text).toBe('11pm');
+  });
+
+  it('all 24 items have unique text labels (no merging)', async () => {
+    const items = await getItemsForHourly(makeHourlyForecast('sunny'));
+    const labels = items.map((it) => it.text);
+    const unique = new Set(labels);
+    expect(unique.size).toBe(24);
   });
 });
 
@@ -297,12 +312,12 @@ describe('timeline items structure', () => {
 
 describe('condition → timeline color mapping', () => {
   const EXPECTED_COLORS: [WeatherCondition, string][] = [
-    ['sunny',         '#EAECF0'],
-    ['partly-cloudy', '#C8CBD6'],
-    ['cloudy',        '#A8ADB8'],
-    ['rainy',         '#7B9EC7'],
-    ['snowy',         '#B8D4E8'],
-    ['stormy',        '#4A6FA5'],
+    ['sunny',         '#FBBF24'],
+    ['partly-cloudy', '#7DD3FC'],
+    ['cloudy',        '#94A3B8'],
+    ['rainy',         '#60A5FA'],
+    ['snowy',         '#BAE6FD'],
+    ['stormy',        '#64748B'],
   ];
 
   it.each(EXPECTED_COLORS)(
@@ -336,10 +351,10 @@ describe('day summary header', () => {
     });
     render(<WeatherWidget data={data} forecastDays={3} />);
 
-    // Widget calls dayName.toUpperCase() — DOM has 'MON' not 'Mon'
-    expect(screen.queryByText('MON')).not.toBeNull();
-    expect(screen.queryByText('TUE')).not.toBeNull();
-    expect(screen.queryByText('WED')).not.toBeNull();
+    // DOM text uses original casing — CSS `uppercase` is a visual transform only
+    expect(screen.queryByText('Mon')).not.toBeNull();
+    expect(screen.queryByText('Tue')).not.toBeNull();
+    expect(screen.queryByText('Wed')).not.toBeNull();
   });
 
   it('renders the correct number of day columns', () => {
@@ -408,9 +423,9 @@ describe('forecastDays prop', () => {
     const data = makeWeatherData(); // 5 days: Mon–Fri
     render(<WeatherWidget data={data} forecastDays={2} />);
 
-    expect(screen.queryByText('MON')).not.toBeNull();
-    expect(screen.queryByText('TUE')).not.toBeNull();
-    expect(screen.queryByText('WED')).toBeNull();
+    expect(screen.queryByText('Mon')).not.toBeNull();
+    expect(screen.queryByText('Tue')).not.toBeNull();
+    expect(screen.queryByText('Wed')).toBeNull();
   });
 
   it('shows only available days when fewer than forecastDays exist', () => {
@@ -425,9 +440,9 @@ describe('forecastDays prop', () => {
     // Label reflects the requested prop
     expect(screen.queryByText('5-Day Forecast')).not.toBeNull();
     // Header shows only the 2 days that exist
-    expect(screen.queryByText('MON')).not.toBeNull();
-    expect(screen.queryByText('TUE')).not.toBeNull();
-    expect(screen.queryByText('WED')).toBeNull();
+    expect(screen.queryByText('Mon')).not.toBeNull();
+    expect(screen.queryByText('Tue')).not.toBeNull();
+    expect(screen.queryByText('Wed')).toBeNull();
   });
 
   it('always passes exactly 24 items to merry-timeline regardless of forecastDays', async () => {
@@ -440,6 +455,78 @@ describe('forecastDays prop', () => {
 });
 
 
+// ===========================================================================
+// 6. Condition legend — based on hourly conditions
+// ===========================================================================
+
+describe('condition legend', () => {
+  it('is NOT rendered when all 24 hours share the same condition', () => {
+    const data = makeWeatherData({ hourly: makeHourlyForecast('sunny') });
+    const { container } = render(<WeatherWidget data={data} />);
+
+    // Legend swatches use inline backgroundColor — none should exist
+    const swatches = container.querySelectorAll('[style*="backgroundColor"]');
+    expect(swatches.length).toBe(0);
+  });
+
+  it('IS rendered when hourly data has multiple conditions', () => {
+    const conditions: WeatherCondition[] = [
+      ...Array(12).fill('sunny'),
+      ...Array(12).fill('rainy'),
+    ];
+    const data = makeWeatherData({ hourly: makeHourlyForecast(conditions) });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.queryByText('sunny')).not.toBeNull();
+    expect(screen.queryByText('rainy')).not.toBeNull();
+  });
+
+  it('shows each unique condition only once even with duplicates', () => {
+    // sunny x12, rainy x6, sunny x6 → 2 unique conditions
+    const conditions: WeatherCondition[] = [
+      ...Array(12).fill('sunny'),
+      ...Array(6).fill('rainy'),
+      ...Array(6).fill('sunny'),
+    ];
+    const data = makeWeatherData({ hourly: makeHourlyForecast(conditions) });
+    render(<WeatherWidget data={data} />);
+
+    const sunnyElements = screen.queryAllByText('sunny');
+    expect(sunnyElements).toHaveLength(1);
+  });
+
+  it('displays the correct background color for each legend swatch', () => {
+    const conditions: WeatherCondition[] = [
+      ...Array(12).fill('sunny'),
+      ...Array(12).fill('rainy'),
+    ];
+    const data = makeWeatherData({ hourly: makeHourlyForecast(conditions) });
+    const { container } = render(<WeatherWidget data={data} />);
+
+    const swatches = container.querySelectorAll<HTMLElement>(
+      '[style*="background-color"], [style*="backgroundColor"]'
+    );
+    const colors = Array.from(swatches).map((el) => el.style.backgroundColor);
+
+    // jsdom normalises hex to rgb()
+    const hasAmber = colors.some((c) => c.includes('251') && c.includes('191')); // #FBBF24
+    const hasBlue  = colors.some((c) => c.includes('96')  && c.includes('165')); // #60A5FA
+    expect(hasAmber).toBe(true);
+    expect(hasBlue).toBe(true);
+  });
+
+  it('renders condition names with dashes replaced by spaces', () => {
+    const conditions: WeatherCondition[] = [
+      ...Array(12).fill('sunny'),
+      ...Array(12).fill('partly-cloudy'),
+    ];
+    const data = makeWeatherData({ hourly: makeHourlyForecast(conditions) });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.queryByText('partly cloudy')).not.toBeNull();
+    expect(screen.queryByText('partly-cloudy')).toBeNull();
+  });
+});
 
 
 // ===========================================================================
@@ -474,8 +561,7 @@ describe('current conditions', () => {
   it('renders the location name', () => {
     const data = makeWeatherData({ location: 'Denver, CO' });
     render(<WeatherWidget data={data} />);
-    // formatLocation returns the city portion only
-    expect(screen.queryByText('Denver')).not.toBeNull();
+    expect(screen.queryByText('Denver, CO')).not.toBeNull();
   });
 
   it('renders the "feels like" temperature', () => {
@@ -513,7 +599,7 @@ describe('showForecast prop', () => {
     const data = makeWeatherData();
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText('5-Day Forecast')).not.toBeNull();
-    expect(screen.queryByText('Next 12 Hours')).not.toBeNull();
+    expect(screen.queryByText('Next 24 Hours')).not.toBeNull();
   });
 
   it('hides the forecast section when showForecast=false', async () => {
@@ -522,7 +608,7 @@ describe('showForecast prop', () => {
     await act(async () => {});
 
     expect(screen.queryByText('5-Day Forecast')).toBeNull();
-    expect(screen.queryByText('Next 12 Hours')).toBeNull();
+    expect(screen.queryByText('Next 24 Hours')).toBeNull();
     expect(mockTimeline).not.toHaveBeenCalled();
   });
 });
@@ -561,12 +647,12 @@ describe('demo data fallback', () => {
 
   it('uses demo location when no location or data is provided', () => {
     render(<WeatherWidget />);
-    expect(screen.queryByText('Melrose')).not.toBeNull();
+    expect(screen.queryByText('Springfield, IL')).not.toBeNull();
   });
 
   it('shows the passed location in demo mode', () => {
     render(<WeatherWidget location="Austin, TX" />);
-    expect(screen.queryByText('Austin')).not.toBeNull();
+    expect(screen.queryByText('Austin, TX')).not.toBeNull();
   });
 
   it('renders the Next 24 Hours timeline with demo data', async () => {

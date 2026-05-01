@@ -36,7 +36,6 @@ import {
   Droplets,
   Zap,
 } from 'lucide-react';
-import timeline from 'merry-timeline';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import { WidgetContainer } from './WidgetContainer';
@@ -76,21 +75,12 @@ export interface HourlyForecast {
   time: Date;
   condition: WeatherCondition;
   temp: number; // °F
-  precipProbability?: number; // 0–100
-  precipIntensity?: number;   // mm/hr
 }
 
 export interface ForecastPeriod {
   label: string;
   temp: number;
   condition: WeatherCondition;
-}
-
-/** One minute of precipitation data from the minutely forecast. */
-export interface MinutelyData {
-  time: number;           // unix timestamp
-  precipIntensity: number;  // mm/hr
-  precipProbability: number; // 0–1
 }
 
 export interface WeatherData {
@@ -100,8 +90,6 @@ export interface WeatherData {
   /** Next 24 hours of hourly forecast data for the timeline. */
   hourly?: HourlyForecast[];
   periods?: ForecastPeriod[];
-  /** Next 60 minutes of minute-by-minute precipitation data. */
-  minutely?: MinutelyData[];
   sunrise?: Date;
   sunset?: Date;
   lastUpdated: Date;
@@ -169,13 +157,6 @@ function tempToColor(fahrenheit: number): string {
 }
 
 
-/** Normalize "City,State,Country" → "City, State" regardless of upstream format. */
-function formatLocation(location: string): string {
-  const parts = location.split(',').map((s) => s.trim()).filter(Boolean);
-  if (parts.length >= 1) return parts[0]!;
-  return location;
-}
-
 function formatTempDisplay(fahrenheit: number, useCelsius: boolean): string {
   if (useCelsius) {
     return `${Math.round((fahrenheit - 32) * 5 / 9)}°C`;
@@ -208,11 +189,6 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
   const hasDays = weatherData.forecast.length > 0;
 
-  // Show precipitation chart when rain is imminent (any minute > 0.01 mm/hr) and data is available
-  const hasImminentRain = (weatherData.minutely ?? []).some((m) => m.precipIntensity > 0.01);
-  const showPrecipChart = hasImminentRain && !!weatherData.minutely?.length;
-  const showSunArc = !!weatherData.sunrise && !!weatherData.sunset && !showPrecipChart;
-
   return (
     <WidgetContainer
       icon={<Cloud className="h-4 w-4" />}
@@ -230,13 +206,6 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           useCelsius={useCelsius}
         />
 
-        {/* 24-HOUR TIMELINE */}
-        {showForecast && weatherData.hourly && weatherData.hourly.length > 0 && (
-          <div className="border-t border-border pt-3">
-            <HourlyTimeline hourly={weatherData.hourly} />
-          </div>
-        )}
-
         {/* FORECAST SECTION */}
         {showForecast && hasDays && (
           <div className="border-t border-border pt-3 flex-1 min-h-0 flex flex-col gap-3">
@@ -252,20 +221,13 @@ export const WeatherWidget = React.memo(function WeatherWidget({
               />
             </div>
 
-            {/* Sunrise / sunset arc — replaced by precip chart when rain is imminent */}
-            {showSunArc && (
+            {/* Sunrise / sunset arc */}
+            {weatherData.sunrise && weatherData.sunset && (
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Sun
                 </span>
-                <SunriseSunsetArc sunrise={weatherData.sunrise!} sunset={weatherData.sunset!} />
-              </div>
-            )}
-
-            {/* Precipitation chart — replaces sunrise/sunset arc when rain is coming in the next hour */}
-            {showPrecipChart && (
-              <div className="flex flex-col gap-1">
-                <PrecipitationChart minutely={weatherData.minutely!} />
+                <SunriseSunsetArc sunrise={weatherData.sunrise} sunset={weatherData.sunset} />
               </div>
             )}
 
@@ -307,7 +269,7 @@ function CurrentConditions({
           </div>
           {location && (
             <div className="text-xs text-muted-foreground/70 mt-0.5 truncate max-w-[140px]">
-              {formatLocation(location)}
+              {location}
             </div>
           )}
         </div>
@@ -347,10 +309,7 @@ function DayHeader({
   const globalMax = Math.max(...days.map((d) => d.high));
   const span = globalMax - globalMin || 1;
 
-  // Use local date comparison — server now groups by location-local date,
-  // and the browser is assumed to be in the same timezone as the location.
-  const now = new Date();
-  const todayLocalStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayUTCDate = new Date().toISOString().split('T')[0]!;
 
   const fmt = (f: number) =>
     useCelsius ? Math.round((f - 32) * 5 / 9) : Math.round(f);
@@ -358,9 +317,10 @@ function DayHeader({
   return (
     <div className="flex flex-col mt-1">
       {days.map((day, i) => {
-        const d = new Date(day.date);
-        const dayLocalStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const isToday = dayLocalStr === todayLocalStr;
+        // Compare UTC dates — server groups by UTC date (matching OWM's UTC data),
+        // so isToday must also use UTC to avoid timezone-shift duplicates/gaps.
+        const dayUTCDate = new Date(day.date).toISOString().split('T')[0]!;
+        const isToday = dayUTCDate === todayUTCDate;
         const label = isToday ? 'TODAY' : day.dayName.toUpperCase();
 
         const leftPct  = ((day.low  - globalMin) / span) * 100;
@@ -416,47 +376,11 @@ function DayHeader({
 
 
 /**
- * CONDITION HELPERS (for merry-timeline stripes)
+ * WEATHER TIMELINE
+ * Renders the merry-timeline library for the next 24 hours of hourly data.
+ * Each stripe = one hour, colored by condition, labeled with the time.
  */
-
-/** Map a WeatherCondition (+ optional precipIntensity) to a hex color for merry-timeline. */
-function conditionToHex(condition: WeatherCondition, precipIntensity?: number): string {
-  if (condition === 'rainy' && precipIntensity !== undefined) {
-    if (precipIntensity < 0.1) return '#B8D0E8'; // drizzle — very light blue
-    if (precipIntensity < 2.5) return '#7B9EC7'; // light rain
-    if (precipIntensity < 10)  return '#5A7DB5'; // moderate rain
-    return '#3A5C9A';                             // heavy rain — dark blue
-  }
-  const map: Record<WeatherCondition, string> = {
-    'sunny':         '#EAECF0', // near-white gray — Clear
-    'partly-cloudy': '#C8CBD6', // light gray
-    'cloudy':        '#A8ADB8', // medium gray
-    'rainy':         '#7B9EC7', // muted periwinkle blue (fallback, no intensity)
-    'snowy':         '#B8D4E8', // icy light blue
-    'stormy':        '#4A6FA5', // dark slate blue
-  };
-  return map[condition] ?? '#A8ADB8';
-}
-
-/** Map a WeatherCondition (+ optional precipIntensity) to a text label for merry-timeline. */
-function conditionLabel(condition: WeatherCondition, precipIntensity?: number): string {
-  if (condition === 'rainy' && precipIntensity !== undefined) {
-    if (precipIntensity < 0.1) return 'Drizzle';
-    if (precipIntensity < 2.5) return 'Light Rain';
-    if (precipIntensity < 10)  return 'Rain';
-    return 'Heavy Rain';
-  }
-  const map: Record<WeatherCondition, string> = {
-    'sunny':         'Clear',
-    'partly-cloudy': 'Partly Cloudy',
-    'cloudy':        'Cloudy',
-    'rainy':         'Rain',
-    'snowy':         'Snow',
-    'stormy':        'Thunderstorm',
-  };
-  return map[condition] ?? 'Cloudy';
-}
-
+// Cache the import promise so the module is only fetched once.
 
 /**
  * WEATHER ICON
@@ -477,188 +401,6 @@ function WeatherIcon({
     'stormy':        <Zap className={className} />,
   };
   return <>{icons[condition] ?? <Cloud className={className} />}</>;
-}
-
-
-/**
- * HOURLY TIMELINE
- * Dark Sky-style color strip rendered by merry-timeline.
- * Consecutive hours sharing the same condition merge into one labeled stripe.
- * A red tracker line marks the current time. Hour labels appear below.
- */
-function HourlyTimeline({ hourly }: { hourly: HourlyForecast[] }) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const el = containerRef.current;
-    if (!el || hourly.length === 0) return;
-
-    const data = hourly.map((h) => ({
-      time: Math.floor(h.time.getTime() / 1000),
-      color: conditionToHex(h.condition, h.precipIntensity),
-      text: conditionLabel(h.condition, h.precipIntensity),
-    }));
-
-    // Use ResizeObserver to pass the actual pixel width to merry-timeline
-    // so it renders correctly even before the layout has fully settled.
-    const ro = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
-      if (width) timeline(el, data, { width, tracker: 0 });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [hourly]);
-
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Next 12 Hours
-      </span>
-      <div ref={containerRef} className="w-full" data-keep-bg="" />
-    </div>
-  );
-}
-
-
-/**
- * PRECIPITATION CHART
- * Smooth SVG area chart showing minute-by-minute precipitation intensity over
- * the next 60 minutes.  Y-axis shows HEAVY / MED / LIGHT intensity bands with
- * dotted reference lines; x-axis shows 10-minute interval labels.
- * Auto-shown when any minute has precipIntensity > 0.01 mm/hr.
- */
-function PrecipitationChart({ minutely }: { minutely: MinutelyData[] }) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [width, setWidth] = React.useState(220);
-
-  React.useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(entry.contentRect.width);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // Layout — no left padding needed since labels are inside the chart
-  const PAD_LEFT  = 4;
-  const PAD_RIGHT = 4;
-  const PAD_TOP   = 4;
-  const CHART_H   = 56;
-  const AXIS_H    = 14;
-  const totalH    = PAD_TOP + CHART_H + AXIS_H;
-  const chartW    = Math.max(1, width - PAD_LEFT - PAD_RIGHT);
-  const baseY     = PAD_TOP + CHART_H;
-
-  // Linear scale: 0–5 mm/hr maps to baseY..PAD_TOP (heavy rain clips to top, common events fill chart)
-  const MAX_MM = 5;
-  const intensityToY = (mm: number) =>
-    baseY - (Math.min(mm, MAX_MM) / MAX_MM) * CHART_H;
-
-  // Three equal zones — dotted lines are the boundaries, labels go in the middle of each zone
-  const ZONE_H       = CHART_H / 3;
-  const HEAVY_LINE_Y = PAD_TOP + ZONE_H;
-  const MED_LINE_Y   = PAD_TOP + ZONE_H * 2;
-
-  // Vertical center of each zone
-  const HEAVY_LABEL_Y = PAD_TOP + ZONE_H * 0.5;
-  const MED_LABEL_Y   = PAD_TOP + ZONE_H * 1.5;
-  const LIGHT_LABEL_Y = PAD_TOP + ZONE_H * 2.5;
-
-  // Convert minutely data to SVG points
-  const n = minutely.length;
-  const pts = minutely.map((m, i) => ({
-    x: PAD_LEFT + (i / Math.max(n - 1, 1)) * chartW,
-    y: intensityToY(m.precipIntensity),
-  }));
-
-  const linePath = catmullRomPath(pts);
-  const areaPath =
-    linePath +
-    ` L ${(PAD_LEFT + chartW).toFixed(1)} ${baseY} L ${PAD_LEFT} ${baseY} Z`;
-
-  const xTicks = [10, 20, 30, 40, 50].map((min) => ({
-    min,
-    x: PAD_LEFT + (min / 60) * chartW,
-  }));
-
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-        <CloudRain className="h-3 w-3 text-blue-400" />
-        Rain next hour
-      </span>
-      <div ref={containerRef} className="w-full">
-        <svg width={width} height={totalH} style={{ display: 'block' }}>
-          <defs>
-            <linearGradient id="precip-area-gradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#60A5FA" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.08" />
-            </linearGradient>
-          </defs>
-
-          {/* Zone boundary lines (between labels) */}
-          <line x1={PAD_LEFT} y1={HEAVY_LINE_Y} x2={PAD_LEFT + chartW} y2={HEAVY_LINE_Y}
-            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
-          <line x1={PAD_LEFT} y1={MED_LINE_Y} x2={PAD_LEFT + chartW} y2={MED_LINE_Y}
-            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
-
-          {/* Zone labels — vertically centered in their zone, inside the chart */}
-          <text x={PAD_LEFT + 4} y={HEAVY_LABEL_Y} textAnchor="start" fontSize={7.5}
-            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">HEAVY</text>
-          <text x={PAD_LEFT + 4} y={MED_LABEL_Y} textAnchor="start" fontSize={7.5}
-            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">MED</text>
-          <text x={PAD_LEFT + 4} y={LIGHT_LABEL_Y} textAnchor="start" fontSize={7.5}
-            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">LIGHT</text>
-
-          {/* Filled area */}
-          <path d={areaPath} fill="url(#precip-area-gradient)" />
-
-          {/* Top stroke */}
-          <path d={linePath} fill="none" stroke="#60A5FA" strokeWidth={1.5}
-            strokeLinecap="round" strokeLinejoin="round" />
-
-          {/* Baseline */}
-          <line x1={PAD_LEFT} y1={baseY} x2={PAD_LEFT + chartW} y2={baseY}
-            stroke="currentColor" strokeOpacity={0.15} strokeWidth={1} />
-
-          {/* X-axis labels */}
-          {xTicks.map(({ min, x }) => (
-            <text key={min} x={x} y={baseY + 11} textAnchor="middle" fontSize={7.5}
-              fill="currentColor" fillOpacity={0.5}>{min} min</text>
-          ))}
-        </svg>
-      </div>
-    </div>
-  );
-}
-
-/** Catmull-Rom spline → cubic bezier SVG path.  Produces a smooth curve that
- *  passes through every data point without wild oscillations. */
-function catmullRomPath(pts: { x: number; y: number }[]): string {
-  if (pts.length === 0) return '';
-  if (pts.length === 1) return `M ${pts[0]!.x} ${pts[0]!.y}`;
-
-  const d: string[] = [`M ${pts[0]!.x.toFixed(1)} ${pts[0]!.y.toFixed(1)}`];
-
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[Math.max(0, i - 1)]!;
-    const p1 = pts[i]!;
-    const p2 = pts[i + 1]!;
-    const p3 = pts[Math.min(pts.length - 1, i + 2)]!;
-
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-    d.push(
-      `C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
-    );
-  }
-
-  return d.join(' ');
 }
 
 
@@ -887,54 +629,6 @@ function getDemoWeatherData(location: string): WeatherData {
   const sunset = new Date(today);
   sunset.setHours(19, 48, 0, 0);
 
-  // Demo hourly data: 24 hours starting now
-  const hourlyConditions: WeatherCondition[] = [
-    'partly-cloudy', 'partly-cloudy', 'cloudy', 'rainy', 'rainy',
-    'rainy', 'cloudy', 'cloudy', 'partly-cloudy', 'sunny',
-    'sunny', 'sunny', 'partly-cloudy', 'cloudy', 'rainy',
-    'rainy', 'cloudy', 'cloudy', 'partly-cloudy', 'partly-cloudy',
-    'cloudy', 'cloudy', 'rainy', 'rainy',
-  ];
-  const hourlyTemps = [
-    52, 51, 50, 49, 48, 47, 47, 48, 50, 53,
-    55, 57, 57, 56, 54, 52, 51, 50, 49, 48,
-    47, 47, 46, 46,
-  ];
-  const hourlyPrecips = [
-    20, 25, 35, 65, 80, 75, 55, 40, 20, 5,
-    0, 0, 10, 30, 70, 85, 60, 40, 25, 15,
-    20, 30, 60, 75,
-  ];
-  const hourly: HourlyForecast[] = Array.from({ length: 24 }, (_, i) => {
-    const t = new Date(today);
-    t.setMinutes(0, 0, 0);
-    t.setHours(t.getHours() + i);
-    return {
-      time: t,
-      condition: hourlyConditions[i] ?? 'cloudy',
-      temp: hourlyTemps[i] ?? 50,
-      precipProbability: hourlyPrecips[i] ?? 0,
-    };
-  });
-
-  // Demo minutely: trace → light rain starting ~20 min in, plateaus, matches screenshot
-  const nowSec = Math.floor(Date.now() / 1000);
-  const minutely: MinutelyData[] = Array.from({ length: 61 }, (_, i) => {
-    let intensity = 0;
-    if (i >= 16 && i < 22) {
-      intensity = 2.5 * ((i - 16) / 6);   // ramp up to LIGHT
-    } else if (i >= 22 && i <= 55) {
-      intensity = 2.2 + 0.5 * Math.sin((i - 22) / 8); // plateau near LIGHT
-    } else if (i > 55) {
-      intensity = 2.5 * ((61 - i) / 6);   // taper off
-    }
-    return {
-      time: nowSec + i * 60,
-      precipIntensity: parseFloat(intensity.toFixed(3)),
-      precipProbability: intensity > 0 ? 0.8 : 0,
-    };
-  });
-
   return {
     location:    location || 'Melrose, MA',
     current: {
@@ -946,8 +640,7 @@ function getDemoWeatherData(location: string): WeatherData {
       description: 'Partly cloudy',
     },
     forecast,
-    hourly,
-    minutely,
+
     sunrise,
     sunset,
     lastUpdated: new Date(),
