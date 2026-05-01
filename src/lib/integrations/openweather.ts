@@ -61,8 +61,12 @@ interface OpenWeatherForecast {
   city: {
     name: string;
     country: string;
+    timezone: number;
   };
 }
+
+/** Location can be a city string or geocoded lat/lon coordinates. */
+export type LocationParam = string | { lat: number; lon: number; displayName?: string };
 
 /**
  * Get configuration from environment
@@ -129,10 +133,12 @@ function mpsToMph(mps: number): number {
  * Fetch current weather data
  */
 export async function fetchCurrentWeather(
-  location?: string
+  location?: LocationParam
 ): Promise<CurrentWeather & { locationName: string; sunrise: Date; sunset: Date }> {
   const config = getConfig();
-  const loc = location || config.location;
+  const loc = typeof location === 'object'
+    ? `${location.lat},${location.lon}`
+    : location || config.location;
 
   const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(loc)}&appid=${config.apiKey}`;
 
@@ -272,11 +278,11 @@ async function fetchForecastRaw(location?: string): Promise<{
 /**
  * Fetch 5-day forecast (public API)
  */
-export async function fetchForecast(location?: string): Promise<{
+export async function fetchForecast(location?: LocationParam): Promise<{
   forecast: ForecastDay[];
   locationName: string;
 }> {
-  const result = await fetchForecastRaw(location);
+  const result = await fetchForecastRaw(typeof location === 'string' ? location : undefined);
   return { forecast: result.forecast, locationName: result.locationName };
 }
 
@@ -322,10 +328,10 @@ function extractPeriods(forecastList: OpenWeatherForecast['list']): ForecastPeri
 /**
  * Fetch complete weather data (current + forecast)
  */
-export async function fetchWeatherData(location?: string): Promise<WeatherData> {
+export async function fetchWeatherData(location?: LocationParam): Promise<WeatherData> {
   const [currentData, forecastData] = await Promise.all([
     fetchCurrentWeather(location),
-    fetchForecastRaw(location),
+    fetchForecastRaw(typeof location === 'string' ? location : undefined),
   ]);
 
   const periods = extractPeriods(forecastData.raw);

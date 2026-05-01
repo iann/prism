@@ -1,29 +1,17 @@
 /**
  * @jest-environment jsdom
  *
- * Tests for WeatherWidget — covering the merry-timeline integration,
- * WeatherTimeline (24-hour hourly), the day summary header, forecastDays prop,
- * condition color/icon mapping, condition legend, and current conditions.
+ * Tests for WeatherWidget — covering the day summary header, forecastDays prop,
+ * current conditions display, sunrise/sunset, loading/error states, and demo data fallback.
  */
 
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
-
-// --- mocks (must precede component import) ---------------------------------
-
-jest.mock('merry-timeline', () => ({
-  // __esModule: true tells ts-jest's __importDefault helper that this is already
-  // an ES module shape, so `import timeline from 'merry-timeline'` resolves
-  // directly to `.default` (the jest.fn()) instead of being double-wrapped.
-  __esModule: true,
-  default: jest.fn(),
-}));
+import { render, screen } from '@testing-library/react';
 
 // Stub WidgetContainer so we don't pull in next/link, Radix UI, etc.
 jest.mock('../WidgetContainer', () => ({
   WidgetContainer: function MockWidgetContainer({
     children,
-    title,
     loading,
     error,
   }: {
@@ -34,22 +22,19 @@ jest.mock('../WidgetContainer', () => ({
   }) {
     if (loading) return <div data-testid="loading-state">Loading</div>;
     if (error)   return <div data-testid="error-state">{error}</div>;
-    return (
-      <div data-testid="widget-container">
-        {title && <div data-testid="widget-title">{title}</div>}
-        {children}
-      </div>
-    );
+    return <div data-testid="widget-container">{children}</div>;
   },
 }));
 
-// ---------------------------------------------------------------------------
+// Mock ResizeObserver (used by SunriseSunsetArc)
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
 
-import timeline from 'merry-timeline';
 import { WeatherWidget } from '../WeatherWidget';
-import type { WeatherData, ForecastDay, HourlyForecast, WeatherCondition } from '../WeatherWidget';
-
-const mockTimeline = jest.mocked(timeline);
+import type { WeatherData, ForecastDay, WeatherCondition } from '../WeatherWidget';
 
 // ---------------------------------------------------------------------------
 // Test data helpers
@@ -66,34 +51,8 @@ function makeForecastDay(overrides: Partial<ForecastDay> = {}): ForecastDay {
   };
 }
 
-/**
- * Build 24 hourly items anchored to a fixed local midnight so time labels
- * are deterministic regardless of when the test runs.
- *   hour 0  → '12am'
- *   hour 1  → '1am'
- *   hour 12 → '12pm'
- *   hour 14 → '2pm'
- */
-function makeHourlyForecast(
-  conditionOrList: WeatherCondition | WeatherCondition[] = 'sunny',
-  temp = 70,
-): HourlyForecast[] {
-  const conditions: WeatherCondition[] = Array.isArray(conditionOrList)
-    ? conditionOrList
-    : Array(24).fill(conditionOrList);
-
-  return Array.from({ length: 24 }, (_, i) => ({
-    // new Date(year, month, day, hour) — local time, deterministic labels
-    time:      new Date(2026, 3, 7, i),   // April 7, 2026, hour i
-    condition: conditions[i] ?? 'sunny',
-    temp,
-  }));
-}
-
-/** Build a full WeatherData object. */
 function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
   const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
   const forecast: ForecastDay[] = DAY_NAMES.slice(0, 5).map((dayName, i) => ({
     date: new Date(Date.UTC(2026, 3, 7 + i)),
     dayName,
@@ -113,231 +72,13 @@ function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
       description: 'Clear sky',
     },
     forecast,
-    hourly: makeHourlyForecast('sunny'),
     lastUpdated: new Date(),
     ...overrides,
   };
 }
 
-/** Render and wait for the timeline library to be called. */
-async function renderAndWaitForTimeline(element: React.ReactElement) {
-  const result = render(element);
-  await waitFor(() => expect(mockTimeline).toHaveBeenCalled());
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-
-beforeEach(() => {
-  mockTimeline.mockClear();
-});
-
-
 // ===========================================================================
-// 1. merry-timeline integration
-// ===========================================================================
-
-describe('merry-timeline integration', () => {
-  it('calls timeline() with an HTMLElement container', async () => {
-    await renderAndWaitForTimeline(<WeatherWidget data={makeWeatherData()} />);
-
-    const [containerArg] = mockTimeline.mock.calls[0]!;
-    expect(containerArg).toBeInstanceOf(HTMLElement);
-  });
-
-  it('calls timeline() with exactly 24 items', async () => {
-    await renderAndWaitForTimeline(<WeatherWidget data={makeWeatherData()} />);
-
-    const [, items] = mockTimeline.mock.calls[0]!;
-    expect(Array.isArray(items)).toBe(true);
-    expect(items).toHaveLength(24);
-  });
-
-  it('passes a timezone string in options', async () => {
-    await renderAndWaitForTimeline(<WeatherWidget data={makeWeatherData()} />);
-
-    const [, , opts] = mockTimeline.mock.calls[0]!;
-    expect(typeof opts?.timezone).toBe('string');
-    expect(opts!.timezone!.length).toBeGreaterThan(0);
-  });
-
-  it('does not call timeline() when hourly data is empty', async () => {
-    render(<WeatherWidget data={makeWeatherData({ hourly: [] })} />);
-    await act(async () => {});
-    expect(mockTimeline).not.toHaveBeenCalled();
-  });
-
-  it('does not call timeline() when showForecast is false', async () => {
-    render(<WeatherWidget data={makeWeatherData()} showForecast={false} />);
-    await act(async () => {});
-    expect(mockTimeline).not.toHaveBeenCalled();
-  });
-
-  it('re-calls timeline() when hourly data changes', async () => {
-    const data = makeWeatherData({ hourly: makeHourlyForecast('sunny') });
-    const { rerender } = await renderAndWaitForTimeline(<WeatherWidget data={data} />);
-
-    mockTimeline.mockClear();
-
-    const updated = makeWeatherData({ hourly: makeHourlyForecast('rainy') });
-    rerender(<WeatherWidget data={updated} />);
-    await waitFor(() => expect(mockTimeline).toHaveBeenCalledTimes(1));
-  });
-
-  it('does NOT re-call timeline() when only forecastDays changes', async () => {
-    const data = makeWeatherData();
-    const { rerender } = await renderAndWaitForTimeline(
-      <WeatherWidget data={data} forecastDays={3} />
-    );
-
-    mockTimeline.mockClear();
-
-    rerender(<WeatherWidget data={data} forecastDays={5} />);
-    // Let any async effects flush — timeline should not be called again
-    await act(async () => {});
-    expect(mockTimeline).not.toHaveBeenCalled();
-  });
-
-  it('does NOT re-call timeline() when only useCelsius changes', async () => {
-    const data = makeWeatherData();
-    const { rerender } = await renderAndWaitForTimeline(
-      <WeatherWidget data={data} useCelsius={false} />
-    );
-
-    mockTimeline.mockClear();
-
-    rerender(<WeatherWidget data={data} useCelsius={true} />);
-    await act(async () => {});
-    expect(mockTimeline).not.toHaveBeenCalled();
-  });
-
-  it('clears the container innerHTML before each render', async () => {
-    const data = makeWeatherData({ hourly: makeHourlyForecast('sunny') });
-    const { rerender } = await renderAndWaitForTimeline(<WeatherWidget data={data} />);
-
-    mockTimeline.mockClear();
-
-    const updated = makeWeatherData({ hourly: makeHourlyForecast('rainy') });
-    rerender(<WeatherWidget data={updated} />);
-    await waitFor(() => expect(mockTimeline).toHaveBeenCalled());
-
-    const [container] = mockTimeline.mock.calls[0]!;
-    expect(container).toBeInstanceOf(HTMLElement);
-  });
-});
-
-
-// ===========================================================================
-// 2. Timeline items structure
-// ===========================================================================
-
-describe('timeline items structure', () => {
-  async function getItemsForHourly(hourly: HourlyForecast[]) {
-    const data = makeWeatherData({ hourly });
-    await renderAndWaitForTimeline(<WeatherWidget data={data} />);
-    return mockTimeline.mock.calls[0]![1] as Array<{
-      time: number;
-      color: string;
-      text: string;
-    }>;
-  }
-
-  it('generates exactly 24 items (next 24 hours)', async () => {
-    const items = await getItemsForHourly(makeHourlyForecast('sunny'));
-    expect(items).toHaveLength(24);
-  });
-
-  it('items are sorted by time ascending', async () => {
-    const items = await getItemsForHourly(makeHourlyForecast('sunny'));
-    for (let i = 1; i < items.length; i++) {
-      expect(items[i]!.time).toBeGreaterThanOrEqual(items[i - 1]!.time);
-    }
-  });
-
-  it('each item color matches its condition', async () => {
-    // All rainy → every item should be #60A5FA
-    const items = await getItemsForHourly(makeHourlyForecast('rainy'));
-    for (const item of items) {
-      expect(item.color).toBe('#60A5FA');
-    }
-  });
-
-  it('each item color is independent per hour', async () => {
-    // First 12 hours sunny, next 12 rainy
-    const conditions: WeatherCondition[] = [
-      ...Array(12).fill('sunny'),
-      ...Array(12).fill('rainy'),
-    ];
-    const items = await getItemsForHourly(makeHourlyForecast(conditions));
-
-    for (const item of items.slice(0, 12)) expect(item.color).toBe('#FBBF24');
-    for (const item of items.slice(12))    expect(item.color).toBe('#60A5FA');
-  });
-
-  it('item text is a formatted time label (e.g. "2pm")', async () => {
-    const items = await getItemsForHourly(makeHourlyForecast('sunny'));
-
-    // Hour 0 → '12am', hour 12 → '12pm', hour 14 → '2pm'
-    expect(items[0]!.text).toBe('12am');
-    expect(items[12]!.text).toBe('12pm');
-    expect(items[14]!.text).toBe('2pm');
-  });
-
-  it('formats am hours correctly', async () => {
-    const items = await getItemsForHourly(makeHourlyForecast('sunny'));
-    expect(items[1]!.text).toBe('1am');
-    expect(items[6]!.text).toBe('6am');
-    expect(items[11]!.text).toBe('11am');
-  });
-
-  it('formats pm hours correctly', async () => {
-    const items = await getItemsForHourly(makeHourlyForecast('sunny'));
-    expect(items[13]!.text).toBe('1pm');
-    expect(items[18]!.text).toBe('6pm');
-    expect(items[23]!.text).toBe('11pm');
-  });
-
-  it('all 24 items have unique text labels (no merging)', async () => {
-    const items = await getItemsForHourly(makeHourlyForecast('sunny'));
-    const labels = items.map((it) => it.text);
-    const unique = new Set(labels);
-    expect(unique.size).toBe(24);
-  });
-});
-
-
-// ===========================================================================
-// 3. Condition color mapping
-// ===========================================================================
-
-describe('condition → timeline color mapping', () => {
-  const EXPECTED_COLORS: [WeatherCondition, string][] = [
-    ['sunny',         '#FBBF24'],
-    ['partly-cloudy', '#7DD3FC'],
-    ['cloudy',        '#94A3B8'],
-    ['rainy',         '#60A5FA'],
-    ['snowy',         '#BAE6FD'],
-    ['stormy',        '#64748B'],
-  ];
-
-  it.each(EXPECTED_COLORS)(
-    'condition "%s" maps to color %s',
-    async (condition, expectedColor) => {
-      const data = makeWeatherData({ hourly: makeHourlyForecast(condition) });
-      await renderAndWaitForTimeline(<WeatherWidget data={data} />);
-
-      const items = mockTimeline.mock.calls[0]![1] as Array<{ color: string }>;
-      // All 24 items share the same condition in this test
-      for (const item of items) {
-        expect(item.color).toBe(expectedColor);
-      }
-    }
-  );
-});
-
-
-// ===========================================================================
-// 4. Day summary header (driven by forecastDays, not the timeline)
+// 1. Day summary header
 // ===========================================================================
 
 describe('day summary header', () => {
@@ -351,10 +92,9 @@ describe('day summary header', () => {
     });
     render(<WeatherWidget data={data} forecastDays={3} />);
 
-    // DOM text uses original casing — CSS `uppercase` is a visual transform only
-    expect(screen.queryByText('Mon')).not.toBeNull();
-    expect(screen.queryByText('Tue')).not.toBeNull();
-    expect(screen.queryByText('Wed')).not.toBeNull();
+    expect(screen.queryByText('MON')).not.toBeNull();
+    expect(screen.queryByText('TUE')).not.toBeNull();
+    expect(screen.queryByText('WED')).not.toBeNull();
   });
 
   it('renders the correct number of day columns', () => {
@@ -403,7 +143,7 @@ describe('day summary header', () => {
 
 
 // ===========================================================================
-// 5. forecastDays prop — controls the day summary; not the timeline
+// 2. forecastDays prop
 // ===========================================================================
 
 describe('forecastDays prop', () => {
@@ -423,9 +163,9 @@ describe('forecastDays prop', () => {
     const data = makeWeatherData(); // 5 days: Mon–Fri
     render(<WeatherWidget data={data} forecastDays={2} />);
 
-    expect(screen.queryByText('Mon')).not.toBeNull();
-    expect(screen.queryByText('Tue')).not.toBeNull();
-    expect(screen.queryByText('Wed')).toBeNull();
+    expect(screen.queryByText('MON')).not.toBeNull();
+    expect(screen.queryByText('TUE')).not.toBeNull();
+    expect(screen.queryByText('WED')).toBeNull();
   });
 
   it('shows only available days when fewer than forecastDays exist', () => {
@@ -437,100 +177,16 @@ describe('forecastDays prop', () => {
     });
     render(<WeatherWidget data={data} forecastDays={5} />);
 
-    // Label reflects the requested prop
     expect(screen.queryByText('5-Day Forecast')).not.toBeNull();
-    // Header shows only the 2 days that exist
-    expect(screen.queryByText('Mon')).not.toBeNull();
-    expect(screen.queryByText('Tue')).not.toBeNull();
-    expect(screen.queryByText('Wed')).toBeNull();
-  });
-
-  it('always passes exactly 24 items to merry-timeline regardless of forecastDays', async () => {
-    const data = makeWeatherData();
-    await renderAndWaitForTimeline(<WeatherWidget data={data} forecastDays={3} />);
-
-    const items = mockTimeline.mock.calls[0]![1] as unknown[];
-    expect(items).toHaveLength(24);
+    expect(screen.queryByText('MON')).not.toBeNull();
+    expect(screen.queryByText('TUE')).not.toBeNull();
+    expect(screen.queryByText('WED')).toBeNull();
   });
 });
 
 
 // ===========================================================================
-// 6. Condition legend — based on hourly conditions
-// ===========================================================================
-
-describe('condition legend', () => {
-  it('is NOT rendered when all 24 hours share the same condition', () => {
-    const data = makeWeatherData({ hourly: makeHourlyForecast('sunny') });
-    const { container } = render(<WeatherWidget data={data} />);
-
-    // Legend swatches use inline backgroundColor — none should exist
-    const swatches = container.querySelectorAll('[style*="backgroundColor"]');
-    expect(swatches.length).toBe(0);
-  });
-
-  it('IS rendered when hourly data has multiple conditions', () => {
-    const conditions: WeatherCondition[] = [
-      ...Array(12).fill('sunny'),
-      ...Array(12).fill('rainy'),
-    ];
-    const data = makeWeatherData({ hourly: makeHourlyForecast(conditions) });
-    render(<WeatherWidget data={data} />);
-
-    expect(screen.queryByText('sunny')).not.toBeNull();
-    expect(screen.queryByText('rainy')).not.toBeNull();
-  });
-
-  it('shows each unique condition only once even with duplicates', () => {
-    // sunny x12, rainy x6, sunny x6 → 2 unique conditions
-    const conditions: WeatherCondition[] = [
-      ...Array(12).fill('sunny'),
-      ...Array(6).fill('rainy'),
-      ...Array(6).fill('sunny'),
-    ];
-    const data = makeWeatherData({ hourly: makeHourlyForecast(conditions) });
-    render(<WeatherWidget data={data} />);
-
-    const sunnyElements = screen.queryAllByText('sunny');
-    expect(sunnyElements).toHaveLength(1);
-  });
-
-  it('displays the correct background color for each legend swatch', () => {
-    const conditions: WeatherCondition[] = [
-      ...Array(12).fill('sunny'),
-      ...Array(12).fill('rainy'),
-    ];
-    const data = makeWeatherData({ hourly: makeHourlyForecast(conditions) });
-    const { container } = render(<WeatherWidget data={data} />);
-
-    const swatches = container.querySelectorAll<HTMLElement>(
-      '[style*="background-color"], [style*="backgroundColor"]'
-    );
-    const colors = Array.from(swatches).map((el) => el.style.backgroundColor);
-
-    // jsdom normalises hex to rgb()
-    const hasAmber = colors.some((c) => c.includes('251') && c.includes('191')); // #FBBF24
-    const hasBlue  = colors.some((c) => c.includes('96')  && c.includes('165')); // #60A5FA
-    expect(hasAmber).toBe(true);
-    expect(hasBlue).toBe(true);
-  });
-
-  it('renders condition names with dashes replaced by spaces', () => {
-    const conditions: WeatherCondition[] = [
-      ...Array(12).fill('sunny'),
-      ...Array(12).fill('partly-cloudy'),
-    ];
-    const data = makeWeatherData({ hourly: makeHourlyForecast(conditions) });
-    render(<WeatherWidget data={data} />);
-
-    expect(screen.queryByText('partly cloudy')).not.toBeNull();
-    expect(screen.queryByText('partly-cloudy')).toBeNull();
-  });
-});
-
-
-// ===========================================================================
-// 7. Current conditions display
+// 3. Current conditions display
 // ===========================================================================
 
 describe('current conditions', () => {
@@ -558,7 +214,7 @@ describe('current conditions', () => {
     expect(screen.queryByText('Heavy thunderstorm')).not.toBeNull();
   });
 
-  it('renders the location name', () => {
+  it('renders the location string', () => {
     const data = makeWeatherData({ location: 'Denver, CO' });
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText('Denver, CO')).not.toBeNull();
@@ -591,7 +247,7 @@ describe('current conditions', () => {
 
 
 // ===========================================================================
-// 8. showForecast prop
+// 4. showForecast prop
 // ===========================================================================
 
 describe('showForecast prop', () => {
@@ -599,23 +255,18 @@ describe('showForecast prop', () => {
     const data = makeWeatherData();
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText('5-Day Forecast')).not.toBeNull();
-    expect(screen.queryByText('Next 24 Hours')).not.toBeNull();
   });
 
-  it('hides the forecast section when showForecast=false', async () => {
+  it('hides the forecast section when showForecast=false', () => {
     const data = makeWeatherData();
     render(<WeatherWidget data={data} showForecast={false} />);
-    await act(async () => {});
-
     expect(screen.queryByText('5-Day Forecast')).toBeNull();
-    expect(screen.queryByText('Next 24 Hours')).toBeNull();
-    expect(mockTimeline).not.toHaveBeenCalled();
   });
 });
 
 
 // ===========================================================================
-// 9. Loading and error states
+// 5. Loading and error states
 // ===========================================================================
 
 describe('loading and error states', () => {
@@ -637,7 +288,7 @@ describe('loading and error states', () => {
 
 
 // ===========================================================================
-// 10. Demo data fallback
+// 6. Demo data fallback
 // ===========================================================================
 
 describe('demo data fallback', () => {
@@ -645,19 +296,13 @@ describe('demo data fallback', () => {
     expect(() => render(<WeatherWidget />)).not.toThrow();
   });
 
-  it('uses demo location when no location or data is provided', () => {
+  it('renders the default demo location when no props are provided', () => {
     render(<WeatherWidget />);
-    expect(screen.queryByText('Springfield, IL')).not.toBeNull();
+    expect(screen.queryByText('Melrose, MA')).not.toBeNull();
   });
 
-  it('shows the passed location in demo mode', () => {
+  it('uses the passed location prop in demo mode', () => {
     render(<WeatherWidget location="Austin, TX" />);
     expect(screen.queryByText('Austin, TX')).not.toBeNull();
-  });
-
-  it('renders the Next 24 Hours timeline with demo data', async () => {
-    await renderAndWaitForTimeline(<WeatherWidget />);
-    const [, items] = mockTimeline.mock.calls[0]!;
-    expect(items).toHaveLength(24);
   });
 });

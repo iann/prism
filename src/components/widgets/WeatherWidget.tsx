@@ -83,6 +83,13 @@ export interface ForecastPeriod {
   condition: WeatherCondition;
 }
 
+/** Per-minute precipitation intensity/probability (from Pirate Weather). */
+export interface MinutelyData {
+  time: number;
+  precipIntensity: number;
+  precipProbability: number;
+}
+
 export interface WeatherData {
   location: string;
   current: CurrentWeather;
@@ -92,6 +99,7 @@ export interface WeatherData {
   periods?: ForecastPeriod[];
   sunrise?: Date;
   sunset?: Date;
+  minutely?: MinutelyData[];
   lastUpdated: Date;
 }
 
