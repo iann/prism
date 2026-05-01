@@ -231,7 +231,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
         />
 
         {/* 24-HOUR TIMELINE */}
-        {weatherData.hourly && weatherData.hourly.length > 0 && (
+        {showForecast && weatherData.hourly && weatherData.hourly.length > 0 && (
           <div className="border-t border-border pt-3">
             <HourlyTimeline hourly={weatherData.hourly} />
           </div>
