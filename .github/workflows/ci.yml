@@ -146,6 +146,9 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
+      - name: Build application
+        run: npm run build
+
       - name: Run e2e modality suite
         run: npx playwright test e2e/reverse-proxy.spec.ts --reporter=list
 
