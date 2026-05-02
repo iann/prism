@@ -26,7 +26,7 @@ jobs:
       # Keep master as a clean mirror of upstream — no personal commits ever land here.
       - name: Reset master to upstream
         run: |
-          git checkout master
+          git checkout -B master origin/master
           git reset --hard upstream/master
           git push origin master --force
 
