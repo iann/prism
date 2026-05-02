@@ -18,6 +18,9 @@ import type {
   ForecastPeriod,
   HourlyForecast,
 } from '@/components/widgets/WeatherWidget';
+import type { LocationParam } from './weather';
+
+export type { LocationParam };
 
 /**
  * OpenWeatherMap API response types
@@ -61,18 +64,16 @@ interface OpenWeatherForecast {
   city: {
     name: string;
     country: string;
-    timezone: number;
+    timezone: number; // UTC offset in seconds (e.g., -18000 for CDT)
   };
 }
 
-/** Location can be a city string or geocoded lat/lon coordinates. */
-export type LocationParam = string | { lat: number; lon: number; displayName?: string };
-
 /**
- * Get configuration from environment
+ * Get configuration — checks DB credentials store first, falls back to env.
  */
-function getConfig() {
-  const apiKey = process.env.OPENWEATHER_API_KEY;
+async function getConfig() {
+  const { getWeatherApiKey } = await import('@/lib/integrations/credentialStore');
+  const apiKey = await getWeatherApiKey();
   const location = process.env.WEATHER_LOCATION || 'Springfield,IL,US';
 
   if (!apiKey) {
@@ -130,17 +131,27 @@ function mpsToMph(mps: number): number {
 }
 
 /**
+ * Build a location query string for the OWM API.
+ * Prefers lat/lon (unambiguous) over the legacy string query.
+ */
+function buildLocationParam(loc: LocationParam): string {
+  if (typeof loc === 'object' && 'lat' in loc) {
+    return `lat=${loc.lat}&lon=${loc.lon}`;
+  }
+  return `q=${encodeURIComponent(loc as string)}`;
+}
+
+
+/**
  * Fetch current weather data
  */
 export async function fetchCurrentWeather(
   location?: LocationParam
 ): Promise<CurrentWeather & { locationName: string; sunrise: Date; sunset: Date }> {
-  const config = getConfig();
-  const loc = typeof location === 'object'
-    ? `${location.lat},${location.lon}`
-    : location || config.location;
+  const config = await getConfig();
+  const loc = location ?? config.location;
 
-  const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(loc)}&appid=${config.apiKey}`;
+  const url = `https://api.openweathermap.org/data/2.5/weather?${buildLocationParam(loc)}&appid=${config.apiKey}`;
 
   const response = await fetch(url, { next: { revalidate: 300 } }); // Cache for 5 minutes
 
@@ -172,16 +183,16 @@ export async function fetchCurrentWeather(
 /**
  * Fetch 5-day forecast (returns raw data too for period extraction)
  */
-async function fetchForecastRaw(location?: string): Promise<{
+async function fetchForecastRaw(location?: LocationParam): Promise<{
   forecast: ForecastDay[];
   raw: OpenWeatherForecast['list'];
   hourly: HourlyForecast[];
   locationName: string;
 }> {
-  const config = getConfig();
-  const loc = location || config.location;
+  const config = await getConfig();
+  const loc = location ?? config.location;
 
-  const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(loc)}&appid=${config.apiKey}`;
+  const url = `https://api.openweathermap.org/data/2.5/forecast?${buildLocationParam(loc)}&appid=${config.apiKey}`;
 
   const response = await fetch(url, { next: { revalidate: 1800 } }); // Cache for 30 minutes
 
@@ -193,7 +204,11 @@ async function fetchForecastRaw(location?: string): Promise<{
   const data: OpenWeatherForecast = await response.json();
   const dayNames = DAYS_SHORT_ARRAY;
 
-  // Group forecast by day and find daily highs/lows
+  // Group forecast by location-local day (using the city's UTC offset)
+  // so that day boundaries align with midnight at the weather location,
+  // not UTC midnight (which can be as early as 7 PM in US time zones).
+  const tzOffsetSec = data.city.timezone;
+
   const dailyData = new Map<
     string,
     { date: Date; temps: number[]; conditions: number[] }
@@ -201,7 +216,9 @@ async function fetchForecastRaw(location?: string): Promise<{
 
   for (const item of data.list) {
     const date = new Date(item.dt * 1000);
-    const dateKey = date.toISOString().split('T')[0]!; // group by UTC date (matches OWM's UTC-based data)
+    // Shift by the location's UTC offset so the ISO date reflects local date
+    const localShifted = new Date((item.dt + tzOffsetSec) * 1000);
+    const dateKey = localShifted.toISOString().split('T')[0]!;
 
     if (!dailyData.has(dateKey)) {
       dailyData.set(dateKey, {
@@ -241,7 +258,9 @@ async function fetchForecastRaw(location?: string): Promise<{
       }
     }
 
-    const dayIndex = dayData.date.getUTCDay(); // use UTC day to match UTC-based grouping
+    // Use location-local day of week (shift by timezone offset, then read UTC day)
+    const localShiftedDate = new Date(dayData.date.getTime() + tzOffsetSec * 1000);
+    const dayIndex = localShiftedDate.getUTCDay();
     forecast.push({
       date: dayData.date,
       dayName: dayNames[dayIndex] || 'Day',
@@ -282,7 +301,7 @@ export async function fetchForecast(location?: LocationParam): Promise<{
   forecast: ForecastDay[];
   locationName: string;
 }> {
-  const result = await fetchForecastRaw(typeof location === 'string' ? location : undefined);
+  const result = await fetchForecastRaw(location);
   return { forecast: result.forecast, locationName: result.locationName };
 }
 
@@ -331,7 +350,7 @@ function extractPeriods(forecastList: OpenWeatherForecast['list']): ForecastPeri
 export async function fetchWeatherData(location?: LocationParam): Promise<WeatherData> {
   const [currentData, forecastData] = await Promise.all([
     fetchCurrentWeather(location),
-    fetchForecastRaw(typeof location === 'string' ? location : undefined),
+    fetchForecastRaw(location),
   ]);
 
   const periods = extractPeriods(forecastData.raw);

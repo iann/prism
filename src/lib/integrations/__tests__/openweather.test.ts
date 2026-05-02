@@ -54,7 +54,10 @@ function mockCurrentResponse(overrides: {
       icon: '01d',
     }],
     name: overrides.name ?? 'TestCity',
-    sys: { sunrise: 1712480400, sunset: 1712527200 },
+    sys: {
+      sunrise: 1712480400, // arbitrary Unix timestamps
+      sunset:  1712527200,
+    },
   };
 }
 
