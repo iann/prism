@@ -1,0 +1,190 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "blob dog",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "GetTodayEventsIntent",
+          "slots": [],
+          "samples": [
+            "what's on today",
+            "what's on my calendar today",
+            "what's happening today",
+            "for today's events",
+            "for today's calendar",
+            "today's events",
+            "what is on today"
+          ]
+        },
+        {
+          "name": "GetUpcomingEventsIntent",
+          "slots": [
+            { "name": "Count", "type": "AMAZON.NUMBER" }
+          ],
+          "samples": [
+            "what's coming up",
+            "what's next",
+            "for upcoming events",
+            "for the next {Count} events",
+            "what are my next {Count} events",
+            "what's on my schedule",
+            "upcoming events"
+          ]
+        },
+        {
+          "name": "GetTodayTasksIntent",
+          "slots": [],
+          "samples": [
+            "what's on my to do list",
+            "what tasks do I have today",
+            "for today's tasks",
+            "what tasks are due today",
+            "what's due today",
+            "my tasks for today"
+          ]
+        },
+        {
+          "name": "GetFamilyMessagesIntent",
+          "slots": [],
+          "samples": [
+            "for messages",
+            "any messages",
+            "for family messages",
+            "what messages are there",
+            "for recent messages",
+            "what are the latest messages",
+            "read messages"
+          ]
+        },
+        {
+          "name": "AddShoppingItemIntent",
+          "slots": [
+            { "name": "Item", "type": "AMAZON.SearchQuery" }
+          ],
+          "samples": [
+            "add {Item} to my list",
+            "put {Item} on my list",
+            "I need {Item}",
+            "I need to buy {Item}"
+          ]
+        },
+        {
+          "name": "CompleteChoreIntent",
+          "slots": [
+            { "name": "Chore", "type": "AMAZON.SearchQuery" }
+          ],
+          "samples": [
+            "mark {Chore} complete",
+            "mark {Chore} done",
+            "{Chore} is done",
+            "I finished {Chore}"
+          ]
+        },
+        {
+          "name": "PostFamilyMessageIntent",
+          "slots": [
+            { "name": "Message", "type": "AMAZON.SearchQuery" }
+          ],
+          "samples": [
+            "post a message that {Message}",
+            "post message {Message}",
+            "tell the family {Message}",
+            "leave a message that {Message}",
+            "send a family message {Message}"
+          ]
+        },
+        {
+          "name": "GetFamilyIntent",
+          "slots": [],
+          "samples": [
+            "who is in the family",
+            "who's in the family",
+            "for the family list",
+            "list the family"
+          ]
+        },
+        {
+          "name": "GetTodayMealIntent",
+          "slots": [],
+          "samples": [
+            "what's for dinner",
+            "what's for dinner tonight",
+            "what's for lunch",
+            "what's for breakfast",
+            "what is on the meal plan today",
+            "for today's meals",
+            "what are we eating today"
+          ]
+        },
+        {
+          "name": "GetTodayChoresIntent",
+          "slots": [
+            { "name": "Assignee", "type": "AMAZON.FirstName" }
+          ],
+          "samples": [
+            "what chores do I have today",
+            "what chores are left",
+            "what are today's chores",
+            "what chores does {Assignee} have",
+            "what chores does {Assignee} have today",
+            "what does {Assignee} have to do",
+            "chores for {Assignee}"
+          ]
+        },
+        {
+          "name": "GetWeatherIntent",
+          "slots": [],
+          "samples": [
+            "what's the weather",
+            "what's the weather today",
+            "what's the weather like",
+            "for the weather",
+            "for today's weather",
+            "is it going to rain",
+            "is it going to rain today"
+          ]
+        },
+        {
+          "name": "GetBusStatusIntent",
+          "slots": [
+            { "name": "Student", "type": "AMAZON.FirstName" }
+          ],
+          "samples": [
+            "where's the bus",
+            "where is the bus",
+            "is the bus close",
+            "for bus status",
+            "where is the bus for {Student}",
+            "is the bus close for {Student}",
+            "the bus for {Student}",
+            "where is {Student} on the bus"
+          ]
+        },
+        {
+          "name": "GetUpcomingBirthdaysIntent",
+          "slots": [],
+          "samples": [
+            "whose birthday is coming up",
+            "for upcoming birthdays",
+            "for birthdays",
+            "any birthdays coming up",
+            "what birthdays are coming up"
+          ]
+        }
+      ],
+      "types": []
+    }
+  }
+}

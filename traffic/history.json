@@ -63,6 +63,30 @@
     "2026-04-29": {
       "count": 650,
       "uniques": 104
+    },
+    "2026-04-30": {
+      "count": 64,
+      "uniques": 19
+    },
+    "2026-05-01": {
+      "count": 276,
+      "uniques": 31
+    },
+    "2026-05-02": {
+      "count": 1067,
+      "uniques": 107
+    },
+    "2026-05-03": {
+      "count": 964,
+      "uniques": 70
+    },
+    "2026-05-04": {
+      "count": 1269,
+      "uniques": 28
+    },
+    "2026-05-05": {
+      "count": 1524,
+      "uniques": 49
     }
   },
   "referrer_history": {
@@ -141,10 +165,191 @@
         "referrer": "Google",
         "uniques": 2
       }
+    ],
+    "2026-05-02": [
+      {
+        "count": 140,
+        "referrer": "reddit.com",
+        "uniques": 48
+      },
+      {
+        "count": 88,
+        "referrer": "github.com",
+        "uniques": 13
+      },
+      {
+        "count": 32,
+        "referrer": "community.home-assistant.io",
+        "uniques": 14
+      },
+      {
+        "count": 9,
+        "referrer": "com.reddit.frontpage",
+        "uniques": 7
+      },
+      {
+        "count": 3,
+        "referrer": "Google",
+        "uniques": 2
+      }
+    ],
+    "2026-05-03": [
+      {
+        "count": 160,
+        "referrer": "reddit.com",
+        "uniques": 53
+      },
+      {
+        "count": 130,
+        "referrer": "github.com",
+        "uniques": 13
+      },
+      {
+        "count": 30,
+        "referrer": "community.home-assistant.io",
+        "uniques": 13
+      },
+      {
+        "count": 15,
+        "referrer": "com.reddit.frontpage",
+        "uniques": 8
+      },
+      {
+        "count": 4,
+        "referrer": "Google",
+        "uniques": 2
+      }
+    ],
+    "2026-05-04": [
+      {
+        "count": 165,
+        "referrer": "reddit.com",
+        "uniques": 58
+      },
+      {
+        "count": 159,
+        "referrer": "github.com",
+        "uniques": 12
+      },
+      {
+        "count": 34,
+        "referrer": "com.reddit.frontpage",
+        "uniques": 12
+      },
+      {
+        "count": 28,
+        "referrer": "Google",
+        "uniques": 4
+      },
+      {
+        "count": 20,
+        "referrer": "community.home-assistant.io",
+        "uniques": 8
+      },
+      {
+        "count": 1,
+        "referrer": "Bing",
+        "uniques": 1
+      }
+    ],
+    "2026-05-05": [
+      {
+        "count": 165,
+        "referrer": "reddit.com",
+        "uniques": 58
+      },
+      {
+        "count": 159,
+        "referrer": "github.com",
+        "uniques": 12
+      },
+      {
+        "count": 34,
+        "referrer": "com.reddit.frontpage",
+        "uniques": 12
+      },
+      {
+        "count": 28,
+        "referrer": "Google",
+        "uniques": 4
+      },
+      {
+        "count": 20,
+        "referrer": "community.home-assistant.io",
+        "uniques": 8
+      },
+      {
+        "count": 1,
+        "referrer": "Bing",
+        "uniques": 1
+      }
+    ],
+    "2026-05-06": [
+      {
+        "count": 174,
+        "referrer": "reddit.com",
+        "uniques": 62
+      },
+      {
+        "count": 168,
+        "referrer": "github.com",
+        "uniques": 12
+      },
+      {
+        "count": 39,
+        "referrer": "com.reddit.frontpage",
+        "uniques": 16
+      },
+      {
+        "count": 39,
+        "referrer": "Google",
+        "uniques": 5
+      },
+      {
+        "count": 24,
+        "referrer": "community.home-assistant.io",
+        "uniques": 10
+      },
+      {
+        "count": 1,
+        "referrer": "Bing",
+        "uniques": 1
+      }
     ]
   },
-  "referrers": [],
-  "updated_at": "2026-05-06T05:35:37Z",
+  "referrers": [
+    {
+      "count": 174,
+      "referrer": "reddit.com",
+      "uniques": 62
+    },
+    {
+      "count": 168,
+      "referrer": "github.com",
+      "uniques": 12
+    },
+    {
+      "count": 39,
+      "referrer": "com.reddit.frontpage",
+      "uniques": 16
+    },
+    {
+      "count": 39,
+      "referrer": "Google",
+      "uniques": 5
+    },
+    {
+      "count": 24,
+      "referrer": "community.home-assistant.io",
+      "uniques": 10
+    },
+    {
+      "count": 1,
+      "referrer": "Bing",
+      "uniques": 1
+    }
+  ],
+  "updated_at": "2026-05-06T05:33:31Z",
   "views": {
     "2026-04-14": {
       "count": 64,
@@ -209,6 +414,30 @@
     "2026-04-29": {
       "count": 75,
       "uniques": 15
+    },
+    "2026-04-30": {
+      "count": 106,
+      "uniques": 11
+    },
+    "2026-05-01": {
+      "count": 111,
+      "uniques": 16
+    },
+    "2026-05-02": {
+      "count": 122,
+      "uniques": 14
+    },
+    "2026-05-03": {
+      "count": 91,
+      "uniques": 26
+    },
+    "2026-05-04": {
+      "count": 60,
+      "uniques": 13
+    },
+    "2026-05-05": {
+      "count": 79,
+      "uniques": 20
     }
   }
 }

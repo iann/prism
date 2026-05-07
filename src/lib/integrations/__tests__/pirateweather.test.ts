@@ -6,7 +6,7 @@
  * sunrise/sunset, minutely passthrough, and error paths.
  */
 
-export {};
+export {}; // module marker so const declarations don't leak into global scope
 
 jest.mock('@/components/widgets/WeatherWidget', () => ({}), { virtual: true });
 

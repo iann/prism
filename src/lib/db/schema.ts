@@ -103,6 +103,9 @@ export const calendarSources = pgTable('calendar_sources', {
   refreshToken: text('refresh_token'),
   tokenExpiresAt: timestamp('token_expires_at'),
 
+  // iCal subscription URL (used when provider='ical'; null otherwise)
+  icalUrl: text('ical_url'),
+
   lastSynced: timestamp('last_synced'),
   syncErrors: jsonb('sync_errors'),
 
@@ -276,6 +279,9 @@ export const chores = pgTable('chores', {
 
   lastCompleted: timestamp('last_completed'),
   nextDue: date('next_due'),
+  // Optional time-of-day for the chore (HH:mm). Null = "top of day" / floats.
+  // Used by time-grid calendar views to place the chore at a specific hour.
+  nextDueTime: varchar('next_due_time', { length: 5 }),
 
   pointValue: integer('point_value').default(0).notNull(),
 
@@ -509,6 +515,12 @@ export const meals = pgTable('meals', {
 
   mealType: varchar('meal_type', { length: 20 }).notNull()
     .$type<'breakfast' | 'lunch' | 'dinner' | 'snack'>(),
+
+  // Optional time-of-day (HH:mm) for time-grid calendar placement. When null,
+  // the UI substitutes a default based on mealType (breakfast 07:00, lunch
+  // 12:00, snack 15:00, dinner 18:00). Stored separately so a user-set time
+  // survives mealType changes.
+  mealTime: varchar('meal_time', { length: 5 }),
 
   cookedAt: timestamp('cooked_at'),
   cookedBy: uuid('cooked_by').references(() => users.id, { onDelete: 'set null' }),
@@ -1008,7 +1020,7 @@ export const photoSources = pgTable('photo_sources', {
   id: uuid('id').defaultRandom().primaryKey(),
 
   type: varchar('type', { length: 20 }).notNull()
-    .$type<'local' | 'onedrive'>(),
+    .$type<'local' | 'onedrive' | 'immich'>(),
 
   name: varchar('name', { length: 255 }).notNull(),
 
@@ -1018,6 +1030,12 @@ export const photoSources = pgTable('photo_sources', {
   accessToken: text('access_token'),
   refreshToken: text('refresh_token'),
   tokenExpiresAt: timestamp('token_expires_at'),
+
+  // Immich shared-link sources
+  immichServerUrl: text('immich_server_url'),
+  immichShareKey: text('immich_share_key'),
+  immichPasswordEnc: text('immich_password_enc'),
+  immichAlbumId: text('immich_album_id'),
 
   lastSynced: timestamp('last_synced'),
   syncErrors: jsonb('sync_errors'),

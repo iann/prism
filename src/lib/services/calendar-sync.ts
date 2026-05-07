@@ -10,6 +10,8 @@ import {
   type GoogleCalendarEvent,
 } from '@/lib/integrations/google-calendar';
 import { decrypt, encrypt } from '@/lib/utils/crypto';
+import { validatePublicUrl, UnsafeUrlError } from '@/lib/utils/safeFetch';
+import { async as icalAsync, type VEvent, type CalendarResponse } from 'node-ical';
 
 /**
  * Check if token needs refresh (within 5 minutes of expiry)
@@ -344,6 +346,290 @@ export async function syncAllGoogleCalendars(
       allErrors.push(...result.errors);
     } catch (error) {
       const errorMsg = `Failed to sync calendar "${source.dashboardCalendarName}": ${error instanceof Error ? error.message : String(error)}`;
+      console.error(`[Sync] ${errorMsg}`);
+      allErrors.push(errorMsg);
+    }
+  }
+
+  return { total, errors: allErrors };
+}
+
+const ICAL_DISABLE_THRESHOLD = 3;
+
+/**
+ * Build a stable per-instance external ID for a recurring iCal event so each
+ * occurrence gets its own row keyed off (calendarSourceId, externalEventId).
+ */
+function instanceExternalId(uid: string, occurrence: Date): string {
+  return `${uid}_${occurrence.toISOString()}`;
+}
+
+/**
+ * Coerce an iCal property to a plain string. node-ical returns
+ * { params, val } objects when the source property carries parameters
+ * (e.g. `SUMMARY;LANGUAGE=en-us:New Year's Day`), even though its types
+ * declare these fields as plain strings.
+ */
+function readIcalString(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && value !== null && 'val' in value) {
+    const inner = (value as { val: unknown }).val;
+    return typeof inner === 'string' ? inner : null;
+  }
+  return null;
+}
+
+/**
+ * Sync events from a single iCal subscription source.
+ *
+ * Mirrors syncGoogleCalendarSource: fetches and parses the feed, upserts
+ * VEVENTs (expanding recurrences within the time window), then deletes Prism
+ * events whose externalEventId is no longer present upstream.
+ */
+export async function syncIcalCalendarSource(
+  sourceId: string,
+  options: {
+    timeMin?: Date;
+    timeMax?: Date;
+  } = {}
+): Promise<{ synced: number; errors: string[] }> {
+  const errors: string[] = [];
+  let synced = 0;
+
+  const source = await db.query.calendarSources.findFirst({
+    where: eq(calendarSources.id, sourceId),
+  });
+
+  if (!source) {
+    return { synced: 0, errors: ['Calendar source not found'] };
+  }
+  if (source.provider !== 'ical') {
+    return { synced: 0, errors: ['Not an iCal calendar source'] };
+  }
+  if (!source.icalUrl) {
+    return { synced: 0, errors: ['No iCal URL configured'] };
+  }
+
+  const timeMin = options.timeMin || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const timeMax = options.timeMax || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  // SSRF guard: a stored icalUrl that predates the route-level validator
+  // could still point at a private destination. Re-validate at the fetch
+  // boundary so a malicious or compromised parent cannot use Prism as
+  // a proxy to probe the internal network.
+  try {
+    validatePublicUrl(source.icalUrl);
+  } catch (err) {
+    if (err instanceof UnsafeUrlError) {
+      await db
+        .update(calendarSources)
+        .set({
+          syncErrors: {
+            lastError: 'iCal URL points at a private or loopback address; sync skipped.',
+            timestamp: new Date().toISOString(),
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(calendarSources.id, sourceId));
+      return { synced: 0, errors: ['iCal URL points at a private or loopback address'] };
+    }
+    throw err;
+  }
+
+  let parsed: CalendarResponse;
+  try {
+    parsed = await icalAsync.fromURL(source.icalUrl);
+  } catch (error) {
+    const errorStr = error instanceof Error ? error.message : String(error);
+    const prevErrors = (source.syncErrors as Record<string, unknown>) || {};
+    const prevFailures = typeof prevErrors.consecutiveFailures === 'number' ? prevErrors.consecutiveFailures : 0;
+    const consecutiveFailures = prevFailures + 1;
+    const shouldAutoDisable = consecutiveFailures >= ICAL_DISABLE_THRESHOLD && !prevErrors.userOverride;
+
+    await db
+      .update(calendarSources)
+      .set({
+        ...(shouldAutoDisable ? { enabled: false, showInEventModal: false } : {}),
+        syncErrors: {
+          lastError: `Failed to fetch iCal feed: ${errorStr}`,
+          consecutiveFailures,
+          ...(shouldAutoDisable ? { autoDisabled: true, autoDisabledAt: new Date().toISOString() } : {}),
+          ...(prevErrors.userOverride ? { userOverride: true } : {}),
+          timestamp: new Date().toISOString(),
+        },
+        updatedAt: new Date(),
+      })
+      .where(eq(calendarSources.id, sourceId));
+
+    return { synced: 0, errors: [`Failed to fetch iCal feed: ${errorStr}`] };
+  }
+
+  const externalIds = new Set<string>();
+
+  for (const item of Object.values(parsed)) {
+    if (!item || item.type !== 'VEVENT') continue;
+    const vevent = item as VEvent;
+
+    // node-ical may surface UID as a PropertyWithArgs object on feeds whose
+    // UID property carries parameters (rare but observed). The downstream
+    // instanceExternalId() does string concatenation on uid, so an object
+    // would produce "[object Object]_<ts>" and collide across instances.
+    // Read through the same unwrap helper used for summary / description /
+    // location and skip the VEVENT entirely if uid cannot be coerced.
+    const uid = readIcalString(vevent.uid);
+    if (!uid) {
+      errors.push('Skipped VEVENT with missing or non-string UID');
+      continue;
+    }
+
+    try {
+      if (vevent.status === 'CANCELLED') continue;
+      if (!vevent.start || !vevent.end) continue;
+
+      const allDay = vevent.datetype === 'date';
+      const baseDurationMs = vevent.end.getTime() - vevent.start.getTime();
+
+      // exdate is keyed by ISO-ish date string but we only need the values for comparison
+      const exdates = new Set<number>();
+      if (vevent.exdate && typeof vevent.exdate === 'object') {
+        for (const ex of Object.values(vevent.exdate as Record<string, Date | undefined>)) {
+          if (ex instanceof Date) exdates.add(ex.getTime());
+        }
+      }
+
+      const instances: Array<{ start: Date; end: Date; externalId: string }> = [];
+      const isRecurring = !!vevent.rrule;
+
+      if (vevent.rrule) {
+        // Expand recurring instances within the sync window
+        const occurrences = vevent.rrule.between(timeMin, timeMax, true);
+        for (const occ of occurrences) {
+          if (exdates.has(occ.getTime())) continue;
+          instances.push({
+            start: occ,
+            end: new Date(occ.getTime() + baseDurationMs),
+            externalId: instanceExternalId(uid, occ),
+          });
+        }
+      } else {
+        // Single event — only sync if it overlaps the window at all
+        if (vevent.end >= timeMin && vevent.start <= timeMax) {
+          instances.push({
+            start: vevent.start,
+            end: vevent.end,
+            externalId: uid,
+          });
+        }
+      }
+
+      // Per-instance rows are keyed on the expanded externalEventId, so the
+      // RRULE string would be repeated identically across every occurrence.
+      // That shape misleads consumers that try to read recurrenceRule as
+      // "this row is the recurring master." Leave recurrenceRule null on
+      // expanded instances and let `recurring: true` carry the boolean
+      // signal. Preserves Google's per-row shape (which uses singleEvents:
+      // true and never carries an RRULE on individual instances either).
+      const recurrenceRule = null;
+      const title = readIcalString(vevent.summary) || '(no title)';
+      const description = readIcalString(vevent.description);
+      const location = readIcalString(vevent.location);
+
+      for (const inst of instances) {
+        externalIds.add(inst.externalId);
+        await db
+          .insert(events)
+          .values({
+            calendarSourceId: sourceId,
+            externalEventId: inst.externalId,
+            title,
+            description,
+            location,
+            startTime: inst.start,
+            endTime: inst.end,
+            allDay,
+            recurring: isRecurring,
+            recurrenceRule,
+            lastSynced: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: [events.calendarSourceId, events.externalEventId],
+            set: {
+              title,
+              description,
+              location,
+              startTime: inst.start,
+              endTime: inst.end,
+              allDay,
+              recurring: isRecurring,
+              recurrenceRule,
+              lastSynced: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+
+        synced++;
+      }
+    } catch (error) {
+      errors.push(`Failed to sync VEVENT ${uid}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Cleanup: delete Prism events for this source whose external id is no
+  // longer present upstream (within the sync window).
+  const prismEvents = await db.query.events.findMany({
+    where: and(
+      eq(events.calendarSourceId, sourceId),
+      gte(events.startTime, timeMin),
+      lte(events.startTime, timeMax)
+    ),
+  });
+  for (const ev of prismEvents) {
+    if (ev.externalEventId && !externalIds.has(ev.externalEventId)) {
+      await db.delete(events).where(eq(events.id, ev.id));
+    }
+  }
+
+  const currentErrors = (source.syncErrors as Record<string, unknown>) || {};
+  await db
+    .update(calendarSources)
+    .set({
+      lastSynced: new Date(),
+      syncErrors: currentErrors.userOverride ? { userOverride: true } : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(calendarSources.id, sourceId));
+
+  return { synced, errors };
+}
+
+/**
+ * Sync all enabled iCal calendar sources, isolating per-source errors so one
+ * bad feed does not block the rest.
+ */
+export async function syncAllIcalCalendars(
+  options: {
+    timeMin?: Date;
+    timeMax?: Date;
+  } = {}
+): Promise<{ total: number; errors: string[] }> {
+  const allErrors: string[] = [];
+  let total = 0;
+
+  const sources = await db.query.calendarSources.findMany({
+    where: and(
+      eq(calendarSources.provider, 'ical'),
+      eq(calendarSources.enabled, true)
+    ),
+  });
+
+  for (const source of sources) {
+    try {
+      const result = await syncIcalCalendarSource(source.id, options);
+      total += result.synced;
+      allErrors.push(...result.errors);
+    } catch (error) {
+      const errorMsg = `Failed to sync iCal calendar "${source.dashboardCalendarName}": ${error instanceof Error ? error.message : String(error)}`;
       console.error(`[Sync] ${errorMsg}`);
       allErrors.push(errorMsg);
     }

@@ -1,0 +1,2 @@
+bash scripts/scan-pii.sh
+bash scripts/scan-hostnames.sh

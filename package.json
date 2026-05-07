@@ -1,6 +1,6 @@
 {
   "name": "prism",
-  "version": "1.6.0",
+  "version": "1.7.2",
   "description": "Prism - Your family's digital home. An open-source family dashboard for calendars, tasks, chores, and more.",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -42,6 +42,7 @@
     "test:migration-replay": "bash scripts/test-migration-replay.sh",
     "scan:pii": "bash scripts/scan-pii.sh",
     "scan:pii:install-hook": "echo '#!/usr/bin/env bash\\nbash scripts/scan-pii.sh' > .git/hooks/pre-push && chmod +x .git/hooks/pre-push && echo 'Pre-push PII hook installed at .git/hooks/pre-push'",
+    "scan:hostnames": "bash scripts/scan-hostnames.sh",
     "scan:examples": "bash scripts/scan-examples.sh",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -53,7 +54,8 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
-    "docker:dev": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up"
+    "docker:dev": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up",
+    "prepare": "husky"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -68,6 +70,7 @@
     "@radix-ui/react-dialog": "^1.1.4",
     "@radix-ui/react-dropdown-menu": "^2.1.4",
     "@radix-ui/react-label": "^2.1.1",
+    "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-progress": "^1.1.1",
     "@radix-ui/react-scroll-area": "^1.2.2",
     "@radix-ui/react-select": "^2.1.4",
@@ -91,6 +94,7 @@
     "merry-timeline": "^0.5.0",
     "next": "^15.5.12",
     "next-pwa": "^5.6.0",
+    "node-ical": "^0.18.0",
     "postgres": "^3.4.5",
     "puppeteer-core": "^24.37.5",
     "react": "^18.3.1",
@@ -122,6 +126,7 @@
     "drizzle-kit": "^0.30.0",
     "eslint": "^9.16.0",
     "eslint-config-next": "15.1.3",
+    "husky": "^9.1.7",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^30.2.0",
     "postcss": "^8.4.49",

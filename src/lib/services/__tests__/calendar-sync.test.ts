@@ -60,11 +60,23 @@ jest.mock('@/lib/utils/crypto', () => ({
   encrypt: (val: string) => `encrypted_${val}`,
 }));
 
+const mockIcalFromURL = jest.fn();
+
+jest.mock('node-ical', () => ({
+  async: {
+    fromURL: (...args: unknown[]) => mockIcalFromURL(...args),
+  },
+}));
+
 // Suppress console.log/error from sync logging
 jest.spyOn(console, 'log').mockImplementation(() => {});
 jest.spyOn(console, 'error').mockImplementation(() => {});
 
-import { syncGoogleCalendarSource, syncAllGoogleCalendars } from '../calendar-sync';
+import {
+  syncGoogleCalendarSource,
+  syncAllGoogleCalendars,
+  syncIcalCalendarSource,
+} from '../calendar-sync';
 
 // --- Helpers ---
 
@@ -320,5 +332,216 @@ describe('syncAllGoogleCalendars', () => {
 
     // First source synced fine, second had error, but both were attempted
     expect(result.errors.length).toBeGreaterThan(0);
+  });
+});
+
+// --- iCal sync ---
+
+function makeIcalSource(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'ical-source-1',
+    provider: 'ical',
+    icalUrl: 'https://example.com/calendar.ics',
+    sourceCalendarId: 'ical_123',
+    dashboardCalendarName: 'Test iCal',
+    enabled: true,
+    ...overrides,
+  };
+}
+
+function makeVEvent(overrides: Record<string, unknown> = {}) {
+  return {
+    type: 'VEVENT',
+    uid: 'event-uid-1',
+    summary: 'Sample Event',
+    description: 'desc',
+    location: 'loc',
+    start: new Date('2026-05-01T10:00:00Z'),
+    end: new Date('2026-05-01T11:00:00Z'),
+    datetype: 'date-time',
+    ...overrides,
+  };
+}
+
+describe('syncIcalCalendarSource', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFindMany.mockResolvedValue([]);
+  });
+
+  it('returns error when source is not found', async () => {
+    mockFindFirst.mockResolvedValue(null);
+
+    const result = await syncIcalCalendarSource('nonexistent');
+
+    expect(result.synced).toBe(0);
+    expect(result.errors).toContain('Calendar source not found');
+  });
+
+  it('returns error when provider is not ical', async () => {
+    mockFindFirst.mockResolvedValue(makeIcalSource({ provider: 'google' }));
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(0);
+    expect(result.errors).toContain('Not an iCal calendar source');
+  });
+
+  it('returns error when ical_url is missing', async () => {
+    mockFindFirst.mockResolvedValue(makeIcalSource({ icalUrl: null }));
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(0);
+    expect(result.errors).toContain('No iCal URL configured');
+  });
+
+  it('upserts a single non-recurring VEVENT', async () => {
+    mockFindFirst.mockResolvedValue(makeIcalSource());
+    mockIcalFromURL.mockResolvedValue({
+      'event-uid-1': makeVEvent(),
+    });
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(1);
+    expect(result.errors).toHaveLength(0);
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        externalEventId: 'event-uid-1',
+        title: 'Sample Event',
+        recurring: false,
+      })
+    );
+  });
+
+  it('unwraps PropertyWithArgs objects on summary/description/location', async () => {
+    // Real-world iCal feeds (e.g. Office Holidays) carry parameters on these
+    // properties (`SUMMARY;LANGUAGE=en-us:...`), and node-ical surfaces those
+    // as { params, val } objects rather than plain strings.
+    mockFindFirst.mockResolvedValue(makeIcalSource());
+    mockIcalFromURL.mockResolvedValue({
+      'event-uid-1': makeVEvent({
+        summary: { params: { LANGUAGE: 'en-us' }, val: "New Year's Day" },
+        description: { params: { ALTREP: 'cid:foo' }, val: 'Federal holiday' },
+        location: { params: {}, val: 'USA' },
+      }),
+    });
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(1);
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "New Year's Day",
+        description: 'Federal holiday',
+        location: 'USA',
+      })
+    );
+  });
+
+  it('skips CANCELLED VEVENTs', async () => {
+    mockFindFirst.mockResolvedValue(makeIcalSource());
+    mockIcalFromURL.mockResolvedValue({
+      'event-uid-1': makeVEvent({ status: 'CANCELLED' }),
+    });
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(0);
+    expect(mockInsertValues).not.toHaveBeenCalled();
+  });
+
+  it('records consecutiveFailures on fetch failure', async () => {
+    mockFindFirst.mockResolvedValue(makeIcalSource());
+    mockIcalFromURL.mockRejectedValue(new Error('connection refused'));
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(0);
+    expect(result.errors[0]).toContain('connection refused');
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        syncErrors: expect.objectContaining({
+          consecutiveFailures: 1,
+          lastError: expect.stringContaining('connection refused'),
+        }),
+      })
+    );
+  });
+
+  it('unwraps PropertyWithArgs objects on UID and uses the inner string for the externalEventId', async () => {
+    // Some iCal feeds carry parameters on UID too (rare, observed on a
+    // handful of corporate Outlook exports). node-ical surfaces those as
+    // { params, val } objects. Without unwrapping, instanceExternalId
+    // would produce "[object Object]_<ts>" and collide across instances.
+    mockFindFirst.mockResolvedValue(makeIcalSource());
+    mockIcalFromURL.mockResolvedValue({
+      'wrapped-uid': makeVEvent({
+        uid: { params: {}, val: 'real-uid-123' },
+      }),
+    });
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(1);
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        externalEventId: 'real-uid-123',
+      }),
+    );
+  });
+
+  it('skips VEVENTs with missing or non-string UID and reports the error', async () => {
+    mockFindFirst.mockResolvedValue(makeIcalSource());
+    mockIcalFromURL.mockResolvedValue({
+      'no-uid': makeVEvent({ uid: null }),
+    });
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(0);
+    expect(result.errors[0]).toContain('UID');
+  });
+
+  it('writes recurrenceRule null on per-instance rows even when the VEVENT has an RRULE', async () => {
+    // Per-instance rows are keyed on the expanded externalEventId and
+    // should not carry the master RRULE string. Consumers reading
+    // recurrenceRule expect "this row is the recurring master," so per-
+    // instance rows must clear it. recurring stays true to preserve the
+    // boolean signal.
+    const fakeRrule = {
+      between: () => [new Date('2026-05-10T10:00:00Z')],
+      toString: () => 'FREQ=WEEKLY;COUNT=10',
+    };
+    mockFindFirst.mockResolvedValue(makeIcalSource());
+    mockIcalFromURL.mockResolvedValue({
+      'event-uid-1': makeVEvent({ rrule: fakeRrule }),
+    });
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(1);
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurring: true,
+        recurrenceRule: null,
+      }),
+    );
+  });
+
+  it('rejects an icalUrl that points at a private address (SSRF guard)', async () => {
+    // Force production so the dev-mode loopback escape hatch does not
+    // interfere with this assertion.
+    jest.replaceProperty(process.env, 'NODE_ENV', 'production');
+
+    mockFindFirst.mockResolvedValue(makeIcalSource({ icalUrl: 'http://10.0.0.5/cal.ics' }));
+
+    const result = await syncIcalCalendarSource('ical-source-1');
+
+    expect(result.synced).toBe(0);
+    expect(result.errors[0]).toMatch(/private|loopback/);
+    // Critically: the upstream fetch should never have been attempted.
+    expect(mockIcalFromURL).not.toHaveBeenCalled();
   });
 });
