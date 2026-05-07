@@ -40,3 +40,9 @@ jobs:
           git checkout --track origin/master
           git merge upstream/master --no-edit
           git push origin master
+
+      - name: Merge upstream into personal
+        run: |
+          git checkout --track origin/personal
+          git merge upstream/master --no-edit
+          git push origin personal
