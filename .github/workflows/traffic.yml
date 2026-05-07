@@ -8,6 +8,7 @@ on:
 jobs:
   traffic:
     runs-on: ubuntu-latest
+    if: github.repository == 'sandydargoport/prism'
     timeout-minutes: 10
     permissions:
       contents: write
