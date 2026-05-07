@@ -11,13 +11,12 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
-      workflows: write
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.SYNC_PAT }}
 
       - name: Configure git
         run: |
