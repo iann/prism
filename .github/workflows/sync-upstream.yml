@@ -43,6 +43,6 @@ jobs:
 
       - name: Merge upstream into personal
         run: |
-          git checkout --track origin/personal
+          git checkout personal
           git merge upstream/master --no-edit
           git push origin personal
