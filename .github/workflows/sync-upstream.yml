@@ -2,7 +2,7 @@ name: Sync fork with upstream
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # 6am UTC daily
+    - cron: '0 20 * * *'  # 4pm ET (EDT/UTC-4); shifts to 3pm ET during EST
   workflow_dispatch:        # allow manual trigger
 
 jobs:
