@@ -37,6 +37,6 @@ jobs:
 
       - name: Merge upstream into master
         run: |
-          git checkout master
+          git checkout --track origin/master
           git merge upstream/master --no-edit
           git push origin master
