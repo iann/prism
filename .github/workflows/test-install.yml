@@ -2,7 +2,7 @@ name: Test Fresh Install
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, personal]
     paths:
       - 'src/**'
       - 'Dockerfile'
@@ -13,7 +13,7 @@ on:
       - 'drizzle/**'
       - '.github/workflows/test-install.yml'
   pull_request:
-    branches: [master, main]
+    branches: [master, main, personal]
     paths:
       - 'src/**'
       - 'Dockerfile'
