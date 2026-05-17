@@ -53,6 +53,7 @@ ALLOWLIST=(
   "github.com"
   "githubusercontent.com"
   "ghcr.io"
+  "sandydargoport.github.io"
   # Common vendor docs the comments may legitimately reference
   "graph.microsoft.com"
   "googleapis.com"
@@ -76,6 +77,10 @@ ALLOWLIST=(
   "developer.amazon.com"
   "s3.amazonaws.com"
   "echo-api.amazon.com"
+  # Kroger integration
+  "developer.kroger.com"
+  "api.kroger.com"
+  "kroger.com"
   # IETF / spec / standards references
   "ietf.org"
   "w3.org"

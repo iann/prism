@@ -98,15 +98,21 @@ export function RecipeDetailModal({
     if (!recipe.ingredients || recipe.ingredients.length === 0) return;
     setAddingToList(true);
     try {
-      // Scale ingredients before adding
-      const scaledIngredients = recipe.ingredients.map((ing) => ({
-        text: scaleIngredient(ing.text),
-      }));
+      // Scale ingredients before adding. Section headings are filtered out —
+      // they aren't shopping items, just visual grouping in the recipe view.
+      const scaledIngredients = recipe.ingredients
+        .filter((ing) => ing.text && !ing.heading)
+        .map((ing) => ({
+          text: scaleIngredient(ing.text ?? ''),
+        }));
       await onAddToShoppingList(listId, scaledIngredients);
       setShowListPicker(false);
       toast({ title: `Added ${scaledIngredients.length} ingredients to shopping list!`, variant: 'success' });
-    } catch {
-      toast({ title: 'Failed to add ingredients to shopping list', variant: 'destructive' });
+    } catch (err) {
+      toast({
+        title: err instanceof Error ? err.message : 'Failed to add ingredients to shopping list',
+        variant: 'destructive',
+      });
     } finally {
       setAddingToList(false);
     }
@@ -184,7 +190,7 @@ export function RecipeDetailModal({
               </div>
             )}
             {recipe.servings && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-muted-foreground">Servings:</span>
                 <div className="flex items-center gap-1">
                   <Button
@@ -208,9 +214,34 @@ export function RecipeDetailModal({
                     <Plus className="h-3 w-3" />
                   </Button>
                 </div>
+                {/* Quick scale buttons — multiplier of the original servings.
+                    ½× rounds up to the nearest whole serving (1 minimum). */}
+                <div className="flex items-center gap-1">
+                  {[
+                    { mult: 0.5, label: '½×' },
+                    { mult: 1, label: '1×' },
+                    { mult: 2, label: '2×' },
+                    { mult: 3, label: '3×' },
+                    { mult: 4, label: '4×' },
+                  ].map(({ mult, label }) => {
+                    const target = Math.max(1, Math.round((recipe.servings ?? 1) * mult));
+                    const active = desiredServings === target;
+                    return (
+                      <Button
+                        key={label}
+                        variant={active ? 'secondary' : 'outline'}
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setDesiredServings(target)}
+                      >
+                        {label}
+                      </Button>
+                    );
+                  })}
+                </div>
                 {scaleFactor !== 1 && (
                   <span className="text-xs text-muted-foreground">
-                    (scaled {scaleFactor > 1 ? 'up' : 'down'})
+                    (scaled {scaleFactor > 1 ? 'up' : 'down'} ×{scaleFactor.toFixed(scaleFactor % 1 ? 2 : 0)})
                   </span>
                 )}
               </div>
@@ -256,19 +287,28 @@ export function RecipeDetailModal({
                 )}
               </div>
               <ul className="space-y-1">
-                {recipe.ingredients.map((ing, i) => (
-                  <li
-                    key={i}
-                    onClick={() => toggleIngredient(i)}
-                    className={cn(
-                      'text-sm flex items-start gap-2 cursor-pointer select-none hover:bg-accent/50 rounded px-1 -mx-1 transition-colors',
-                      checkedIngredients.has(i) && 'line-through text-muted-foreground'
-                    )}
-                  >
-                    <span className="text-muted-foreground">&bull;</span>
-                    {scaleIngredient(ing.text)}
-                  </li>
-                ))}
+                {recipe.ingredients.map((ing, i) => {
+                  if (ing.heading) {
+                    return (
+                      <li key={i} className="text-sm font-semibold mt-3 first:mt-0">
+                        {ing.heading}
+                      </li>
+                    );
+                  }
+                  return (
+                    <li
+                      key={i}
+                      onClick={() => toggleIngredient(i)}
+                      className={cn(
+                        'text-sm flex items-start gap-2 cursor-pointer select-none hover:bg-accent/50 rounded px-1 -mx-1 transition-colors',
+                        checkedIngredients.has(i) && 'line-through text-muted-foreground',
+                      )}
+                    >
+                      <span className="text-muted-foreground">&bull;</span>
+                      {scaleIngredient(ing.text ?? '')}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
