@@ -167,6 +167,11 @@ module.exports = {
           '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
           '20%, 40%, 60%, 80%': { transform: 'translateX(4px)' },
         },
+        // Slides a panel up from fully off-screen (bottom) — used by WeatherAlertModal
+        'slide-up-from-bottom': {
+          from: { transform: 'translateY(100%)' },
+          to: { transform: 'translateY(0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -180,6 +185,7 @@ module.exports = {
         'bounce': 'bounce 1s infinite',
         'confetti': 'confetti 3s ease-out forwards',
         'shake': 'shake 0.5s ease-in-out',
+        'slide-up-from-bottom': 'slide-up-from-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
       },
 
       screens: {

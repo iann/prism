@@ -14,6 +14,10 @@ const BabysitterModeOverlay = dynamic(
   () => import('@/components/babysitter-mode/BabysitterModeOverlay').then(m => ({ default: m.BabysitterModeOverlay })),
   { ssr: false }
 );
+const WeatherAlertModal = dynamic(
+  () => import('@/components/weather-alert/WeatherAlertModal').then(m => ({ default: m.WeatherAlertModal })),
+  { ssr: false }
+);
 
 export function LazyOverlays() {
   return (
@@ -21,6 +25,7 @@ export function LazyOverlays() {
       <BabysitterModeOverlay />
       <AwayModeOverlay />
       <Screensaver />
+      <WeatherAlertModal />
     </>
   );
 }
