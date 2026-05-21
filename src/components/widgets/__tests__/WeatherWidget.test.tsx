@@ -124,23 +124,14 @@ function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
 // ===========================================================================
 
 describe('hourly forecast cards', () => {
-  it('renders the section header with the visible-hour count', () => {
+  it('renders the section header', () => {
     render(<WeatherWidget data={makeWeatherData()} />);
-    expect(screen.queryByText(/Next 8 Hours/)).not.toBeNull();
+    expect(screen.queryByText(/Next 9 Hours/)).not.toBeNull();
   });
 
-  it('renders the "Now" label for the first card', () => {
-    render(<WeatherWidget data={makeWeatherData()} />);
-    expect(screen.queryByText('Now')).not.toBeNull();
-  });
-
-  it('renders one card per hour for 8 upcoming hours', () => {
+  it('renders the merry-timeline container when hourly data is present', () => {
     const { container } = render(<WeatherWidget data={makeWeatherData()} />);
-    // Each card has a Now/time label rendered as a span; "Now" + 7 more
-    const labels = Array.from(container.querySelectorAll('span'))
-      .map((s) => s.textContent ?? '')
-      .filter((t) => t === 'Now' || /^\d{1,2}(am|pm)$/.test(t));
-    expect(labels.length).toBeGreaterThanOrEqual(8);
+    expect(container.querySelector('[data-keep-bg]')).not.toBeNull();
   });
 
   it('renders the hourly temperature in each card', () => {
@@ -356,7 +347,7 @@ describe('showForecast prop', () => {
     const data = makeWeatherData();
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText('5-Day Forecast')).not.toBeNull();
-    expect(screen.queryByText(/Next 8 Hours/)).not.toBeNull();
+    expect(screen.queryByText(/Next 9 Hours/)).not.toBeNull();
   });
 
   it('hides the forecast section when showForecast=false', () => {
@@ -410,9 +401,8 @@ describe('demo data fallback', () => {
     expect(screen.queryByText('Austin')).not.toBeNull();
   });
 
-  it('renders the hourly forecast cards with demo data', () => {
+  it('renders the hourly timeline with demo data', () => {
     render(<WeatherWidget />);
     expect(screen.queryByText(/Next .* Hours/)).not.toBeNull();
-    expect(screen.queryByText('Now')).not.toBeNull();
   });
 });

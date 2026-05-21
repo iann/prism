@@ -5,6 +5,7 @@ module.exports = {
   setupFiles: ['<rootDir>/jest.setup.js'],
   roots: ['<rootDir>/src'],
   moduleNameMapper: {
+    '^merry-timeline$': '<rootDir>/src/__mocks__/merry-timeline.ts',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
