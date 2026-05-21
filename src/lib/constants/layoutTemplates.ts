@@ -186,4 +186,21 @@ export const LAYOUT_TEMPLATES: Record<string, LayoutTemplate> = {
   },
 };
 
-export const DEFAULT_TEMPLATE: LayoutTemplate = LAYOUT_TEMPLATES.familyCentral!;
+// Fallback layout used when the /api/layouts response is in-flight or empty.
+// Matches the seeded "Default Dashboard" so the brief loading flash isn't a
+// disorienting layout swap — and so docs screenshots captured during that
+// window still look correct. Keep these widgets in sync with seed.ts.
+export const DEFAULT_TEMPLATE: LayoutTemplate = {
+  name: 'Default',
+  description: 'Balanced 7-widget layout — weather-forward, no calendar/birthdays/points',
+  orientation: 'landscape',
+  widgets: [
+    { i: 'weather',   x: 0,  y: 0,  w: 24, h: 14 },
+    { i: 'clock',     x: 24, y: 0,  w: 24, h: 7  },
+    { i: 'tasks',     x: 24, y: 7,  w: 24, h: 7  },
+    { i: 'messages',  x: 0,  y: 14, w: 16, h: 9  },
+    { i: 'chores',    x: 16, y: 14, w: 16, h: 9  },
+    { i: 'shopping',  x: 32, y: 14, w: 16, h: 9  },
+    { i: 'meals',     x: 0,  y: 23, w: 48, h: 7  },
+  ],
+};

@@ -1,6 +1,6 @@
 {
   "name": "prism",
-  "version": "1.7.2",
+  "version": "1.8.0",
   "description": "Prism - Your family's digital home. An open-source family dashboard for calendars, tasks, chores, and more.",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -53,6 +53,8 @@
     "services:up": "docker-compose -f docker-compose.services.yml up -d",
     "services:down": "docker-compose -f docker-compose.services.yml down",
     "services:logs": "docker-compose -f docker-compose.services.yml logs -f",
+    "db:bundle": "esbuild src/lib/db/seed.ts src/lib/db/clear.ts --bundle --platform=node --target=node20 --format=cjs --outdir=dist/db --out-extension:.js=.cjs --external:bcrypt",
+    "screenshots:capture": "tsx scripts/capture-screenshots.ts",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
     "docker:up:https": "docker-compose --profile https up -d",
@@ -95,7 +97,6 @@
     "ioredis": "^5.4.1",
     "lucide-react": "^0.468.0",
     "maplibre-gl": "^5.23.0",
-    "merry-timeline": "^0.5.0",
     "next": "^15.5.12",
     "next-pwa": "^5.6.0",
     "node-ical": "^0.18.0",
@@ -142,6 +143,6 @@
     "typescript": "^5.7.2"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   }
 }

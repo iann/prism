@@ -10,5 +10,11 @@ export async function register() {
       Agent: new (opts: { connect: { family: number } }) => unknown;
     };
     setGlobalDispatcher(new Agent({ connect: { family: 4 } }));
+
+    // Lazy import of node-only code. Kept in a separate file so the edge
+    // runtime bundle never resolves these heavy transitive deps (node-ical,
+    // redis client, node:crypto).
+    const { startCalendarSyncCron } = await import('./lib/server/calendarSyncCron');
+    startCalendarSyncCron();
   }
 }

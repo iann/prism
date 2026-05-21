@@ -1,4 +1,4 @@
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ COPY package.json package-lock.json* ./
 
 RUN npm ci --frozen-lockfile
 
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -17,9 +17,9 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm run build
+RUN npm run build && npm run db:bundle
 
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
@@ -43,6 +43,10 @@ COPY --from=builder /app/scripts/migrate.js ./scripts/migrate.js
 # postgres (postgres.js) is bundled into Next.js server chunks and not included
 # in the standalone node_modules — copy it explicitly for the migration runner.
 COPY --from=builder /app/node_modules/postgres ./node_modules/postgres
+# Bundled DB scripts (seed + clear) for the Settings → Backups buttons.
+# Self-contained CJS bundles with all deps inlined via esbuild — no need
+# to ship src/ or the dev node_modules.
+COPY --from=builder /app/dist/db ./dist/db
 COPY docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
