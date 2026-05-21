@@ -73,40 +73,38 @@ export function WeatherAlertModal() {
       role="alertdialog"
       aria-live="assertive"
       aria-label={`Severe weather alert: ${primaryAlert.event}`}
-      className="fixed bottom-0 left-0 right-0 h-1/2 z-[10000] flex animate-slide-up-from-bottom shadow-2xl"
+      className="fixed bottom-0 left-0 right-0 h-1/2 z-[10000] flex flex-col animate-slide-up-from-bottom shadow-2xl"
       data-testid="weather-alert-modal"
     >
-      {/* Left: Windy live weather map */}
-      <div className="w-3/4 h-full shrink-0">
+      {/* Top: Windy live weather map */}
+      <div className="flex-1 w-full min-h-0">
         <WindyMap center={MAP_CENTER} />
       </div>
 
-      {/* Right: alert details */}
-      <div className="w-1/4 h-full flex flex-col justify-between p-4 bg-gray-950/95 backdrop-blur-sm text-white border-l border-red-500/30">
-        <div className="flex items-start gap-3 min-h-0 overflow-hidden">
-          <AlertTriangle
-            className="text-red-500 mt-0.5 shrink-0 animate-pulse"
-            size={22}
-            aria-hidden="true"
-          />
-          <div className="min-w-0">
-            <p className="text-red-400 font-bold text-lg leading-tight truncate">
-              {primaryAlert.event}
+      {/* Bottom: alert details bar */}
+      <div className="w-full shrink-0 flex items-center gap-4 px-5 py-3 bg-gray-950/95 backdrop-blur-sm text-white border-t border-red-500/30">
+        <AlertTriangle
+          className="text-red-500 shrink-0 animate-pulse"
+          size={22}
+          aria-hidden="true"
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-red-400 font-bold text-base leading-tight truncate">
+            {primaryAlert.event}
+          </p>
+          <p className="text-gray-200 text-sm truncate">
+            {primaryAlert.headline}
+          </p>
+          {additionalCount > 0 && (
+            <p className="text-amber-400 text-xs font-medium">
+              +{additionalCount} additional alert{additionalCount > 1 ? 's' : ''} active
             </p>
-            <p className="text-gray-200 text-sm mt-1 line-clamp-4">
-              {primaryAlert.headline}
-            </p>
-            {additionalCount > 0 && (
-              <p className="text-amber-400 text-sm mt-2 font-medium">
-                +{additionalCount} additional alert{additionalCount > 1 ? 's' : ''} active
-              </p>
-            )}
-          </div>
+          )}
         </div>
 
         <button
           onClick={dismiss}
-          className="self-end flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 rounded-lg text-sm text-gray-300 transition-colors"
+          className="shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 rounded-lg text-sm text-gray-300 transition-colors"
           aria-label="Dismiss weather alert"
           data-testid="dismiss-button"
         >
