@@ -10,13 +10,11 @@ import type { UseNWSAlertsResult, NWSAlert } from '@/hooks/useNWSAlerts';
 // Mocks — declared before component import
 // ---------------------------------------------------------------------------
 
-// Replace next/dynamic with a synchronous version for tests
-jest.mock('next/dynamic', () =>
-  (_importFn: unknown) =>
-    function MockDynamic() {
-      return <div data-testid="radar-map" />;
-    }
-);
+// Stub WindyMap — it renders an iframe pointing to an external service;
+// testing its URL construction is out of scope for modal behaviour tests.
+jest.mock('../WindyMap', () => ({
+  WindyMap: () => <div data-testid="windy-map" />,
+}));
 
 // Stub useNWSAlerts so we control its return value per-test
 const mockUseNWSAlerts = jest.fn<UseNWSAlertsResult, []>();
@@ -120,10 +118,10 @@ describe('WeatherAlertModal', () => {
     expect(screen.queryByTestId('weather-alert-modal')).toBeNull();
   });
 
-  it('renders the radar map component', () => {
+  it('renders the Windy map component', () => {
     mockUseNWSAlerts.mockReturnValue(withAlerts([makeAlert()]));
     render(<WeatherAlertModal />);
-    expect(screen.getByTestId('radar-map')).not.toBeNull();
+    expect(screen.getByTestId('windy-map')).not.toBeNull();
   });
 
   it('re-appears when a new alert ID arrives after dismissal', () => {

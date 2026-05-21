@@ -8,25 +8,21 @@
  * when the user taps the dismiss button; re-appears if a new alert ID arrives.
  * Disappears automatically once no severe alerts remain.
  *
- * RadarMap is dynamically imported (ssr:false) because Leaflet requires window.
- *
- * Center coordinates for the radar map are read from:
+ * Center coordinates for the Windy map are read from:
  *   NEXT_PUBLIC_NWS_RADAR_LAT / NEXT_PUBLIC_NWS_RADAR_LON
  * If unset, the map defaults to the Washington DC area (38.9°N, 77.0°W).
- * Set these to match your NWS zone's geographic centre.
+ * Set these to the centre of your NWS zone.
+ *
+ * The Windy overlay layer can be changed via NEXT_PUBLIC_WINDY_OVERLAY
+ * (radar | thunder | lightning | wind). Defaults to "radar".
  */
 
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
 import { X, AlertTriangle } from 'lucide-react';
 import { useNWSAlerts } from '@/hooks/useNWSAlerts';
+import { WindyMap } from './WindyMap';
 
-const RadarMap = dynamic(
-  () => import('./RadarMap').then((m) => ({ default: m.RadarMap })),
-  { ssr: false, loading: () => <div className="w-full h-full bg-gray-900" /> }
-);
-
-const RADAR_CENTER: [number, number] = [
+const MAP_CENTER: [number, number] = [
   Number(process.env.NEXT_PUBLIC_NWS_RADAR_LAT ?? '38.9'),
   Number(process.env.NEXT_PUBLIC_NWS_RADAR_LON ?? '-77.0'),
 ];
@@ -69,9 +65,9 @@ export function WeatherAlertModal() {
       className="fixed bottom-0 left-0 right-0 h-1/3 z-50 flex animate-slide-up-from-bottom shadow-2xl"
       data-testid="weather-alert-modal"
     >
-      {/* Left: animated radar */}
+      {/* Left: Windy live weather map */}
       <div className="w-1/2 h-full shrink-0">
-        <RadarMap center={RADAR_CENTER} />
+        <WindyMap center={MAP_CENTER} />
       </div>
 
       {/* Right: alert details */}
