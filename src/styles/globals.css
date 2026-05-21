@@ -590,3 +590,10 @@
   font-size: 20px;
 }
 
+/* When the weather alert modal is open, allow the page to scroll so
+   dashboard content above the modal isn't permanently obscured. */
+body.weather-alert-open {
+  overflow-y: auto !important;
+  padding-bottom: 50vh;
+}
+

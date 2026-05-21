@@ -42,6 +42,17 @@ export function WeatherAlertModal() {
     }
   }, [hasSevereAlert, primaryAlert, dismissedIds]);
 
+  // When the modal is open, make the page scrollable so content above the
+  // modal isn't permanently obscured — the user can scroll up to see it.
+  useEffect(() => {
+    if (visible) {
+      document.body.classList.add('weather-alert-open');
+    } else {
+      document.body.classList.remove('weather-alert-open');
+    }
+    return () => document.body.classList.remove('weather-alert-open');
+  }, [visible]);
+
   function dismiss() {
     if (primaryAlert) {
       setDismissedIds((prev) => {
@@ -62,16 +73,16 @@ export function WeatherAlertModal() {
       role="alertdialog"
       aria-live="assertive"
       aria-label={`Severe weather alert: ${primaryAlert.event}`}
-      className="fixed bottom-0 left-0 right-0 h-1/3 z-50 flex animate-slide-up-from-bottom shadow-2xl"
+      className="fixed bottom-0 left-0 right-0 h-1/2 z-[10000] flex animate-slide-up-from-bottom shadow-2xl"
       data-testid="weather-alert-modal"
     >
       {/* Left: Windy live weather map */}
-      <div className="w-1/2 h-full shrink-0">
+      <div className="w-3/4 h-full shrink-0">
         <WindyMap center={MAP_CENTER} />
       </div>
 
       {/* Right: alert details */}
-      <div className="flex-1 h-full flex flex-col justify-between p-5 bg-gray-950/95 backdrop-blur-sm text-white border-l border-red-500/30">
+      <div className="w-1/4 h-full flex flex-col justify-between p-4 bg-gray-950/95 backdrop-blur-sm text-white border-l border-red-500/30">
         <div className="flex items-start gap-3 min-h-0 overflow-hidden">
           <AlertTriangle
             className="text-red-500 mt-0.5 shrink-0 animate-pulse"

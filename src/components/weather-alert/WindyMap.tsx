@@ -17,14 +17,16 @@
  */
 
 const DEFAULT_OVERLAY = process.env.NEXT_PUBLIC_WINDY_OVERLAY ?? 'radar';
+const DEFAULT_PRODUCT = process.env.NEXT_PUBLIC_WINDY_PRODUCT ?? 'ecmwf';
 
 export interface WindyMapProps {
   center: [number, number];
   zoom?: number;
   overlay?: string;
+  product?: string;
 }
 
-export function WindyMap({ center, zoom = 7, overlay = DEFAULT_OVERLAY }: WindyMapProps) {
+export function WindyMap({ center, zoom = 7, overlay = DEFAULT_OVERLAY, product = DEFAULT_PRODUCT }: WindyMapProps) {
   const [lat, lon] = center;
 
   const params = new URLSearchParams({
@@ -35,7 +37,7 @@ export function WindyMap({ center, zoom = 7, overlay = DEFAULT_OVERLAY }: WindyM
     zoom: String(zoom),
     level: 'surface',
     overlay,
-    product: 'ecmwf',
+    product,
     menu: '',
     message: '',
     marker: '',

@@ -52,8 +52,8 @@ function buildSecurityHeaders() {
     "media-src 'self' blob:",
     // PWA service worker
     "worker-src 'self' blob:",
-    // Prism never loads external frames
-    "frame-src 'none'",
+    // embed.windy.com is used by the weather alert modal radar map
+    "frame-src 'self' https://embed.windy.com",
     // Block all plugin content (Flash, etc.)
     "object-src 'none'",
     // Prevent base tag injection attacks
