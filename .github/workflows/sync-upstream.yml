@@ -35,14 +35,8 @@ jobs:
           git reset --hard upstream/master
           git push origin upstream --force
 
-      - name: Merge upstream into master
+      - name: Reset master to match upstream
         run: |
-          git checkout --track origin/master
-          git merge upstream/master --no-edit
-          git push origin master
-
-      - name: Merge upstream into personal
-        run: |
-          git checkout personal
-          git merge upstream/master --no-edit
-          git push origin personal
+          git checkout master
+          git reset --hard upstream/master
+          git push origin master --force
