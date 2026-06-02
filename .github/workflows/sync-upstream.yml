@@ -11,6 +11,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      issues: write
 
     steps:
       - uses: actions/checkout@v4
@@ -40,3 +41,38 @@ jobs:
           git checkout master
           git reset --hard upstream/master
           git push origin master --force
+
+      - name: Merge upstream into personal
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+        run: |
+          git checkout personal
+          if git merge upstream/master --no-edit; then
+            git push origin personal
+          else
+            git merge --abort
+            # Open a conflict issue only if one isn't already open
+            open_issue=$(gh issue list \
+              --repo "$GITHUB_REPOSITORY" \
+              --label "upstream-conflict" \
+              --state open \
+              --json number \
+              --jq 'length')
+            if [ "$open_issue" -eq 0 ]; then
+              gh issue create \
+                --repo "$GITHUB_REPOSITORY" \
+                --title "Action required: upstream merge conflict on personal branch" \
+                --label "upstream-conflict" \
+                --body "The daily upstream sync could not automatically merge \`upstream/master\` into \`personal\` due to a conflict.
+
+  Resolve locally:
+  \`\`\`bash
+  git fetch origin
+  git checkout personal
+  git merge origin/master
+  # fix conflicts, then:
+  git push origin personal
+  \`\`\`
+  Close this issue once the conflict is resolved."
+            fi
+          fi
