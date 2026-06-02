@@ -5,6 +5,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { WIDGET_COLORS } from './LayoutPreview';
 import { WIDGET_REGISTRY, ALL_WIDGET_TYPES, SCREENSAVER_WIDGETS } from '@/components/widgets/widgetRegistry';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+import { findNextFreeSlot } from '@/lib/utils/widgetPlacement';
 
 interface CoordinateEditorProps {
   widgets: WidgetConfig[];
@@ -27,16 +28,32 @@ export function CoordinateEditor({ widgets, onWidgetsChange, mode, onFocusedWidg
     ? SCREENSAVER_WIDGETS.map(w => w.id)
     : ALL_WIDGET_TYPES;
 
-  // Split into visible and hidden
+  // Split into visible and hidden, both sorted alphabetically by label so
+  // the "Add widget" picker and the "currently visible" table follow the
+  // same ordering. Previously `visibleIds` followed WIDGET_REGISTRY's
+  // insertion order, which put newer widgets (Birthdays, Bus Tracker) at
+  // arbitrary positions that didn't match the alpha-sorted hidden list.
+  const byLabel = (a: string, b: string) => {
+    const aLabel = WIDGET_REGISTRY[a]?.label || a;
+    const bLabel = WIDGET_REGISTRY[b]?.label || b;
+    return aLabel.localeCompare(bLabel);
+  };
+
   const visibleIds = useMemo(() =>
-    allWidgetIds.filter(id => {
-      const w = widgets.find(w => w.i === id);
-      return w && w.visible !== false;
-    }),
+    allWidgetIds
+      .filter(id => {
+        const w = widgets.find(w => w.i === id);
+        return w && w.visible !== false;
+      })
+      .sort(byLabel),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   [allWidgetIds, widgets]);
 
   const hiddenIds = useMemo(() =>
-    allWidgetIds.filter(id => !visibleIds.includes(id)),
+    allWidgetIds
+      .filter(id => !visibleIds.includes(id))
+      .sort(byLabel),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   [allWidgetIds, visibleIds]);
 
   // Close add dropdown on outside click
@@ -60,17 +77,12 @@ export function CoordinateEditor({ widgets, onWidgetsChange, mode, onFocusedWidg
     } else {
       const reg = WIDGET_REGISTRY[widgetId];
       if (!reg) return;
-      const maxY = Math.max(0, ...widgets.filter(w => w.visible !== false).map(w => w.y + w.h));
+      // Find the first free slot row-by-row, columns inside each row — slots
+      // a new widget into top-row gaps before falling through to the bottom.
+      const { x, y } = findNextFreeSlot(widgets, reg.defaultW, reg.defaultH);
       onWidgetsChange([
         ...widgets,
-        {
-          i: widgetId,
-          x: 0,
-          y: maxY,
-          w: reg.defaultW,
-          h: reg.defaultH,
-          visible: true,
-        },
+        { i: widgetId, x, y, w: reg.defaultW, h: reg.defaultH, visible: true },
       ]);
     }
   }, [widgets, onWidgetsChange]);

@@ -35,9 +35,33 @@ Connect Microsoft in *Settings → Connected Accounts → Microsoft*. Then in *S
 - **Orientation filter** — sync only landscape, portrait, or square photos (or all).
 - **Quality threshold** — minimum dimensions to sync (skips tiny thumbnails).
 
-The sync downloads new files into `data/photos/onedrive/`. EXIF metadata is preserved.
+The sync downloads new files into `data/photos/onedrive/`. EXIF metadata is preserved. **Auto-sync runs every 30 minutes** — drop a photo into the folder and it appears on the dashboard within the half hour, no manual trigger needed. (Hit the manual sync button in settings if you want it immediately.)
 
 You can have multiple OneDrive sources — useful if you want one folder for "family slideshow" and another for "wallpaper-only".
+
+#### Getting photos into the folder from your iPhone
+
+OneDrive backs up your whole camera roll to one big folder, but doesn't map iOS albums or favorites to a specific folder. So you populate the Prism folder one of three ways:
+
+1. **iOS Shortcut (recommended)** — a one-tap "Add to Prism" action on the Photos share sheet. Build it once:
+   - Open the **Shortcuts** app → **+** → name it "Add to Prism"
+   - Add action **Save File** (from the Documents category)
+   - Set the destination to your OneDrive Prism folder, turn **off** "Ask Where to Save"
+   - In the shortcut's settings (ⓘ), enable **Show in Share Sheet** and set "Accepted Types" to Images
+   - Now: in Photos, select any photos → Share → **Add to Prism**. They upload straight to the folder.
+2. **OneDrive app** — open OneDrive, select photos in your Camera Roll backup → **Copy to** → Prism folder.
+3. **From a computer** — drag files into the folder in the OneDrive web UI or synced desktop folder.
+
+> Why not iCloud Shared Albums? Apple migrated public share URLs to a CloudKit-only backend that has no public API. See [iCloud integration](ICLOUD.md#what-works-what-doesnt) for the full story; OneDrive + the iOS Shortcut above is the workflow for iPhone users.
+
+### Cross-source dedup + priority
+
+If you back up the same photos to **more than one** source (e.g. local uploads plus an OneDrive folder, or two OneDrive folders that overlap), Prism shows each photo **once** rather than twice. When the same shot is found in multiple sources:
+
+- Photos are matched by **capture time + dimensions** (a cropped edit keeps the original timestamp but changes dimensions, so edits and originals both show — only true duplicates are collapsed).
+- The copy from your **preferred source wins**. Order your sources in *Settings → Photos* with the ▲▼ controls — top of the list = preferred. Reordering takes effect immediately; no re-sync needed.
+
+Example: rank "OneDrive: originals" above "OneDrive: web-optimized" and any photo in both folders serves from the originals folder while the smaller copy is suppressed from display.
 
 ---
 

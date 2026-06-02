@@ -38,6 +38,25 @@ jobs:
 
       - run: npm run lint
 
+      - name: Version sync (package.json ↔ CHANGELOG)
+        run: bash scripts/check-version-sync.sh
+
+      # Syntax-check JS that doesn't flow through the TS/Next.js pipeline.
+      # Caught nothing today, but had this been in place yesterday it would
+      # have caught the duplicate `const windowUniques` in traffic/index.html
+      # before merging — the bug that left the live page stuck on "Loading…"
+      # for ~12 hours (PR #88).
+      - name: Syntax check (standalone JS + inline HTML scripts)
+        run: |
+          # Standalone scripts under scripts/
+          find scripts -maxdepth 2 -type f \( -name '*.js' -o -name '*.mjs' \) \
+            -not -name 'check-inline-js.sh' \
+            -print0 | xargs -0 -n1 node --check
+          # Inline <script> blocks in static HTML
+          bash scripts/check-inline-js.sh \
+            traffic/index.html \
+            docs/traffic/index.html
+
   unit:
     name: Unit tests (jest)
     runs-on: ubuntu-latest
@@ -87,6 +106,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # Use the official Playwright container so Chromium is preinstalled.
+    # Previously the job downloaded Chromium from cdn.playwright.dev at
+    # job start, which began hanging indefinitely on GH-hosted runners
+    # around 2026-05-29 and killed the job at the timeout. Image must be
+    # kept in lockstep with @playwright/test in package.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-jammy
+
     services:
       postgres:
         image: postgres:15-alpine
@@ -94,8 +121,6 @@ jobs:
           POSTGRES_USER: prism
           POSTGRES_PASSWORD: ci_test_password
           POSTGRES_DB: prism
-        ports:
-          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U prism"
           --health-interval 10s
@@ -104,8 +129,6 @@ jobs:
 
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -113,10 +136,12 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://prism:ci_test_password@localhost:5432/prism
-      REDIS_URL: redis://localhost:6379
-      PORT: '3005'
-      APP_URL: http://localhost:3005
+      # Inside container jobs services are reached by their alias on the
+      # docker network, not via localhost port forwards.
+      DATABASE_URL: postgresql://prism:ci_test_password@postgres:5432/prism
+      REDIS_URL: redis://redis:6379
+      PORT: '3000'
+      APP_URL: http://localhost:3000
       # Throwaway test-only values — the CI runner is ephemeral and never
       # accepts external connections. Real production secrets live in .env.
       SESSION_SECRET: ci_test_session_secret_padding32
@@ -137,13 +162,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
+      - name: Install psql (not bundled in Playwright image)
+        run: apt-get update && apt-get install -y --no-install-recommends postgresql-client
 
       - name: Apply base schema
         env:
           PGPASSWORD: ci_test_password
-        run: psql -h localhost -U prism -d prism -v ON_ERROR_STOP=1 -f src/lib/db/init/02-schema.sql
+        run: psql -h postgres -U prism -d prism -v ON_ERROR_STOP=1 -f src/lib/db/init/02-schema.sql
 
       - name: Apply migrations
         run: node scripts/migrate.js
@@ -152,7 +177,7 @@ jobs:
         run: npm run db:seed
 
       - name: Run e2e modality suite
-        run: npx playwright test e2e/reverse-proxy.spec.ts --reporter=list
+        run: npx playwright test e2e/reverse-proxy.spec.ts e2e/mobile-pwa-settings.spec.ts --reporter=list
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -167,6 +192,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
+    # See e2e-modality for why we run inside the Playwright image.
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-jammy
+
     services:
       postgres:
         image: postgres:15-alpine
@@ -174,8 +203,6 @@ jobs:
           POSTGRES_USER: prism
           POSTGRES_PASSWORD: ci_test_password
           POSTGRES_DB: prism
-        ports:
-          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U prism"
           --health-interval 10s
@@ -184,8 +211,6 @@ jobs:
 
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -193,10 +218,10 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://prism:ci_test_password@localhost:5432/prism
-      REDIS_URL: redis://localhost:6379
-      PORT: '3005'
-      APP_URL: http://localhost:3005
+      DATABASE_URL: postgresql://prism:ci_test_password@postgres:5432/prism
+      REDIS_URL: redis://redis:6379
+      PORT: '3000'
+      APP_URL: http://localhost:3000
       SESSION_SECRET: ci_test_session_secret_padding32
       PIN_ENCRYPTION_KEY: ci_test_pin_encryption_key_pad32
       ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
@@ -213,16 +238,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
-
-      - name: Install redis-cli (reset.ts uses it when REDIS_URL is set)
-        run: sudo apt-get update && sudo apt-get install -y redis-tools
+      - name: Install psql + redis-cli (not bundled in Playwright image)
+        run: apt-get update && apt-get install -y --no-install-recommends postgresql-client redis-tools
 
       - name: Apply base schema
         env:
           PGPASSWORD: ci_test_password
-        run: psql -h localhost -U prism -d prism -v ON_ERROR_STOP=1 -f src/lib/db/init/02-schema.sql
+        run: psql -h postgres -U prism -d prism -v ON_ERROR_STOP=1 -f src/lib/db/init/02-schema.sql
 
       - name: Apply migrations
         run: node scripts/migrate.js

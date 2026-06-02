@@ -39,9 +39,11 @@ import { CalendarsSection } from './sections/CalendarsSection';
 import { DisplaySection } from './sections/DisplaySection';
 import { SecuritySection } from './sections/SecuritySection';
 import { PhotosSettingsSection } from './sections/PhotosSettingsSection';
-import { TaskIntegrationsSection } from './sections/TaskIntegrationsSection';
-import { ShoppingIntegrationsSection } from './sections/ShoppingIntegrationsSection';
-import { WishListIntegrationsSection } from './sections/WishListIntegrationsSection';
+// TaskIntegrationsSection, ShoppingIntegrationsSection, WishListIntegrationsSection
+// are no longer rendered as standalone sections — they're embedded inside the
+// Microsoft and Google provider cards under /settings?section=integrations.
+// Legacy URLs (?section=tasks etc.) redirect to integrations via
+// LEGACY_TO_INTEGRATIONS above.
 import { BabysitterInfoSection } from './sections/BabysitterInfoSection';
 import { BackupSection } from './sections/BackupSection';
 import { BusTrackingSection } from './sections/BusTrackingSection';
@@ -49,8 +51,8 @@ import { InputSection } from './sections/InputSection';
 import { FeaturesSection } from './sections/FeaturesSection';
 import { ActivityLogSection } from './sections/ActivityLogSection';
 
-import { ConnectedAccountsSection } from './sections/ConnectedAccountsSection';
 import { DisplaysSection } from './sections/DisplaysSection';
+import { IntegrationsSection } from './sections/integrations/IntegrationsSection';
 
 
 // Exported hooks (consumed by other components)
@@ -127,21 +129,53 @@ export function useTargetResolution() {
 
 // Main Settings View
 
+// Legacy section IDs that have been folded into the consolidated
+// Integrations page. Any URL or OAuth callback still pointing at one
+// of these (bookmarks, ?section=tasks from in-flight callbacks, the
+// stale-link case after redeploy, etc.) gets redirected to
+// 'integrations'.
+const LEGACY_TO_INTEGRATIONS: Record<string, string> = {
+  connections: 'integrations',
+  tasks: 'integrations',
+  shopping: 'integrations',
+  wish: 'integrations',
+};
+
+function normalizeSection(raw: string | null): string {
+  if (!raw) return 'account';
+  return LEGACY_TO_INTEGRATIONS[raw] ?? raw;
+}
+
 export function SettingsView() {
   const searchParams = useSearchParams();
-  const initialSection = searchParams.get('section') || 'account';
+  const initialSection = normalizeSection(searchParams.get('section'));
   const [activeSection, setActiveSection] = useState<string>(initialSection);
+
+  // Sync activeSection when the URL section changes mid-mount. Without this,
+  // in-app links like <Link href="/settings?section=calendars"> from inside
+  // one section update the address bar but never re-render the content panel
+  // — SettingsView only read the search param at first mount.
+  //
+  // Deps are [urlSection] only. Including activeSection here breaks sidebar
+  // clicks: clicking a different section in the nav updates activeSection
+  // but leaves urlSection unchanged, so on the next render the effect would
+  // see (urlSection !== activeSection) and snap activeSection back to the
+  // stale URL value. (This is the "stuck on bus tracking after Gmail auth"
+  // bug.) Only the URL changing should trigger a sync.
+  const urlSection = searchParams.get('section');
+  React.useEffect(() => {
+    if (urlSection) {
+      setActiveSection(normalizeSection(urlSection));
+    }
+  }, [urlSection]);
 
   const sections = [
     { id: 'account', label: 'Account & Profile', icon: User },
     { id: 'family', label: 'Family Members', icon: Users },
-    { id: 'connections', label: 'Connected Accounts', icon: Link2 },
+    { id: 'integrations', label: 'Integrations', icon: Link2 },
     { id: 'displays', label: 'Displays', icon: Monitor },
     { id: 'display', label: 'Appearance', icon: Palette },
     { id: 'calendars', label: 'Calendars', icon: Calendar },
-    { id: 'tasks', label: 'Task Sync', icon: ListTodo },
-    { id: 'shopping', label: 'Shopping Sync', icon: ShoppingCart },
-    { id: 'wish', label: 'Wish List Sync', icon: Gift },
     { id: 'photos', label: 'Photos', icon: ImageIcon },
     { id: 'bus', label: 'Bus Tracking', icon: Bus },
     { id: 'input', label: 'Input', icon: KeyboardIcon },
@@ -171,7 +205,7 @@ export function SettingsView() {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <nav className="w-64 flex-shrink-0 border-r border-border bg-card/85 backdrop-blur-sm p-4">
+          <nav className="hidden md:block w-64 flex-shrink-0 border-r border-border bg-card/85 backdrop-blur-sm p-4">
             <div className="space-y-1">
               {sections.map((section) => {
                 const Icon = section.icon;
@@ -194,16 +228,35 @@ export function SettingsView() {
 
           </nav>
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6">
+            {/*
+              Mobile section selector. The desktop sidebar above is hidden on
+              <md, so without this the Settings page is reachable from MobileNav
+              but every section other than 'account' (the default) is not.
+            */}
+            <div className="md:hidden mb-4">
+              <label htmlFor="settings-section-select" className="sr-only">
+                Settings section
+              </label>
+              <select
+                id="settings-section-select"
+                value={activeSection}
+                onChange={(e) => setActiveSection(e.target.value)}
+                className="w-full rounded-md border border-border bg-card px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {sections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="max-w-2xl">
               {activeSection === 'account' && <AccountSection />}
               {activeSection === 'family' && <FamilySection />}
-              {activeSection === 'connections' && <ConnectedAccountsSection />}
+              {activeSection === 'integrations' && <IntegrationsSection />}
               {activeSection === 'displays' && <DisplaysSection />}
               {activeSection === 'calendars' && <CalendarsSection />}
-              {activeSection === 'tasks' && <TaskIntegrationsSection />}
-              {activeSection === 'shopping' && <ShoppingIntegrationsSection />}
-              {activeSection === 'wish' && <WishListIntegrationsSection />}
               {activeSection === 'photos' && <PhotosSettingsSection />}
               {activeSection === 'bus' && <BusTrackingSection />}
               {activeSection === 'babysitter' && <BabysitterInfoSection />}

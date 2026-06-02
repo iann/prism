@@ -258,10 +258,10 @@ export function CalendarsSection() {
               <p className="text-sm text-muted-foreground">
                 Connect Google in{' '}
                 <button
-                  onClick={() => { window.location.href = '/settings?section=connections'; }}
+                  onClick={() => { window.location.href = '/settings?section=integrations#google'; }}
                   className="text-primary hover:underline font-medium"
                 >
-                  Connected Accounts
+                  Integrations
                 </button>
                 {' '}to import calendars.
               </p>
@@ -291,7 +291,17 @@ export function CalendarsSection() {
                   </Button>
                 </div>
               )}
-              {localCalendars.map((cal) => (
+              {localCalendars
+                // Hide CalDAV sources that don't support VEVENT — they're
+                // task-only (Apple Reminders lists, etc.) and surface in
+                // Task Lists settings instead. They'd just be noise in the
+                // Calendar settings card otherwise.
+                .filter((cal) => {
+                  if (cal.provider !== 'caldav') return true;
+                  const cfg = cal.providerConfig as { supportsEvents?: boolean } | null;
+                  return cfg?.supportsEvents !== false;
+                })
+                .map((cal) => (
                 <div
                   key={cal.id}
                   className={cn(

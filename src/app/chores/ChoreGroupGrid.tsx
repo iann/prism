@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { ClipboardList, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { UserAvatar } from '@/components/ui/avatar';
 import { useDragReorder } from '@/lib/hooks/useDragReorder';
 import { useIsTouch } from '@/lib/hooks/useIsTouch';
+import { CarouselArrows } from '@/components/ui/CarouselArrows';
 import { ChoreGroupCard } from './ChoreGroupCard';
 import { cn } from '@/lib/utils';
 
@@ -73,18 +74,37 @@ export function ChoreGroupGrid({
     return effectiveOrder.map((k) => map.get(k)).filter(Boolean) as ChoreGroupEntry[];
   }, [choresByUser, effectiveOrder]);
 
+  // Carousel layout: N profiles visible at a time, swipe left/right to
+  // shift between them. N = 1 on mobile, 4 on desktop. Snap kicks in
+  // when total profiles exceed N. For ≤N profiles the grid stretches
+  // them to fill (no snap, no overflow).
+  // User scrolls up/down INSIDE each profile's column via its own
+  // overflow-y context — `overscroll-contain` on the body stops iOS PWA
+  // from bubbling vertical scrolls past the column into the page
+  // wrapper, which is what was making the page toolbar move.
+  const groupsPerScreen = isMobile ? 1 : 4;
+  const isCarousel = sortedGroups.length > groupsPerScreen;
+  const colTrack = isCarousel
+    ? isMobile
+      ? 'calc(100vw - 32px)'
+      : `calc((100% - ${(groupsPerScreen - 1) * 8}px) / ${groupsPerScreen})`
+    : 'minmax(220px, 1fr)';
+  const scrollRef = useRef<HTMLDivElement>(null);
   return (
+    <div className="relative h-full">
     <div
+      ref={scrollRef}
       className={cn(
-        'grid gap-2 h-full',
-        isMobile
-          ? 'grid-cols-1'
-          : sortedGroups.length <= 2
-          ? 'grid-cols-1 md:grid-cols-2'
-          : sortedGroups.length <= 4
-          ? 'grid-cols-2'
-          : 'grid-cols-2 md:grid-cols-3'
+        // grid-rows-1 constrains the row to grid height (minmax(0, 1fr))
+        // so each column has a finite height — without this the row's
+        // height grows to fit content and the inner overflow-y-auto on
+        // the column body never engages on desktop.
+        'grid grid-rows-1 gap-2 h-full overflow-x-auto scroll-smooth',
+        isCarousel && 'snap-x snap-mandatory'
       )}
+      style={{
+        gridTemplateColumns: `repeat(${Math.max(sortedGroups.length, 1)}, ${colTrack})`,
+      }}
     >
       {sortedGroups.map(({ user, chores }, idx) => {
         const userColor = user?.color || '#6B7280';
@@ -97,7 +117,8 @@ export function ChoreGroupGrid({
             className={cn(
               'flex flex-col border-2 rounded-lg overflow-hidden bg-card/90 backdrop-blur-sm transition-all',
               !isTouch && !isMobile && 'cursor-grab active:cursor-grabbing touch-none',
-              isDragging && 'opacity-50 scale-95 ring-4 ring-primary/50'
+              isDragging && 'opacity-50 scale-95 ring-4 ring-primary/50',
+              isCarousel && 'snap-start'
             )}
             style={{ borderColor: userColor }}
           >
@@ -140,7 +161,7 @@ export function ChoreGroupGrid({
                 {chores.length}
               </Badge>
             </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-1">
               <Input
                 placeholder="Add chore..."
                 value={inlineChoreByUser[key] || ''}
@@ -180,6 +201,8 @@ export function ChoreGroupGrid({
           </div>
         );
       })}
+    </div>
+      {isCarousel && !isMobile && <CarouselArrows scrollRef={scrollRef} />}
     </div>
   );
 }

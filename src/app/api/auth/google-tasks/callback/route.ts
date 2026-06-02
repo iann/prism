@@ -55,6 +55,11 @@ export async function GET(request: Request) {
   const state = searchParams.get('state');
 
   let taskListId: string | null = null;
+  // Default returnSection is still 'tasks' — Google Tasks OAuth flows
+  // ALWAYS end in a list-selection modal which currently only lives in
+  // the legacy TaskIntegrationsSection. Until that modal is extracted into
+  // the new Integrations cards (later phase), success redirects stay
+  // pointed at 'tasks'. Error redirects can honor returnSection.
   let returnSection = 'tasks';
   if (state) {
     try {
@@ -64,6 +69,10 @@ export async function GET(request: Request) {
     } catch { /* ignore */ }
   }
 
+  // Anchor for error redirects when returnSection === 'integrations'.
+  const errorAnchor =
+    returnSection === 'integrations' ? '#google-tasks' : '';
+
   try {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
@@ -71,13 +80,13 @@ export async function GET(request: Request) {
     if (error) {
       logError('Google Tasks OAuth error:', error);
       return NextResponse.redirect(
-        `${BASE_URL}/settings?section=${returnSection}&error=google_tasks_auth_denied`
+        `${BASE_URL}/settings?section=${returnSection}&error=google_tasks_auth_denied${errorAnchor}`
       );
     }
 
     if (!code) {
       return NextResponse.redirect(
-        `${BASE_URL}/settings?section=${returnSection}&error=missing_code`
+        `${BASE_URL}/settings?section=${returnSection}&error=missing_code${errorAnchor}`
       );
     }
 
@@ -112,15 +121,23 @@ export async function GET(request: Request) {
       })
     );
 
+    // Land on the new Integrations cards' Google Tasks sub-section when
+    // the flow was initiated from there; otherwise the legacy ?section=tasks
+    // (redirected via LEGACY_TO_INTEGRATIONS so in-flight callbacks survive).
+    const useIntegrations = returnSection === 'integrations';
     const redirectUrl = taskListId
-      ? `${BASE_URL}/settings?section=tasks&selectGoogleTasksList=true&taskListId=${taskListId}`
-      : `${BASE_URL}/settings?section=tasks&selectGoogleTasksList=true&newConnection=true`;
+      ? useIntegrations
+        ? `${BASE_URL}/settings?section=integrations&selectGoogleTasksList=true&taskListId=${taskListId}#google-tasks`
+        : `${BASE_URL}/settings?section=tasks&selectGoogleTasksList=true&taskListId=${taskListId}`
+      : useIntegrations
+        ? `${BASE_URL}/settings?section=integrations&selectGoogleTasksList=true&newConnection=true#google-tasks`
+        : `${BASE_URL}/settings?section=tasks&selectGoogleTasksList=true&newConnection=true`;
 
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
     logError('Google Tasks OAuth callback error:', error);
     return NextResponse.redirect(
-      `${BASE_URL}/settings?section=${returnSection}&error=google_tasks_auth_failed`
+      `${BASE_URL}/settings?section=${returnSection}&error=google_tasks_auth_failed${errorAnchor}`
     );
   }
 }

@@ -14,7 +14,7 @@ import {
   type Modifier,
 } from '@dnd-kit/core';
 import { WidgetBgOverrideProvider } from '@/components/widgets/WidgetContainer';
-import { getWidgetStyle, getTextColorClass } from './gridWidgetStyles';
+import { getWidgetStyle, getWidgetContentStyle, getTextColorClass } from './gridWidgetStyles';
 import type { EditorTheme } from './gridEditorTypes';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 
@@ -264,6 +264,7 @@ function DragOverlayContent({
   renderWidget: (widget: WidgetConfig) => React.ReactNode;
 }) {
   const widgetStyle = getWidgetStyle(widget);
+  const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget);
 
   return (
@@ -277,7 +278,7 @@ function DragOverlayContent({
       className={`rounded-lg border-2 border-primary shadow-lg ${textClass}`}
     >
       <WidgetBgOverrideProvider value={{ hasCustomBg: !!widget.backgroundColor, textColor: widget.textColor, textOpacity: widget.textOpacity, gridLineOpacity: widget.gridLineOpacity, cellBackgroundColor: widget.cellBackgroundColor, cellBackgroundOpacity: widget.cellBackgroundOpacity }}>
-        <div className="h-full w-full overflow-hidden">
+        <div className="h-full w-full overflow-hidden" style={{ pointerEvents: 'none', ...contentStyle }}>
           {renderWidget(widget)}
         </div>
       </WidgetBgOverrideProvider>
@@ -319,6 +320,7 @@ function DraggableWidget({
   });
 
   const widgetStyle = getWidgetStyle(widget);
+  const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget, '');
   const hasCustomBg = !!widget.backgroundColor;
 
@@ -353,9 +355,17 @@ function DraggableWidget({
           : `border-dashed ${theme.borderDash}`
       } rounded-lg pointer-events-none`} />
 
-      {/* Widget content */}
+      {/* Widget content — interactivity disabled in edit mode so a stray
+          click on an internal link (e.g. the Travel widget's "Open the map →")
+          can't navigate away mid-edit and discard unsaved layout changes.
+          The outer wrapper still receives drag/select events because clicks
+          bubble through pointer-events:none and the wrapper has its own
+          onClick + dnd-kit listeners. */}
       <WidgetBgOverrideProvider value={{ hasCustomBg, textColor: widget.textColor, textOpacity: widget.textOpacity, gridLineOpacity: widget.gridLineOpacity, cellBackgroundColor: widget.cellBackgroundColor, cellBackgroundOpacity: widget.cellBackgroundOpacity }}>
-        <div className={`h-full w-full overflow-hidden ${textClass}`}>
+        <div
+          className={`h-full w-full overflow-hidden ${textClass}`}
+          style={{ pointerEvents: 'none', ...contentStyle }}
+        >
           {renderWidget(widget)}
         </div>
       </WidgetBgOverrideProvider>

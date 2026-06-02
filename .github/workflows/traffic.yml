@@ -58,14 +58,27 @@ jobs:
               'clones': {},
               'referrers': [],
               'referrer_history': {},
+              'window_uniques': {},
               'updated_at': None,
           })
           history.setdefault('referrer_history', {})
+          history.setdefault('window_uniques', {})
 
           # Merge views — keyed by YYYY-MM-DD, newer run wins
-          for day in load_api('/tmp/views.json').get('views', []):
+          views_api = load_api('/tmp/views.json')
+          for day in views_api.get('views', []):
               date = day['timestamp'][:10]
               history['views'][date] = {'count': day['count'], 'uniques': day['uniques']}
+
+          # Capture today's TOP-LEVEL uniques — GitHub's 14-day rolling
+          # deduplicated visitor count. Distinct from the per-day uniques
+          # above (which double-count a returning visitor across days).
+          # Stored keyed by the day the snapshot was taken so the viewer
+          # can chart the rolling-window value over time and show
+          # day-to-day deltas as "new this period."
+          today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+          if 'uniques' in views_api:
+              history['window_uniques'][today] = views_api['uniques']
 
           # Merge clones
           for day in load_api('/tmp/clones.json').get('clones', []):
@@ -82,7 +95,6 @@ jobs:
           if not isinstance(referrers_now, list):
               referrers_now = []
           history['referrers'] = referrers_now
-          today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
           if referrers_now:  # don't overwrite a good snapshot with [] from a 4xx
               history['referrer_history'][today] = referrers_now
 
@@ -97,10 +109,23 @@ jobs:
           print(f"Days tracked: {len(history['views'])}  |  Total views: {total_views}  |  Total unique: {total_uniques}")
           PYEOF
 
-      - name: Commit if changed
+      - name: Push to traffic-data branch
+        # Pushing the daily refresh straight to master used to fail
+        # because branch protection requires 5 status checks (the bot
+        # has none). Switched to a dedicated, unprotected orphan-style
+        # branch `traffic-data` that's overwritten daily. The viewer
+        # page (traffic/index.html on master) fetches history.json
+        # directly from this branch via raw.githubusercontent.com, so
+        # users don't need to merge anything back into master.
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Create or reset the traffic-data branch with only the
+          # traffic/ directory as content. Force-push keeps the branch
+          # history shallow (one commit) and avoids merge conflicts.
+          git checkout --orphan traffic-data
+          git rm -rf --cached . > /dev/null
           git add traffic/
-          git diff --staged --quiet || git commit -m "chore: traffic stats $(date -u +%Y-%m-%d)"
-          git push
+          git diff --staged --quiet && exit 0
+          git commit -m "traffic stats $(date -u +%Y-%m-%d)"
+          git push --force origin traffic-data

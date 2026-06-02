@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import {
   Lightbulb,
@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { CarouselArrows } from '@/components/ui/CarouselArrows';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
 import { useFamily } from '@/components/providers/FamilyProvider';
 import { useAuth } from '@/components/providers';
@@ -23,7 +24,12 @@ import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import type { GiftIdea, FamilyMember } from '@/types';
 
-export function GiftIdeasView() {
+interface GiftIdeasViewProps {
+  /** PersonFilter selection from the parent. null/empty = show all members. */
+  selectedMemberIds?: string[] | null;
+}
+
+export function GiftIdeasView({ selectedMemberIds }: GiftIdeasViewProps = {}) {
   const { members } = useFamily();
   const { activeUser, requireAuth } = useAuth();
   const { ideas, loading, error, addIdea, updateIdea, deleteIdea, togglePurchased } = useGiftIdeas(activeUser?.id);
@@ -34,8 +40,14 @@ export function GiftIdeasView() {
 
   const [editingIdea, setEditingIdea] = useState<GiftIdea | null>(null);
   const [quickAddByUser, setQuickAddByUser] = useState<Record<string, string>>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const otherMembers = useMemo(() => members, [members]);
+  const otherMembers = useMemo(() => {
+    const hasFilter = selectedMemberIds && selectedMemberIds.length > 0;
+    if (!hasFilter) return members;
+    return members.filter((m) => selectedMemberIds!.includes(m.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [members, selectedMemberIds?.join(',')]);
 
   // Group ideas by forUserId
   const ideasByUser = useMemo(() => {
@@ -96,21 +108,38 @@ export function GiftIdeasView() {
     return <div className="text-destructive text-center py-8">{error}</div>;
   }
 
+  // See ChoreGroupGrid for full context. N members visible at a time
+  // (1 mobile, 4 desktop); snap carousel when total exceeds N.
+  const groupsPerScreen = isMobile ? 1 : 4;
+  const isCarousel = otherMembers.length > groupsPerScreen;
+  const colTrack = isCarousel
+    ? isMobile
+      ? 'calc(100vw - 32px)'
+      : `calc((100% - ${(groupsPerScreen - 1) * 12}px) / ${groupsPerScreen})`
+    : 'minmax(220px, 1fr)';
   return (
     <>
-      <div className={cn(
-        'grid gap-3 h-full',
-        isMobile ? 'grid-cols-1' :
-        isPortrait
-          ? otherMembers.length <= 2 ? 'grid-cols-1' : 'grid-cols-2'
-          : otherMembers.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'
-      )}>
+      <div className="relative h-full">
+      <div
+        ref={scrollRef}
+        className={cn(
+          // See ChoreGroupGrid for the grid-rows-1 reasoning.
+          'grid grid-rows-1 gap-3 h-full overflow-x-auto scroll-smooth',
+          isCarousel && 'snap-x snap-mandatory'
+        )}
+        style={{
+          gridTemplateColumns: `repeat(${Math.max(otherMembers.length, 1)}, ${colTrack})`,
+        }}
+      >
         {otherMembers.map((member) => {
           const memberIdeas = ideasByUser[member.id] || [];
           return (
             <div
               key={member.id}
-              className="flex flex-col rounded-xl border-2 bg-card/50 overflow-hidden min-h-0"
+              className={cn(
+                'flex flex-col rounded-xl border-2 bg-card/50 overflow-hidden min-h-0',
+                isCarousel && 'snap-start'
+              )}
               style={{ borderColor: member.color }}
             >
               {/* Card header */}
@@ -132,7 +161,7 @@ export function GiftIdeasView() {
               </div>
 
               {/* Quick add + item list */}
-              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-1">
                 <Input
                   placeholder={`Gift idea for ${member.name}...`}
                   value={quickAddByUser[member.id] || ''}
@@ -162,6 +191,8 @@ export function GiftIdeasView() {
             </div>
           );
         })}
+      </div>
+        {isCarousel && !isMobile && <CarouselArrows scrollRef={scrollRef} />}
       </div>
 
       {/* Edit modal (inline for simplicity) */}

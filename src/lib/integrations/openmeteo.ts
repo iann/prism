@@ -36,6 +36,7 @@ import type {
   HourlyForecast,
 } from '@/components/widgets/WeatherWidget';
 import type { LocationParam, WeatherOptions } from './weather';
+import { getMoonData } from './moon';
 
 function defaultImperialUnits(): WeatherUnits {
   return { temperature: 'F', windSpeed: 'mph', precipitation: 'in' };
@@ -270,15 +271,19 @@ export async function fetchWeatherData(
     .filter(({ dateStr }) => dateStr.slice(0, 10) >= todayLocalStr)
     .slice(0, 7)
     .map(({ dateStr, i }) => {
-      // YYYY-MM-DD in the location's TZ; parse as local-date to avoid the UTC
-      // shift bug.
+      // YYYY-MM-DD in the location's TZ. Anchor at UTC midnight so the
+      // JSON round-trip preserves the calendar day: ISO string of a UTC-
+      // midnight Date is "YYYY-MM-DDT00:00:00.000Z", which the client can
+      // read back via getUTC* without TZ slippage. Computing dayName from
+      // getUTCDay() keeps the day-of-week label consistent regardless of
+      // the container's TZ (Docker = UTC; family viewer = Central).
       const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
       const date = m
-        ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+        ? new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
         : new Date(dateStr);
       return {
         date,
-        dayName: DAYS_SHORT[date.getDay()] ?? 'Day',
+        dayName: DAYS_SHORT[date.getUTCDay()] ?? 'Day',
         high: Math.round(daily.temperature_2m_max[i] ?? 0),
         low: Math.round(daily.temperature_2m_min[i] ?? 0),
         condition: mapWmoCode(daily.weather_code[i] ?? 0),
@@ -343,6 +348,9 @@ export async function fetchWeatherData(
     }
   }
 
+  // ── Moon (local computation — Open-Meteo doesn't expose moon data) ────────
+  const moon = getMoonData(config.lat, config.lon);
+
   return {
     location: config.locationName,
     units,
@@ -352,6 +360,13 @@ export async function fetchWeatherData(
     periods,
     sunrise,
     sunset,
+    moonrise: moon.moonrise,
+    moonset: moon.moonset,
+    moonPhase: moon.moonPhase,
+    moonIllumination: moon.moonIllumination,
+    moonPhaseName: moon.moonPhaseName,
+    lat: config.lat,
+    lon: config.lon,
     // Open-Meteo doesn't provide minutely precip — leave undefined.
     minutely: undefined,
     lastUpdated: new Date(),

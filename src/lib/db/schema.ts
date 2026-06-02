@@ -107,7 +107,17 @@ export const calendarSources = pgTable('calendar_sources', {
   icalUrl: text('ical_url'),
 
   lastSynced: timestamp('last_synced'),
+  // syncErrors carries actual error state ({ needsReauth, lastError, timestamp })
+  // for Google + similar OAuth flows. Historically also stored CalDAV
+  // connection config (server URL, username, supportsEvents/Tasks,
+  // taskListId, contactBirthdaysEnabled) which was semantically muddy.
+  // Migrated to providerConfig in v1.8.4. See feat/caldav-followups.
   syncErrors: jsonb('sync_errors'),
+  // Stable per-provider configuration: serverUrl + username for CalDAV,
+  // supportsEvents/supportsTasks/taskListId/contactBirthdaysEnabled flags,
+  // anything else that's "what this source is" rather than "what went
+  // wrong recently". Read at sync time; never mutated by error handlers.
+  providerConfig: jsonb('provider_config'),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -1059,9 +1069,16 @@ export const photoSources = pgTable('photo_sources', {
   id: uuid('id').defaultRandom().primaryKey(),
 
   type: varchar('type', { length: 20 }).notNull()
-    .$type<'local' | 'onedrive' | 'immich'>(),
+    .$type<'local' | 'onedrive' | 'immich' | 'icloud_shared'>(),
 
   name: varchar('name', { length: 255 }).notNull(),
+
+  // Cross-source dedup priority. Lower = preferred. When the same photo
+  // (same dedupeKey) is pulled from multiple sources, the copy from the
+  // lowest-priority-number source is the one displayed; the others are
+  // suppressed at read time. Lets a user who backs up to BOTH OneDrive and
+  // iCloud pick which service's copy wins without re-syncing.
+  priority: integer('priority').default(100).notNull(),
 
   onedriveFolderId: varchar('onedrive_folder_id', { length: 255 }),
 
@@ -1126,12 +1143,21 @@ export const photos = pgTable('photos', {
   // record GPS metadata without downloading every photo.
   isExternal: boolean('is_external').default(false).notNull(),
 
+  // Cross-source dedup key: `${takenAt-to-the-second}_${width}x${height}`.
+  // Two photos with an identical key are treated as the same shot pulled
+  // from different sources (e.g. the same picture backed up to both
+  // OneDrive and iCloud). Null when the photo lacks EXIF capture time +
+  // dimensions — those are never deduped. Computed at sync time. Read-time
+  // dedup groups by this key and keeps the lowest source.priority copy.
+  dedupeKey: varchar('dedupe_key', { length: 120 }),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   sourceIdIdx: index('photos_source_id_idx').on(table.sourceId),
   takenAtIdx: index('photos_taken_at_idx').on(table.takenAt),
   favoriteIdx: index('photos_favorite_idx').on(table.favorite),
   usageIdx: index('photos_usage_idx').on(table.usage),
+  dedupeKeyIdx: index('photos_dedupe_key_idx').on(table.dedupeKey),
 }));
 
 

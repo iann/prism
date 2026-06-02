@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useDragReorder } from '@/lib/hooks/useDragReorder';
 import { useIsTouch } from '@/lib/hooks/useIsTouch';
+import { CarouselArrows } from '@/components/ui/CarouselArrows';
 import { TaskRow } from '@/app/tasks/TaskRow';
 import type { Task } from '@/types';
 import type { NestedGroupDef } from '@/app/tasks/taskGroupTypes';
@@ -53,14 +54,29 @@ export function NestedGroupedTaskGrid({
     return effectiveOrder.map(k => map.get(k)).filter(Boolean) as NestedGroupDef[];
   }, [primaryGroups, effectiveOrder]);
 
+  // See ChoreGroupGrid for full context. N groups visible at a time
+  // (1 mobile, 4 desktop); snap carousel when total exceeds N.
+  const groupsPerScreen = isMobile ? 1 : 4;
+  const isCarousel = sortedGroups.length > groupsPerScreen;
+  const colTrack = isCarousel
+    ? isMobile
+      ? 'calc(100vw - 32px)'
+      : `calc((100% - ${(groupsPerScreen - 1) * 8}px) / ${groupsPerScreen})`
+    : 'minmax(220px, 1fr)';
+  const scrollRef = useRef<HTMLDivElement>(null);
   return (
-    <div className={cn(
-      'grid gap-2 h-full',
-      isMobile ? 'grid-cols-1' :
-      sortedGroups.length <= 2 ? 'grid-cols-1 md:grid-cols-2' :
-      sortedGroups.length <= 4 ? 'grid-cols-2' :
-      'grid-cols-2 md:grid-cols-3'
-    )}>
+    <div className="relative h-full">
+    <div
+      ref={scrollRef}
+      className={cn(
+        // See ChoreGroupGrid for the grid-rows-1 reasoning.
+        'grid grid-rows-1 gap-2 h-full overflow-x-auto scroll-smooth',
+        isCarousel && 'snap-x snap-mandatory'
+      )}
+      style={{
+        gridTemplateColumns: `repeat(${Math.max(sortedGroups.length, 1)}, ${colTrack})`,
+      }}
+    >
       {sortedGroups.map((group, idx) => {
         const completedCount = group.tasks.filter(t => t.completed).length;
         const isDragging = draggedId === group.key;
@@ -71,7 +87,8 @@ export function NestedGroupedTaskGrid({
             className={cn(
               'flex flex-col border-2 rounded-lg overflow-hidden bg-card/90 backdrop-blur-sm transition-all',
               !isTouch && !isMobile && 'cursor-grab active:cursor-grabbing touch-none',
-              isDragging && 'opacity-50 scale-95 ring-4 ring-primary/50'
+              isDragging && 'opacity-50 scale-95 ring-4 ring-primary/50',
+              isCarousel && 'snap-start'
             )}
             style={{ borderColor: group.color }}
           >
@@ -111,7 +128,7 @@ export function NestedGroupedTaskGrid({
             </div>
 
             {/* Sub-groups */}
-            <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-2 space-y-2">
               {group.subGroups.length === 0 && (
                 <p className="text-center text-muted-foreground text-sm py-4">No tasks</p>
               )}
@@ -148,6 +165,8 @@ export function NestedGroupedTaskGrid({
           </div>
         );
       })}
+    </div>
+      {isCarousel && !isMobile && <CarouselArrows scrollRef={scrollRef} />}
     </div>
   );
 }

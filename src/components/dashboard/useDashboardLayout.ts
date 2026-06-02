@@ -11,15 +11,20 @@ import {
   deleteScreensaverPreset,
 } from '@/components/screensaver/screensaverStorage';
 import type { WidgetConfig, Layout } from '@/lib/hooks/useLayouts';
+import { findNextFreeSlot } from '@/lib/utils/widgetPlacement';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { toast } from '@/components/ui/use-toast';
 
 interface LayoutsData {
   savedLayout: Layout | null;
   saveLayout: (data: Partial<Layout> & { name: string; widgets: WidgetConfig[] }) => Promise<unknown>;
   deleteLayout: (id: string) => Promise<void>;
   allLayouts: Layout[];
+  loading: boolean;
 }
 
 export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
+  const { activeUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editingWidgets, setEditingWidgets] = useState<WidgetConfig[]>([]);
   const preEditWidgetsRef = useRef<WidgetConfig[]>([]);
@@ -57,11 +62,13 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
     }
   }, [activeLayout]);
 
-  // Re-enter edit mode after dashboard switch (sessionStorage flag)
+  // Re-enter edit mode after dashboard switch (sessionStorage flag).
+  // Only re-enter when the active user is still a parent — guards against a
+  // stale flag re-engaging edit mode after a logout / session expiry.
   useEffect(() => {
     if (activeLayout && typeof window !== 'undefined') {
       const flag = sessionStorage.getItem('prism:editing');
-      if (flag) {
+      if (flag && activeUser?.role === 'parent') {
         sessionStorage.removeItem('prism:editing');
         const current = activeLayout.widgets ?? DEFAULT_TEMPLATE.widgets;
         preEditWidgetsRef.current = current;
@@ -69,18 +76,39 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
         setIsEditing(true);
       }
     }
-  }, [activeLayout]);
+  }, [activeLayout, activeUser]);
 
+  // While layouts are still fetching, render NOTHING rather than falling
+  // back to DEFAULT_TEMPLATE — for any established user whose saved layout
+  // doesn't exactly match the template, that fallback shows a stale set of
+  // widgets for a fraction of a second before swapping to the real one, and
+  // the swap reads as "Prism flashed a different dashboard at me." A blank
+  // frame for the same fraction-second is less disorienting than a wrong
+  // one. We only fall back to DEFAULT_TEMPLATE once loading completes AND
+  // no saved layout exists (genuine first-run / blank-slate install).
   const activeWidgets = isEditing
     ? editingWidgets
-    : activeLayout?.widgets ?? DEFAULT_TEMPLATE.widgets;
+    : activeLayout?.widgets
+      ?? (layouts.loading ? [] : DEFAULT_TEMPLATE.widgets);
 
   const handleEditStart = useCallback(() => {
+    // Auth gate: only logged-in parents can edit. Signed-out users get a
+    // toast reminder; signed-in non-parents are quietly blocked (their
+    // edit button is already hidden, so this is just a safety net).
+    if (!activeUser) {
+      toast({
+        title: 'Sign in to edit',
+        description: 'Log in as a parent to edit the dashboard layout.',
+        duration: 3000,
+      });
+      return;
+    }
+    if (activeUser.role !== 'parent') return;
     const current = activeLayout?.widgets ?? DEFAULT_TEMPLATE.widgets;
     preEditWidgetsRef.current = current;
     setEditingWidgets(current);
     setIsEditing(true);
-  }, [activeLayout]);
+  }, [activeLayout, activeUser]);
 
   const handleSave = useCallback(async (name?: string) => {
     try {
@@ -100,16 +128,42 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
     }
   }, [activeLayout, editingWidgets, ssLayout, layouts]);
 
-  const handleSaveAs = useCallback(async (defaultName?: string) => {
-    const name = window.prompt('Layout name:', defaultName || 'New Layout');
-    if (!name) return;
-    await layouts.saveLayout({
-      name,
-      widgets: editingWidgets,
-      isDefault: true,
-      screensaverWidgets: ssLayout,
-      orientation: activeLayout?.orientation || 'landscape',
-    });
+  // Save-As supports two modes:
+  //   - { id }: overwrite an existing dashboard. Preserves the target's
+  //     name, slug, and isDefault — only widgets + screensaver are swapped.
+  //     The dialog shows a confirm step before this fires.
+  //   - { name }: create a new dashboard with the given name. Same behavior
+  //     as the previous prompt() flow, just driven by a real dialog input.
+  // Legacy callers passing a bare string (e.g. the Apply Community Layout
+  // path) still get the new-dashboard branch via the string overload.
+  const handleSaveAs = useCallback(async (
+    opts?: string | { id: string } | { name: string },
+  ) => {
+    if (!opts) return;
+    if (typeof opts === 'string') opts = { name: opts };
+
+    if ('id' in opts) {
+      const target = layouts.allLayouts.find(l => l.id === opts.id);
+      if (!target) return;
+      await layouts.saveLayout({
+        id: target.id,
+        name: target.name,
+        widgets: editingWidgets,
+        isDefault: target.isDefault,
+        screensaverWidgets: ssLayout,
+        orientation: target.orientation || 'landscape',
+      });
+    } else {
+      const name = opts.name.trim();
+      if (!name) return;
+      await layouts.saveLayout({
+        name,
+        widgets: editingWidgets,
+        isDefault: false,
+        screensaverWidgets: ssLayout,
+        orientation: activeLayout?.orientation || 'landscape',
+      });
+    }
     setIsEditing(false);
   }, [editingWidgets, ssLayout, activeLayout, layouts]);
 
@@ -135,8 +189,8 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
       if (exists) {
         updated = prev.map(w => w.i === widgetType ? { ...w, visible } : w);
       } else if (visible) {
-        const maxY = Math.max(0, ...prev.map(w => w.y + w.h));
-        updated = [...prev, { i: widgetType, x: 0, y: maxY, w: 3, h: 3, visible: true }];
+        const { x, y } = findNextFreeSlot(prev, 3, 3);
+        updated = [...prev, { i: widgetType, x, y, w: 3, h: 3, visible: true }];
       } else {
         return prev;
       }

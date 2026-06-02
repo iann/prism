@@ -73,6 +73,18 @@ export async function GET(request: Request) {
     }
   }
 
+  // Anchor for error redirects when caller asked for the integrations
+  // page. Success redirects below always go through the list-selection
+  // modal that currently only lives in the legacy section, so they stay
+  // unchanged until that modal is extracted.
+  const errorAnchorByEntity = wishMemberId
+    ? '#microsoft-wish'
+    : shoppingListId
+      ? '#microsoft-shopping'
+      : '#microsoft-tasks';
+  const errorAnchor =
+    returnSection === 'integrations' ? errorAnchorByEntity : '';
+
   try {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
@@ -81,13 +93,13 @@ export async function GET(request: Request) {
       const errorDescription = searchParams.get('error_description');
       console.error('Microsoft Tasks OAuth error:', error, errorDescription);
       return NextResponse.redirect(
-        `${BASE_URL}/settings?section=${returnSection}&error=microsoft_auth_denied`
+        `${BASE_URL}/settings?section=${returnSection}&error=microsoft_auth_denied${errorAnchor}`
       );
     }
 
     if (!code) {
       return NextResponse.redirect(
-        `${BASE_URL}/settings?section=${returnSection}&error=missing_code`
+        `${BASE_URL}/settings?section=${returnSection}&error=missing_code${errorAnchor}`
       );
     }
 
@@ -127,23 +139,37 @@ export async function GET(request: Request) {
       })
     );
 
-    // Redirect to settings with flag to show MS list picker
+    // Redirect to settings with flag to show MS list picker. When the
+    // flow was started from inside the new Integrations cards
+    // (returnSection=integrations), land on the embedded sub-section
+    // with the right anchor so the user sees the modal in context.
+    // Otherwise fall back to the legacy section URL (now redirected via
+    // LEGACY_TO_INTEGRATIONS — keeps in-flight callbacks working).
+    const useIntegrations = returnSection === 'integrations';
     let redirectUrl: string;
     if (wishMemberId) {
-      redirectUrl = `${BASE_URL}/settings?section=wish&selectMsList=true&wishMemberId=${wishMemberId}`;
+      redirectUrl = useIntegrations
+        ? `${BASE_URL}/settings?section=integrations&selectMsList=true&wishMemberId=${wishMemberId}#microsoft-wish`
+        : `${BASE_URL}/settings?section=wish&selectMsList=true&wishMemberId=${wishMemberId}`;
     } else if (shoppingListId) {
-      redirectUrl = `${BASE_URL}/settings?section=shopping&selectMsList=true&shoppingListId=${shoppingListId}`;
+      redirectUrl = useIntegrations
+        ? `${BASE_URL}/settings?section=integrations&selectMsList=true&shoppingListId=${shoppingListId}#microsoft-shopping`
+        : `${BASE_URL}/settings?section=shopping&selectMsList=true&shoppingListId=${shoppingListId}`;
     } else if (taskListId) {
-      redirectUrl = `${BASE_URL}/settings?section=tasks&selectMsList=true&taskListId=${taskListId}`;
+      redirectUrl = useIntegrations
+        ? `${BASE_URL}/settings?section=integrations&selectMsList=true&taskListId=${taskListId}#microsoft-tasks`
+        : `${BASE_URL}/settings?section=tasks&selectMsList=true&taskListId=${taskListId}`;
     } else {
-      redirectUrl = `${BASE_URL}/settings?section=${returnSection}&selectMsList=true&newConnection=true`;
+      redirectUrl = useIntegrations
+        ? `${BASE_URL}/settings?section=integrations&selectMsList=true&newConnection=true#microsoft-tasks`
+        : `${BASE_URL}/settings?section=${returnSection}&selectMsList=true&newConnection=true`;
     }
 
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
     logError('Microsoft Tasks OAuth callback error:', error);
     return NextResponse.redirect(
-      `${BASE_URL}/settings?section=${returnSection}&error=microsoft_auth_failed`
+      `${BASE_URL}/settings?section=${returnSection}&error=microsoft_auth_failed${errorAnchor}`
     );
   }
 }

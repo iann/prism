@@ -55,7 +55,7 @@ export function TasksView() {
     inlineTaskByList, setInlineTaskByList,
     handleInlineAdd,
     tasksByUser, tasksByList, tasksByPersonThenList, tasksByListThenPerson,
-  } = useTaskGrouping({ filteredTasks, familyMembers, taskLists, filterList, refreshTasks, requireAuth });
+  } = useTaskGrouping({ filteredTasks, familyMembers, taskLists, filterList, filterPerson, refreshTasks, requireAuth });
 
   const hasActiveFilters = (filterPerson !== null && filterPerson.length > 0) || filterPriority !== null || filterList !== null;
   const clearFilters = () => { setFilterPerson(null); setFilterPriority(null); setFilterList(null); };
@@ -91,7 +91,13 @@ export function TasksView() {
 
   return (
     <PageWrapper>
-      <div className="h-full flex flex-col">
+      {/*
+        h-screen + flex-col + inner overflow-y-auto pins the SubpageHeader
+        and FilterBar to the top so they don't scroll away when the user
+        scrolls within a task list. Matches Chores, Shopping, Meals.
+        Was `h-full` which left the page-level scroll unconstrained.
+      */}
+      <div className="h-screen flex flex-col">
         <SubpageHeader
           icon={<CheckSquare className="h-5 w-5 text-primary" />}
           title="Tasks"

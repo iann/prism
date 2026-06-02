@@ -7,7 +7,7 @@
 [![Docker](https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker)](https://github.com/sandydargoport/prism/pkgs/container/prism)
 ![Platforms](https://img.shields.io/badge/platforms-amd64%20%7C%20arm64-green)
 
-Prism is a configurable family dashboard designed for large wall-mounted screens and handheld tablets. It connects to Google Calendar, Microsoft To Do, OneDrive, Kroger / Mariano's, and more, and surfaces the information your family actually needs in one place. Built for people who value privacy, hate subscriptions, and are comfortable with Docker.
+Prism is a configurable family dashboard designed for large wall-mounted screens and handheld tablets. It connects to Google Calendar, Microsoft To Do, OneDrive, Apple iCloud (CalDAV), Kroger / Mariano's, and more, and surfaces the information your family actually needs in one place. Built for people who value privacy, hate subscriptions, and are comfortable with Docker.
 
 **📖 Full documentation: <https://sandydargoport.github.io/prism/>**
 
@@ -23,7 +23,8 @@ Prism is a configurable family dashboard designed for large wall-mounted screens
 
 ## Quick start
 
-### Option 1: Clone and build (any platform)
+<details>
+<summary><b>Option 1: Clone and build (any platform)</b></summary>
 
 ```bash
 git clone https://github.com/sandydargoport/prism.git
@@ -31,7 +32,10 @@ cd prism
 bash scripts/install.sh
 ```
 
-### Option 2: Pull pre-built image (includes Raspberry Pi / ARM64)
+</details>
+
+<details>
+<summary><b>Option 2: Pull pre-built image (includes Raspberry Pi / ARM64)</b></summary>
 
 ```bash
 curl -O https://raw.githubusercontent.com/sandydargoport/prism/master/docker-compose.yml
@@ -39,6 +43,8 @@ curl -O https://raw.githubusercontent.com/sandydargoport/prism/master/.env.examp
 cp .env.example .env
 docker-compose up -d
 ```
+
+</details>
 
 Open **<http://localhost:3000>** and log in with PIN `1234` (parent) or `0000` (child).
 
