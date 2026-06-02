@@ -1,0 +1,42 @@
+name: Sync fork with upstream
+
+on:
+  schedule:
+    - cron: '0 20 * * *'  # 4pm ET (EDT/UTC-4); shifts to 3pm ET during EST
+  workflow_dispatch:        # allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_PAT }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/sandydargoport/prism.git
+
+      - name: Fetch upstream
+        run: git fetch upstream master
+
+      - name: Reset upstream branch to match upstream repo
+        run: |
+          git checkout upstream
+          git reset --hard upstream/master
+          git push origin upstream --force
+
+      - name: Reset master to match upstream
+        run: |
+          git checkout master
+          git reset --hard upstream/master
+          git push origin master --force
