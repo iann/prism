@@ -3,7 +3,7 @@ name: Sync fork with upstream
 on:
   schedule:
     - cron: '0 20 * * *'  # 4pm ET (EDT/UTC-4); shifts to 3pm ET during EST
-  workflow_dispatch:        # allow manual trigger
+  workflow_dispatch:  # allow manual trigger via GitHub UI or gh CLI
 
 jobs:
   sync:
