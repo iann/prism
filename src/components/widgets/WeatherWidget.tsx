@@ -1006,10 +1006,10 @@ function SunriseSunsetArc({
             stroke={SUN_COLOR} strokeOpacity={0.55} strokeWidth={1.5} />
         )}
 
-        {/* Moon arc: below-horizon dashes only (above-horizon is fully covered by solid blue) */}
+        {/* Moon arc: below-horizon — solid dim line, same pattern as sun below-horizon */}
         {moonBelowPaths.map((d, i) => (
-          <path key={`moon-below-${i}`} d={d} fill="none" stroke="currentColor"
-            strokeOpacity={0.15} strokeWidth={1.5} strokeDasharray="2 4" />
+          <path key={`moon-below-${i}`} d={d} fill="none" stroke={MOON_COLOR}
+            strokeOpacity={0.25} strokeWidth={1.5} strokeLinecap="round" />
         ))}
         {moonAbovePaths.map((d, i) => (
           <path key={`moon-up-${i}`} d={d} fill="none" stroke={MOON_COLOR}
