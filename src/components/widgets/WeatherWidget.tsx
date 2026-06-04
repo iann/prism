@@ -41,7 +41,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
-import timeline from 'merry-timeline';
 import { WidgetContainer } from './WidgetContainer';
 import { DayHeader } from './WeatherForecastBar';
 
@@ -571,6 +570,13 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
     const el = containerRef.current;
     if (!el || upcoming.length === 0) return;
 
+    // Dynamic import avoids a static top-level import that triggers a
+    // "Identifier 'timeline' already declared" conflict in the RSC
+    // next-flight-client-module-loader (the package exports `const timeline`
+    // which collides with the loader's own injected variable of the same name).
+    let ro: ResizeObserver | null = null;
+    let cancelled = false;
+
     const data = upcoming.map((h) => ({
       time: Math.floor(h.time.getTime() / 1000),
       color: conditionToHex(h.condition, h.precipIntensity),
@@ -580,12 +586,19 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
         : `${Math.round(h.temp)}°`,
     }));
 
-    const ro = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
-      if (width) timeline(el, data, { width, tracker: 0 });
+    import('merry-timeline').then(({ default: tl }) => {
+      if (cancelled || !containerRef.current) return;
+      ro = new ResizeObserver((entries) => {
+        const width = entries[0]?.contentRect.width;
+        if (width) tl(containerRef.current!, data, { width, tracker: 0 });
+      });
+      ro.observe(containerRef.current);
     });
-    ro.observe(el);
-    return () => ro.disconnect();
+
+    return () => {
+      cancelled = true;
+      ro?.disconnect();
+    };
   }, [upcoming, units]);
 
   if (upcoming.length === 0) return null;
