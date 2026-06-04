@@ -1046,12 +1046,12 @@ function SunriseSunsetArc({
         {moonSamples && moonPhase !== undefined && (
           <g>
             {isMoonUp && <circle cx={moonX} cy={moonY} r={11} fill={MOON_COLOR} opacity={0.18} />}
-            <circle cx={moonX} cy={moonY} r={6}
+            <circle cx={moonX} cy={moonY} r={isMoonUp ? 6 : 4}
               fill="none"
               stroke={isMoonUp ? MOON_COLOR : '#94A3B8'}
               strokeOpacity={isMoonUp ? 0.65 : 0.4}
               strokeWidth={1} />
-            <path d={moonPhasePath(moonX, moonY, 6, moonPhase)}
+            <path d={moonPhasePath(moonX, moonY, isMoonUp ? 6 : 4, moonPhase)}
               fill={isMoonUp ? MOON_COLOR : '#94A3B8'}
               opacity={isMoonUp ? 1 : 0.55} />
           </g>
