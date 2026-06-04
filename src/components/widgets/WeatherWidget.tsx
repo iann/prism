@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
+import timeline from 'merry-timeline';
 import { WidgetContainer } from './WidgetContainer';
 import { DayHeader } from './WeatherForecastBar';
 
@@ -505,66 +506,96 @@ function WeatherIcon({
 
 
 /**
+ * CONDITION HELPERS (for merry-timeline stripes)
+ */
+
+/** Map a WeatherCondition (+ optional precipIntensity) to a hex color for merry-timeline. */
+function conditionToHex(condition: WeatherCondition, precipIntensity?: number): string {
+  if (condition === 'rainy' && precipIntensity !== undefined) {
+    if (precipIntensity < 0.1) return '#B8D0E8'; // drizzle
+    if (precipIntensity < 2.5) return '#7B9EC7'; // light rain
+    if (precipIntensity < 10)  return '#5A7DB5'; // moderate rain
+    return '#3A5C9A';                             // heavy rain
+  }
+  const map: Record<WeatherCondition, string> = {
+    'sunny':         '#EAECF0',
+    'partly-cloudy': '#C8CBD6',
+    'cloudy':        '#A8ADB8',
+    'rainy':         '#7B9EC7',
+    'snowy':         '#B8D4E8',
+    'stormy':        '#4A6FA5',
+  };
+  return map[condition] ?? '#A8ADB8';
+}
+
+/** Map a WeatherCondition (+ optional precipIntensity) to a text label for merry-timeline. */
+function conditionLabel(condition: WeatherCondition, precipIntensity?: number): string {
+  if (condition === 'rainy' && precipIntensity !== undefined) {
+    if (precipIntensity < 0.1) return 'Drizzle';
+    if (precipIntensity < 2.5) return 'Light Rain';
+    if (precipIntensity < 10)  return 'Rain';
+    return 'Heavy Rain';
+  }
+  const map: Record<WeatherCondition, string> = {
+    'sunny':         'Clear',
+    'partly-cloudy': 'Partly Cloudy',
+    'cloudy':        'Cloudy',
+    'rainy':         'Rain',
+    'snowy':         'Snow',
+    'stormy':        'Thunderstorm',
+  };
+  return map[condition] ?? 'Cloudy';
+}
+
+
+/**
  * HOURLY FORECAST
- * Apple/Google-Weather-style row of cards. One card per hour showing the
- * time, a condition icon, temperature, and chance-of-precipitation when it
- * meaningfully matters (≥10%). The first card is labeled "Now". Replaces the
- * earlier merry-timeline color strip, which read as a 1995-era band chart.
+ * Dark Sky-style color strip rendered by merry-timeline. Consecutive hours
+ * sharing the same condition merge into one labeled stripe. Temperature
+ * annotations appear below the hour labels.
  */
 function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: WeatherUnits }) {
-  // Start at the hour whose endTime is still in the future ("Now" card).
-  // Take 8 hours so the row stays readable at the default widget width.
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const nowMs = Date.now();
-  const upcoming = hourly
-    .filter((h) => h.time.getTime() + 60 * 60_000 >= nowMs)
-    .slice(0, 8);
+
+  // 9 items so the last tick (index 8) falls on an even modulo=2 position,
+  // giving labeled ticks at 0, 2, 4, 6, 8 — first and last both shown.
+  const upcoming = React.useMemo(() =>
+    hourly
+      .filter((h) => h.time.getTime() + 60 * 60_000 >= nowMs)
+      .slice(0, 9),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [hourly]);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el || upcoming.length === 0) return;
+
+    const data = upcoming.map((h) => ({
+      time: Math.floor(h.time.getTime() / 1000),
+      color: conditionToHex(h.condition, h.precipIntensity),
+      text: conditionLabel(h.condition, h.precipIntensity),
+      annotation: units.temperature === 'C'
+        ? `${Math.round((h.temp - 32) * 5 / 9)}°`
+        : `${Math.round(h.temp)}°`,
+    }));
+
+    const ro = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) timeline(el, data, { width, tracker: 0 });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [upcoming, units]);
 
   if (upcoming.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Next {upcoming.length} Hours
+        Next 9 Hours
       </span>
-      <div className="flex gap-1.5">
-        {upcoming.map((h, i) => {
-          const isNow = i === 0;
-          const timeLabel = isNow
-            ? 'Now'
-            : h.time
-                .toLocaleTimeString([], { hour: 'numeric', hour12: true })
-                .replace(/\s/g, '')
-                .toLowerCase();
-          const precipPct = Math.round(h.precipProbability ?? 0);
-          const showPrecip = precipPct >= 10;
-          return (
-            <div
-              key={h.time.toISOString()}
-              className={cn(
-                'flex flex-1 min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-2 text-center',
-                isNow ? 'bg-primary/10' : 'bg-muted/40',
-              )}
-            >
-              <span className={cn(
-                'text-[10px] font-medium tabular-nums',
-                isNow ? 'text-primary' : 'text-muted-foreground',
-              )}>
-                {timeLabel}
-              </span>
-              <WeatherIcon condition={h.condition} className="h-5 w-5 text-foreground/80" />
-              <span className="text-xs font-semibold tabular-nums">
-                {Math.round(h.temp)}°
-              </span>
-              <span className={cn(
-                'text-[10px] tabular-nums',
-                showPrecip ? 'text-blue-500 font-medium' : 'text-transparent',
-              )}>
-                {showPrecip ? `${precipPct}%` : '0%'}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <div ref={containerRef} className="w-full" data-keep-bg="" />
     </div>
   );
 }
