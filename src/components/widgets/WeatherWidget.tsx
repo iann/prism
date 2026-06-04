@@ -935,7 +935,7 @@ function SunriseSunsetArc({
 
         {/* Sun: full 24h arc — dashed background */}
         <path d={sunFullPath} fill="none" stroke="currentColor"
-          strokeOpacity={0.2} strokeWidth={2} strokeDasharray="4 3" />
+          strokeOpacity={0.2} strokeWidth={2} strokeDasharray="2 4" />
 
         {/* Sun: elapsed above-horizon — gradient by altitude (red→orange→amber) */}
         {sunElapsedAbove.map((d, i) => (
