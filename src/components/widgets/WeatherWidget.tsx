@@ -1004,17 +1004,17 @@ function SunriseSunsetArc({
         {/* Moon arc: future portion — dashed */}
         {moonFuturePaths.map((d, i) => (
           <path key={`moon-future-${i}`} d={d} fill="none" stroke={MOON_COLOR}
-            strokeOpacity={0.2} strokeWidth={1.5} strokeDasharray="2 4" />
+            strokeOpacity={0.2} strokeWidth={2} strokeDasharray="2 4" />
         ))}
         {/* Moon arc: elapsed below-horizon — solid dim blue */}
         {moonElapsedBelow.map((d, i) => (
           <path key={`moon-below-${i}`} d={d} fill="none" stroke={MOON_COLOR}
-            strokeOpacity={0.25} strokeWidth={1.5} strokeLinecap="round" />
+            strokeOpacity={0.25} strokeWidth={2.5} strokeLinecap="round" />
         ))}
         {/* Moon arc: elapsed above-horizon — solid bright blue */}
         {moonElapsedAbove.map((d, i) => (
           <path key={`moon-up-${i}`} d={d} fill="none" stroke={MOON_COLOR}
-            strokeOpacity={0.75} strokeWidth={2} strokeLinecap="round" />
+            strokeOpacity={0.75} strokeWidth={2.5} strokeLinecap="round" />
         ))}
 
 
