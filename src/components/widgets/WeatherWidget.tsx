@@ -854,21 +854,63 @@ function SunriseSunsetArc({
     return out;
   };
 
+  // Insert a synthetic point at every alt=0 crossing (horizon) so adjacent
+  // segments (above/below) share the exact crossing point and connect without
+  // a gap. The interpolated y lands exactly on horizonY.
+  const withAltCrossings = (pts: { frac: number; alt: number; y: number }[]) => {
+    const out: { frac: number; alt: number; y: number }[] = [];
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i]!;
+      if (i > 0) {
+        const prev = pts[i - 1]!;
+        if ((prev.alt < 0) !== (p.alt < 0)) {
+          const t = -prev.alt / (p.alt - prev.alt);
+          out.push({ frac: prev.frac + t * (p.frac - prev.frac), alt: 0, y: horizonY });
+        }
+      }
+      out.push(p);
+    }
+    return out;
+  };
+
+  // Insert a synthetic point at nowFrac so the elapsed/future split lands
+  // exactly at the current-time marker with no gap between the two segments.
+  const withNowCrossing = (pts: { frac: number; alt: number; y: number }[]) => {
+    const out: { frac: number; alt: number; y: number }[] = [];
+    let inserted = false;
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i]!;
+      if (!inserted && i > 0 && pts[i - 1]!.frac < nowFrac && p.frac > nowFrac) {
+        const prev = pts[i - 1]!;
+        const t = (nowFrac - prev.frac) / (p.frac - prev.frac);
+        out.push({ frac: nowFrac, alt: prev.alt + t * (p.alt - prev.alt), y: prev.y + t * (p.y - prev.y) });
+        inserted = true;
+      }
+      out.push(p);
+    }
+    return out;
+  };
+
   // Sun arc segments. "Elapsed" portions (frac ≤ nowFrac) get the bright
   // amber / slate treatment; future portions sit on the dashed background.
   // Dashes are drawn only for the future portion so the dotted path never
   // shows through the solid elapsed lines on top.
-  const sunFuturePaths = segmentBy(samples.sun, s => s.frac >= nowFrac);
-  const sunElapsedAbove = segmentBy(samples.sun, s => s.frac <= nowFrac && s.alt >= 0);
-  const sunElapsedBelow = segmentBy(samples.sun, s => s.frac <= nowFrac && s.alt < 0);
+  // Inclusive boundary conditions (<=/>= on both sides of each crossing) ensure
+  // adjacent segments share the synthetic crossing point so there's no gap.
+  const sunPts = withNowCrossing(withAltCrossings(samples.sun));
+  const sunFuturePaths = segmentBy(sunPts, s => s.frac >= nowFrac);
+  const sunElapsedAbove = segmentBy(sunPts, s => s.frac <= nowFrac && s.alt >= 0);
+  const sunElapsedBelow = segmentBy(sunPts, s => s.frac <= nowFrac && s.alt <= 0);
 
   // Moon: light up the whole above-horizon portion in blue (we don't track
   // elapsed/future for moon — the curve is short enough that it reads as a
   // single "moon-up" highlight). Dashes drawn only for below-horizon so they
   // don't show through the solid blue above-horizon arc.
+  // Inclusive <= 0 / >= 0 ensures both paths share the horizon crossing point.
   const moonSamples = moonrise || moonset || moonPhase !== undefined ? samples.moon : null;
-  const moonBelowPaths = moonSamples ? segmentBy(moonSamples, s => s.alt < 0) : [];
-  const moonAbovePaths = moonSamples ? segmentBy(moonSamples, s => s.alt >= 0) : [];
+  const moonPts = moonSamples ? withAltCrossings(moonSamples) : null;
+  const moonBelowPaths = moonPts ? segmentBy(moonPts, s => s.alt <= 0) : [];
+  const moonAbovePaths = moonPts ? segmentBy(moonPts, s => s.alt >= 0) : [];
 
   // Current positions (uses suncalc directly rather than interpolating
   // samples — accurate to the second instead of the 15-min sample grid).
