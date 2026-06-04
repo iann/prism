@@ -906,11 +906,15 @@ function SunriseSunsetArc({
   // elapsed/future for moon — the curve is short enough that it reads as a
   // single "moon-up" highlight). Dashes drawn only for below-horizon so they
   // don't show through the solid blue above-horizon arc.
-  // Inclusive <= 0 / >= 0 ensures both paths share the horizon crossing point.
+  // Moon: same elapsed/future split as the sun.
+  // Elapsed above-horizon → solid bright blue.
+  // Elapsed below-horizon → solid dim blue.
+  // Future (any altitude)  → dashed.
   const moonSamples = moonrise || moonset || moonPhase !== undefined ? samples.moon : null;
-  const moonPts = moonSamples ? withAltCrossings(moonSamples) : null;
-  const moonBelowPaths = moonPts ? segmentBy(moonPts, s => s.alt <= 0) : [];
-  const moonAbovePaths = moonPts ? segmentBy(moonPts, s => s.alt >= 0) : [];
+  const moonPts = moonSamples ? withNowCrossing(withAltCrossings(moonSamples)) : null;
+  const moonFuturePaths  = moonPts ? segmentBy(moonPts, s => s.frac >= nowFrac) : [];
+  const moonElapsedAbove = moonPts ? segmentBy(moonPts, s => s.frac <= nowFrac && s.alt >= 0) : [];
+  const moonElapsedBelow = moonPts ? segmentBy(moonPts, s => s.frac <= nowFrac && s.alt <= 0) : [];
 
   // Current positions (uses suncalc directly rather than interpolating
   // samples — accurate to the second instead of the 15-min sample grid).
@@ -1006,12 +1010,18 @@ function SunriseSunsetArc({
             stroke={SUN_COLOR} strokeOpacity={0.55} strokeWidth={1.5} />
         )}
 
-        {/* Moon arc: below-horizon — solid dim line, same pattern as sun below-horizon */}
-        {moonBelowPaths.map((d, i) => (
+        {/* Moon arc: future portion — dashed */}
+        {moonFuturePaths.map((d, i) => (
+          <path key={`moon-future-${i}`} d={d} fill="none" stroke={MOON_COLOR}
+            strokeOpacity={0.2} strokeWidth={1.5} strokeDasharray="2 4" />
+        ))}
+        {/* Moon arc: elapsed below-horizon — solid dim blue */}
+        {moonElapsedBelow.map((d, i) => (
           <path key={`moon-below-${i}`} d={d} fill="none" stroke={MOON_COLOR}
             strokeOpacity={0.25} strokeWidth={1.5} strokeLinecap="round" />
         ))}
-        {moonAbovePaths.map((d, i) => (
+        {/* Moon arc: elapsed above-horizon — solid bright blue */}
+        {moonElapsedAbove.map((d, i) => (
           <path key={`moon-up-${i}`} d={d} fill="none" stroke={MOON_COLOR}
             strokeOpacity={0.75} strokeWidth={2} strokeLinecap="round" />
         ))}
