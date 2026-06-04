@@ -30,6 +30,7 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   serverExternalPackages: ['undici'],
+  transpilePackages: ['merry-timeline'],
 
   images: {
     remotePatterns: [
