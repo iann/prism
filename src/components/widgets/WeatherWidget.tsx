@@ -42,6 +42,7 @@ import {
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import { WidgetContainer } from './WidgetContainer';
+import { DayHeader } from './WeatherForecastBar';
 
 /**
  * WEATHER DATA TYPES
@@ -476,105 +477,6 @@ function CurrentConditions({
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-
-/**
- * DAY HEADER
- * Dark Sky-style row list: day name + precip %, icon, lo | range bar | hi.
- * The bar track spans the full week's min–max range so each day's segment
- * is positioned proportionally.
- */
-function DayHeader({
-  days,
-  units,
-}: {
-  days: ForecastDay[];
-  units: WeatherUnits;
-}) {
-  const now = new Date();
-  const todayLocalStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-  const globalMin = Math.min(...days.map((d) => d.low));
-  const globalMax = Math.max(...days.map((d) => d.high));
-  const span = globalMax - globalMin || 1;
-
-  // Values come in `units.temperature`; the gradient palette is keyed on °F
-  // (TEMP_COLOR_STOPS), so convert only for color lookup. Display values pass
-  // through unmodified — what the server returned is what we show.
-  const fmt = (v: number) => Math.round(v);
-  const colorFor = (v: number) => tempToColor(toFahrenheitForColor(v, units));
-
-  return (
-    <div className="flex flex-col mt-1">
-      {days.map((day, i) => {
-        // Provider anchors forecast.date at UTC midnight of the location's
-        // calendar day; getUTC* avoids TZ slippage between server + viewer.
-        const d = new Date(day.date);
-        const dayLocalStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-        const isToday = dayLocalStr === todayLocalStr;
-        const label = isToday ? 'TODAY' : day.dayName.toUpperCase();
-
-        const leftPct  = ((day.low  - globalMin) / span) * 100;
-        const widthPct = ((day.high - day.low)   / span) * 100;
-
-        // Moon phase for this calendar day — global (no lat/lon needed since
-        // phase is the same anywhere on Earth at a given instant). Sampled at
-        // local noon to avoid edge-of-day phase rollover artifacts.
-        const dayNoon = new Date(day.date);
-        dayNoon.setHours(12, 0, 0, 0);
-        const dayPhase = SunCalc.getMoonIllumination(dayNoon).phase;
-
-        return (
-          <div key={i} className="flex items-center gap-2 py-1">
-
-            {/* Day label + precip % + weather icon + moon phase glyph */}
-            <div className="flex items-center gap-1.5 w-28 flex-shrink-0">
-              <div className="w-12 flex-shrink-0 h-8 flex flex-col justify-center">
-                <div className="text-[11px] font-bold tracking-wide text-foreground leading-tight whitespace-nowrap">
-                  {label}
-                </div>
-                {day.precipProbability !== undefined && (
-                  <div className="flex items-center gap-0.5 text-[10px] text-blue-500 leading-tight">
-                    <Droplets className="h-2.5 w-2.5 flex-shrink-0" />
-                    <span>{day.precipProbability}%</span>
-                  </div>
-                )}
-              </div>
-              <WeatherIcon
-                condition={day.condition}
-                className="h-5 w-5 flex-shrink-0 text-muted-foreground"
-              />
-              <MoonGlyph phase={dayPhase} size={14} />
-            </div>
-
-            {/* Unified pill track (Apple Weather style): every day's track is the
-                same width across the week, with the colored day-range positioned
-                inside. Low and high temps sit at fixed left/right positions so
-                they line up across days too. */}
-            <div className="flex-1 flex items-center gap-1.5 min-w-0">
-              <span className="text-[11px] text-muted-foreground tabular-nums w-7 text-right flex-shrink-0">
-                {fmt(day.low)}°
-              </span>
-              <div className="flex-1 relative h-4 rounded-full bg-black/10 dark:bg-white/15 ring-1 ring-inset ring-black/10 dark:ring-white/15 overflow-hidden min-w-0">
-                <div
-                  className="absolute top-0 bottom-0 rounded-full"
-                  style={{
-                    left: `${leftPct}%`,
-                    width: `${Math.max(widthPct, 4)}%`,
-                    background: `linear-gradient(to right, ${colorFor(day.low)}, ${colorFor(day.high)})`,
-                  }}
-                />
-              </div>
-              <span className="text-[11px] font-semibold tabular-nums w-7 text-left flex-shrink-0">
-                {fmt(day.high)}°
-              </span>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
