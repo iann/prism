@@ -856,15 +856,18 @@ function SunriseSunsetArc({
 
   // Sun arc segments. "Elapsed" portions (frac ≤ nowFrac) get the bright
   // amber / slate treatment; future portions sit on the dashed background.
-  const sunFullPath = samplesToPath(samples.sun);
+  // Dashes are drawn only for the future portion so the dotted path never
+  // shows through the solid elapsed lines on top.
+  const sunFuturePaths = segmentBy(samples.sun, s => s.frac >= nowFrac);
   const sunElapsedAbove = segmentBy(samples.sun, s => s.frac <= nowFrac && s.alt >= 0);
   const sunElapsedBelow = segmentBy(samples.sun, s => s.frac <= nowFrac && s.alt < 0);
 
   // Moon: light up the whole above-horizon portion in blue (we don't track
   // elapsed/future for moon — the curve is short enough that it reads as a
-  // single "moon-up" highlight).
+  // single "moon-up" highlight). Dashes drawn only for below-horizon so they
+  // don't show through the solid blue above-horizon arc.
   const moonSamples = moonrise || moonset || moonPhase !== undefined ? samples.moon : null;
-  const moonFullPath = moonSamples ? samplesToPath(moonSamples) : null;
+  const moonBelowPaths = moonSamples ? segmentBy(moonSamples, s => s.alt < 0) : [];
   const moonAbovePaths = moonSamples ? segmentBy(moonSamples, s => s.alt >= 0) : [];
 
   // Current positions (uses suncalc directly rather than interpolating
@@ -933,9 +936,11 @@ function SunriseSunsetArc({
           stroke="currentColor" strokeOpacity={0.12} strokeWidth={1}
         />
 
-        {/* Sun: full 24h arc — dashed background */}
-        <path d={sunFullPath} fill="none" stroke="currentColor"
-          strokeOpacity={0.2} strokeWidth={2} strokeDasharray="2 4" />
+        {/* Sun: future arc — dashed background (elapsed is fully covered by solid lines) */}
+        {sunFuturePaths.map((d, i) => (
+          <path key={`sun-future-${i}`} d={d} fill="none" stroke="currentColor"
+            strokeOpacity={0.2} strokeWidth={2} strokeDasharray="2 4" />
+        ))}
 
         {/* Sun: elapsed above-horizon — gradient by altitude (red→orange→amber) */}
         {sunElapsedAbove.map((d, i) => (
@@ -959,11 +964,11 @@ function SunriseSunsetArc({
             stroke={SUN_COLOR} strokeOpacity={0.55} strokeWidth={1.5} />
         )}
 
-        {/* Moon arc (full + above-horizon highlight) */}
-        {moonFullPath && (
-          <path d={moonFullPath} fill="none" stroke="currentColor"
+        {/* Moon arc: below-horizon dashes only (above-horizon is fully covered by solid blue) */}
+        {moonBelowPaths.map((d, i) => (
+          <path key={`moon-below-${i}`} d={d} fill="none" stroke="currentColor"
             strokeOpacity={0.15} strokeWidth={1.5} strokeDasharray="2 4" />
-        )}
+        ))}
         {moonAbovePaths.map((d, i) => (
           <path key={`moon-up-${i}`} d={d} fill="none" stroke={MOON_COLOR}
             strokeOpacity={0.75} strokeWidth={2} strokeLinecap="round" />
