@@ -1000,15 +1000,6 @@ function SunriseSunsetArc({
             strokeOpacity={0.45} strokeWidth={2.5} strokeLinecap="round" />
         ))}
 
-        {/* Sunrise / sunset ticks */}
-        {inWindow(sunRiseFrac) && (
-          <line x1={xOf(sunRiseFrac)} y1={horizonY - 5} x2={xOf(sunRiseFrac)} y2={horizonY + 5}
-            stroke={SUN_COLOR} strokeOpacity={0.55} strokeWidth={1.5} />
-        )}
-        {inWindow(sunSetFrac) && (
-          <line x1={xOf(sunSetFrac)} y1={horizonY - 5} x2={xOf(sunSetFrac)} y2={horizonY + 5}
-            stroke={SUN_COLOR} strokeOpacity={0.55} strokeWidth={1.5} />
-        )}
 
         {/* Moon arc: future portion — dashed */}
         {moonFuturePaths.map((d, i) => (
@@ -1026,15 +1017,6 @@ function SunriseSunsetArc({
             strokeOpacity={0.75} strokeWidth={2} strokeLinecap="round" />
         ))}
 
-        {/* Moonrise / moonset ticks */}
-        {inWindow(moonRiseRaw) && (
-          <line x1={xOf(moonRiseRaw)} y1={horizonY - 4} x2={xOf(moonRiseRaw)} y2={horizonY + 4}
-            stroke={MOON_COLOR} strokeOpacity={0.55} strokeWidth={1.5} />
-        )}
-        {inWindow(moonSetRaw) && (
-          <line x1={xOf(moonSetRaw)} y1={horizonY - 4} x2={xOf(moonSetRaw)} y2={horizonY + 4}
-            stroke={MOON_COLOR} strokeOpacity={0.55} strokeWidth={1.5} />
-        )}
 
         {/* Sun glow + dot — color tracks altitude so a low sun glows red/orange */}
         {isDay && <circle cx={sunX} cy={sunY} r={16} fill={sunDotColor} opacity={0.2} />}
