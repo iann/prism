@@ -982,22 +982,22 @@ function SunriseSunsetArc({
           stroke="currentColor" strokeOpacity={0.12} strokeWidth={1}
         />
 
-        {/* Sun: future arc — dashed background (elapsed is fully covered by solid lines) */}
+        {/* Sun: future arc — dashed amber */}
         {sunFuturePaths.map((d, i) => (
-          <path key={`sun-future-${i}`} d={d} fill="none" stroke="currentColor"
+          <path key={`sun-future-${i}`} d={d} fill="none" stroke={SUN_COLOR}
             strokeOpacity={0.2} strokeWidth={2} strokeDasharray="2 4" />
+        ))}
+
+        {/* Sun: elapsed below-horizon — solid dim amber */}
+        {sunElapsedBelow.map((d, i) => (
+          <path key={`sun-down-${i}`} d={d} fill="none" stroke={SUN_COLOR}
+            strokeOpacity={0.25} strokeWidth={2.5} strokeLinecap="round" />
         ))}
 
         {/* Sun: elapsed above-horizon — gradient by altitude (red→orange→amber) */}
         {sunElapsedAbove.map((d, i) => (
           <path key={`sun-up-${i}`} d={d} fill="none" stroke={`url(#${gradientId})`}
             strokeOpacity={0.85} strokeWidth={2.5} strokeLinecap="round" />
-        ))}
-
-        {/* Sun: elapsed below-horizon — slate */}
-        {sunElapsedBelow.map((d, i) => (
-          <path key={`sun-down-${i}`} d={d} fill="none" stroke="#94A3B8"
-            strokeOpacity={0.45} strokeWidth={2.5} strokeLinecap="round" />
         ))}
 
 
