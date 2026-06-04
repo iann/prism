@@ -879,10 +879,16 @@ function SunriseSunsetArc({
   const moonY = moonPos ? altToY(moonPos.altitude) : 0;
   const isMoonUp = moonPos ? moonPos.altitude >= 0 : false;
 
-  // Rise/set fractions, clamped to [0,1] today. Suncalc rises/sets can
-  // straddle midnight, in which case we just hide the off-screen tick.
-  const sunRiseFrac = (sunrise.getTime() - midnightMs) / dayMs;
-  const sunSetFrac  = (sunset.getTime()  - midnightMs) / dayMs;
+  // Rise/set fractions: derived from SunCalc (same source as the arc samples)
+  // so the ticks land exactly where the arc crosses the horizon line.
+  // Using the API-provided sunrise/sunset times caused a visible offset because
+  // the two algorithms disagree by a few minutes.
+  const sunCalcTimes = React.useMemo(
+    () => SunCalc.getTimes(today, useLat, useLon),
+    [today, useLat, useLon],
+  );
+  const sunRiseFrac = (sunCalcTimes.sunrise.getTime() - midnightMs) / dayMs;
+  const sunSetFrac  = (sunCalcTimes.sunset.getTime()  - midnightMs) / dayMs;
   const moonRiseRaw = moonrise ? (moonrise.getTime() - midnightMs) / dayMs : null;
   const moonSetRaw  = moonset  ? (moonset.getTime()  - midnightMs) / dayMs : null;
   const inWindow = (f: number | null): f is number => f !== null && f >= 0 && f <= 1;
