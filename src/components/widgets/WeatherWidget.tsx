@@ -1049,18 +1049,11 @@ function SunriseSunsetArc({
         </g>
 
 
-        {/* Sun glow + dot — color tracks altitude so a low sun glows red/orange */}
-        {isDay && <circle cx={sunX} cy={sunY} r={16} fill={sunDotColor} opacity={0.2} />}
-        <circle
-          cx={sunX} cy={sunY}
-          r={isDay ? 7 : 4}
-          fill={sunDotColor}
-          opacity={isDay ? 1 : 0.55}
-        />
-
         {/* Moon glyph at current position — blue when above, muted when below.
             Disc outline is drawn unfilled so a new moon (lit area collapses to
-            zero) reads as an empty circle rather than a faint disc. */}
+            zero) reads as an empty circle rather than a faint disc.
+            Drawn before the sun so the sun sits on top when the two overlap
+            (both ride the same now-X, so near-equal altitudes collide). */}
         {showMoonGlyph && (
           <g>
             {isMoonUp && <circle cx={moonX} cy={moonY} r={11} fill={MOON_COLOR} opacity={0.18} />}
@@ -1074,6 +1067,15 @@ function SunriseSunsetArc({
               opacity={isMoonUp ? 1 : 0.55} />
           </g>
         )}
+
+        {/* Sun glow + dot — color tracks altitude so a low sun glows red/orange */}
+        {isDay && <circle cx={sunX} cy={sunY} r={16} fill={sunDotColor} opacity={0.2} />}
+        <circle
+          cx={sunX} cy={sunY}
+          r={isDay ? 7 : 4}
+          fill={sunDotColor}
+          opacity={isDay ? 1 : 0.55}
+        />
       </svg>
 
       {/* Sunrise / duration / sunset label strip — sunrise on the left at its
