@@ -791,6 +791,7 @@ function SunriseSunsetArc({
   // Unique gradient ID so multiple weather widgets on a page (e.g., dashboard
   // + lite mode) don't share a single <defs> entry.
   const gradientId = `sun-grad-${React.useId()}`;
+  const moonMaskId = `moon-mask-${React.useId()}`;
 
   React.useEffect(() => {
     const el = containerRef.current;
@@ -940,6 +941,8 @@ function SunriseSunsetArc({
   const moonX = moonPos ? xOf(nowFrac) : 0;
   const moonY = moonPos ? altToY(moonPos.altitude) : 0;
   const isMoonUp = moonPos ? moonPos.altitude >= 0 : false;
+  const moonGlyphR = isMoonUp ? 6 : 4;
+  const showMoonGlyph = moonSamples !== null && moonPhase !== undefined;
 
   // Rise/set fractions: derived from SunCalc (same source as the arc samples)
   // so the ticks land exactly where the arc crosses the horizon line.
@@ -987,6 +990,17 @@ function SunriseSunsetArc({
             <stop offset="0.3" stopColor={SUN_LOW} />
             <stop offset="1" stopColor={SUN_COLOR} />
           </linearGradient>
+          {/* Punches a hole in the moon arc around the phase glyph so the
+              line stops at the disc's perimeter instead of crossing the
+              unlit (unfilled) part of the moon. */}
+          {showMoonGlyph && (
+            <mask id={moonMaskId} maskUnits="userSpaceOnUse" x={0} y={0} width={width} height={H}>
+              <rect x={0} y={0} width={width} height={H} fill="white" />
+              {/* Hole radius = glyph radius + half its outline stroke, so the
+                  arc is clipped exactly at the outline's outer edge. */}
+              <circle cx={moonX} cy={moonY} r={moonGlyphR + 0.5} fill="black" />
+            </mask>
+          )}
         </defs>
 
         {/* Horizon line */}
@@ -1014,21 +1028,25 @@ function SunriseSunsetArc({
         ))}
 
 
-        {/* Moon arc: future portion — dashed */}
-        {moonFuturePaths.map((d, i) => (
-          <path key={`moon-future-${i}`} d={d} fill="none" stroke={MOON_COLOR}
-            strokeOpacity={0.2} strokeWidth={2} strokeDasharray="2 4" />
-        ))}
-        {/* Moon arc: elapsed below-horizon — solid dim blue */}
-        {moonElapsedBelow.map((d, i) => (
-          <path key={`moon-below-${i}`} d={d} fill="none" stroke={MOON_COLOR}
-            strokeOpacity={0.25} strokeWidth={2.5} strokeLinecap="round" />
-        ))}
-        {/* Moon arc: elapsed above-horizon — solid bright blue */}
-        {moonElapsedAbove.map((d, i) => (
-          <path key={`moon-up-${i}`} d={d} fill="none" stroke={MOON_COLOR}
-            strokeOpacity={0.75} strokeWidth={2.5} strokeLinecap="round" />
-        ))}
+        {/* Moon arc — masked so the line stops at the glyph's perimeter
+            rather than running through the unlit part of the disc. */}
+        <g mask={showMoonGlyph ? `url(#${moonMaskId})` : undefined}>
+          {/* Moon arc: future portion — dashed */}
+          {moonFuturePaths.map((d, i) => (
+            <path key={`moon-future-${i}`} d={d} fill="none" stroke={MOON_COLOR}
+              strokeOpacity={0.2} strokeWidth={2} strokeDasharray="2 4" />
+          ))}
+          {/* Moon arc: elapsed below-horizon — solid dim blue */}
+          {moonElapsedBelow.map((d, i) => (
+            <path key={`moon-below-${i}`} d={d} fill="none" stroke={MOON_COLOR}
+              strokeOpacity={0.25} strokeWidth={2.5} strokeLinecap="round" />
+          ))}
+          {/* Moon arc: elapsed above-horizon — solid bright blue */}
+          {moonElapsedAbove.map((d, i) => (
+            <path key={`moon-up-${i}`} d={d} fill="none" stroke={MOON_COLOR}
+              strokeOpacity={0.75} strokeWidth={2.5} strokeLinecap="round" />
+          ))}
+        </g>
 
 
         {/* Sun glow + dot — color tracks altitude so a low sun glows red/orange */}
@@ -1043,15 +1061,15 @@ function SunriseSunsetArc({
         {/* Moon glyph at current position — blue when above, muted when below.
             Disc outline is drawn unfilled so a new moon (lit area collapses to
             zero) reads as an empty circle rather than a faint disc. */}
-        {moonSamples && moonPhase !== undefined && (
+        {showMoonGlyph && (
           <g>
             {isMoonUp && <circle cx={moonX} cy={moonY} r={11} fill={MOON_COLOR} opacity={0.18} />}
-            <circle cx={moonX} cy={moonY} r={isMoonUp ? 6 : 4}
+            <circle cx={moonX} cy={moonY} r={moonGlyphR}
               fill="none"
               stroke={isMoonUp ? MOON_COLOR : '#94A3B8'}
               strokeOpacity={isMoonUp ? 0.65 : 0.4}
               strokeWidth={1} />
-            <path d={moonPhasePath(moonX, moonY, isMoonUp ? 6 : 4, moonPhase)}
+            <path d={moonPhasePath(moonX, moonY, moonGlyphR, moonPhase!)}
               fill={isMoonUp ? MOON_COLOR : '#94A3B8'}
               opacity={isMoonUp ? 1 : 0.55} />
           </g>
