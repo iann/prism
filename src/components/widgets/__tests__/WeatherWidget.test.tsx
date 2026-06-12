@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * Tests for WeatherWidget — covering the hourly forecast cards row, the day
+ * Tests for WeatherWidget — covering the hourly timeline, the day
  * summary header, the forecastDays prop, current conditions, and loading /
  * error / fallback states.
  */
@@ -120,27 +120,22 @@ function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
 
 
 // ===========================================================================
-// 1. Hourly forecast cards
+// 1. Hourly timeline (merry-timeline)
 // ===========================================================================
+// The hourly section renders a "Next 9 Hours" header plus a container div
+// that merry-timeline mounts into asynchronously (dynamic import +
+// ResizeObserver), so jsdom tests assert the header and the mount point —
+// not the timeline's own DOM.
 
-describe('hourly forecast cards', () => {
-  it('renders the section header with the visible-hour count', () => {
+describe('hourly timeline', () => {
+  it('renders the section header', () => {
     render(<WeatherWidget data={makeWeatherData()} />);
-    expect(screen.queryByText(/Next 8 Hours/)).not.toBeNull();
+    expect(screen.queryByText(/Next 9 Hours/)).not.toBeNull();
   });
 
-  it('renders the "Now" label for the first card', () => {
-    render(<WeatherWidget data={makeWeatherData()} />);
-    expect(screen.queryByText('Now')).not.toBeNull();
-  });
-
-  it('renders one card per hour for 8 upcoming hours', () => {
+  it('renders the timeline mount container', () => {
     const { container } = render(<WeatherWidget data={makeWeatherData()} />);
-    // Each card has a Now/time label rendered as a span; "Now" + 7 more
-    const labels = Array.from(container.querySelectorAll('span'))
-      .map((s) => s.textContent ?? '')
-      .filter((t) => t === 'Now' || /^\d{1,2}(am|pm)$/.test(t));
-    expect(labels.length).toBeGreaterThanOrEqual(8);
+    expect(container.querySelector('[data-keep-bg]')).not.toBeNull();
   });
 
   it('renders the hourly temperature in each card', () => {
@@ -356,7 +351,7 @@ describe('showForecast prop', () => {
     const data = makeWeatherData();
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText('5-Day Forecast')).not.toBeNull();
-    expect(screen.queryByText(/Next 8 Hours/)).not.toBeNull();
+    expect(screen.queryByText(/Next 9 Hours/)).not.toBeNull();
   });
 
   it('hides the forecast section when showForecast=false', () => {
@@ -410,9 +405,9 @@ describe('demo data fallback', () => {
     expect(screen.queryByText('Austin')).not.toBeNull();
   });
 
-  it('renders the hourly forecast cards with demo data', () => {
-    render(<WeatherWidget />);
+  it('renders the hourly timeline with demo data', () => {
+    const { container } = render(<WeatherWidget />);
     expect(screen.queryByText(/Next .* Hours/)).not.toBeNull();
-    expect(screen.queryByText('Now')).not.toBeNull();
+    expect(container.querySelector('[data-keep-bg]')).not.toBeNull();
   });
 });
