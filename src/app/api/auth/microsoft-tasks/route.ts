@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, requireRole } from '@/lib/auth';
 import { logError } from '@/lib/utils/logError';
+import { oauthSetupRedirect } from '@/lib/integrations/oauthSetupRedirect';
+import { resolveRedirectUri } from '@/lib/integrations/resolveRedirectUri';
 
 const MICROSOFT_AUTH_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize';
-const SCOPES = ['Tasks.ReadWrite', 'offline_access'].join(' ');
+// `User.Read` lets us identify which Microsoft account authorized, for the
+// "Connected as <email>" label on the Integrations card (#100).
+const SCOPES = ['Tasks.ReadWrite', 'offline_access', 'User.Read'].join(' ');
 
 export async function GET(request: Request) {
   const auth = await requireAuth();
@@ -13,14 +17,10 @@ export async function GET(request: Request) {
   if (forbidden) return forbidden;
 
   const clientId = process.env.MICROSOFT_CLIENT_ID;
-  const redirectUri = process.env.MICROSOFT_TASKS_REDIRECT_URI ||
-    `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/microsoft-tasks/callback`;
+  const redirectUri = resolveRedirectUri(request, '/api/auth/microsoft-tasks/callback'); // dynamic redirect URI per request (#124)
 
   if (!clientId) {
-    return NextResponse.json(
-      { error: 'Microsoft OAuth not configured' },
-      { status: 500 }
-    );
+    return oauthSetupRedirect('microsoft');
   }
 
   try {

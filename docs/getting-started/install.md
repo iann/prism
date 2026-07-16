@@ -74,3 +74,36 @@ docker-compose up -d
 Open **<http://localhost:3000>** and log in with PIN `1234` (parent) or `0000` (child).
 
 Next: [first-time setup](first-time-setup.md).
+
+## Troubleshooting
+
+### Photo or avatar uploads return a 500
+
+The app container runs as uid `1001`. If the bind-mounted `data/` directory is
+owned by a different user, the app can't write photos/avatars and uploads fail
+with a 500 (`EACCES … mkdir '/app/data/...'` in `docker logs prism-app`). The
+installer chowns it for you; if you created the directory manually, fix it with:
+
+```bash
+docker run --rm -v "$PWD/data":/d alpine chown -R 1001:1001 /d
+```
+
+No container restart is needed — permissions are checked at write time.
+
+### Locked out — forgot a PIN, or can't log in after changing the PIN length
+
+PINs are a single length for the whole family (set in **Settings → Security**,
+or during the setup wizard). If someone forgets their PIN, or you change the
+family PIN length and an existing PIN no longer matches, that member can be
+locked out. Reset it from the server with the recovery script:
+
+```bash
+# List family members:
+docker compose exec app node scripts/reset-pin.js --list
+
+# Reset a member's PIN (must match the family PIN length):
+docker compose exec app node scripts/reset-pin.js "Jordan" 1234
+```
+
+It hashes the new PIN exactly like the app and updates only that member. They
+can log in immediately with the new PIN — no restart needed.

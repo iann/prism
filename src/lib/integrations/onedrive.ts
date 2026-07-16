@@ -6,6 +6,9 @@ const SCOPES = [
   'Files.Read',
   'Files.Read.All',
   'offline_access',
+  // Identify which Microsoft account authorized, for the "Connected as
+  // <email>" label on the Integrations card (#100). Read-only profile scope.
+  'User.Read',
 ].join(' ');
 
 export interface MicrosoftTokens {
@@ -39,12 +42,12 @@ async function getConfig() {
   return creds;
 }
 
-export async function getMicrosoftAuthUrl(state?: string): Promise<string> {
+export async function getMicrosoftAuthUrl(state?: string, redirectUriOverride?: string): Promise<string> {
   const { clientId, redirectUri } = await getConfig();
 
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: redirectUri,
+    redirect_uri: redirectUriOverride || redirectUri,
     response_type: 'code',
     scope: SCOPES,
     response_mode: 'query',
@@ -57,7 +60,7 @@ export async function getMicrosoftAuthUrl(state?: string): Promise<string> {
   return `${MICROSOFT_AUTH_URL}?${params.toString()}`;
 }
 
-export async function exchangeCodeForTokens(code: string): Promise<MicrosoftTokens> {
+export async function exchangeCodeForTokens(code: string, redirectUriOverride?: string): Promise<MicrosoftTokens> {
   const { clientId, clientSecret, redirectUri } = await getConfig();
 
   const response = await fetch(MICROSOFT_TOKEN_URL, {
@@ -67,7 +70,7 @@ export async function exchangeCodeForTokens(code: string): Promise<MicrosoftToke
       code,
       client_id: clientId,
       client_secret: clientSecret,
-      redirect_uri: redirectUri,
+      redirect_uri: redirectUriOverride || redirectUri,
       grant_type: 'authorization_code',
     }),
   });

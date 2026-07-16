@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireAuth, requireRole } from '@/lib/auth';
 import { getGmailAuthUrl } from '@/lib/integrations/gmail';
 import { logError } from '@/lib/utils/logError';
+import { isOAuthNotConfigured, oauthSetupRedirect } from '@/lib/integrations/oauthSetupRedirect';
+import { resolveRedirectUri } from '@/lib/integrations/resolveRedirectUri';
 
 export async function GET(request: Request) {
   const auth = await requireAuth();
@@ -18,9 +20,11 @@ export async function GET(request: Request) {
     const returnSection = searchParams.get('returnSection') || 'bus';
 
     const state = JSON.stringify({ returnSection });
-    const authUrl = await getGmailAuthUrl(state);
+    const redirectUri = resolveRedirectUri(request, '/api/auth/google-bus/callback'); // dynamic redirect URI per request (#124)
+    const authUrl = await getGmailAuthUrl(state, redirectUri);
     return NextResponse.redirect(authUrl);
   } catch (error) {
+    if (isOAuthNotConfigured(error)) return oauthSetupRedirect('gmail');
     logError('Failed to initiate Gmail OAuth:', error);
     return NextResponse.json(
       { error: 'Failed to initiate Gmail authentication' },
