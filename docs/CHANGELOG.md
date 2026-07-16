@@ -4,6 +4,47 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+## [1.8.14] – 2026-06-29
+
+### Fixed — Display
+- **Emoji now render on devices without a system emoji font.** Prism uses Unicode emoji throughout the UI (Goals 🎯, Birthdays 🎂, shopping categories 🛒, Points 🏆, the avatar picker, …); these render in the *viewing browser* using the device's emoji font, so on a minimal client with none installed — e.g. a bare Raspberry Pi OS / Chromium kiosk — they showed as empty "tofu" boxes (□). Prism now bundles the Noto Color Emoji webfont and adds it to the font stack after the system emoji fonts, so it serves the glyphs itself and emoji render on any client regardless of installed fonts. The font is subsetted by Unicode range, so a browser only downloads the small chunks for the emoji actually on screen. Devices that already have a native emoji font keep using it (no extra download). Thanks @theg00se1030 for the report. Closes [#145](https://github.com/sandydargoport/prism/issues/145).
+
+## [1.8.13] – 2026-06-29
+
+### Added — Integrations
+- **Each Integrations card now shows which account it's connected to — "Connected as `you@example.com`".** Previously the cards showed *that* a provider was connected but not *which account*, so anyone running split accounts under one provider (e.g. a personal Google for calendars plus a family Gmail for school-bus emails) couldn't tell from the card which account each feature used. Prism now captures the account's email during the OAuth login (Google, Microsoft, and Gmail) and shows it on the provider card and its Account sub-section; split-account setups show the primary plus a "+N more". **Existing connections show no email until you click Re-authenticate on the card** — the email is only captured on a fresh login, and there's intentionally no backfill of stored tokens. The new login adds read-only identity scopes (Google `openid email`, Microsoft `User.Read`); Gmail reuses its existing scope. Closes [#100](https://github.com/sandydargoport/prism/issues/100).
+
+## [1.8.12] – 2026-06-28
+
+### Fixed — Integrations
+- **Google & Microsoft OAuth redirect URIs are now derived from the request, fixing `redirect_uri_mismatch`.** Previously the redirect URI came from a static `*_REDIRECT_URI` env var (defaulting to `localhost`), so anyone whose env var didn't byte-match what they'd registered in the provider console hit `Error 400: redirect_uri_mismatch` on Connect. All Google (Calendar, Gmail/Bus, Tasks) and Microsoft (OneDrive, Tasks) flows now build the redirect URI from the incoming request's host/proto (honoring `X-Forwarded-Host`/`-Proto` behind a reverse proxy), the same approach Kroger already uses — so the URI always matches the host you started from, and `/authorize` and `/token` stay in lockstep. The env vars still work as a fallback. Existing connections are unaffected (token refresh doesn't use the redirect URI). Closes [#124](https://github.com/sandydargoport/prism/issues/124).
+
+## [1.8.11] – 2026-06-27
+
+### Fixed — Home Assistant addon
+- **The bundled-database addon now actually starts — and survives restarts.** With `bundled_db: true` (the default), the addon failed to boot at all: Alpine's Postgres defaults its Unix socket to `/run/postgresql`, which doesn't exist in the container, so `pg_ctl` died with `could not create lock file "…/.s.PGSQL.5432.lock": No such file or directory` and the dashboard never came up. A second bug then crash-looped the addon on its first restart/update — the base schema (a full `pg_dump`) was re-applied on every boot, and its `ADD CONSTRAINT` statements aren't idempotent (`relation "…" already exists`). The entrypoint now creates the socket directory on every start, and applies the base schema only when the database is empty (mirroring the standalone deploy, where Postgres' init dir runs it once), letting the idempotent migration step handle every later boot. It also dumps the Postgres log on a startup failure instead of swallowing it behind `pg_ctl`'s "Examine the log output". Thanks @joe-cole1 for the report and logs. Closes [#81](https://github.com/sandydargoport/prism/issues/81).
+
+### Changed — Backups
+- **Off-site sync and the dead-man healthcheck are now opt-in via `.env`.** `RCLONE_REMOTE` and `HC_URL` were previously hardcoded in `docker-compose.yml`, so every deployment shared one set of endpoints. They now default to empty: set your own `RCLONE_REMOTE` (an rclone remote for off-site copies) and `HC_URL` (your own healthchecks.io check) in `.env` to enable them, or leave them blank to keep backups local-only. The backup tunables (`BACKUP_HOUR`, `RETENTION_DAYS`, `RCLONE_RETENTION_DAYS`) are overridable the same way. See the new Backups section in `.env.example`.
+
+### Fixed — Integrations
+- **Clicking "Connect" before configuring OAuth now shows a setup prompt instead of a raw JSON error.** If you skipped OAuth setup during onboarding and then hit Connect on the Google / Gmail / Microsoft cards, the browser landed on a bare `{"error":"Failed to initiate … authentication"}` page. The init routes now detect the not-configured case and redirect back to the Integrations page with a clear banner — pointing to the Setup Wizard (where you enter your OAuth credentials) and naming the required env vars — instead of a dead JSON page. Thanks @joe-cole1 for the report and the "make this clearer for dummies who skipped onboarding" nudge. Closes [#108](https://github.com/sandydargoport/prism/issues/108).
+
+## [1.8.10] – 2026-06-19
+
+### Fixed — Tasks
+- **Newly-added tasks no longer vanish once a household has 100+ tasks.** The Tasks list fetches a capped number of rows (100) ordered by due date; with many tasks — especially ones without a due date, which sort last — the newest tasks fell past the row limit and were silently dropped from the fetch. They saved to the database fine but never appeared in any view (touch display or PWA). The fetch now orders **incomplete tasks first** with a newest-first tiebreaker, so active tasks are never truncated out. Display order is unchanged (the client still sorts the visible list).
+
+### Fixed — Touch keyboard
+- **On-screen keyboard no longer dismisses itself when you tap Shift.** On touch displays (e.g. Raspberry Pi kiosks), tapping Shift (or a symbol key) blurred the focused input, so the global focusout handler hid the keyboard. The keyboard container now keeps the input focused on tap — a `mousedown` preventDefault, since simple-keyboard swallows the pointerdown the existing handler relied on. Thanks @theg00se1030 for the precise root-cause analysis. Closes [#125](https://github.com/sandydargoport/prism/issues/125).
+
+## [1.8.9] – 2026-06-16
+
+### Fixed — Security / Login
+- **5–6 digit PINs can now actually be used.** PIN length is now a uniform family-wide setting (4–6 digits, like an iPhone passcode) — chosen in the setup wizard and changeable in Settings → Security. Previously PIN *creation* allowed up to 6 digits while every login/unlock pad was hard-coded to 4 and auto-submitted at 4, so any 5–6 digit PIN could never be entered and the member was locked out. All five PIN surfaces (login, settings gate, quick-switch, away-exit, babysitter-exit), `PinEditModal`, and the family API now read and enforce the configured length. Added `scripts/reset-pin.js` for offline recovery of a locked-out member. Closes [#123](https://github.com/sandydargoport/prism/issues/123).
+
+## [1.8.8] – 2026-06-16
+
 ### Changed — Mobile
 - **Per-person list views become a swipeable carousel on phones**: Chores, Tasks (flat + nested), Wishes, and Gift Ideas all switch to a CSS scroll-snap carousel when viewed on mobile with more than one group — each profile takes the full viewport width and the user swipes left/right between people while still scrolling vertically inside the active profile's list. Desktop / tablet behavior unchanged (min-width columns + horizontal scroll). Cleaner than the previous "1.5 profiles visible at 220 px each" feel on phones.
 
@@ -21,6 +62,16 @@ All notable changes to Prism are documented in this file.
 
 ### Added — Triage
 - **`needs-reply` auto-label workflow**: new `.github/workflows/needs-reply.yml` adds the `needs-reply` label to any issue/PR when a non-owner non-bot comments (or opens it), and removes the label when the owner replies. Triage view lives at [/labels/needs-reply](https://github.com/sandydargoport/prism/labels/needs-reply) — one navigable place to see everything an external user is waiting on.
+
+### Fixed — Uploads
+- **Photo and avatar uploads no longer 500**: the app container runs as uid 1001 (`nextjs`) but `scripts/install.sh` created the bind-mounted `data/` directory owned by the host user, so `fs.mkdir` under `/app/data/photos` (and `/app/data/avatars`) hit `EACCES` and every photo upload, 30-minute photo sync, and avatar upload failed with a 500. `install.sh` now `chown`s `data/` and `uploads/` to `1001:1001` via a throwaway root container (no host `sudo` needed), with a fallback warning and a troubleshooting note in the install docs for existing deployments. [#130](https://github.com/sandydargoport/prism/pull/130)
+
+### Fixed — Backups
+- **Photos, avatars and recipe images are now backed up off-site**: the backup container synced an empty `uploads/` directory while all user assets actually live under `data/` (`src/lib/config/runtime.ts`), so they never reached cloud storage. It now syncs `data/` (regenerable `photos/cache` excluded). The app container also only bind-mounted `data/photos`, leaving avatars and recipe images in the container's writable layer where they were lost on rebuild — the whole `data/` directory is now persisted. [#127](https://github.com/sandydargoport/prism/pull/127)
+- **Backups verify the off-site copy before reporting success**: `rclone copy`/`sync` can exit 0 on a partial or silently-dropped upload, so a green healthcheck didn't prove the data actually landed. Added an `rclone check --one-way` pass before the success ping; any mismatch pings `/fail` instead. Also consolidated the duplicate cron + in-container database-dump jobs into the single container job (porting over the cron's healthcheck ping and dump size check), and fixed an rclone OAuth token-refresh error caused by mounting `rclone.conf` as a single file (which can't be rename-replaced — now seeded to a writable path at startup). [#127](https://github.com/sandydargoport/prism/pull/127), [#128](https://github.com/sandydargoport/prism/pull/128), [#129](https://github.com/sandydargoport/prism/pull/129)
+
+### Fixed — Calendar
+- **Task-only CalDAV sources no longer show a false "stale / failed" status**: iCloud reminder lists (no event component) never run the event-sync path, which was the only code that advanced `last_synced` and cleared `sync_errors` — so they appeared stuck on an old date with a stale error even while task sync ran cleanly every cycle. `syncCalDAVTasks` now refreshes those fields itself (and records task-sync errors for task-only sources), leaving event-capable sources' `sync_errors` owned by the event path. [#131](https://github.com/sandydargoport/prism/pull/131)
 
 ## [1.8.7] – 2026-06-01
 

@@ -35,7 +35,10 @@ services:
       - ./uploads:/app/uploads
       - ./backups:/app/backups
       - photos-cache:/app/cache/photos
-      - ./data/photos:/app/data/photos
+      # Mount the whole data dir so avatars and recipe-images persist too,
+      # not just data/photos (otherwise they live only in the container layer
+      # and are lost on rebuild).
+      - ./data:/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -99,14 +102,25 @@ services:
     container_name: prism-backup
     environment:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - BACKUP_HOUR=3
-      - RETENTION_DAYS=7
-      - RCLONE_REMOTE=onedrive:Prism/backups
-      - RCLONE_RETENTION_DAYS=30
+      - BACKUP_HOUR=${BACKUP_HOUR:-3}
+      - RETENTION_DAYS=${RETENTION_DAYS:-7}
+      # Off-site sync + dead-man healthcheck are per-deployment. Leave blank
+      # (the defaults) to keep local-only backups and skip the ping; set them
+      # in .env to enable. These MUST NOT be hardcoded here — this file is
+      # public, and a baked-in HC_URL means every clone pings one shared check.
+      - RCLONE_REMOTE=${RCLONE_REMOTE:-}
+      - RCLONE_RETENTION_DAYS=${RCLONE_RETENTION_DAYS:-30}
+      - HC_URL=${HC_URL:-}
     volumes:
       - ./backups:/backups
-      - ./uploads:/uploads:ro
-      - ./config/rclone.conf:/root/.config/rclone/rclone.conf:ro
+      # Off-site sync of user assets (avatars, photos, recipe images) lives
+      # under data/, not uploads/. Mounted read-only for the backup job.
+      - ./data:/data:ro
+      # Mounted read-only as a seed; backup-scheduler.sh copies it to rclone's
+      # default path inside the container so rclone can rename-replace it when
+      # refreshing its OAuth token (a direct single-file mount can't be renamed
+      # over — "device or resource busy").
+      - ./config/rclone.conf:/etc/rclone/rclone.conf:ro
     depends_on:
       db:
         condition: service_healthy

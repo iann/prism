@@ -7,6 +7,8 @@ import { exchangeGmailCodeForTokens } from '@/lib/integrations/gmail';
 import { encrypt } from '@/lib/utils/crypto';
 import { logActivity } from '@/lib/services/auditLog';
 import { logError } from '@/lib/utils/logError';
+import { resolveRedirectUri } from '@/lib/integrations/resolveRedirectUri';
+import { fetchGmailAccountEmail } from '@/lib/integrations/oauth-userinfo';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
@@ -44,8 +46,12 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${BASE_URL}/settings?section=${returnSection}&error=missing_code${anchor}`);
     }
 
-    const tokens = await exchangeGmailCodeForTokens(code);
+    const tokens = await exchangeGmailCodeForTokens(code, resolveRedirectUri(request, '/api/auth/google-bus/callback')); // dynamic redirect URI per request (#124)
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+
+    // Which Gmail account this is, for the "Connected as <email>" label (#100).
+    // Covered by the existing gmail.readonly scope — no extra scope needed.
+    const accountEmail = await fetchGmailAccountEmail(tokens.access_token);
 
     // Encrypt tokens before storing
     const credentials = {
@@ -62,6 +68,7 @@ export async function GET(request: Request) {
       await db.update(apiCredentials).set({
         encryptedCredentials: JSON.stringify(credentials),
         expiresAt,
+        accountEmail: accountEmail ?? undefined,
         updatedAt: new Date(),
       }).where(eq(apiCredentials.id, existing.id));
     } else {
@@ -69,6 +76,7 @@ export async function GET(request: Request) {
         service: 'gmail-bus',
         encryptedCredentials: JSON.stringify(credentials),
         expiresAt,
+        accountEmail,
       });
     }
 
