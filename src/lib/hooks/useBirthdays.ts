@@ -17,11 +17,12 @@ export interface Birthday {
 interface UseBirthdaysOptions {
   limit?: number;
   refreshInterval?: number;
+  refreshOffsetMs?: number;
   enabled?: boolean;
 }
 
 export function useBirthdays(options: UseBirthdaysOptions = {}) {
-  const { limit = 10, refreshInterval = 60 * 60 * 1000, enabled } = options;
+  const { limit = 10, refreshInterval = 60 * 60 * 1000, refreshOffsetMs, enabled } = options;
   const [syncError, setSyncError] = useState<string | null>(null);
 
   const { data: birthdays, loading, error: fetchError, refresh } = useFetch<Birthday[]>({
@@ -29,6 +30,7 @@ export function useBirthdays(options: UseBirthdaysOptions = {}) {
     initialData: [],
     transform: (json) => (json as { birthdays?: Birthday[] }).birthdays || [],
     refreshInterval,
+    refreshOffsetMs,
     label: 'birthdays',
     enabled,
   });

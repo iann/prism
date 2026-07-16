@@ -52,19 +52,26 @@ export function useModeToggle(options: UseModeToggleOptions): UseModeToggleResul
       }
 
       const result: ModeState = await response.json();
-      setData(result);
+      window.dispatchEvent(new CustomEvent<ModeState>(eventName, { detail: result }));
     } catch (err) {
       console.error(`Error toggling ${label}:`, err);
       setToggleError(err instanceof Error ? err.message : `Failed to toggle ${label}`);
       throw err;
     }
-  }, [endpoint, label, setData]);
+  }, [endpoint, eventName, label]);
 
   useEffect(() => {
-    const handler = () => { refresh(); };
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<ModeState>).detail;
+      if (detail && typeof detail.enabled === 'boolean') {
+        setData(detail);
+      } else {
+        refresh();
+      }
+    };
     window.addEventListener(eventName, handler);
     return () => window.removeEventListener(eventName, handler);
-  }, [eventName, refresh]);
+  }, [eventName, refresh, setData]);
 
   return {
     isActive: data.enabled,

@@ -4,14 +4,18 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 });
 
+const MAX_PRECACHE_FILE_BYTES = 512 * 1024;
+
 const withPWA = require('next-pwa')({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
+  buildExcludes: [/noto-color-emoji/i],
+  maximumFileSizeToCacheInBytes: MAX_PRECACHE_FILE_BYTES,
   runtimeCaching: [
     {
-      urlPattern: /^https:\/\/.*\/api\/.*/i,
+      urlPattern: /\/api\/.*/i,
       handler: 'NetworkFirst',
       options: {
         cacheName: 'api-cache',

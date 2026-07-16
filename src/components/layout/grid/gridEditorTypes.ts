@@ -27,6 +27,7 @@ export const SCREENSAVER_THEME: EditorTheme = {
 export interface CssGridDisplayProps {
   layout: WidgetConfig[];
   renderWidget: (widget: WidgetConfig) => React.ReactNode;
+  widgetRevisions?: Record<string, unknown>;
   margin?: number;
   containerPadding?: number;
   cols?: number;
@@ -45,6 +46,7 @@ export interface LayoutGridEditorProps {
   onLayoutChange: (layout: WidgetConfig[]) => void;
   isEditable?: boolean;
   renderWidget: (widget: WidgetConfig) => React.ReactNode;
+  widgetRevisions?: Record<string, unknown>;
   widgetConstraints?: Record<string, { minW?: number; minH?: number }>;
   margin?: number;
   headerOffset?: number;

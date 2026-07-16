@@ -60,7 +60,7 @@ function CardShell({ href, icon, title, count, children }: {
   );
 
   if (href) {
-    return <Link href={href} className="block">{inner}</Link>;
+    return <Link href={href} prefetch={false} className="block">{inner}</Link>;
   }
   return inner;
 }

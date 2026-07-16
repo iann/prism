@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
+import { replaceDistinct } from '@/lib/utils/preserveEqual';
+import { useDistinctState } from './useDistinctState';
 
 export interface Goal {
   id: string;
@@ -66,17 +68,24 @@ interface UseGoalsResult {
   resetGoal: (goalId: string) => Promise<void>;
 }
 
-export function useGoals(options: { refreshInterval?: number; enabled?: boolean } = {}): UseGoalsResult {
-  const { refreshInterval = 2 * 60 * 1000, enabled = true } = options;
+export function useGoals(options: { refreshInterval?: number; refreshOffsetMs?: number; enabled?: boolean } = {}): UseGoalsResult {
+  const { refreshInterval = 2 * 60 * 1000, refreshOffsetMs = 0, enabled = true } = options;
   const cached = navCacheGet<GoalsResponse>('/api/goals');
   const [goals, setGoals] = useState<Goal[]>(() => cached?.goals ?? []);
   const [progress, setProgress] = useState<Record<string, Record<string, ChildProgress>>>(() => cached?.progress ?? {});
   const [goalChildren, setGoalChildren] = useState<GoalChild[]>(() => cached?.children ?? []);
-  const [loading, setLoading] = useState(!cached);
-  const [error, setError] = useState<string | null>(null);
+  const goalsRef = useRef(goals);
+  const progressRef = useRef(progress);
+  const childrenRef = useRef(goalChildren);
+  goalsRef.current = goals;
+  progressRef.current = progress;
+  childrenRef.current = goalChildren;
+  const [loading, setLoading] = useDistinctState(enabled && !cached);
+  const [error, setError] = useDistinctState<string | null>(null);
+  const hasDataRef = useRef(cached !== undefined);
 
   const fetchGoals = useCallback(async () => {
-    if (!navCacheGet('/api/goals')) setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     try {
       setError(null);
       const response = await fetch('/api/goals');
@@ -84,9 +93,10 @@ export function useGoals(options: { refreshInterval?: number; enabled?: boolean 
 
       const data: GoalsResponse = await response.json();
       navCacheSet('/api/goals', data);
-      setGoals(data.goals);
-      setProgress(data.progress);
-      setGoalChildren(data.children);
+      hasDataRef.current = true;
+      replaceDistinct(goalsRef, setGoals, data.goals);
+      replaceDistinct(progressRef, setProgress, data.progress);
+      replaceDistinct(childrenRef, setGoalChildren, data.children);
     } catch (err) {
       console.error('Error fetching goals:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch goals');
@@ -164,7 +174,7 @@ export function useGoals(options: { refreshInterval?: number; enabled?: boolean 
 
   useEffect(() => { if (enabled) fetchGoals(); }, [fetchGoals, enabled]);
 
-  useVisibilityPolling(fetchGoals, enabled ? refreshInterval : 0);
+  useVisibilityPolling(fetchGoals, enabled ? refreshInterval : 0, refreshOffsetMs);
 
   return {
     goals, progress, goalChildren, loading, error,

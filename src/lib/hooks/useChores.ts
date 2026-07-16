@@ -6,9 +6,11 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
+import { replaceDistinct } from '@/lib/utils/preserveEqual';
+import { useDistinctState } from './useDistinctState';
 
 // Re-export Chore type from shared types for consumers that import from this hook
 export type { Chore } from '@/types';
@@ -41,6 +43,7 @@ interface UseChoresOptions {
   showDisabled?: boolean;
   /** Auto-refresh interval in milliseconds (0 = disabled) */
   refreshInterval?: number;
+  refreshOffsetMs?: number;
   /** When false, skip initial fetch and polling. Fetch triggers when enabled transitions to true. */
   enabled?: boolean;
   /** When true, also return future-dated chores. Calendar overlays use this
@@ -65,6 +68,7 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
     assignedTo,
     showDisabled = false,
     refreshInterval = 5 * 60 * 1000,
+    refreshOffsetMs = 0,
     enabled = true,
     includeFuture = false,
   } = options;
@@ -76,14 +80,17 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
   }).toString()}`;
   const cached = navCacheGet<Chore[]>(cacheKey);
   const [chores, setChores] = useState<Chore[]>(() => cached ?? []);
-  const [loading, setLoading] = useState(!cached);
-  const [error, setError] = useState<string | null>(null);
+  const choresRef = useRef(chores);
+  choresRef.current = chores;
+  const [loading, setLoading] = useDistinctState(enabled && !cached);
+  const [error, setError] = useDistinctState<string | null>(null);
+  const hasDataRef = useRef(cached !== undefined);
 
   /**
    * Fetch chores from the API
    */
   const fetchChores = useCallback(async () => {
-    if (!navCacheGet(cacheKey)) setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     try {
       setError(null);
 
@@ -150,7 +157,8 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
       );
 
       navCacheSet(cacheKey, transformedChores);
-      setChores(transformedChores);
+      hasDataRef.current = true;
+      replaceDistinct(choresRef, setChores, transformedChores);
     } catch (err) {
       console.error('Error fetching chores:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch chores');
@@ -232,7 +240,7 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
   }, [fetchChores, enabled]);
 
   // Set up refresh interval with visibility-based pause (disabled when not enabled)
-  useVisibilityPolling(fetchChores, enabled ? refreshInterval : 0);
+  useVisibilityPolling(fetchChores, enabled ? refreshInterval : 0, refreshOffsetMs);
 
   return {
     chores,

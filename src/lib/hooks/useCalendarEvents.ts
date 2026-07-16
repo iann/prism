@@ -6,17 +6,20 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { addDays, subDays, startOfDay, endOfDay } from 'date-fns';
 import type { CalendarEvent } from '@/types/calendar';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
+import { replaceDistinct } from '@/lib/utils/preserveEqual';
+import { useDistinctState } from './useDistinctState';
 
 interface UseCalendarEventsOptions {
   /** Number of days to fetch events for */
   daysToShow?: number;
   /** Auto-refresh interval in milliseconds (0 = disabled) */
   refreshInterval?: number;
+  refreshOffsetMs?: number;
   /** Start with demo data before API loads */
   useDemoFallback?: boolean;
   /** Auto-sync interval in minutes (0 = disabled, default = 10) */
@@ -39,7 +42,7 @@ interface UseCalendarEventsResult {
 export function useCalendarEvents(
   options: UseCalendarEventsOptions = {}
 ): UseCalendarEventsResult {
-  const { daysToShow = 7, refreshInterval = 5 * 60 * 1000, useDemoFallback = true, autoSyncMinutes = 10, enabled = true } = options;
+  const { daysToShow = 7, refreshInterval = 5 * 60 * 1000, refreshOffsetMs = 0, useDemoFallback = true, autoSyncMinutes = 10, enabled = true } = options;
 
   // Stable cache key for today's date range — same across remounts within the same day
   const cacheKey = useMemo(() => {
@@ -51,15 +54,18 @@ export function useCalendarEvents(
 
   const cached = navCacheGet<CalendarEvent[]>(cacheKey);
   const [events, setEvents] = useState<CalendarEvent[]>(() => cached ?? []);
-  const [loading, setLoading] = useState(!cached);
-  const [error, setError] = useState<string | null>(null);
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+  const [loading, setLoading] = useDistinctState(enabled && !cached);
+  const [error, setError] = useDistinctState<string | null>(null);
   const [lastSyncCheck, setLastSyncCheck] = useState<Date | null>(null);
+  const hasEventsRef = useRef(cached !== undefined);
 
   /**
    * Fetch events from the API
    */
   const fetchEvents = useCallback(async () => {
-    if (!navCacheGet(cacheKey)) setLoading(true);
+    if (!hasEventsRef.current) setLoading(true);
     try {
       setError(null);
 
@@ -111,7 +117,8 @@ export function useCalendarEvents(
       );
 
       navCacheSet(cacheKey, transformedEvents);
-      setEvents(transformedEvents);
+      hasEventsRef.current = true;
+      replaceDistinct(eventsRef, setEvents, transformedEvents);
     } catch (err) {
       console.error('Error fetching events:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch events');
@@ -158,7 +165,7 @@ export function useCalendarEvents(
   }, [fetchEvents, enabled]);
 
   // Periodic data refresh — pauses when tab is hidden
-  useVisibilityPolling(fetchEvents, enabled ? refreshInterval : 0);
+  useVisibilityPolling(fetchEvents, enabled ? refreshInterval : 0, refreshOffsetMs);
 
   // Auto-sync: check if any Google calendar is stale and trigger sync if needed
   const checkAndSync = useCallback(async () => {

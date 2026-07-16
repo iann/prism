@@ -3,12 +3,14 @@
 import { useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
+import { preserveEqual } from '@/lib/utils/preserveEqual';
 
 interface UseFetchOptions<T> {
   url: string;
   initialData: T;
   transform?: (json: unknown) => T;
   refreshInterval?: number;
+  refreshOffsetMs?: number;
   label?: string;
   /** When false, skip initial fetch and polling. Fetch triggers when enabled transitions to true. */
   enabled?: boolean;
@@ -23,7 +25,7 @@ interface UseFetchResult<T> {
 }
 
 export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
-  const { url, initialData, transform, refreshInterval = 0, label = 'data', enabled = true } = options;
+  const { url, initialData, transform, refreshInterval = 0, refreshOffsetMs = 0, label = 'data', enabled = true } = options;
 
   const transformRef = useRef(transform);
   transformRef.current = transform;
@@ -32,14 +34,38 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
 
   // Seed state from navigation cache so the page renders immediately on revisit
   const cached = navCacheGet<T>(url);
-  const [data, setData] = useState<T>(() => cached ?? initialData);
-  // Only show loading spinner on true cold fetches (no cached data available)
-  const [loading, setLoading] = useState(!cached);
-  const [error, setError] = useState<string | null>(null);
+  const [data, setDataState] = useState<T>(() => cached ?? initialData);
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const setData: Dispatch<SetStateAction<T>> = useCallback((update) => {
+    setDataState(current => {
+      const next = typeof update === 'function'
+        ? (update as (value: T) => T)(current)
+        : update;
+      dataRef.current = next;
+      return next;
+    });
+  }, []);
+  const [loading, setLoadingState] = useState(enabled && !cached);
+  const loadingRef = useRef(loading);
+  loadingRef.current = loading;
+  const setLoading = useCallback((next: boolean) => {
+    if (loadingRef.current === next) return;
+    loadingRef.current = next;
+    setLoadingState(next);
+  }, []);
+  const [error, setErrorState] = useState<string | null>(null);
+  const errorRef = useRef(error);
+  errorRef.current = error;
+  const setError = useCallback((next: string | null) => {
+    if (errorRef.current === next) return;
+    errorRef.current = next;
+    setErrorState(next);
+  }, []);
+  const hasDataRef = useRef(cached !== undefined);
 
   const fetchData = useCallback(async () => {
-    // Don't flash a spinner if we already have something to show (SWR)
-    if (!navCacheGet(url)) setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     try {
       setError(null);
       const response = await fetch(url);
@@ -47,18 +73,12 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
       const json = await response.json();
       const result = transformRef.current ? transformRef.current(json) : (json as T);
       navCacheSet(url, result);
-      // Structural-shared polling: when the new payload is byte-identical
-      // to what's already in state, return the previous reference so React
-      // skips re-renders for every consumer of this data. Big win on weak
-      // hardware where most polls return unchanged data (weather, calendar
-      // hours past, finished chores, etc.).
-      setData((prev) => {
-        try {
-          return JSON.stringify(prev) === JSON.stringify(result) ? prev : result;
-        } catch {
-          return result;
-        }
-      });
+      hasDataRef.current = true;
+      const next = preserveEqual(dataRef.current, result);
+      if (next !== dataRef.current) {
+        dataRef.current = next;
+        setDataState(next);
+      }
     } catch (err) {
       console.error(`Error fetching ${labelRef.current}:`, err);
       setError(err instanceof Error ? err.message : `Failed to fetch ${labelRef.current}`);
@@ -71,7 +91,7 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
     if (enabled) fetchData();
   }, [fetchData, enabled]);
 
-  useVisibilityPolling(fetchData, enabled ? refreshInterval : 0);
+  useVisibilityPolling(fetchData, enabled ? refreshInterval : 0, refreshOffsetMs);
 
   return { data, setData, loading, error, refresh: fetchData };
 }

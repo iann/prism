@@ -1,13 +1,23 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCalendarEvents, useWeather, useMessages, useTasks, useChores, useShoppingLists, useMeals, useBirthdays, useLayouts, useGoals, usePoints } from '@/lib/hooks';
+import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 
 const AUTO_SYNC_STALE_MINUTES = 5;
 const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+export const DASHBOARD_POLL_OFFSETS = {
+  weather: 0,
+  messages: 5_000,
+  tasks: 10_000,
+  chores: 20_000,
+  shopping: 30_000,
+  meals: 40_000,
+  calendar: 50_000,
+  goals: 0,
+  points: 10_000,
+  birthdays: 20_000,
+  taskSync: 60_000,
+} as const;
 
-/** Delay (ms) before enabling non-visible widget data loading */
-const DEFERRED_LOAD_DELAY_MS = 2000;
-
-/** Maps widget IDs to the data domains they require */
 const WIDGET_DOMAIN_MAP: Record<string, string[]> = {
   calendar: ['calendar'],
   weather: ['weather'],
@@ -20,42 +30,39 @@ const WIDGET_DOMAIN_MAP: Record<string, string[]> = {
   points: ['goals', 'points'],
 };
 
-export function useDashboardData(visibleWidgets?: Set<string>) {
-  // After a short delay, enable ALL domains (background loading for non-visible widgets)
-  const [deferredEnabled, setDeferredEnabled] = useState(false);
+export function getEnabledDashboardDomains(visibleWidgets?: Set<string>) {
+  const enabled = new Set<string>();
+  if (!visibleWidgets) return enabled;
 
-  useEffect(() => {
-    if (!visibleWidgets) return; // No visibility info → all enabled already
-    const timer = setTimeout(() => setDeferredEnabled(true), DEFERRED_LOAD_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, []); // Only on mount
-
-  // Compute which domains should be enabled right now
-  const enabledDomains = useMemo(() => {
-    // No visibility info or deferred timer elapsed → enable everything
-    if (!visibleWidgets || deferredEnabled) return null;
-    const enabled = new Set<string>();
-    for (const [widget, domains] of Object.entries(WIDGET_DOMAIN_MAP)) {
-      if (visibleWidgets.has(widget)) {
-        for (const d of domains) enabled.add(d);
-      }
+  for (const [widget, domains] of Object.entries(WIDGET_DOMAIN_MAP)) {
+    if (visibleWidgets.has(widget)) {
+      for (const domain of domains) enabled.add(domain);
     }
-    return enabled;
-  }, [visibleWidgets, deferredEnabled]);
+  }
 
-  const isEnabled = (domain: string) => enabledDomains === null || enabledDomains.has(domain);
+  return enabled;
+}
+
+export function useDashboardData(visibleWidgets?: Set<string>) {
+  const enabledDomains = useMemo(
+    () => getEnabledDashboardDomains(visibleWidgets),
+    [visibleWidgets]
+  );
+
+  const isEnabled = (domain: string) => enabledDomains.has(domain);
+  const tasksEnabled = isEnabled('tasks');
 
   const {
     events: calendarEvents,
     loading: calendarLoading,
     error: calendarError,
-  } = useCalendarEvents({ daysToShow: 30, enabled: isEnabled('calendar') });
+  } = useCalendarEvents({ daysToShow: 30, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.calendar, enabled: isEnabled('calendar') });
 
   const {
     data: weatherData,
     loading: weatherLoading,
     error: weatherError,
-  } = useWeather({ enabled: isEnabled('weather') });
+  } = useWeather({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.weather, enabled: isEnabled('weather') });
 
   const {
     messages,
@@ -63,7 +70,7 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     error: messagesError,
     refresh: refreshMessages,
     deleteMessage,
-  } = useMessages({ limit: 10, enabled: isEnabled('messages') });
+  } = useMessages({ limit: 10, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.messages, enabled: isEnabled('messages') });
 
   const {
     tasks,
@@ -71,7 +78,7 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     error: tasksError,
     refresh: refreshTasks,
     toggleTask,
-  } = useTasks({ showCompleted: true, limit: 20, enabled: isEnabled('tasks') });
+  } = useTasks({ showCompleted: true, limit: 20, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.tasks, enabled: isEnabled('tasks') });
 
   const {
     chores,
@@ -80,7 +87,7 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     refresh: refreshChores,
     completeChore,
     approveChore,
-  } = useChores({ showDisabled: false, enabled: isEnabled('chores') });
+  } = useChores({ showDisabled: false, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.chores, enabled: isEnabled('chores') });
 
   const {
     lists: shoppingLists,
@@ -88,7 +95,7 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     error: shoppingError,
     refresh: refreshShopping,
     toggleItem: toggleShoppingItem,
-  } = useShoppingLists({ enabled: isEnabled('shopping') });
+  } = useShoppingLists({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.shopping, enabled: isEnabled('shopping') });
 
   const {
     meals,
@@ -96,14 +103,14 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     error: mealsError,
     refresh: refreshMeals,
     markCooked,
-  } = useMeals({ enabled: isEnabled('meals') });
+  } = useMeals({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.meals, enabled: isEnabled('meals') });
 
   const {
     birthdays: birthdaysList,
     loading: birthdaysLoading,
     error: birthdaysError,
     syncFromGoogle: syncBirthdays,
-  } = useBirthdays({ limit: 8, enabled: isEnabled('birthdays') });
+  } = useBirthdays({ limit: 8, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.birthdays, enabled: isEnabled('birthdays') });
 
   const {
     goals: goalsList,
@@ -111,13 +118,13 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     goalChildren,
     loading: goalsLoading,
     error: goalsError,
-  } = useGoals({ enabled: isEnabled('goals') });
+  } = useGoals({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.goals, enabled: isEnabled('goals') });
 
   const {
     points: pointsList,
     loading: pointsLoading,
     error: pointsError,
-  } = usePoints({ enabled: isEnabled('points') });
+  } = usePoints({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.points, enabled: isEnabled('points') });
 
   // Layouts always load — needed for dashboard structure
   const {
@@ -132,6 +139,8 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
   const lastAutoSyncRef = useRef<number>(0);
 
   const autoSyncTasks = useCallback(async () => {
+    if (!tasksEnabled) return;
+
     // Skip sync in guest/display mode — no session cookie means no write access
     if (typeof document !== 'undefined' && !document.cookie.includes('prism_session')) return;
 
@@ -152,42 +161,69 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     } catch {
       // Silently fail auto-sync
     }
-  }, [refreshTasks]);
+  }, [tasksEnabled, refreshTasks]);
 
-  // Auto-sync on mount and periodically
   useEffect(() => {
     autoSyncTasks();
-
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        autoSyncTasks();
-      }
-    }, AUTO_SYNC_INTERVAL_MS);
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        autoSyncTasks();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
   }, [autoSyncTasks]);
 
-  return {
-    calendar: { events: calendarEvents, loading: calendarLoading, error: calendarError },
-    weather: { data: weatherData, loading: weatherLoading, error: weatherError },
-    messages: { messages, loading: messagesLoading, error: messagesError, refresh: refreshMessages, deleteMessage },
-    tasks: { tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks, toggleTask },
-    chores: { chores, loading: choresLoading, error: choresError, refresh: refreshChores, completeChore, approveChore },
-    shopping: { lists: shoppingLists, loading: shoppingLoading, error: shoppingError, refresh: refreshShopping, toggleItem: toggleShoppingItem },
-    meals: { meals, loading: mealsLoading, error: mealsError, refresh: refreshMeals, markCooked },
-    birthdays: { birthdays: birthdaysList, loading: birthdaysLoading, error: birthdaysError, syncFromGoogle: syncBirthdays },
-    points: { points: pointsList, goals: goalsList, progress: goalsProgress, goalChildren, loading: pointsLoading || goalsLoading, error: pointsError || goalsError },
-    layouts: { allLayouts, savedLayout, saveLayout, deleteLayout, loading: layoutsLoading },
-  };
+  useVisibilityPolling(
+    autoSyncTasks,
+    tasksEnabled ? AUTO_SYNC_INTERVAL_MS : 0,
+    DASHBOARD_POLL_OFFSETS.taskSync,
+  );
+
+  const calendar = useMemo(
+    () => ({ events: calendarEvents, loading: calendarLoading, error: calendarError }),
+    [calendarEvents, calendarLoading, calendarError],
+  );
+  const weather = useMemo(
+    () => ({ data: weatherData, loading: weatherLoading, error: weatherError }),
+    [weatherData, weatherLoading, weatherError],
+  );
+  const messageData = useMemo(
+    () => ({ messages, loading: messagesLoading, error: messagesError, refresh: refreshMessages, deleteMessage }),
+    [messages, messagesLoading, messagesError, refreshMessages, deleteMessage],
+  );
+  const taskData = useMemo(
+    () => ({ tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks, toggleTask }),
+    [tasks, tasksLoading, tasksError, refreshTasks, toggleTask],
+  );
+  const choreData = useMemo(
+    () => ({ chores, loading: choresLoading, error: choresError, refresh: refreshChores, completeChore, approveChore }),
+    [chores, choresLoading, choresError, refreshChores, completeChore, approveChore],
+  );
+  const shopping = useMemo(
+    () => ({ lists: shoppingLists, loading: shoppingLoading, error: shoppingError, refresh: refreshShopping, toggleItem: toggleShoppingItem }),
+    [shoppingLists, shoppingLoading, shoppingError, refreshShopping, toggleShoppingItem],
+  );
+  const mealData = useMemo(
+    () => ({ meals, loading: mealsLoading, error: mealsError, refresh: refreshMeals, markCooked }),
+    [meals, mealsLoading, mealsError, refreshMeals, markCooked],
+  );
+  const birthdays = useMemo(
+    () => ({ birthdays: birthdaysList, loading: birthdaysLoading, error: birthdaysError, syncFromGoogle: syncBirthdays }),
+    [birthdaysList, birthdaysLoading, birthdaysError, syncBirthdays],
+  );
+  const points = useMemo(
+    () => ({ points: pointsList, goals: goalsList, progress: goalsProgress, goalChildren, loading: pointsLoading || goalsLoading, error: pointsError || goalsError }),
+    [pointsList, goalsList, goalsProgress, goalChildren, pointsLoading, goalsLoading, pointsError, goalsError],
+  );
+  const layouts = useMemo(
+    () => ({ allLayouts, savedLayout, saveLayout, deleteLayout, loading: layoutsLoading }),
+    [allLayouts, savedLayout, saveLayout, deleteLayout, layoutsLoading],
+  );
+
+  return useMemo(() => ({
+    calendar,
+    weather,
+    messages: messageData,
+    tasks: taskData,
+    chores: choreData,
+    shopping,
+    meals: mealData,
+    birthdays,
+    points,
+    layouts,
+  }), [calendar, weather, messageData, taskData, choreData, shopping, mealData, birthdays, points, layouts]);
 }

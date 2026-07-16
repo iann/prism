@@ -39,7 +39,7 @@ function TileShell({ href, icon, title, children, accent }: {
       )}
     </div>
   );
-  if (href) return <Link href={href} className="block h-full">{inner}</Link>;
+  if (href) return <Link href={href} prefetch={false} className="block h-full">{inner}</Link>;
   return inner;
 }
 

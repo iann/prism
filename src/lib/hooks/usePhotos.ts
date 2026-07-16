@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
+import { preserveEqual } from '@/lib/utils/preserveEqual';
 
 export type PhotoOrientation = 'landscape' | 'portrait' | 'square';
 export type PhotoUsageTag = 'wallpaper' | 'gallery' | 'screensaver';
@@ -63,6 +64,7 @@ interface UsePhotosOptions {
   sort?: 'random' | 'chronological';
   limit?: number;
   refreshInterval?: number;
+  enabled?: boolean;
 }
 
 interface UsePhotosResult {
@@ -85,6 +87,7 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
     sort = 'chronological',
     limit = 50,
     refreshInterval = 0,
+    enabled = true,
   } = options;
 
   // Cache key for page-0 fetch — used to seed initial state on revisit
@@ -102,16 +105,16 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
 
   const cached = navCacheGet<{ photos: Photo[]; total: number }>(cacheKey);
   const [photos, setPhotos] = useState<Photo[]>(() => cached?.photos ?? []);
-  const [loading, setLoading] = useState(!cached);
+  const [loading, setLoading] = useState(enabled && !cached);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(() => cached?.total ?? 0);
   const offsetRef = useRef(0);
+  const hasDataRef = useRef(cached !== undefined);
 
   const fetchPhotos = useCallback(async (requestOffset = 0, append = false) => {
     try {
       setError(null);
-      // Only show spinner on true cache misses — skip for SWR background refresh
-      if (!append && !navCacheGet(cacheKey)) setLoading(true);
+      if (!append && !hasDataRef.current) setLoading(true);
       const params = new URLSearchParams();
       if (sourceId) params.set('sourceId', sourceId);
       if (favorite !== undefined) params.set('favorite', String(favorite));
@@ -129,7 +132,8 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
         setPhotos((prev) => [...prev, ...data.photos]);
       } else {
         navCacheSet(cacheKey, { photos: data.photos, total: data.total });
-        setPhotos(data.photos);
+        hasDataRef.current = true;
+        setPhotos(current => preserveEqual(current, data.photos));
       }
       setTotal(data.total);
     } catch (err) {
@@ -183,15 +187,19 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     offsetRef.current = 0;
     fetchPhotos(0, false);
-  }, [fetchPhotos]);
+  }, [enabled, fetchPhotos]);
 
   // Stable wrapper so useVisibilityPolling gets a memoized callback
   const pollPhotos = useCallback(() => { fetchPhotos(0, false); }, [fetchPhotos]);
 
   // Periodic refresh — pauses when tab is hidden
-  useVisibilityPolling(pollPhotos, refreshInterval);
+  useVisibilityPolling(pollPhotos, enabled ? refreshInterval : 0);
 
   return { photos, loading, error, total, refresh, loadMore, toggleFavorite, updateUsage };
 }

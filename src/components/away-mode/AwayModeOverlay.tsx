@@ -3,14 +3,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Cloud, CloudRain, CloudSnow, Sun, CloudSun, Droplets, Wind } from 'lucide-react';
-import { useAwayMode } from '@/lib/hooks/useAwayMode';
 import { usePhotos } from '@/lib/hooks/usePhotos';
+import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
 import { useAutoOrientationSetting, usePinnedPhoto, useScreensaverInterval } from '@/components/layout/WallpaperBackground';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import { ExitAwayModeModal } from './ExitAwayModeModal';
 
-export function AwayModeOverlay() {
-  const { isAway, toggle } = useAwayMode();
+interface AwayModeOverlayProps {
+  toggle: (enabled: boolean) => Promise<void>;
+}
+
+export function AwayModeOverlay({ toggle }: AwayModeOverlayProps) {
+  const { enabled: performanceMode } = usePerformanceMode();
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: photoInterval } = useScreensaverInterval();
@@ -23,7 +27,7 @@ export function AwayModeOverlay() {
 
   const { photos } = usePhotos({
     sort: 'random',
-    limit: 50,
+    limit: performanceMode ? 1 : 50,
     usage: 'screensaver',
     orientation: autoOrientation ? effectiveOrientation : undefined,
   });
@@ -35,7 +39,7 @@ export function AwayModeOverlay() {
 
   // Photo rotation
   useEffect(() => {
-    if (!isAway || photos.length <= 1 || pinnedId || photoInterval === 0) return;
+    if (photos.length <= 1 || pinnedId || photoInterval === 0) return;
     const timer = setInterval(() => {
       setFadingOut(true);
       setTimeout(() => {
@@ -44,18 +48,13 @@ export function AwayModeOverlay() {
       }, 1000);
     }, photoInterval * 1000);
     return () => clearInterval(timer);
-  }, [isAway, photos.length, pinnedId, photoInterval]);
+  }, [photos.length, pinnedId, photoInterval]);
 
   // Fade in effect
   useEffect(() => {
-    if (isAway) {
-      const timer = setTimeout(() => setVisible(true), 50);
-      return () => clearTimeout(timer);
-    } else {
-      setVisible(false);
-      setShowExitModal(false);
-    }
-  }, [isAway]);
+    const timer = setTimeout(() => setVisible(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleExitSuccess = useCallback(async () => {
     await toggle(false);
@@ -66,12 +65,10 @@ export function AwayModeOverlay() {
     setShowExitModal(true);
   }, []);
 
-  if (!isAway) return null;
-
   const src = pinnedId
-    ? `/api/photos/${pinnedId}/file`
+    ? `/api/photos/${pinnedId}/file${performanceMode ? '?thumb=1' : ''}`
     : photos[currentIndex]
-      ? `/api/photos/${photos[currentIndex]!.id}/file`
+      ? `/api/photos/${photos[currentIndex]!.id}/file${performanceMode ? '?thumb=1' : ''}`
       : '';
 
   return (

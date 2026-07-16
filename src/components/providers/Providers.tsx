@@ -12,7 +12,7 @@ import dynamic from 'next/dynamic';
 import { ThemeProvider } from './ThemeProvider';
 import { AuthProvider } from './AuthProvider';
 import { FamilyProvider } from './FamilyProvider';
-import { GlobalInputProvider } from '@/lib/hooks/useGlobalInput';
+import { GlobalInputProvider, useGlobalInput } from '@/lib/hooks/useGlobalInput';
 
 // simple-keyboard accesses browser globals at module load — must be client-only
 const VirtualKeyboard = dynamic(
@@ -28,6 +28,19 @@ interface ProvidersProps {
   children: React.ReactNode;
 }
 
+function OptionalInputUi() {
+  const { keyboardVisible, isInputFocused, isMobile, virtualKeyboardEnabled } = useGlobalInput();
+
+  if (!virtualKeyboardEnabled) return null;
+
+  return (
+    <>
+      {keyboardVisible && <VirtualKeyboard />}
+      {!keyboardVisible && isInputFocused && !isMobile && <KeyboardToggleButton />}
+    </>
+  );
+}
+
 /**
  * PROVIDERS COMPONENT
  * Wraps the application with all necessary providers.
@@ -40,8 +53,7 @@ export function Providers({ children }: ProvidersProps) {
         <AuthProvider>
           <GlobalInputProvider>
             {children}
-            <VirtualKeyboard />
-            <KeyboardToggleButton />
+            <OptionalInputUi />
           </GlobalInputProvider>
         </AuthProvider>
       </FamilyProvider>

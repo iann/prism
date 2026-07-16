@@ -20,31 +20,22 @@ export function AwayModeToggle({
   showLabel = false,
   className,
 }: AwayModeToggleProps) {
-  const { isAway, toggle, loading } = useAwayMode();
+  const { isAway, toggle, loading } = useAwayMode(0);
   const [showPinModal, setShowPinModal] = useState(false);
 
   const handleClick = () => {
-    if (isAway) {
-      // Already in away mode - clicking won't do anything here
-      // The overlay handles exit
-      return;
-    }
-    // Show PIN modal to enable away mode
     setShowPinModal(true);
   };
 
   const handleAuthenticated = async (user: { role: 'parent' | 'child' | 'guest' }) => {
-    // Check if user has permission
     if (!PERMISSIONS[user.role].canToggleAwayMode) {
       return;
     }
     await toggle(true);
-    // Dispatch event to immediately update all listeners (including overlay)
-    window.dispatchEvent(new Event('prism:away-mode-change'));
   };
 
   if (isAway || loading) {
-    return null; // Hide toggle when in away mode or loading
+    return null;
   }
 
   return (

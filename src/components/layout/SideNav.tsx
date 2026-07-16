@@ -133,7 +133,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
       >
         {/* HEADER WITH LOGO */}
         <div className={cn('flex items-center h-12 [@media(pointer:coarse)]:h-16 px-2', expanded ? 'justify-start' : 'justify-center')}>
-          <Link href="/" className="flex items-center gap-2" aria-label="Prism home">
+          <Link href="/" prefetch={false} className="flex items-center gap-2" aria-label="Prism home">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
               <PrismIcon size={24} />
             </div>
@@ -152,6 +152,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    prefetch={false}
                     aria-label={item.label}
                     className={cn(
                       'flex items-center gap-3 px-3 py-1.5 [@media(pointer:coarse)]:py-2.5 rounded-lg',
@@ -179,6 +180,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
         <div className={cn('px-2 pb-1', expanded ? 'text-left' : 'text-center')}>
           <Link
             href="/help"
+            prefetch={false}
             aria-label="Help"
             className={cn(
               'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors',
@@ -258,4 +260,3 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
     </>
   );
 }
-

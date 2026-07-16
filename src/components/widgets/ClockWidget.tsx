@@ -1,28 +1,3 @@
-/**
- *
- * Displays the current time and date on the dashboard.
- * This is one of the most essential widgets - always visible at a glance.
- *
- * FEATURES:
- * - Large, readable time display
- * - Current date with day of week
- * - Optional seconds display
- * - 12-hour or 24-hour format (configurable)
- * - Updates in real-time
- *
- * DESIGN CONSIDERATIONS:
- * - Large font for visibility from across the room
- * - High contrast for easy reading
- * - Minimal design to not distract
- * - Updates smoothly without flickering
- *
- * USAGE:
- *   <ClockWidget />
- *   <ClockWidget showSeconds />
- *   <ClockWidget format24Hour />
- *
- */
-
 'use client';
 
 import * as React from 'react';
@@ -33,49 +8,20 @@ import { cn } from '@/lib/utils';
 import { WidgetContainer } from './WidgetContainer';
 import { ClockGreeting } from './ClockGreeting';
 
-
-/**
- * CLOCK WIDGET PROPS
- */
 export interface ClockWidgetProps {
-  /** Show greeting message above the time */
   showGreeting?: boolean;
-  /** Show seconds in the time display */
   showSeconds?: boolean;
-  /** Use 24-hour format (e.g., 14:30 vs 2:30 PM) */
   format24Hour?: boolean;
-  /** Show the date below the time */
   showDate?: boolean;
-  /** Widget size variant */
   size?: 'small' | 'medium' | 'large';
-  /** Additional CSS classes */
   className?: string;
 }
 
+export function millisecondsUntilNextClockTick(showSeconds: boolean, now = Date.now()) {
+  const interval = showSeconds ? 1_000 : 60_000;
+  return interval - (now % interval);
+}
 
-/**
- * CLOCK WIDGET COMPONENT
- * Displays the current time and date.
- *
- * HOW IT WORKS:
- * 1. Uses useState to store the current time
- * 2. useEffect sets up an interval to update every second
- * 3. Formats time/date using date-fns library
- * 4. Cleans up interval on unmount to prevent memory leaks
- *
- * PERFORMANCE NOTE:
- * The interval updates every second. For a battery-powered device,
- * you might want to update less frequently (every minute) and hide seconds.
- *
- * @example Basic usage
- * <ClockWidget />
- *
- * @example With seconds, 24-hour format
- * <ClockWidget showSeconds format24Hour />
- *
- * @example Compact (no date)
- * <ClockWidget showDate={false} />
- */
 export const ClockWidget = React.memo(function ClockWidget({
   showGreeting = true,
   showSeconds = false,
@@ -84,38 +30,34 @@ export const ClockWidget = React.memo(function ClockWidget({
   size = 'medium',
   className,
 }: ClockWidgetProps) {
-  // State to hold the current time
-  // Initialize with current time to avoid hydration mismatch
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
-  // Update the time every second
   useEffect(() => {
-    // Update immediately on mount
-    setCurrentTime(new Date());
+    const update = () => setCurrentTime(new Date());
+    update();
 
-    // Set up interval for updates
-    const intervalId = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000); // Update every second
+    const intervalMs = showSeconds ? 1_000 : 60_000;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const timeoutId = setTimeout(() => {
+      update();
+      intervalId = setInterval(update, intervalMs);
+    }, millisecondsUntilNextClockTick(showSeconds));
 
-    // Cleanup: Clear interval when component unmounts
-    // This prevents memory leaks
-    return () => clearInterval(intervalId);
-  }, []);
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [showSeconds]);
 
-  // Format strings for date-fns
-  // See: https://date-fns.org/docs/format
   const timeFormat = format24Hour
     ? showSeconds ? 'HH:mm:ss' : 'HH:mm'
     : showSeconds ? 'h:mm:ss a' : 'h:mm a';
 
-  const dateFormat = 'EEEE, MMMM d'; // e.g., "Tuesday, January 21"
+  const dateFormat = 'EEEE, MMMM d';
 
-  // Formatted strings
   const timeString = format(currentTime, timeFormat);
   const dateString = format(currentTime, dateFormat);
 
-  // Size-based styling
   const timeStyles = {
     small: 'text-3xl',
     medium: 'text-5xl',
@@ -137,25 +79,19 @@ export const ClockWidget = React.memo(function ClockWidget({
       className={cn('flex items-center justify-center', className)}
     >
       <div className="flex flex-col items-center justify-center h-full text-center">
-        {/* GREETING DISPLAY */}
         {showGreeting && <ClockGreeting date={currentTime} size={size} />}
 
-        {/* TIME DISPLAY */}
         <time
           dateTime={currentTime.toISOString()}
           className={cn(
-            // Font styling
             'font-bold tracking-tight',
-            // Tabular numbers for consistent width
             'tabular-nums',
-            // Size-based class
             timeStyles[size]
           )}
         >
           {timeString}
         </time>
 
-        {/* DATE DISPLAY */}
         {showDate && (
           <time
             dateTime={currentTime.toISOString().split('T')[0]}
@@ -172,21 +108,6 @@ export const ClockWidget = React.memo(function ClockWidget({
   );
 });
 
-
-/**
- * USE CURRENT TIME HOOK
- * Custom hook for getting the current time with auto-update.
- * Can be used in other components that need real-time time.
- *
- * @param updateInterval - How often to update (ms), default 1000
- * @returns Current Date object
- *
- * @example
- * function MyComponent() {
- *   const time = useCurrentTime(60000); // Update every minute
- *   return <div>{format(time, 'h:mm a')}</div>;
- * }
- */
 export function useCurrentTime(updateInterval = 1000): Date {
   const [time, setTime] = useState<Date>(new Date());
 
@@ -202,21 +123,6 @@ export function useCurrentTime(updateInterval = 1000): Date {
 
   return time;
 }
-
-
-/**
- * FORMAT TIME
- * Utility function to format time consistently throughout the app.
- *
- * @param date - Date to format
- * @param options - Formatting options
- * @returns Formatted time string
- *
- * @example
- * formatTime(new Date()) // "2:30 PM"
- * formatTime(new Date(), { format24Hour: true }) // "14:30"
- * formatTime(new Date(), { showSeconds: true }) // "2:30:45 PM"
- */
 export function formatTime(
   date: Date,
   options: { format24Hour?: boolean; showSeconds?: boolean } = {}

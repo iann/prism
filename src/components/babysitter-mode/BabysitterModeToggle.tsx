@@ -20,31 +20,22 @@ export function BabysitterModeToggle({
   showLabel = false,
   className,
 }: BabysitterModeToggleProps) {
-  const { isActive, toggle, loading } = useBabysitterMode();
+  const { isActive, toggle, loading } = useBabysitterMode(0);
   const [showPinModal, setShowPinModal] = useState(false);
 
   const handleClick = () => {
-    if (isActive) {
-      // Already in babysitter mode - clicking won't do anything here
-      // The overlay handles exit
-      return;
-    }
-    // Show PIN modal to enable babysitter mode
     setShowPinModal(true);
   };
 
   const handleAuthenticated = async (user: { role: 'parent' | 'child' | 'guest' }) => {
-    // Check if user has permission (reuse away mode permission)
     if (!PERMISSIONS[user.role].canToggleAwayMode) {
       return;
     }
     await toggle(true);
-    // Dispatch event to immediately update all listeners (including overlay)
-    window.dispatchEvent(new Event('prism:babysitter-mode-change'));
   };
 
   if (isActive || loading) {
-    return null; // Hide toggle when in babysitter mode or loading
+    return null;
   }
 
   return (

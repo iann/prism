@@ -52,6 +52,7 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={cn(
                 'flex flex-col items-center gap-1 py-2 px-4 min-w-[72px] shrink-0 transition-colors',
                 active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'

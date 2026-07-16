@@ -12,13 +12,14 @@ export interface PointSummary {
   allTime: number;
 }
 
-export function usePoints(options: { refreshInterval?: number; enabled?: boolean } = {}) {
-  const { refreshInterval = 2 * 60 * 1000, enabled } = options;
+export function usePoints(options: { refreshInterval?: number; refreshOffsetMs?: number; enabled?: boolean } = {}) {
+  const { refreshInterval = 2 * 60 * 1000, refreshOffsetMs, enabled } = options;
   const { data: points, loading, error, refresh } = useFetch<PointSummary[]>({
     url: '/api/points',
     initialData: [],
     transform: (json) => (json as { points: PointSummary[] }).points,
     refreshInterval,
+    refreshOffsetMs,
     label: 'points',
     enabled,
   });

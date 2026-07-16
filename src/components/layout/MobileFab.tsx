@@ -277,7 +277,7 @@ export function MobileFab({ user, onLogin, onLogout, uiHidden }: MobileFabProps)
 
             if ('href' in action && action.href) {
               return (
-                <Link key={action.key} href={action.href} onClick={action.onClick}>
+                <Link key={action.key} href={action.href} prefetch={false} onClick={action.onClick}>
                   {content}
                 </Link>
               );

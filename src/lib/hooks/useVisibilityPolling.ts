@@ -16,29 +16,55 @@ import { usePollingInterval } from './usePollingInterval';
  */
 export function useVisibilityPolling(
   callback: () => void,
-  intervalMs: number
+  intervalMs: number,
+  offsetMs = 0,
 ): void {
   const effectiveInterval = usePollingInterval(intervalMs);
 
   useEffect(() => {
     if (effectiveInterval <= 0) return;
 
-    let interval = setInterval(callback, effectiveInterval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const clearTimers = () => {
+      if (timeout) clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+      timeout = null;
+      interval = null;
+    };
+
+    const startInterval = () => {
+      callback();
+      interval = setInterval(callback, effectiveInterval);
+    };
+
+    const resume = () => {
+      clearTimers();
+      if (offsetMs > 0) {
+        timeout = setTimeout(startInterval, offsetMs);
+      } else {
+        startInterval();
+      }
+    };
+
+    if (!document.hidden) {
+      timeout = setTimeout(startInterval, effectiveInterval + offsetMs);
+    }
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        clearInterval(interval);
+        clearTimers();
       } else {
-        callback();
-        interval = setInterval(callback, effectiveInterval);
+        resume();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(interval);
+      clearTimers();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [effectiveInterval, callback]);
+  }, [effectiveInterval, callback, offsetMs]);
 }

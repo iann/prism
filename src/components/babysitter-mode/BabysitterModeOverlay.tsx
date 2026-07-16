@@ -6,7 +6,6 @@ import {
   Cloud, CloudRain, CloudSnow, Sun, CloudSun, Droplets, Wind, Wifi,
   Phone, Home, User, ScrollText, AlertTriangle, Lock,
 } from 'lucide-react';
-import { useBabysitterMode } from '@/lib/hooks/useBabysitterMode';
 import { useBabysitterInfo, type BabysitterSection, type BabysitterInfoItem } from '@/lib/hooks/useBabysitterInfo';
 import { useWifiConfig } from '@/lib/hooks/useWifiConfig';
 import { ExitBabysitterModeModal } from './ExitBabysitterModeModal';
@@ -39,24 +38,21 @@ interface HouseRule {
   importance?: string;
 }
 
-export function BabysitterModeOverlay() {
-  const { isActive, toggle } = useBabysitterMode();
-  // Only fetch sensitive data when the overlay is actually active — avoids 401s for unauthenticated users
-  const { items } = useBabysitterInfo({ includeSensitive: isActive });
-  const { config: wifiConfig, qrString, hasConfig: hasWifiConfig } = useWifiConfig({ enabled: isActive });
+interface BabysitterModeOverlayProps {
+  toggle: (enabled: boolean) => Promise<void>;
+}
+
+export function BabysitterModeOverlay({ toggle }: BabysitterModeOverlayProps) {
+  const { items } = useBabysitterInfo({ includeSensitive: true });
+  const { config: wifiConfig, qrString, hasConfig: hasWifiConfig } = useWifiConfig({ enabled: true });
   const [visible, setVisible] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
 
   // Fade in effect
   useEffect(() => {
-    if (isActive) {
-      const timer = setTimeout(() => setVisible(true), 50);
-      return () => clearTimeout(timer);
-    } else {
-      setVisible(false);
-      setShowExitModal(false);
-    }
-  }, [isActive]);
+    const timer = setTimeout(() => setVisible(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleExitSuccess = useCallback(async () => {
     await toggle(false);
@@ -66,8 +62,6 @@ export function BabysitterModeOverlay() {
   const handleOverlayClick = useCallback(() => {
     setShowExitModal(true);
   }, []);
-
-  if (!isActive) return null;
 
   const getItemsBySection = (section: BabysitterSection) =>
     items.filter((item) => item.section === section);
