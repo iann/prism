@@ -44,6 +44,8 @@ import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import { WidgetContainer } from './WidgetContainer';
 import { DayHeader } from './WeatherForecastBar';
 
+const SUN_PATH_SAMPLES = 48;
+
 /**
  * WEATHER DATA TYPES
  */
@@ -831,14 +833,11 @@ function SunriseSunsetArc({
   const useLat = lat ?? 41.8781;
   const useLon = lon ?? -87.6298;
 
-  // 96 samples = every 15 min. Memoize on (date, lat, lon) so we don't
-  // recompute 192 suncalc calls on every render (e.g., width resize).
-  const STEPS = 96;
   const samples = React.useMemo(() => {
     const sun: { frac: number; alt: number; y: number }[] = [];
     const moon: { frac: number; alt: number; y: number }[] = [];
-    for (let i = 0; i <= STEPS; i++) {
-      const frac = i / STEPS;
+    for (let i = 0; i <= SUN_PATH_SAMPLES; i++) {
+      const frac = i / SUN_PATH_SAMPLES;
       const t = new Date(midnightMs + frac * dayMs);
       const sAlt = SunCalc.getPosition(t, useLat, useLon).altitude;
       const mAlt = SunCalc.getMoonPosition(t, useLat, useLon).altitude;

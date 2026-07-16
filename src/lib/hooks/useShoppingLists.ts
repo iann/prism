@@ -6,9 +6,11 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
+import { replaceDistinct } from '@/lib/utils/preserveEqual';
+import { useDistinctState } from './useDistinctState';
 
 // Re-export types from shared types for consumers that import from this hook
 export type { ShoppingItem, ShoppingList } from '@/types';
@@ -17,6 +19,7 @@ import type { ShoppingItem, ShoppingList } from '@/types';
 interface UseShoppingListsOptions {
   /** Auto-refresh interval in milliseconds (0 = disabled) */
   refreshInterval?: number;
+  refreshOffsetMs?: number;
   /** When false, skip initial fetch and polling. Fetch triggers when enabled transitions to true. */
   enabled?: boolean;
 }
@@ -44,20 +47,24 @@ interface UseShoppingListsResult {
 export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShoppingListsResult {
   const {
     refreshInterval = 5 * 60 * 1000,
+    refreshOffsetMs = 0,
     enabled = true,
   } = options;
 
   const CACHE_KEY = '/api/shopping-lists?includeItems=true';
   const cached = navCacheGet<ShoppingList[]>(CACHE_KEY);
   const [lists, setLists] = useState<ShoppingList[]>(() => cached ?? []);
-  const [loading, setLoading] = useState(!cached);
-  const [error, setError] = useState<string | null>(null);
+  const listsRef = useRef(lists);
+  listsRef.current = lists;
+  const [loading, setLoading] = useDistinctState(enabled && !cached);
+  const [error, setError] = useDistinctState<string | null>(null);
+  const hasDataRef = useRef(cached !== undefined);
 
   /**
    * Fetch shopping lists from the API
    */
   const fetchLists = useCallback(async () => {
-    if (!navCacheGet(CACHE_KEY)) setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     try {
       setError(null);
 
@@ -127,7 +134,8 @@ export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShop
       }));
 
       navCacheSet(CACHE_KEY, listsWithItems);
-      setLists(listsWithItems);
+      hasDataRef.current = true;
+      replaceDistinct(listsRef, setLists, listsWithItems);
     } catch (err) {
       console.error('Error fetching shopping lists:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch shopping lists');
@@ -267,7 +275,7 @@ export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShop
   }, [fetchLists, enabled]);
 
   // Set up refresh interval with visibility-based pause (disabled when not enabled)
-  useVisibilityPolling(fetchLists, enabled ? refreshInterval : 0);
+  useVisibilityPolling(fetchLists, enabled ? refreshInterval : 0, refreshOffsetMs);
 
   return {
     lists,

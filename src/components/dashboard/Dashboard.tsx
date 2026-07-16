@@ -2,8 +2,6 @@
 
 import * as React from 'react';
 import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef } from 'react';
-
-const VISIBLE_WIDGETS_KEY = 'prism-visible-widgets';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { DashboardLayout, DashboardHeader } from '@/components/layout/DashboardGrid';
@@ -43,6 +41,30 @@ import { buildWidgetProps } from './useWidgetProps';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
 
+const VISIBLE_WIDGETS_KEY = 'prism-visible-widgets';
+
+function readCachedVisibleWidgets() {
+  if (typeof window === 'undefined') return new Set<string>();
+
+  try {
+    const stored = localStorage.getItem(VISIBLE_WIDGETS_KEY);
+    const parsed: unknown = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) && parsed.every(id => typeof id === 'string')
+      ? new Set(parsed)
+      : new Set<string>();
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function visibleWidgetIds(widgets: Array<{ i: string; visible?: boolean }>) {
+  return widgets.filter(widget => widget.visible !== false).map(widget => widget.i);
+}
+
+function setsMatch(left: Set<string>, right: Set<string>) {
+  return left.size === right.size && [...right].every(id => left.has(id));
+}
+
 class WidgetBoundary extends React.Component<
   { name: string; children: React.ReactNode },
   { error: Error | null }
@@ -80,23 +102,9 @@ export function Dashboard({
   const { activeUser, requireAuth, clearActiveUser } = useAuth();
   const { confirm: confirmAction, dialogProps: confirmDialogProps } = useConfirmDialog();
 
-  // Read cached visible widget IDs from localStorage for prioritized loading
-  const [initialVisibleWidgets] = useState<Set<string> | undefined>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(VISIBLE_WIDGETS_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return new Set(parsed);
-          }
-        }
-      } catch { /* ignore */ }
-    }
-    return undefined; // No cache → enable all hooks immediately
-  });
+  const [visibleWidgets, setVisibleWidgets] = useState(readCachedVisibleWidgets);
 
-  const data = useDashboardData(initialVisibleWidgets);
+  const data = useDashboardData(visibleWidgets);
 
   const [showAddMessage, setShowAddMessage] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -109,8 +117,8 @@ export function Dashboard({
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
 
   const { members: familyMembers } = useFamily();
-  const { lists: taskLists } = useTaskLists();
-  const { recipes } = useRecipes();
+  const { lists: taskLists } = useTaskLists({ enabled: editingTask !== null });
+  const { recipes } = useRecipes({ enabled: editingMeal !== null });
 
   const { saveEditedChore } = useChoreModals({
     refreshChores: data.chores.refresh,
@@ -121,12 +129,11 @@ export function Dashboard({
 
   const layout = useDashboardLayout(data.layouts, slug);
 
-  // Persist visible widget IDs to localStorage for next load's prioritized fetching
   useEffect(() => {
-    const ids = layout.activeWidgets
-      .filter(w => w.visible !== false)
-      .map(w => w.i);
+    const ids = visibleWidgetIds(layout.activeWidgets);
     if (ids.length > 0) {
+      const next = new Set(ids);
+      setVisibleWidgets(current => setsMatch(current, next) ? current : next);
       localStorage.setItem(VISIBLE_WIDGETS_KEY, JSON.stringify(ids));
     }
   }, [layout.activeWidgets]);
@@ -260,6 +267,33 @@ export function Dashboard({
     onEditChore: setEditingChore,
     onEditMeal: setEditingMeal,
   });
+  const widgetPropsRef = useRef(widgetProps);
+  widgetPropsRef.current = widgetProps;
+  const weatherRevision = useMemo(
+    () => ({ data: data.weather, location: weatherLocation }),
+    [data.weather, weatherLocation],
+  );
+  const widgetRevisions = useMemo(() => ({
+    weather: weatherRevision,
+    calendar: data.calendar,
+    tasks: data.tasks,
+    messages: data.messages,
+    chores: data.chores,
+    shopping: data.shopping,
+    meals: data.meals,
+    birthdays: data.birthdays,
+    points: data.points,
+  }), [
+    weatherRevision,
+    data.calendar,
+    data.tasks,
+    data.messages,
+    data.chores,
+    data.shopping,
+    data.meals,
+    data.birthdays,
+    data.points,
+  ]);
 
   const handleLogin = async () => {
     await requireAuth('Login', 'Select your profile');
@@ -283,7 +317,7 @@ export function Dashboard({
       return <div style={{ background: '#330', color: '#ff0', padding: 8 }}>Unknown widget: {widgetId}</div>;
     }
     const Component = reg.component;
-    const props = { ...widgetProps[widgetId] || {}, gridW, gridH };
+    const props = { ...widgetPropsRef.current[widgetId] || {}, gridW, gridH };
     return (
       <WidgetBoundary name={widgetId}>
         <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading...</div>}>
@@ -291,8 +325,7 @@ export function Dashboard({
         </Suspense>
       </WidgetBoundary>
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, []);
 
   // Used by the magnify overlay — pass big enough gridW/gridH that any
   // widget with a compact-mode threshold re-renders in expanded form.
@@ -318,7 +351,7 @@ export function Dashboard({
       return renderScreensaverPreview(w);
     }
     const Component = reg.component;
-    const props = { ...widgetProps[w.i] || {}, gridW: w.w, gridH: w.h };
+    const props = { ...widgetPropsRef.current[w.i] || {}, gridW: w.w, gridH: w.h };
     return (
       <WidgetBoundary name={w.i}>
         <Suspense fallback={<div className="flex items-center justify-center h-full text-white/50 text-sm">Loading...</div>}>
@@ -328,8 +361,7 @@ export function Dashboard({
         </Suspense>
       </WidgetBoundary>
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, []);
 
   if (isMobile) {
     return (
@@ -424,6 +456,7 @@ export function Dashboard({
                 onLayoutChange={layout.isEditing ? layout.setEditingWidgets : () => {}}
                 isEditable={layout.isEditing}
                 renderWidget={renderDashboardWidget}
+                widgetRevisions={widgetRevisions}
                 widgetConstraints={dashboardConstraints}
                 margin={8}
                 headerOffset={layout.isEditing ? 140 : uiHidden ? 0 : 50}

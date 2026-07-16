@@ -1,11 +1,50 @@
 'use client';
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { WidgetBgOverrideProvider } from '@/components/widgets/WidgetContainer';
 import { getWidgetStyle, getWidgetContentStyle, getTextColorClass } from './gridWidgetStyles';
 import { useSquareCells } from './useSquareCells';
 import { GRID_COLS } from '@/lib/constants/grid';
 import type { CssGridDisplayProps } from './gridEditorTypes';
+import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+
+interface WidgetCellProps {
+  widget: WidgetConfig;
+  renderWidget: CssGridDisplayProps['renderWidget'];
+  revision: unknown;
+}
+
+const WidgetCell = memo(function WidgetCell({ widget, renderWidget }: WidgetCellProps) {
+  const widgetStyle = getWidgetStyle(widget);
+  const contentStyle = getWidgetContentStyle(widget);
+  const textClass = getTextColorClass(widget);
+  const background = {
+    hasCustomBg: !!widget.backgroundColor,
+    textColor: widget.textColor,
+    textOpacity: widget.textOpacity,
+    gridLineOpacity: widget.gridLineOpacity,
+    cellBackgroundColor: widget.cellBackgroundColor,
+    cellBackgroundOpacity: widget.cellBackgroundOpacity,
+  };
+
+  return (
+    <div
+      className={`widget-cell relative overflow-hidden ${textClass}`}
+      data-widget={widget.i}
+      style={{
+        gridColumn: `${widget.x + 1} / span ${widget.w}`,
+        gridRow: `${widget.y + 1} / span ${widget.h}`,
+        ...widgetStyle,
+      }}
+    >
+      <WidgetBgOverrideProvider value={background}>
+        <div className="h-full w-full overflow-hidden" style={contentStyle}>
+          {renderWidget(widget)}
+        </div>
+      </WidgetBgOverrideProvider>
+    </div>
+  );
+});
 
 /**
  * Pure CSS Grid display for dashboard widgets. SSR-safe.
@@ -14,6 +53,7 @@ import type { CssGridDisplayProps } from './gridEditorTypes';
 export function CssGridDisplay({
   layout,
   renderWidget,
+  widgetRevisions,
   margin = 8,
   containerPadding = 12,
   cols = GRID_COLS,
@@ -58,31 +98,14 @@ export function CssGridDisplay({
           height: '100%',
         }}
       >
-        {visibleWidgets.map(w => {
-          const widgetStyle = getWidgetStyle(w);
-          const contentStyle = getWidgetContentStyle(w);
-          const textClass = getTextColorClass(w);
-          const hasCustomBg = !!w.backgroundColor;
-
-          return (
-            <div
-              key={w.i}
-              className={`widget-cell relative overflow-hidden ${textClass}`}
-              data-widget={w.i}
-              style={{
-                gridColumn: `${w.x + 1} / span ${w.w}`,
-                gridRow: `${w.y + 1} / span ${w.h}`,
-                ...widgetStyle,
-              }}
-            >
-              <WidgetBgOverrideProvider value={{ hasCustomBg, textColor: w.textColor, textOpacity: w.textOpacity, gridLineOpacity: w.gridLineOpacity, cellBackgroundColor: w.cellBackgroundColor, cellBackgroundOpacity: w.cellBackgroundOpacity }}>
-                <div className="h-full w-full overflow-hidden" style={contentStyle}>
-                  {renderWidget(w)}
-                </div>
-              </WidgetBgOverrideProvider>
-            </div>
-          );
-        })}
+        {visibleWidgets.map(widget => (
+          <WidgetCell
+            key={widget.i}
+            widget={widget}
+            renderWidget={renderWidget}
+            revision={widgetRevisions?.[widget.i]}
+          />
+        ))}
       </div>
     </div>
   );

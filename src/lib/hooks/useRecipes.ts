@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
+import { preserveEqual } from '@/lib/utils/preserveEqual';
 
 /**
  * A line in a recipe's ingredient list. Either:
@@ -60,6 +61,7 @@ interface UseRecipesOptions {
   favorite?: boolean;
   limit?: number;
   offset?: number;
+  enabled?: boolean;
 }
 
 interface CreateRecipeInput {
@@ -86,6 +88,7 @@ interface UpdateRecipeInput extends Partial<CreateRecipeInput> {
 }
 
 export function useRecipes(options: UseRecipesOptions = {}) {
+  const enabled = options.enabled ?? true;
   const cacheKey = useMemo(() => {
     const params = new URLSearchParams();
     if (options.search) params.set('search', options.search);
@@ -100,11 +103,12 @@ export function useRecipes(options: UseRecipesOptions = {}) {
   const cached = navCacheGet<{ recipes: Recipe[]; total: number }>(cacheKey);
   const [recipes, setRecipes] = useState<Recipe[]>(() => cached?.recipes ?? []);
   const [total, setTotal] = useState(() => cached?.total ?? 0);
-  const [loading, setLoading] = useState(!cached);
+  const [loading, setLoading] = useState(enabled && !cached);
   const [error, setError] = useState<string | null>(null);
+  const hasDataRef = useRef(cached !== undefined);
 
   const fetchRecipes = useCallback(async () => {
-    if (!navCacheGet(cacheKey)) setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     try {
       setError(null);
 
@@ -116,7 +120,8 @@ export function useRecipes(options: UseRecipesOptions = {}) {
 
       const data: RecipesResponse = await res.json();
       navCacheSet(cacheKey, { recipes: data.recipes, total: data.total });
-      setRecipes(data.recipes);
+      hasDataRef.current = true;
+      setRecipes(current => preserveEqual(current, data.recipes));
       setTotal(data.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -126,8 +131,12 @@ export function useRecipes(options: UseRecipesOptions = {}) {
   }, [cacheKey]);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     fetchRecipes();
-  }, [fetchRecipes]);
+  }, [enabled, fetchRecipes]);
 
   const createRecipe = useCallback(async (input: CreateRecipeInput): Promise<Recipe> => {
     const res = await fetch('/api/recipes', {

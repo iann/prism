@@ -49,6 +49,29 @@ describe('useVisibilityPolling', () => {
     expect(callback).toHaveBeenCalledTimes(2);
   });
 
+  it('applies an offset to the first interval tick', () => {
+    const callback = jest.fn();
+    renderHook(() => useVisibilityPolling(callback, 5000, 2000));
+
+    jest.advanceTimersByTime(6999);
+    expect(callback).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(1);
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies the offset when polling resumes', () => {
+    const callback = jest.fn();
+    renderHook(() => useVisibilityPolling(callback, 5000, 2000));
+
+    setDocumentHidden(true);
+    setDocumentHidden(false);
+    expect(callback).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(2000);
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
   it('does not set up interval when intervalMs is 0', () => {
     const callback = jest.fn();
     renderHook(() => useVisibilityPolling(callback, 0));
@@ -62,6 +85,19 @@ describe('useVisibilityPolling', () => {
     renderHook(() => useVisibilityPolling(callback, -100));
 
     jest.advanceTimersByTime(30000);
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('does not start polling while initially hidden', () => {
+    Object.defineProperty(document, 'hidden', {
+      value: true,
+      writable: true,
+      configurable: true,
+    });
+    const callback = jest.fn();
+    renderHook(() => useVisibilityPolling(callback, 1000));
+
+    jest.advanceTimersByTime(5000);
     expect(callback).not.toHaveBeenCalled();
   });
 

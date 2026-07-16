@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePhotos } from '@/lib/hooks/usePhotos';
+import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 
 const STORAGE_KEY = 'prism-wallpaper-enabled';
@@ -11,6 +12,7 @@ const ORIENTATION_OVERRIDE_KEY = 'prism-orientation-override';
 const PINNED_WALLPAPER_KEY = 'prism-pinned-wallpaper';
 const PINNED_SCREENSAVER_KEY = 'prism-pinned-screensaver';
 const SCREENSAVER_INTERVAL_KEY = 'prism-screensaver-interval';
+const WALLPAPER_POOL_SIZE = 10;
 
 function useOrientationOverride(): 'auto' | 'landscape' | 'portrait' {
   const [override, setOverride] = useState<'auto' | 'landscape' | 'portrait'>(() => {
@@ -133,6 +135,7 @@ export function usePinnedPhoto(context: 'wallpaper' | 'screensaver') {
 
 export function WallpaperBackground() {
   const { enabled, interval } = useWallpaperSettings();
+  const { enabled: performanceMode, ready: performanceModeReady } = usePerformanceMode();
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('wallpaper');
   const screenOrientation = useScreenOrientation();
@@ -140,9 +143,10 @@ export function WallpaperBackground() {
   const effectiveOrientation = orientationOverride === 'auto' ? screenOrientation : orientationOverride;
   const { photos } = usePhotos({
     sort: 'random',
-    limit: 30,
+    limit: performanceMode ? 1 : WALLPAPER_POOL_SIZE,
     usage: 'wallpaper',
     orientation: autoOrientation ? effectiveOrientation : undefined,
+    enabled: enabled && performanceModeReady,
   });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fadingOut, setFadingOut] = useState(false);
@@ -165,9 +169,9 @@ export function WallpaperBackground() {
 
   // Use pinned photo if set, otherwise use rotating photos
   const src = pinnedId
-    ? `/api/photos/${pinnedId}/file`
+    ? `/api/photos/${pinnedId}/file${performanceMode ? '?thumb=1' : ''}`
     : photos[currentIndex]
-      ? `/api/photos/${photos[currentIndex]!.id}/file`
+      ? `/api/photos/${photos[currentIndex]!.id}/file${performanceMode ? '?thumb=1' : ''}`
       : null;
 
   if (!src) return null;

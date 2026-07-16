@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
-import { useIdleDetection } from '@/lib/hooks/useIdleDetection';
 import { usePhotos } from '@/lib/hooks/usePhotos';
+import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
 import { useAutoOrientationSetting, usePinnedPhoto, useScreensaverInterval } from '@/components/layout/WallpaperBackground';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
@@ -25,7 +25,7 @@ export {
 } from './screensaverStorage';
 
 export function Screensaver() {
-  const { isIdle } = useIdleDetection();
+  const { enabled: performanceMode } = usePerformanceMode();
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: screensaverInterval } = useScreensaverInterval();
@@ -36,7 +36,7 @@ export function Screensaver() {
   const effectiveOrientation = orientationOverride || screenOrientation;
   const { photos } = usePhotos({
     sort: 'random',
-    limit: 50,
+    limit: performanceMode ? 1 : 50,
     usage: 'screensaver',
     orientation: autoOrientation ? effectiveOrientation : undefined,
   });
@@ -46,7 +46,7 @@ export function Screensaver() {
 
   // Only rotate if no pinned photo and interval is not "never" (0)
   useEffect(() => {
-    if (!isIdle || photos.length <= 1 || pinnedId || screensaverInterval === 0) return;
+    if (photos.length <= 1 || pinnedId || screensaverInterval === 0) return;
     const timer = setInterval(() => {
       setFadingOut(true);
       setTimeout(() => {
@@ -55,24 +55,18 @@ export function Screensaver() {
       }, 1000);
     }, screensaverInterval * 1000);
     return () => clearInterval(timer);
-  }, [isIdle, photos.length, pinnedId, screensaverInterval]);
+  }, [photos.length, pinnedId, screensaverInterval]);
 
   useEffect(() => {
-    if (isIdle) {
-      const timer = setTimeout(() => setVisible(true), 50);
-      return () => clearTimeout(timer);
-    } else {
-      setVisible(false);
-    }
-  }, [isIdle]);
-
-  if (!isIdle) return null;
+    const timer = setTimeout(() => setVisible(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Use pinned photo if set, otherwise use rotating photos
   const src = pinnedId
-    ? `/api/photos/${pinnedId}/file`
+    ? `/api/photos/${pinnedId}/file${performanceMode ? '?thumb=1' : ''}`
     : photos[currentIndex]
-      ? `/api/photos/${photos[currentIndex]!.id}/file`
+      ? `/api/photos/${photos[currentIndex]!.id}/file${performanceMode ? '?thumb=1' : ''}`
       : '';
 
   return (
@@ -98,7 +92,11 @@ export function Screensaver() {
 
 function ScreensaverGrid() {
   const layout = useMemo(() => loadScreensaverLayout(), []);
-  const data = useDashboardData();
+  const visibleWidgets = useMemo(
+    () => new Set(layout.filter(widget => widget.visible !== false).map(widget => widget.i)),
+    [layout],
+  );
+  const data = useDashboardData(visibleWidgets);
   const widgetProps = useMemo(() =>
     buildWidgetProps(
       data,

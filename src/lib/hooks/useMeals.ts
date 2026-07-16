@@ -10,6 +10,7 @@ import type { Meal } from '@/types';
 interface UseMealsOptions {
   weekOf?: string;
   refreshInterval?: number;
+  refreshOffsetMs?: number;
   enabled?: boolean;
 }
 
@@ -57,7 +58,7 @@ function transformMeals(json: unknown): Meal[] {
 }
 
 export function useMeals(options: UseMealsOptions = {}) {
-  const { weekOf, refreshInterval = 5 * 60 * 1000, enabled } = options;
+  const { weekOf, refreshInterval = 5 * 60 * 1000, refreshOffsetMs, enabled } = options;
 
   const params = new URLSearchParams();
   if (weekOf) params.set('weekOf', weekOf);
@@ -67,6 +68,7 @@ export function useMeals(options: UseMealsOptions = {}) {
     initialData: [],
     transform: transformMeals,
     refreshInterval,
+    refreshOffsetMs,
     label: 'meals',
     enabled,
   });

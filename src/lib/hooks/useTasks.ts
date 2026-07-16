@@ -9,6 +9,7 @@ interface UseTasksOptions {
   showCompleted?: boolean;
   limit?: number;
   refreshInterval?: number;
+  refreshOffsetMs?: number;
   enabled?: boolean;
 }
 
@@ -59,6 +60,7 @@ export function useTasks(options: UseTasksOptions = {}) {
     showCompleted = false,
     limit = 50,
     refreshInterval = 5 * 60 * 1000,
+    refreshOffsetMs,
     enabled,
   } = options;
 
@@ -72,6 +74,7 @@ export function useTasks(options: UseTasksOptions = {}) {
     initialData: [],
     transform: transformTasks,
     refreshInterval,
+    refreshOffsetMs,
     label: 'tasks',
     enabled,
   });

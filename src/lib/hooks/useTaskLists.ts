@@ -25,9 +25,10 @@ interface UpdateTaskListInput {
   sortOrder?: number;
 }
 
-export function useTaskLists() {
+export function useTaskLists(options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
   const [lists, setLists] = useState<TaskList[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   const fetchLists = useCallback(async () => {
@@ -51,8 +52,12 @@ export function useTaskLists() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     fetchLists();
-  }, [fetchLists]);
+  }, [enabled, fetchLists]);
 
   const createList = useCallback(async (input: CreateTaskListInput): Promise<TaskList> => {
     const res = await fetch('/api/task-lists', {

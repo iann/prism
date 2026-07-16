@@ -32,6 +32,7 @@ function broadcast(on: boolean): void {
  * Persists a "performance mode" preference to localStorage and reflects it
  * as a CSS class on <html>. When enabled:
  *  - backdrop-filter is removed (biggest GPU win on thin clients / integrated graphics)
+ *  - transitions, animations, and decorative shadows are suppressed
  *  - PhotoWidget renders count + last thumbnail only
  *  - Polling cadence stretches (see usePollingInterval)
  *  - TravelGlobe falls back to a flat 2D projection
@@ -52,6 +53,7 @@ function broadcast(on: boolean): void {
  */
 export function usePerformanceMode() {
   const [enabled, setEnabledState] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -77,6 +79,7 @@ export function usePerformanceMode() {
 
     setEnabledState(on);
     applyClass(on);
+    setReady(true);
 
     const handleChange = (e: Event) => {
       const detail = (e as CustomEvent<PerformanceModeChangeDetail>).detail;
@@ -95,5 +98,5 @@ export function usePerformanceMode() {
     broadcast(on);
   }, []);
 
-  return { enabled, setEnabled };
+  return { enabled, ready, setEnabled };
 }

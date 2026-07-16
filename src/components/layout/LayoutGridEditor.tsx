@@ -29,6 +29,7 @@ export function LayoutGridEditor({
   onLayoutChange,
   isEditable = false,
   renderWidget,
+  widgetRevisions,
   widgetConstraints,
   margin: marginProp = 8,
   headerOffset = 140,
@@ -686,6 +687,7 @@ export function LayoutGridEditor({
     <CssGridDisplay
       layout={layout}
       renderWidget={renderWidget}
+      widgetRevisions={widgetRevisions}
       margin={margin}
       containerPadding={containerPadding}
       cols={cols}

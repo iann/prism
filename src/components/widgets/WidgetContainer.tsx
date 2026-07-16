@@ -326,7 +326,7 @@ export function WidgetContainer({
             )}
             {/* Title - clickable link if titleHref provided */}
             {titleHref ? (
-              <Link href={titleHref} className="hover:underline">
+              <Link href={titleHref} prefetch={false} className="hover:underline">
                 <CardTitle className="text-base font-medium">
                   {title}
                 </CardTitle>

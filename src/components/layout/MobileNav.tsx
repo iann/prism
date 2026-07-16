@@ -111,6 +111,7 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
                   onClick={() => setShowMore(false)}
                   className={cn(
                     'flex flex-col items-center gap-1 py-3 px-2 rounded-lg transition-colors',
@@ -127,6 +128,7 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
             {/* Help */}
             <Link
               href="/help"
+              prefetch={false}
               onClick={() => setShowMore(false)}
               className="flex flex-col items-center gap-1 py-3 px-2 rounded-lg transition-colors text-muted-foreground hover:bg-accent"
             >
@@ -207,6 +209,7 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className={cn(
                   'flex flex-col items-center gap-0.5 py-2 px-3 min-w-[64px] transition-colors',
                   isActive
