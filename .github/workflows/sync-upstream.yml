@@ -65,14 +65,14 @@ jobs:
                 --label "upstream-conflict" \
                 --body "The daily upstream sync could not automatically merge \`upstream/master\` into \`personal\` due to a conflict.
 
-  Resolve locally:
-  \`\`\`bash
-  git fetch origin
-  git checkout personal
-  git merge origin/master
-  # fix conflicts, then:
-  git push origin personal
-  \`\`\`
-  Close this issue once the conflict is resolved."
+          Resolve locally:
+          \`\`\`bash
+          git fetch origin
+          git checkout personal
+          git merge origin/master
+          # fix conflicts, then:
+          git push origin personal
+          \`\`\`
+          Close this issue once the conflict is resolved."
             fi
           fi
