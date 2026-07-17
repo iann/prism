@@ -45,6 +45,41 @@ import { WidgetContainer } from './WidgetContainer';
 import { DayHeader } from './WeatherForecastBar';
 
 const SUN_PATH_SAMPLES = 48;
+const MIDNIGHT_ROLLOVER_BUFFER_MS = 50;
+
+function localDayStartMs(nowMs = Date.now()): number {
+  const start = new Date(nowMs);
+  start.setHours(0, 0, 0, 0);
+  return start.getTime();
+}
+
+function nextLocalDayStartMs(dayStartMs: number): number {
+  const next = new Date(dayStartMs);
+  next.setDate(next.getDate() + 1);
+  return next.getTime();
+}
+
+function useLocalDayStartMs(): number {
+  const [dayStartMs, setDayStartMs] = React.useState(localDayStartMs);
+
+  React.useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const scheduleRollover = () => {
+      const nowMs = Date.now();
+      const nextDayStartMs = nextLocalDayStartMs(localDayStartMs(nowMs));
+      timeoutId = setTimeout(() => {
+        setDayStartMs(localDayStartMs());
+        scheduleRollover();
+      }, nextDayStartMs - nowMs + MIDNIGHT_ROLLOVER_BUFFER_MS);
+    };
+
+    scheduleRollover();
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  return dayStartMs;
+}
 
 /**
  * WEATHER DATA TYPES
@@ -811,10 +846,9 @@ function SunriseSunsetArc({
   const arcWidth = width - 2 * pad;
   const ryTop    = horizonY - 10;      // pixels representing zenith (alt = π/2)
   const ryBot    = H - horizonY - 10;  // pixels representing antizenith (alt = -π/2)
-  const dayMs    = 24 * 3_600_000;
-
-  const today = React.useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
-  const midnightMs = today.getTime();
+  const midnightMs = useLocalDayStartMs();
+  const nextMidnightMs = nextLocalDayStartMs(midnightMs);
+  const dayMs = nextMidnightMs - midnightMs;
   const nowMs = Date.now();
 
   // X helper — frac 0..1 of today's 24h window maps to the SVG width.
@@ -948,8 +982,8 @@ function SunriseSunsetArc({
   // Using the API-provided sunrise/sunset times caused a visible offset because
   // the two algorithms disagree by a few minutes.
   const sunCalcTimes = React.useMemo(
-    () => SunCalc.getTimes(today, useLat, useLon),
-    [today, useLat, useLon],
+    () => SunCalc.getTimes(new Date(midnightMs), useLat, useLon),
+    [midnightMs, useLat, useLon],
   );
   const sunRiseFrac = (sunCalcTimes.sunrise.getTime() - midnightMs) / dayMs;
   const sunSetFrac  = (sunCalcTimes.sunset.getTime()  - midnightMs) / dayMs;
