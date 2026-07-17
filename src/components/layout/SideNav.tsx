@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { PrismIcon } from '@/components/ui/PrismIcon';
 import { ALL_NAV_ITEMS } from '@/lib/constants/navItems';
 import { useHiddenPages } from '@/lib/hooks/useHiddenPages';
+import { contrastText } from '@/lib/utils/color';
 
 /**
  * SIDE NAV PROPS
@@ -209,8 +210,8 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
             {user ? (
               <>
                 <div
-                  className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
-                  style={{ backgroundColor: user.color || '#6B7280' }}
+                  className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0"
+                  style={{ backgroundColor: user.color || '#6B7280', color: contrastText(user.color || '#6B7280') }}
                 >
                   {user.avatarUrl?.startsWith('emoji:') ? (
                     <span className="text-lg">{user.avatarUrl.slice(6)}</span>

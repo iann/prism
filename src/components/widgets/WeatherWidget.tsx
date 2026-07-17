@@ -438,7 +438,7 @@ function CurrentConditions({
             {weather.description}
           </div>
           {location && (
-            <div className="text-xs text-muted-foreground/70 mt-0.5 truncate max-w-[140px]">
+            <div className="text-xs text-muted-foreground mt-0.5 truncate max-w-[140px]">
               {formatLocation(location)}
             </div>
           )}
@@ -507,29 +507,10 @@ function WeatherIcon({
 
 
 /**
- * CONDITION HELPERS (for merry-timeline stripes)
+ * CONDITION HELPERS
  */
 
-/** Map a WeatherCondition (+ optional precipIntensity) to a hex color for merry-timeline. */
-function conditionToHex(condition: WeatherCondition, precipIntensity?: number): string {
-  if (condition === 'rainy' && precipIntensity !== undefined) {
-    if (precipIntensity < 0.1) return '#B8D0E8'; // drizzle
-    if (precipIntensity < 2.5) return '#7B9EC7'; // light rain
-    if (precipIntensity < 10)  return '#5A7DB5'; // moderate rain
-    return '#3A5C9A';                             // heavy rain
-  }
-  const map: Record<WeatherCondition, string> = {
-    'sunny':         '#EAECF0',
-    'partly-cloudy': '#C8CBD6',
-    'cloudy':        '#A8ADB8',
-    'rainy':         '#7B9EC7',
-    'snowy':         '#B8D4E8',
-    'stormy':        '#4A6FA5',
-  };
-  return map[condition] ?? '#A8ADB8';
-}
-
-/** Map a WeatherCondition (+ optional precipIntensity) to a text label for merry-timeline. */
+/** Map a WeatherCondition (+ optional precipIntensity) to a concise label. */
 function conditionLabel(condition: WeatherCondition, precipIntensity?: number): string {
   if (condition === 'rainy' && precipIntensity !== undefined) {
     if (precipIntensity < 0.1) return 'Drizzle';
@@ -548,19 +529,35 @@ function conditionLabel(condition: WeatherCondition, precipIntensity?: number): 
   return map[condition] ?? 'Cloudy';
 }
 
+/** Short labels keep narrow condition bands legible without losing meaning. */
+function conditionBandLabel(condition: WeatherCondition, precipIntensity?: number): string {
+  if (condition === 'partly-cloudy') return 'Partly';
+  if (condition === 'stormy') return 'Storms';
+  return conditionLabel(condition, precipIntensity);
+}
+
+function conditionBandClass(condition: WeatherCondition): string {
+  const classes: Record<WeatherCondition, string> = {
+    'sunny': 'bg-amber-400/15',
+    'partly-cloudy': 'bg-primary/10',
+    'cloudy': 'bg-muted/80',
+    'rainy': 'bg-primary/20',
+    'snowy': 'bg-card/80',
+    'stormy': 'bg-destructive/10',
+  };
+  return classes[condition];
+}
+
 
 /**
  * HOURLY FORECAST
- * Dark Sky-style color strip rendered by merry-timeline. Consecutive hours
- * sharing the same condition merge into one labeled stripe. Temperature
- * annotations appear below the hour labels.
+ * Five evenly sampled moments from the next nine hours. A quiet, theme-aware
+ * panel reads more naturally on pale widget surfaces than a saturated stripe,
+ * while retaining the useful at-a-glance time, condition, and temperature.
  */
 function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: WeatherUnits }) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
   const nowMs = Date.now();
 
-  // 9 items so the last tick (index 8) falls on an even modulo=2 position,
-  // giving labeled ticks at 0, 2, 4, 6, 8 — first and last both shown.
   const upcoming = React.useMemo(() =>
     hourly
       .filter((h) => h.time.getTime() + 60 * 60_000 >= nowMs)
@@ -568,49 +565,104 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [hourly]);
 
-  React.useEffect(() => {
-    const el = containerRef.current;
-    if (!el || upcoming.length === 0) return;
-
-    // Dynamic import avoids a static top-level import that triggers a
-    // "Identifier 'timeline' already declared" conflict in the RSC
-    // next-flight-client-module-loader (the package exports `const timeline`
-    // which collides with the loader's own injected variable of the same name).
-    let ro: ResizeObserver | null = null;
-    let cancelled = false;
-
-    const data = upcoming.map((h) => ({
-      time: Math.floor(h.time.getTime() / 1000),
-      color: conditionToHex(h.condition, h.precipIntensity),
-      text: conditionLabel(h.condition, h.precipIntensity),
-      annotation: units.temperature === 'C'
-        ? `${Math.round((h.temp - 32) * 5 / 9)}°`
-        : `${Math.round(h.temp)}°`,
-    }));
-
-    import('merry-timeline').then(({ default: tl }) => {
-      if (cancelled || !containerRef.current) return;
-      ro = new ResizeObserver((entries) => {
-        const width = entries[0]?.contentRect.width;
-        if (width) tl(containerRef.current!, data, { width, tracker: 0 });
-      });
-      ro.observe(containerRef.current);
-    });
-
-    return () => {
-      cancelled = true;
-      ro?.disconnect();
-    };
-  }, [upcoming, units]);
-
   if (upcoming.length === 0) return null;
+
+  const sampleIndexes = Array.from(new Set([0, 2, 4, 6, upcoming.length - 1]))
+    .filter((index) => index < upcoming.length)
+    .sort((a, b) => a - b);
+  const samples = sampleIndexes.map((index) => upcoming[index]!);
+
+  const conditionBands = upcoming.reduce<Array<{
+    condition: WeatherCondition;
+    precipIntensity?: number;
+    hours: number;
+  }>>((bands, hour) => {
+    const previous = bands[bands.length - 1];
+    const label = conditionLabel(hour.condition, hour.precipIntensity);
+    if (previous && conditionLabel(previous.condition, previous.precipIntensity) === label) {
+      previous.hours += 1;
+    } else {
+      bands.push({
+        condition: hour.condition,
+        precipIntensity: hour.precipIntensity,
+        hours: 1,
+      });
+    }
+    return bands;
+  }, []);
+
+  const formatHour = (date: Date) => date
+    .toLocaleTimeString([], { hour: 'numeric' })
+    .replace(' ', '')
+    .toLowerCase();
+  const formatTemperature = (temperature: number) => units.temperature === 'C'
+    ? Math.round((temperature - 32) * 5 / 9)
+    : Math.round(temperature);
 
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         Next 9 Hours
       </span>
-      <div ref={containerRef} className="w-full" data-keep-bg="" />
+      <div
+        className="overflow-hidden rounded-xl border border-border/80 bg-background/30 shadow-sm"
+        data-keep-bg=""
+      >
+        <div className="flex min-h-6 border-b border-border/60" aria-label="Hourly conditions">
+          {conditionBands.map((band, index) => (
+            <div
+              key={`${band.condition}-${index}`}
+              className={cn(
+                'flex min-w-0 items-center justify-center border-r border-border/60 px-1 py-1 last:border-r-0',
+                conditionBandClass(band.condition)
+              )}
+              style={{ flex: band.hours }}
+            >
+              <span className="truncate text-[9px] font-medium text-foreground">
+                {conditionBandLabel(band.condition, band.precipIntensity)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: `repeat(${samples.length}, minmax(0, 1fr))` }}
+        >
+          {samples.map((hour, index) => {
+            const label = conditionLabel(hour.condition, hour.precipIntensity);
+            const detail = hour.precipProbability && hour.precipProbability >= 10
+              ? `${Math.round(hour.precipProbability)}% rain`
+              : label;
+
+            return (
+              <div
+                key={hour.time.getTime()}
+                className={cn(
+                  'relative flex min-w-0 flex-col items-center gap-0.5 px-1 py-2 text-center',
+                  index > 0 && 'border-l border-border/60',
+                  index === 0 && 'bg-primary/[0.08]'
+                )}
+                aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}, ${label}, ${formatTemperature(hour.temp)} degrees${hour.precipProbability ? `, ${Math.round(hour.precipProbability)} percent chance of rain` : ''}`}
+              >
+                {index === 0 && (
+                  <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+                )}
+                <span className="text-[10px] font-semibold text-muted-foreground">
+                  {index === 0 ? 'Now' : formatHour(hour.time)}
+                </span>
+                <WeatherIcon condition={hour.condition} className="my-0.5 h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold leading-none tabular-nums text-foreground">
+                  {formatTemperature(hour.temp)}°
+                </span>
+                <span className="max-w-full truncate text-[9px] leading-tight text-muted-foreground">
+                  {detail}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

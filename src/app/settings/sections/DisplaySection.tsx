@@ -17,6 +17,7 @@ import { useScreensaverTimeout } from '@/lib/hooks/useScreensaverTimeout';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useAwayModeTimeout } from '@/lib/hooks/useAwayModeTimeout';
 import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
+import { APP_THEME_IDS, appThemes } from '@/lib/themes/appThemes';
 
 function getCurrentMonthNum(): number {
   return new Date().getMonth() + 1;
@@ -34,7 +35,7 @@ function SectionDivider({ label }: { label: string }) {
 }
 
 export function DisplaySection() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, colorTheme, setColorTheme, resolvedTheme } = useTheme();
   const { seasonalTheme, setSeasonalTheme, palette } = useSeasonalTheme();
 
   const mode: 'auto' | 'manual' | 'off' =
@@ -60,10 +61,47 @@ export function DisplaySection() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Color Scheme</CardTitle>
+          <CardTitle>Palette</CardTitle>
           <CardDescription>
-            Choose your preferred color scheme
+            Sets the background, widget surfaces, calendars, controls, borders, and accent colors throughout Prism.
           </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {APP_THEME_IDS.map((id) => {
+            const preset = appThemes[id];
+            const colors = preset[resolvedTheme];
+            const selected = colorTheme === id;
+            return (
+              <button
+                type="button"
+                key={id}
+                aria-pressed={selected}
+                onClick={() => setColorTheme(id)}
+                className={cn(
+                  'rounded-xl border p-3 text-left transition-all',
+                  selected ? 'border-primary ring-2 ring-primary/25' : 'border-border hover:border-primary/50'
+                )}
+              >
+                <div
+                  className="mb-3 flex h-14 items-end gap-1.5 rounded-lg border p-2"
+                  style={{ backgroundColor: `hsl(${colors['--background']})`, borderColor: `hsl(${colors['--border']})` }}
+                >
+                  {['--widget-calendar', '--widget-planning', '--widget-family', '--widget-info'].map((token) => (
+                    <span key={token} className="h-8 flex-1 rounded-sm" style={{ backgroundColor: `hsl(${colors[token as keyof typeof colors]})` }} />
+                  ))}
+                </div>
+                <span className="block text-sm font-semibold">{preset.name}</span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{preset.description}</span>
+              </button>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Brightness</CardTitle>
+          <CardDescription>Use a light or dark version of the selected palette.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-3">

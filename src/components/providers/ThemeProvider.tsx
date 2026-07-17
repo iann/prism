@@ -17,6 +17,7 @@ import * as React from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useSeasonalTheme } from '@/lib/hooks/useSeasonalTheme';
 import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
+import { applyAppTheme, isAppThemeId, type AppThemeId } from '@/lib/themes/appThemes';
 
 /**
  * Theme modes
@@ -33,6 +34,10 @@ interface ThemeContextValue {
   resolvedTheme: 'light' | 'dark';
   /** Update the theme */
   setTheme: (theme: ThemeMode) => void;
+  /** Named color palette applied to all semantic surfaces and widgets. */
+  colorTheme: AppThemeId;
+  /** Update the named color palette. */
+  setColorTheme: (theme: AppThemeId) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -41,6 +46,8 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
  * Storage key for persisting theme preference
  */
 const STORAGE_KEY = 'prism-theme';
+const COLOR_THEME_STORAGE_KEY = 'prism-color-theme';
+const DEFAULT_COLOR_THEME: AppThemeId = 'kitchen-calm';
 
 /**
  * Get the system theme preference
@@ -73,6 +80,7 @@ export function ThemeProvider({
   defaultTheme = 'system',
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>(defaultTheme);
+  const [colorTheme, setColorThemeState] = useState<AppThemeId>(DEFAULT_COLOR_THEME);
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
 
@@ -82,6 +90,8 @@ export function ThemeProvider({
     if (stored && ['light', 'dark', 'system'].includes(stored)) {
       setThemeState(stored);
     }
+    const storedColorTheme = localStorage.getItem(COLOR_THEME_STORAGE_KEY);
+    if (isAppThemeId(storedColorTheme)) setColorThemeState(storedColorTheme);
     setMounted(true);
   }, []);
 
@@ -107,7 +117,8 @@ export function ThemeProvider({
     }
 
     setResolvedTheme(actualTheme);
-  }, [theme, mounted]);
+    applyAppTheme(colorTheme, actualTheme);
+  }, [theme, colorTheme, mounted]);
 
   // Listen for system theme changes when in "system" mode
   useEffect(() => {
@@ -118,6 +129,7 @@ export function ThemeProvider({
     const handleChange = (e: MediaQueryListEvent) => {
       const newTheme = e.matches ? 'dark' : 'light';
       setResolvedTheme(newTheme);
+      applyAppTheme(colorTheme, newTheme);
 
       const root = document.documentElement;
       if (newTheme === 'dark') {
@@ -129,12 +141,17 @@ export function ThemeProvider({
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme, mounted]);
+  }, [theme, colorTheme, mounted]);
 
   // Update theme and persist to localStorage
   const setTheme = (newTheme: ThemeMode) => {
     setThemeState(newTheme);
     localStorage.setItem(STORAGE_KEY, newTheme);
+  };
+
+  const setColorTheme = (newTheme: AppThemeId) => {
+    setColorThemeState(newTheme);
+    localStorage.setItem(COLOR_THEME_STORAGE_KEY, newTheme);
   };
 
   // Apply seasonal theme CSS variables globally
@@ -146,14 +163,14 @@ export function ThemeProvider({
   // Return null or a loading state until mounted
   if (!mounted) {
     return (
-      <ThemeContext.Provider value={{ theme: defaultTheme, resolvedTheme: 'light', setTheme }}>
+      <ThemeContext.Provider value={{ theme: defaultTheme, resolvedTheme: 'light', setTheme, colorTheme, setColorTheme }}>
         {children}
       </ThemeContext.Provider>
     );
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, colorTheme, setColorTheme }}>
       {children}
     </ThemeContext.Provider>
   );

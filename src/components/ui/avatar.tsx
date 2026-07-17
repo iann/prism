@@ -31,6 +31,7 @@
 import * as React from 'react';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { cn } from '@/lib/utils';
+import { contrastText } from '@/lib/utils/color';
 
 
 /**
@@ -199,7 +200,7 @@ export function UserAvatar({
         <AvatarImage src={imageUrl} alt={name} />
       )}
       <AvatarFallback
-        style={color ? { backgroundColor: color, color: 'white' } : undefined}
+        style={color ? { backgroundColor: color, color: contrastText(color) } : undefined}
       >
         {initials}
       </AvatarFallback>

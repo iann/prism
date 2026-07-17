@@ -23,14 +23,14 @@ import type { ForecastDay, WeatherUnits, WeatherCondition } from './WeatherWidge
 // ---------------------------------------------------------------------------
 
 const TEMP_COLOR_STOPS: Array<{ temp: number; rgb: [number, number, number] }> = [
-  { temp:  0, rgb: [147, 197, 253] },
-  { temp: 32, rgb: [ 96, 165, 250] },
-  { temp: 45, rgb: [103, 232, 249] },
-  { temp: 55, rgb: [134, 239, 172] },
-  { temp: 65, rgb: [253, 230, 138] },
-  { temp: 75, rgb: [252, 211,  77] },
-  { temp: 85, rgb: [249, 115,  22] },
-  { temp: 95, rgb: [239,  68,  68] },
+  { temp:  0, rgb: [134, 165, 192] },
+  { temp: 32, rgb: [128, 168, 188] },
+  { temp: 45, rgb: [127, 184, 185] },
+  { temp: 55, rgb: [151, 188, 158] },
+  { temp: 65, rgb: [212, 193, 132] },
+  { temp: 75, rgb: [220, 171, 103] },
+  { temp: 85, rgb: [218, 139,  85] },
+  { temp: 95, rgb: [196,  97,  80] },
 ];
 
 function tempToColor(fahrenheit: number): string {
@@ -83,7 +83,7 @@ function moonPhasePath(cx: number, cy: number, r: number, phase: number): string
   return `M ${cx},${cy - r} A ${r},${r} 0 0 ${outerSweep} ${cx},${cy + r} A ${rxAbs},${r} 0 0 ${innerSweep} ${cx},${cy - r} Z`;
 }
 
-function MoonGlyph({ phase, size = 14, color = '#60A5FA' }: { phase: number; size?: number; color?: string }) {
+function MoonGlyph({ phase, size = 14, color = 'currentColor' }: { phase: number; size?: number; color?: string }) {
   const r = size / 2 - 0.5;
   const c = size / 2;
   return (
@@ -135,14 +135,16 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
                   {label}
                 </div>
                 {day.precipProbability !== undefined && (
-                  <div className="flex items-center gap-0.5 text-[10px] text-blue-500 leading-tight">
+                  <div className="flex items-center gap-0.5 text-[10px] text-primary leading-tight">
                     <Droplets className="h-2.5 w-2.5 flex-shrink-0" />
                     <span>{day.precipProbability}%</span>
                   </div>
                 )}
               </div>
               <WeatherIcon condition={day.condition} className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-              <MoonGlyph phase={dayPhase} size={14} />
+              <span className="text-primary/70">
+                <MoonGlyph phase={dayPhase} size={14} />
+              </span>
             </div>
 
             {/* Proportional flex-spacer track: low and high labels sit directly
@@ -153,7 +155,7 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
                 {fmt(day.low)}°
               </span>
               <div
-                className="h-4 rounded-full"
+                className="h-2.5 rounded-full opacity-80 ring-1 ring-inset ring-foreground/5"
                 style={{
                   flex: Math.max(widthPct, 4),
                   background: `linear-gradient(to right, ${colorFor(day.low)}, ${colorFor(day.high)})`,

@@ -200,8 +200,8 @@ export const viewport: Viewport = {
   // Theme color for browser chrome (status bar, etc.)
   // This changes based on system theme
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#1a1a2e' },
+    { media: '(prefers-color-scheme: light)', color: '#e8e3d7' },
+    { media: '(prefers-color-scheme: dark)', color: '#1f2824' },
   ],
 };
 
