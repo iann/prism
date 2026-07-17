@@ -7,7 +7,8 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import SunCalc from 'suncalc';
 
 // --- mocks (must precede component import) ---------------------------------
 
@@ -409,5 +410,42 @@ describe('demo data fallback', () => {
     const { container } = render(<WeatherWidget />);
     expect(screen.queryByText(/Next .* Hours/)).not.toBeNull();
     expect(container.querySelector('[data-keep-bg]')).not.toBeNull();
+  });
+});
+
+
+// ===========================================================================
+// 8. Sun and moon day rollover
+// ===========================================================================
+
+describe('sun and moon day rollover', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  it('recalculates the celestial paths after local midnight without a remount', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 6, 17, 23, 59, 59, 900));
+
+    const getTimes = jest.spyOn(SunCalc, 'getTimes');
+    const sunrise = new Date(2026, 6, 17, 5, 30);
+    const sunset = new Date(2026, 6, 17, 20, 15);
+
+    render(
+      <WeatherWidget
+        data={makeWeatherData({ sunrise, sunset, lat: 42.46, lon: -71.06 })}
+      />,
+    );
+
+    const initialDay = getTimes.mock.calls.at(-1)?.[0];
+    expect(initialDay).toEqual(new Date(2026, 6, 17, 0, 0, 0, 0));
+
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+
+    const rolledDay = getTimes.mock.calls.at(-1)?.[0];
+    expect(rolledDay).toEqual(new Date(2026, 6, 18, 0, 0, 0, 0));
   });
 });
