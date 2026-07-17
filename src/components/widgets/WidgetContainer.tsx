@@ -234,6 +234,7 @@ export function WidgetContainer({
       )}
       onClick={onClick}
       data-widget={widgetType ?? title}
+      data-theme-surface={stripCardBg ? 'custom' : 'preset'}
       style={{
         // Grid rows: auto for header (if present), 1fr for content
         gridTemplateRows: showHeader && title ? 'auto 1fr' : '1fr',

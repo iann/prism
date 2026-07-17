@@ -121,12 +121,10 @@ function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
 
 
 // ===========================================================================
-// 1. Hourly timeline (merry-timeline)
+// 1. Hourly glance panel
 // ===========================================================================
-// The hourly section renders a "Next 9 Hours" header plus a container div
-// that merry-timeline mounts into asynchronously (dynamic import +
-// ResizeObserver), so jsdom tests assert the header and the mount point —
-// not the timeline's own DOM.
+// The hourly section samples five moments from the next nine hours into a
+// compact, theme-aware row suitable for a wall display.
 
 describe('hourly timeline', () => {
   it('renders the section header', () => {
@@ -134,9 +132,15 @@ describe('hourly timeline', () => {
     expect(screen.queryByText(/Next 9 Hours/)).not.toBeNull();
   });
 
-  it('renders the timeline mount container', () => {
+  it('renders the themed hourly panel', () => {
     const { container } = render(<WeatherWidget data={makeWeatherData()} />);
     expect(container.querySelector('[data-keep-bg]')).not.toBeNull();
+  });
+
+  it('keeps the hourly condition ribbon visible', () => {
+    render(<WeatherWidget data={makeWeatherData({ hourly: makeHourlyForecast('rainy', 68) })} />);
+    expect(screen.queryByLabelText('Hourly conditions')).not.toBeNull();
+    expect(screen.queryAllByText('Rain').length).toBeGreaterThan(0);
   });
 
   it('renders the hourly temperature in each card', () => {

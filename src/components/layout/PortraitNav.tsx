@@ -15,6 +15,7 @@ import { User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ALL_NAV_ITEMS } from '@/lib/constants/navItems';
 import { useHiddenPages } from '@/lib/hooks/useHiddenPages';
+import { contrastText } from '@/lib/utils/color';
 
 export interface PortraitNavProps {
   user?: {
@@ -76,8 +77,8 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
           {user ? (
             <>
               <div
-                className="relative h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                style={{ backgroundColor: user.color || '#6B7280' }}
+                className="relative h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold"
+                style={{ backgroundColor: user.color || '#6B7280', color: contrastText(user.color || '#6B7280') }}
               >
                 {user.avatarUrl?.startsWith('emoji:') ? (
                   <span className="text-base">{user.avatarUrl.slice(6)}</span>

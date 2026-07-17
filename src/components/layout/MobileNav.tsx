@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/providers/ThemeProvider';
+import { contrastText } from '@/lib/utils/color';
 import { useHiddenPages } from '@/lib/hooks/useHiddenPages';
 
 interface NavItem {
@@ -158,8 +159,8 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
               {user ? (
                 <>
                   <div
-                    className="relative h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                    style={{ backgroundColor: user.color || '#6B7280' }}
+                    className="relative h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    style={{ backgroundColor: user.color || '#6B7280', color: contrastText(user.color || '#6B7280') }}
                   >
                     {user.avatarUrl?.startsWith('emoji:') ? (
                       <span className="text-sm">{user.avatarUrl.slice(6)}</span>

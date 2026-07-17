@@ -205,10 +205,7 @@ function MessageItem({
             size="sm"
             className="h-5 w-5 text-[10px]"
           />
-          <span
-            className="text-xs font-medium"
-            style={{ color: message.author.color }}
-          >
+          <span className="text-xs font-medium">
             {message.author.name}
           </span>
           {message.pinned && (

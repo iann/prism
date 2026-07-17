@@ -321,7 +321,9 @@ export function Dashboard({
     return (
       <WidgetBoundary name={widgetId}>
         <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading...</div>}>
-          <Component {...props} />
+          <div className="h-full w-full" data-theme-widget={widgetId}>
+            <Component {...props} />
+          </div>
         </Suspense>
       </WidgetBoundary>
     );

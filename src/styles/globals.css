@@ -86,6 +86,61 @@
     --seasonal-highlight: 217 33% 17%;
     --seasonal-subtle: 217 33% 17%;
   }
+
+  /* Low-glare first paint before ThemeProvider restores a saved preset. */
+  :root:not([data-color-theme]) {
+    --background: 42 24% 89%;
+    --foreground: 155 15% 19%;
+    --card: 45 25% 94%;
+    --card-foreground: 155 15% 19%;
+    --popover: 45 30% 96%;
+    --popover-foreground: 155 15% 19%;
+    --primary: 164 24% 32%;
+    --primary-foreground: 45 30% 97%;
+    --secondary: 94 16% 84%;
+    --secondary-foreground: 151 17% 23%;
+    --muted: 41 18% 84%;
+    --muted-foreground: 151 9% 33%;
+    --accent: 96 18% 82%;
+    --accent-foreground: 154 20% 22%;
+    --border: 105 12% 76%;
+    --input: 105 12% 45%;
+    --ring: 164 24% 38%;
+    --calendar-surface: 48 26% 94%;
+    --calendar-today: 91 23% 85%;
+    --widget-calendar: 48 28% 95%;
+    --widget-planning: 91 22% 91%;
+    --widget-family: 27 27% 92%;
+    --widget-info: 78 14% 92%;
+  }
+
+  :root.dark:not([data-color-theme]) {
+    --background: 155 13% 14%;
+    --foreground: 47 23% 89%;
+    --card: 153 12% 18%;
+    --card-foreground: 47 23% 89%;
+    --popover: 153 12% 17%;
+    --popover-foreground: 47 23% 89%;
+    --primary: 143 22% 68%;
+    --primary-foreground: 155 18% 14%;
+    --secondary: 151 11% 23%;
+    --secondary-foreground: 47 23% 89%;
+    --muted: 151 10% 22%;
+    --muted-foreground: 55 10% 66%;
+    --accent: 102 13% 27%;
+    --accent-foreground: 47 23% 89%;
+    --destructive: 5 62% 69%;
+    --destructive-foreground: 5 30% 12%;
+    --border: 142 9% 29%;
+    --input: 142 10% 50%;
+    --ring: 143 22% 63%;
+    --calendar-surface: 153 12% 18%;
+    --calendar-today: 104 12% 25%;
+    --widget-calendar: 153 12% 19%;
+    --widget-planning: 118 10% 20%;
+    --widget-family: 25 12% 20%;
+    --widget-info: 80 9% 20%;
+  }
 }
 
 @layer base {
@@ -127,6 +182,37 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
+  }
+
+  /* Presets tint related widget families; manual layout-editor colors bypass
+   * these selectors through data-theme-surface="custom". */
+  [data-theme-widget] > [data-widget][data-theme-surface="preset"] {
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+  }
+
+  [data-theme-widget="calendar"] > [data-widget][data-theme-surface="preset"] {
+    background-color: hsl(var(--widget-calendar) / 0.9);
+  }
+
+  [data-theme-widget="tasks"] > [data-widget][data-theme-surface="preset"],
+  [data-theme-widget="shopping"] > [data-widget][data-theme-surface="preset"],
+  [data-theme-widget="meals"] > [data-widget][data-theme-surface="preset"],
+  [data-theme-widget="chores"] > [data-widget][data-theme-surface="preset"] {
+    background-color: hsl(var(--widget-planning) / 0.9);
+  }
+
+  [data-theme-widget="messages"] > [data-widget][data-theme-surface="preset"],
+  [data-theme-widget="birthdays"] > [data-widget][data-theme-surface="preset"],
+  [data-theme-widget="points"] > [data-widget][data-theme-surface="preset"],
+  [data-theme-widget="wishes"] > [data-widget][data-theme-surface="preset"] {
+    background-color: hsl(var(--widget-family) / 0.9);
+  }
+
+  [data-theme-widget="clock"] > [data-widget][data-theme-surface="preset"],
+  [data-theme-widget="weather"] > [data-widget][data-theme-surface="preset"],
+  [data-theme-widget="busTracking"] > [data-widget][data-theme-surface="preset"],
+  [data-theme-widget="travel"] > [data-widget][data-theme-surface="preset"] {
+    background-color: hsl(var(--widget-info) / 0.9);
   }
 
   *:focus {

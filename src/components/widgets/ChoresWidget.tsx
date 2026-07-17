@@ -243,7 +243,7 @@ function ChoreItem({
         className={cn(
           'h-8 w-8 shrink-0',
           isOverdue && !isPendingApproval && 'text-destructive hover:text-destructive',
-          isPendingApproval && 'text-amber-500'
+          isPendingApproval && 'text-amber-700 dark:text-amber-300'
         )}
         title={isPendingApproval ? 'Pending approval - click to complete or approve' : 'Mark as complete'}
         aria-label={isPendingApproval ? 'Pending approval' : 'Mark as complete'}
@@ -272,7 +272,7 @@ function ChoreItem({
           {/* Title */}
           <span className={cn(
             'text-sm font-medium truncate',
-            isPendingApproval && 'text-amber-700 dark:text-amber-400'
+            isPendingApproval && 'text-amber-800 dark:text-amber-300'
           )}>{chore.title}</span>
 
           {/* Points badge */}
@@ -284,7 +284,7 @@ function ChoreItem({
 
           {/* Pending approval badge - takes priority over "requires approval" */}
           {isPendingApproval ? (
-            <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-amber-500 hover:bg-amber-500">
+            <Badge variant="warning" className="text-[10px] px-1.5 py-0">
               Pending
             </Badge>
           ) : chore.requiresApproval && (
@@ -305,7 +305,7 @@ function ChoreItem({
                 size="sm"
                 className="h-4 w-4 text-[8px]"
               />
-              <span className="text-xs text-amber-600 dark:text-amber-400">
+              <span className="text-xs text-amber-800 dark:text-amber-300">
                 Done by {chore.pendingApproval.completedBy.name}
               </span>
             </div>
@@ -350,6 +350,7 @@ function ChoreItem({
     </div>
   );
 }
+
 
 /**
  * FORMAT DUE DATE
@@ -406,4 +407,3 @@ function getCategoryEmoji(category: string): string {
       return '✨';
   }
 }
-
