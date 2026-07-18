@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { DashboardLayout, DashboardHeader } from '@/components/layout/DashboardGrid';
 import { LayoutGridEditor, SCREENSAVER_THEME } from '@/components/layout/LayoutGridEditor';
-import { useAuth, useFamily } from '@/components/providers';
+import { useAuth, useFamily, useTheme } from '@/components/providers';
+import { LCARSFrame } from '@/components/lcars';
 import { GRID_COLS } from '@/lib/constants/grid';
 import { useScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
 import { useOrientation } from '@/lib/hooks/useOrientation';
@@ -40,6 +41,7 @@ import { useDashboardLayout } from './useDashboardLayout';
 import { buildWidgetProps } from './useWidgetProps';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
+import { cn } from '@/lib/utils';
 
 const VISIBLE_WIDGETS_KEY = 'prism-visible-widgets';
 
@@ -100,7 +102,9 @@ export function Dashboard({
   const router = useRouter();
 
   const { activeUser, requireAuth, clearActiveUser } = useAuth();
+  const { colorTheme } = useTheme();
   const { confirm: confirmAction, dialogProps: confirmDialogProps } = useConfirmDialog();
+  const isLCARS = colorTheme === 'lcars';
 
   const [visibleWidgets, setVisibleWidgets] = useState(readCachedVisibleWidgets);
 
@@ -151,7 +155,8 @@ export function Dashboard({
   const { uiHidden } = useAutoHideUI();
   const hasPortraitNav = !isMobile && deviceOrientation === 'portrait';
   // Only reserve bottom space when nav is actually visible (not auto-hidden)
-  const bottomOffset = hasPortraitNav && !uiHidden ? 96 : 0;
+  const bottomOffset =
+    (hasPortraitNav && !uiHidden ? 96 : 0) + (isLCARS && !uiHidden ? 28 : 0);
 
   // Grid control state shared between LayoutEditor toolbar and LayoutGridEditor
   const { allSizeNames } = useScreenSafeZones();
@@ -372,7 +377,15 @@ export function Dashboard({
         onLogout={activeUser ? clearActiveUser : undefined}
         onLogin={handleLogin}
       >
-        <MobileDashboard data={data} />
+        <LCARSFrame
+          enabled={isLCARS}
+          compact
+          chromeHidden={uiHidden}
+          label="Mobile operations"
+          code="M-47"
+        >
+          <MobileDashboard data={data} />
+        </LCARSFrame>
       </AppShell>
     );
   }
@@ -384,7 +397,7 @@ export function Dashboard({
       onLogin={handleLogin}
       showWallpaper
     >
-      <DashboardLayout className={className}>
+      <DashboardLayout className={cn(className, isLCARS && 'lcars-dashboard')}>
         <DashboardHeader
           onScreensaverClick={() => window.dispatchEvent(new Event('prism:screensaver'))}
           onEditClick={activeUser && activeUser.role !== 'parent' ? undefined : layout.handleEditStart}
@@ -432,45 +445,54 @@ export function Dashboard({
           />
         )}
 
-        {layout.editingScreensaver && layout.isEditing ? (
-          <LayoutGridEditor
-            layout={layout.ssLayout}
-            onLayoutChange={layout.handleSsLayoutChange}
-            isEditable
-            renderWidget={renderSsWidget}
-            margin={4}
-            headerOffset={100}
-            bottomOffset={bottomOffset}
-            minVisibleRows={8}
-            theme={SCREENSAVER_THEME}
-            gridHelperText="Drag widgets to reposition &bull; Scroll to see more"
-            className="mx-4"
-            screenGuideOrientation={screenGuideOrientation}
-            enabledSizes={enabledSizes}
-            onScrollInfo={handleScrollInfo}
-            scrollToRef={scrollToGridRef}
-          />
-        ) : (
-          <WidgetErrorBoundary>
-            <WidgetExpandProvider renderMagnified={renderMagnifiedWidget}>
-              <LayoutGridEditor
-                layout={layout.activeWidgets}
-                onLayoutChange={layout.isEditing ? layout.setEditingWidgets : () => {}}
-                isEditable={layout.isEditing}
-                renderWidget={renderDashboardWidget}
-                widgetRevisions={widgetRevisions}
-                widgetConstraints={dashboardConstraints}
-                margin={8}
-                headerOffset={layout.isEditing ? 140 : uiHidden ? 0 : 50}
-                bottomOffset={bottomOffset}
-                screenGuideOrientation={screenGuideOrientation}
-                enabledSizes={enabledSizes}
-                onScrollInfo={handleScrollInfo}
-                scrollToRef={scrollToGridRef}
-              />
-            </WidgetExpandProvider>
-          </WidgetErrorBoundary>
-        )}
+        <LCARSFrame
+          enabled={isLCARS}
+          chromeHidden={uiHidden}
+          label={`${layout.activeLayout?.name ?? 'Primary dashboard'} / Operations`}
+          code="OPS-47"
+        >
+          {layout.editingScreensaver && layout.isEditing ? (
+            <LayoutGridEditor
+              layout={layout.ssLayout}
+              onLayoutChange={layout.handleSsLayoutChange}
+              isEditable
+              renderWidget={renderSsWidget}
+              margin={4}
+              headerOffset={isLCARS ? 200 : 100}
+              bottomOffset={bottomOffset}
+              minVisibleRows={8}
+              theme={SCREENSAVER_THEME}
+              gridHelperText="Drag widgets to reposition &bull; Scroll to see more"
+              className="mx-4"
+              screenGuideOrientation={screenGuideOrientation}
+              enabledSizes={enabledSizes}
+              onScrollInfo={handleScrollInfo}
+              scrollToRef={scrollToGridRef}
+            />
+          ) : (
+            <WidgetErrorBoundary>
+              <WidgetExpandProvider renderMagnified={renderMagnifiedWidget}>
+                <LayoutGridEditor
+                  layout={layout.activeWidgets}
+                  onLayoutChange={layout.isEditing ? layout.setEditingWidgets : () => {}}
+                  isEditable={layout.isEditing}
+                  renderWidget={renderDashboardWidget}
+                  widgetRevisions={widgetRevisions}
+                  widgetConstraints={dashboardConstraints}
+                  margin={isLCARS ? 5 : 8}
+                  headerOffset={
+                    layout.isEditing ? (isLCARS ? 210 : 140) : uiHidden ? 0 : isLCARS ? 150 : 50
+                  }
+                  bottomOffset={bottomOffset}
+                  screenGuideOrientation={screenGuideOrientation}
+                  enabledSizes={enabledSizes}
+                  onScrollInfo={handleScrollInfo}
+                  scrollToRef={scrollToGridRef}
+                />
+              </WidgetExpandProvider>
+            </WidgetErrorBoundary>
+          )}
+        </LCARSFrame>
 
         {showAddTask && (
           <AddTaskModal open={showAddTask} onOpenChange={setShowAddTask}

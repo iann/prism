@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 const STORAGE_KEY = 'prism:auto-hide-ui';
 const HIDE_DELAY = 10_000; // 10 seconds
+const HIDE_REFLOW_GUARD = 750;
 
 /**
  * Returns whether the UI (nav + toolbar) should be hidden due to inactivity.
@@ -24,12 +25,19 @@ export function useAutoHideUI() {
     setMounted(true);
   }, []);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ignoreScrollUntilRef = useRef(0);
 
   const resetTimer = useCallback(() => {
     if (!enabled) return;
     setHidden(false);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setHidden(true), HIDE_DELAY);
+    timerRef.current = setTimeout(() => {
+      // Collapsing application chrome can change the document geometry and
+      // emit a synthetic scroll event. Treating that reflow as user activity
+      // immediately reopens the UI, which is especially visible in LCARS mode.
+      ignoreScrollUntilRef.current = Date.now() + HIDE_REFLOW_GUARD;
+      setHidden(true);
+    }, HIDE_DELAY);
   }, [enabled]);
 
   const setEnabled = useCallback((value: boolean) => {
@@ -45,14 +53,17 @@ export function useAutoHideUI() {
     if (!enabled) return;
 
     const events = ['mousedown', 'touchstart', 'keydown', 'scroll'] as const;
-    const handler = () => resetTimer();
+    const handler = (event: Event) => {
+      if (event.type === 'scroll' && Date.now() < ignoreScrollUntilRef.current) return;
+      resetTimer();
+    };
 
-    events.forEach(e => window.addEventListener(e, handler, { passive: true }));
+    events.forEach((e) => window.addEventListener(e, handler, { passive: true }));
     // Start the timer immediately
     resetTimer();
 
     return () => {
-      events.forEach(e => window.removeEventListener(e, handler));
+      events.forEach((e) => window.removeEventListener(e, handler));
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [enabled, resetTimer]);
@@ -72,5 +83,9 @@ export function useAutoHideUI() {
     };
   }, []);
 
-  return { autoHideEnabled: enabled, setAutoHideEnabled: setEnabled, uiHidden: mounted && enabled && isDashboard && hidden };
+  return {
+    autoHideEnabled: enabled,
+    setAutoHideEnabled: setEnabled,
+    uiHidden: mounted && enabled && isDashboard && hidden,
+  };
 }

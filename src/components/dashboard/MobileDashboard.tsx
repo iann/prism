@@ -205,7 +205,7 @@ export const MobileDashboard = memo(function MobileDashboard({ data }: MobileDas
       {isTiles ? (
         /* Tiles: auto-size rows to fill viewport with no scroll */
         <div
-          className="px-4 overflow-hidden"
+          className="lcars-mobile-dashboard__tiles px-4 overflow-hidden"
           style={{
             height: `calc(100dvh - 112px - ${showIndicator ? (refreshing ? 48 : pullDistance * 0.5) : 0}px)`,
             transform: pullDistance > 0 ? `translateY(${pullDistance * 0.4}px)` : undefined,
