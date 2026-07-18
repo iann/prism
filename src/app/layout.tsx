@@ -31,6 +31,7 @@
 
 // Import global styles (including Tailwind CSS)
 import '@/styles/globals.css';
+import '@/styles/lcars.css';
 
 // Bundle a color emoji webfont so emoji (🎯 🎂 🛒 🏆 …) render even on clients
 // with no system emoji font — e.g. a bare Raspberry Pi OS / minimal Chromium
