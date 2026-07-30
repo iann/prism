@@ -15,9 +15,8 @@ import { useCalendarSources } from '@/lib/hooks';
 import { useFamily } from '@/components/providers';
 import { CalendarColorPicker } from '../components/CalendarColorPicker';
 import { useHiddenHours } from '@/lib/hooks/useHiddenHours';
-import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 
-export function CalendarsSection() {
+export function CalendarsSection({ onSynced }: { onSynced?: () => void } = {}) {
   const { confirm, dialogProps: confirmDialogProps } = useConfirmDialog();
   const { members: familyMembers } = useFamily();
   const { calendars, loading: calendarsLoading, refresh: refreshCalendars } = useCalendarSources();
@@ -173,9 +172,16 @@ export function CalendarsSection() {
       }
 
       if (response.ok) {
-        let message = `Sync complete: ${data.synced ?? data.total ?? 0} events synced`;
+        const parts: string[] = [];
+        if (data.added) parts.push(`${data.added} added`);
+        if (data.updated) parts.push(`${data.updated} updated`);
+        // Removals are held for review, not applied — reflect that in the toast.
+        if (data.removed) parts.push(`${data.removed} flagged for review`);
+        let message = parts.length
+          ? `Sync complete: ${parts.join(', ')}`
+          : 'Sync complete — already up to date';
         if (birthdaysSynced > 0) {
-          message += `, ${birthdaysSynced} birthdays synced`;
+          message += ` · ${birthdaysSynced} milestone${birthdaysSynced === 1 ? '' : 's'} updated`;
         }
         if (data.errors && data.errors.length > 0) {
           message += `\n\nWarnings (${data.errors.length}):\n${data.errors.slice(0, 5).join('\n')}`;
@@ -185,6 +191,9 @@ export function CalendarsSection() {
         }
         toast({ title: message, variant: 'success' });
         refreshCalendars();
+        // Let the host (Calendar page) refetch its events so a manual sync
+        // shows new/removed events immediately, no page refresh needed.
+        onSynced?.();
       } else {
         const hasReauthError = data.errors?.some((e: string) => e.includes('Re-authentication required') || e.includes('Token expired'));
         if (hasReauthError) {
@@ -644,8 +653,6 @@ export function CalendarsSection() {
       </div>
 
       <CalendarHoursCard />
-
-      <WeekStartCard />
     </div>
   );
 }
@@ -739,47 +746,6 @@ function CalendarHoursCard() {
           ) : (
             <>Auto-fit trims dead hours around your timed events in day/week views with a {settings.bufferHours}-hour buffer.</>
           )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function WeekStartCard() {
-  const { weekStartsOn, setWeekStartsOn } = useWeekStartsOn();
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Week Starts On</CardTitle>
-        <CardDescription>
-          Controls when weekly goals reset, calendar week boundaries, and meal planning weeks.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setWeekStartsOn(0)}
-            className={cn(
-              'px-4 py-2 rounded-l-md text-sm font-medium border transition-colors',
-              weekStartsOn === 0
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border hover:bg-accent'
-            )}
-          >
-            Sunday
-          </button>
-          <button
-            onClick={() => setWeekStartsOn(1)}
-            className={cn(
-              'px-4 py-2 rounded-r-md text-sm font-medium border border-l-0 transition-colors',
-              weekStartsOn === 1
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border hover:bg-accent'
-            )}
-          >
-            Monday
-          </button>
         </div>
       </CardContent>
     </Card>

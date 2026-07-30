@@ -26,6 +26,10 @@ const mockUpdateSet = jest.fn().mockReturnValue({ where: jest.fn().mockResolvedV
 mockUpdate.mockReturnValue({ set: mockUpdateSet });
 
 const mockDeleteWhere = jest.fn().mockResolvedValue(undefined);
+// db.select(...).from(...).where(...) — used to load dismissed-event tombstones.
+const mockSelect = jest.fn().mockReturnValue({
+  from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([]) }),
+});
 mockDelete.mockReturnValue({ where: mockDeleteWhere });
 
 jest.mock('@/lib/db/client', () => ({
@@ -34,6 +38,7 @@ jest.mock('@/lib/db/client', () => ({
       calendarSources: { findFirst: (...args: unknown[]) => mockFindFirst(...args), findMany: (...args: unknown[]) => mockFindMany(...args) },
       events: { findMany: (...args: unknown[]) => mockFindMany(...args) },
     },
+    select: (...args: unknown[]) => mockSelect(...args),
     insert: (...args: unknown[]) => mockInsert(...args),
     update: (...args: unknown[]) => mockUpdate(...args),
     delete: (...args: unknown[]) => mockDelete(...args),
@@ -42,7 +47,8 @@ jest.mock('@/lib/db/client', () => ({
 
 jest.mock('@/lib/db/schema', () => ({
   calendarSources: { id: 'id', provider: 'provider', enabled: 'enabled' },
-  events: { calendarSourceId: 'calendarSourceId', externalEventId: 'externalEventId', startTime: 'startTime', id: 'id' },
+  events: { calendarSourceId: 'calendarSourceId', externalEventId: 'externalEventId', startTime: 'startTime', id: 'id', pendingDeletion: 'pendingDeletion' },
+  dismissedEvents: { calendarSourceId: 'calendarSourceId', externalEventId: 'externalEventId' },
 }));
 
 const mockFetchCalendarEvents = jest.fn();
@@ -248,7 +254,7 @@ describe('syncGoogleCalendarSource', () => {
     expect(result.errors[0]).toContain('event-2');
   });
 
-  it('deletes prism events no longer in Google', async () => {
+  it('flags (pending deletion) events no longer in Google instead of deleting them', async () => {
     mockFindFirst.mockResolvedValue(makeSource());
     // Google only has event-1
     mockFetchCalendarEvents.mockResolvedValue([
@@ -268,8 +274,11 @@ describe('syncGoogleCalendarSource', () => {
 
     await syncGoogleCalendarSource('source-1');
 
-    // Should delete prism-2 (event-2 no longer in Google)
-    expect(mockDelete).toHaveBeenCalled();
+    // Deletes-only review: prism-2 is FLAGGED pending, not hard-deleted.
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ pendingDeletion: expect.any(Date) }),
+    );
   });
 
   it('does not delete local-only events (no externalEventId)', async () => {
@@ -284,6 +293,72 @@ describe('syncGoogleCalendarSource', () => {
 
     // Should NOT delete local events
     expect(mockDeleteWhere).not.toHaveBeenCalled();
+  });
+});
+
+describe('syncGoogleCalendarSource — auto-disable gated on consecutive 404s (M-CALSYNC)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFindMany.mockResolvedValue([]);
+  });
+
+  /** The object handed to db.update().set() in the fetch-failure branch. */
+  function lastSetArg() {
+    return mockUpdateSet.mock.calls[0]![0] as {
+      enabled?: boolean;
+      syncErrors: { consecutive404: number; consecutiveFailures: number };
+    };
+  }
+
+  it('does not auto-disable on the first 404 after transient (non-404) failures', async () => {
+    // Two prior transient failures already reset the 404 streak to 0.
+    mockFindFirst.mockResolvedValue(
+      makeSource({ syncErrors: { consecutiveFailures: 2, consecutive404: 0 } }),
+    );
+    mockFetchCalendarEvents.mockRejectedValue(new Error('Google API error: 404 Not Found'));
+
+    await syncGoogleCalendarSource('source-1');
+
+    const set = lastSetArg();
+    expect(set.syncErrors.consecutive404).toBe(1);
+    expect(set.enabled).toBeUndefined(); // NOT disabled on the first real 404
+  });
+
+  it('auto-disables only after 3 consecutive 404s', async () => {
+    mockFindFirst.mockResolvedValue(
+      makeSource({ syncErrors: { consecutiveFailures: 5, consecutive404: 2 } }),
+    );
+    mockFetchCalendarEvents.mockRejectedValue(new Error('404 Not Found'));
+
+    await syncGoogleCalendarSource('source-1');
+
+    const set = lastSetArg();
+    expect(set.syncErrors.consecutive404).toBe(3);
+    expect(set.enabled).toBe(false);
+  });
+
+  it('resets the 404 streak on a non-404 failure', async () => {
+    mockFindFirst.mockResolvedValue(
+      makeSource({ syncErrors: { consecutiveFailures: 2, consecutive404: 2 } }),
+    );
+    mockFetchCalendarEvents.mockRejectedValue(new Error('500 Internal Server Error'));
+
+    await syncGoogleCalendarSource('source-1');
+
+    const set = lastSetArg();
+    expect(set.syncErrors.consecutive404).toBe(0);
+    expect(set.enabled).toBeUndefined();
+  });
+
+  it('never auto-disables a source the user manually re-enabled (userOverride)', async () => {
+    mockFindFirst.mockResolvedValue(
+      makeSource({ syncErrors: { consecutive404: 5, userOverride: true } }),
+    );
+    mockFetchCalendarEvents.mockRejectedValue(new Error('404 Not Found'));
+
+    await syncGoogleCalendarSource('source-1');
+
+    expect(lastSetArg().enabled).toBeUndefined();
   });
 });
 

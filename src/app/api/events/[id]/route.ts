@@ -15,12 +15,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requireRole } from '@/lib/auth';
 import { db } from '@/lib/db/client';
-import { events, calendarSources } from '@/lib/db/schema';
+import { events, calendarSources, dismissedEvents } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { invalidateEntity } from '@/lib/cache/cacheKeys';
 import { updateCalendarEvent, deleteCalendarEvent, refreshAccessToken } from '@/lib/integrations/google-calendar';
+import { pushCalDAVEventDelete } from '@/lib/services/calendar-sync';
 import { decrypt, encrypt } from '@/lib/utils/crypto';
 import { logActivity } from '@/lib/services/auditLog';
 import { logError } from '@/lib/utils/logError';
@@ -150,6 +151,7 @@ export async function PATCH(
     const [existingEvent] = await db
       .select({
         id: events.id,
+        createdBy: events.createdBy,
         externalEventId: events.externalEventId,
         calendarSourceId: events.calendarSourceId,
         title: events.title,
@@ -168,6 +170,14 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    // Owner may edit with canEditOwnEvent; editing anyone else's (or an
+    // unowned synced event) requires canEditAnyEvent.
+    const canEdit = requireRole(
+      auth,
+      existingEvent.createdBy === auth.userId ? 'canEditOwnEvent' : 'canEditAnyEvent'
+    );
+    if (canEdit) return canEdit;
 
     // Build update object
     const updateData: Record<string, unknown> = {
@@ -446,9 +456,13 @@ export async function DELETE(
     const [existingEvent] = await db
       .select({
         id: events.id,
+        createdBy: events.createdBy,
         title: events.title,
         externalEventId: events.externalEventId,
         calendarSourceId: events.calendarSourceId,
+        recurring: events.recurring,
+        caldavHref: events.caldavHref,
+        caldavEtag: events.caldavEtag,
       })
       .from(events)
       .where(eq(events.id, id));
@@ -459,6 +473,14 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    // Owner may delete with canDeleteOwnEvent; deleting anyone else's (or an
+    // unowned synced event) requires canDeleteAnyEvent.
+    const canDelete = requireRole(
+      auth,
+      existingEvent.createdBy === auth.userId ? 'canDeleteOwnEvent' : 'canDeleteAnyEvent'
+    );
+    if (canDelete) return canDelete;
 
     // If event is linked to a Google Calendar, delete from Google too
     if (existingEvent.calendarSourceId && existingEvent.externalEventId) {
@@ -502,6 +524,48 @@ export async function DELETE(
           // Continue with local delete even if Google fails
         }
       }
+
+      // Propagate the delete to a CalDAV source too (parity with Google). The
+      // server addresses objects by href, so we use the href + ETag captured at
+      // sync time. Single-event scope only: recurring events share one parent
+      // object, and an href-based delete would drop the whole series — for those
+      // we skip write-back and just tombstone + delete locally (matches the
+      // documented CalDAV write scope, issue #59 for recurrence).
+      if (calendarSource?.provider === 'caldav') {
+        if (existingEvent.recurring) {
+          logError(
+            'Skipping CalDAV upstream delete for recurring event (single-event scope only):',
+            existingEvent.id
+          );
+        } else if (!existingEvent.caldavHref) {
+          logError(
+            'Skipping CalDAV upstream delete: no stored href (event predates href capture; re-sync to populate):',
+            existingEvent.id
+          );
+        } else {
+          const result = await pushCalDAVEventDelete(
+            calendarSource.id,
+            existingEvent.caldavHref,
+            existingEvent.caldavEtag ?? undefined
+          );
+          if (!result.ok) {
+            // Continue with local delete even if the server rejects it; the
+            // tombstone below still prevents the event from being re-pulled.
+            logError('Failed to delete event from CalDAV server:', result.error);
+          }
+        }
+      }
+
+      // Tombstone this synced event so the pull sync doesn't re-add it. Google
+      // deletes propagate upstream above; CalDAV/iCal (and a failed Google
+      // delete) rely on this so the deletion sticks.
+      await db
+        .insert(dismissedEvents)
+        .values({
+          calendarSourceId: existingEvent.calendarSourceId,
+          externalEventId: existingEvent.externalEventId,
+        })
+        .onConflictDoNothing();
     }
 
     // Delete the event locally

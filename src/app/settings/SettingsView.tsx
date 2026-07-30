@@ -2,16 +2,16 @@
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Settings,
   Users,
   Palette,
+  SlidersHorizontal,
   Shield,
   Info,
   Home,
-  Calendar,
   User,
   ImageIcon,
   ListTodo,
@@ -35,8 +35,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { PageWrapper } from '@/components/layout';
 import { AccountSection } from './sections/AccountSection';
 import { FamilySection } from './sections/FamilySection';
-import { CalendarsSection } from './sections/CalendarsSection';
 import { DisplaySection } from './sections/DisplaySection';
+import { GeneralSection } from './sections/GeneralSection';
 import { SecuritySection } from './sections/SecuritySection';
 import { PhotosSettingsSection } from './sections/PhotosSettingsSection';
 // TaskIntegrationsSection, ShoppingIntegrationsSection, WishListIntegrationsSection
@@ -148,6 +148,20 @@ function normalizeSection(raw: string | null): string {
 
 export function SettingsView() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Calendar management moved to the Calendar page. Bounce any lingering link
+  // to ?section=calendars (old bookmarks, OAuth returns) to the Manage overlay.
+  const requestedSection = searchParams.get('section');
+  useEffect(() => {
+    if (requestedSection === 'calendars') {
+      const qs = new URLSearchParams(searchParams.toString());
+      qs.delete('section');
+      qs.set('manage', 'calendars');
+      router.replace(`/calendar?${qs.toString()}`);
+    }
+  }, [requestedSection, searchParams, router]);
+
   const initialSection = normalizeSection(searchParams.get('section'));
   const [activeSection, setActiveSection] = useState<string>(initialSection);
 
@@ -172,10 +186,11 @@ export function SettingsView() {
   const sections = [
     { id: 'account', label: 'Account & Profile', icon: User },
     { id: 'family', label: 'Family Members', icon: Users },
+    { id: 'general', label: 'General', icon: SlidersHorizontal },
     { id: 'integrations', label: 'Integrations', icon: Link2 },
+    // Calendar management moved onto the Calendar page (Manage calendars button).
     { id: 'displays', label: 'Displays', icon: Monitor },
     { id: 'display', label: 'Appearance', icon: Palette },
-    { id: 'calendars', label: 'Calendars', icon: Calendar },
     { id: 'photos', label: 'Photos', icon: ImageIcon },
     { id: 'bus', label: 'Bus Tracking', icon: Bus },
     { id: 'input', label: 'Input', icon: KeyboardIcon },
@@ -256,10 +271,10 @@ export function SettingsView() {
               {activeSection === 'family' && <FamilySection />}
               {activeSection === 'integrations' && <IntegrationsSection />}
               {activeSection === 'displays' && <DisplaysSection />}
-              {activeSection === 'calendars' && <CalendarsSection />}
               {activeSection === 'photos' && <PhotosSettingsSection />}
               {activeSection === 'bus' && <BusTrackingSection />}
               {activeSection === 'babysitter' && <BabysitterInfoSection />}
+              {activeSection === 'general' && <GeneralSection />}
               {activeSection === 'display' && <DisplaySection />}
               {activeSection === 'input' && <InputSection />}
               {activeSection === 'features' && <FeaturesSection />}

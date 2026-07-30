@@ -17,7 +17,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requireRole } from '@/lib/auth';
+import { PERMISSIONS } from '@/types/user';
 import { db } from '@/lib/db/client';
 import { chores, choreCompletions, users } from '@/lib/db/schema';
 import { eq, and, isNull, desc } from 'drizzle-orm';
@@ -171,11 +172,13 @@ export async function POST(
       // The dashboard logic should route to approve, but as a fallback, we can handle it here
     }
 
-    // Determine if approval is required:
-    // - Children ALWAYS require parent approval
-    // - Parents NEVER require approval (they self-approve)
-    // The chore's `requiresApproval` flag is specifically for child completions
-    const needsApproval = isChild; // Only children need approval
+    // Determine if approval is required based on the AUTHENTICATED caller, not
+    // the client-supplied completedBy. Otherwise a child could pass a parent's
+    // id to make needsApproval=false and auto-approve their own completion,
+    // bypassing parental approval. Only callers who can approve chores (parents)
+    // self-approve; everyone else's completion is created pending.
+    const callerCanApprove = PERMISSIONS[auth.role].canApproveChores;
+    const needsApproval = !callerCanApprove;
 
     // Create completion + conditionally update chore atomically
     const completion = await db.transaction(async (tx) => {
@@ -188,7 +191,7 @@ export async function POST(
           photoUrl: photoUrl || null,
           notes: notes || null,
           pointsAwarded: chore.pointValue,
-          approvedBy: needsApproval ? null : completedBy,
+          approvedBy: needsApproval ? null : auth.userId,
           approvedAt: needsApproval ? null : new Date(),
         })
         .returning();
@@ -265,6 +268,10 @@ export async function DELETE(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
+  // Undoing a completion reverses an approval — parent-only.
+  const forbidden = requireRole(auth, 'canApproveChores');
+  if (forbidden) return forbidden;
+
   try {
     const { id: choreId } = await params;
 
@@ -280,12 +287,20 @@ export async function DELETE(
       return NextResponse.json({ error: 'No completion to undo' }, { status: 404 });
     }
 
-    // Delete completion and recalculate chore state (lastCompleted + nextDue)
+    // Undo the completion, then rebuild the chore's schedule fields from
+    // whichever completion (if any) is now the most recent.
     await db.transaction(async (tx) => {
       await tx.delete(choreCompletions).where(eq(choreCompletions.id, latest.id));
 
-      // Fetch chore schedule info for nextDue recalculation
-      const [chore] = await tx
+      const remaining = await tx
+        .select({ completedAt: choreCompletions.completedAt })
+        .from(choreCompletions)
+        .where(eq(choreCompletions.choreId, choreId))
+        .orderBy(desc(choreCompletions.completedAt))
+        .limit(1);
+      const mostRecent = remaining[0];
+
+      const [schedule] = await tx
         .select({
           frequency: chores.frequency,
           customIntervalDays: chores.customIntervalDays,
@@ -294,24 +309,14 @@ export async function DELETE(
         .from(chores)
         .where(eq(chores.id, choreId));
 
-      // Find the new most recent completion (if any)
-      const [prevCompletion] = await tx
-        .select({ completedAt: choreCompletions.completedAt })
-        .from(choreCompletions)
-        .where(eq(choreCompletions.choreId, choreId))
-        .orderBy(desc(choreCompletions.completedAt))
-        .limit(1);
-
-      // Recalculate nextDue based on previous completion (or null if none)
-      const nextDue = prevCompletion && chore
-        ? calculateNextDue(chore.frequency, chore.customIntervalDays, chore.startDay)
-        : null;
-
       await tx
         .update(chores)
         .set({
-          lastCompleted: prevCompletion?.completedAt || null,
-          nextDue,
+          lastCompleted: mostRecent?.completedAt ?? null,
+          nextDue:
+            mostRecent && schedule
+              ? calculateNextDue(schedule.frequency, schedule.customIntervalDays, schedule.startDay)
+              : null,
           updatedAt: new Date(),
         })
         .where(eq(chores.id, choreId));

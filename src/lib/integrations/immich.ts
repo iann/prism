@@ -15,7 +15,7 @@
  * the share URL field and use Prism as a proxy to probe the home network.
  */
 
-import { validatePublicUrl, UnsafeUrlError } from '@/lib/utils/safeFetch';
+import { validatePublicUrl, safeFetch, UnsafeUrlError } from '@/lib/utils/safeFetch';
 
 export interface ImmichShareCredentials {
   serverUrl: string;
@@ -198,19 +198,48 @@ async function fetchAlbumAssets(
   cookie: string | null,
 ): Promise<RawAsset[]> {
   assertSafeServerUrl(serverUrl);
-  const url = `${serverUrl}/api/albums/${albumId}?key=${encodeURIComponent(shareKey)}`;
-  const headers: Record<string, string> = {};
+  // Immich v3 serves a shared album's assets through the search API, not
+  // GET /api/albums/{id}: over a share key that endpoint returns the album's
+  // assetCount but an EMPTY assets array, so the old call silently synced zero
+  // photos. POST /api/search/metadata returns the assets in a paginated
+  // envelope ({ assets: { items, nextPage } }). withExif keeps GPS so the
+  // Travel Map photo strip still works.
+  const url = `${serverUrl}/api/search/metadata?key=${encodeURIComponent(shareKey)}`;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (cookie) headers.Cookie = cookie;
 
-  const res = await fetch(url, { headers });
-  if (!res.ok) {
-    throw new Error(
-      `Failed to fetch Immich album ${albumId}: ${res.status} ${res.statusText}`,
-    );
+  const all: RawAsset[] = [];
+  let page = 1;
+  // Bounded so a misbehaving nextPage can never loop forever (100 * 1000
+  // assets is far beyond any realistic shared album).
+  for (let i = 0; i < 100; i += 1) {
+    // safeFetch (not raw fetch) so a share URL that 30x-redirects to an
+    // internal host is still re-validated per hop — same SSRF guard the rest
+    // of this client uses.
+    const res = await safeFetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ albumIds: [albumId], page, size: 1000, withExif: true }),
+    });
+    if (!res.ok) {
+      throw new Error(
+        `Failed to fetch Immich album ${albumId}: ${res.status} ${res.statusText}`,
+      );
+    }
+
+    const data = (await res.json()) as {
+      assets?: { items?: RawAsset[]; nextPage?: string | number | null };
+    };
+    all.push(...(data.assets?.items ?? []));
+
+    const next = data.assets?.nextPage;
+    if (next == null) break;
+    const nextPage = Number(next);
+    if (!Number.isFinite(nextPage) || nextPage <= page) break;
+    page = nextPage;
   }
 
-  const data = (await res.json()) as { assets?: RawAsset[] };
-  return data.assets ?? [];
+  return all;
 }
 
 function extractCookies(headers: Headers): string | null {
@@ -239,7 +268,7 @@ async function loginShare(
 ): Promise<{ raw: RawSharedLinkResponse; cookie: string | null }> {
   assertSafeServerUrl(serverUrl);
   const url = `${serverUrl}/api/shared-links/login?key=${encodeURIComponent(shareKey)}`;
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
@@ -271,7 +300,7 @@ async function fetchSharedLinkRaw(
   }
 
   const url = `${creds.serverUrl}/api/shared-links/me?key=${encodeURIComponent(creds.shareKey)}`;
-  const res = await fetch(url);
+  const res = await safeFetch(url);
 
   if (res.status === 401 || res.status === 403) {
     throw new ImmichPasswordRequiredError();
@@ -343,7 +372,10 @@ export async function downloadImmichAsset(
   const headers: Record<string, string> = {};
   if (cookie) headers.Cookie = cookie;
 
-  const res = await fetch(`${creds.serverUrl}${path}`, { headers, redirect: 'follow' });
+  // safeFetch re-validates any redirect Location, so a share URL that 30x-
+  // redirects to an internal host can no longer be used to exfiltrate the
+  // internal response (was `redirect: 'follow'`, which bypassed the guard).
+  const res = await safeFetch(`${creds.serverUrl}${path}`, { headers });
   if (!res.ok) {
     // If the cache returned a stale cookie that the server rejected, drop
     // it and let the next call re-login. We don't auto-retry here because

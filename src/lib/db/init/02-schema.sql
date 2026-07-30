@@ -301,6 +301,9 @@ CREATE TABLE IF NOT EXISTS public.events (
     color character varying(7),
     reminder_minutes integer,
     last_synced timestamp without time zone,
+    pending_deletion timestamp without time zone,
+    caldav_href character varying(1024),
+    caldav_etag character varying(255),
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL
 );
@@ -2567,3 +2570,47 @@ ALTER TABLE ONLY public.wish_items
 --
 
 
+
+--
+-- Recipe sync sources (Tandoor / Mealie) + recipes sync-linkage columns.
+-- Mirrors drizzle/0014_recipe_sources.sql for fresh installs. Idempotent.
+--
+CREATE TABLE IF NOT EXISTS public.recipe_sources (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  provider varchar(50) NOT NULL,
+  name varchar(255),
+  server_url text NOT NULL,
+  access_token text,
+  enabled boolean DEFAULT true NOT NULL,
+  last_synced timestamp,
+  sync_errors jsonb,
+  provider_config jsonb,
+  created_by uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at timestamp DEFAULT now() NOT NULL,
+  updated_at timestamp DEFAULT now() NOT NULL
+);
+CREATE INDEX IF NOT EXISTS recipe_sources_enabled_idx ON public.recipe_sources (enabled);
+ALTER TABLE public.recipes ADD COLUMN IF NOT EXISTS source_id uuid;
+ALTER TABLE public.recipes ADD COLUMN IF NOT EXISTS external_id varchar(255);
+ALTER TABLE public.recipes ADD COLUMN IF NOT EXISTS external_updated_at timestamp;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints
+                 WHERE constraint_name = 'recipes_source_id_recipe_sources_id_fk' AND table_name = 'recipes') THEN
+    ALTER TABLE public.recipes ADD CONSTRAINT recipes_source_id_recipe_sources_id_fk
+      FOREIGN KEY (source_id) REFERENCES public.recipe_sources(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS recipes_source_external_unique ON public.recipes (source_id, external_id);
+
+-- Tombstones for locally-deleted synced events (so a pull sync doesn't re-add them).
+CREATE TABLE IF NOT EXISTS public.dismissed_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  calendar_source_id uuid NOT NULL REFERENCES public.calendar_sources(id) ON DELETE CASCADE,
+  external_event_id varchar(255) NOT NULL,
+  created_at timestamp DEFAULT now() NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS dismissed_events_source_external_unique ON public.dismissed_events (calendar_source_id, external_event_id);
+
+-- Deletes-only review: flag synced events gone from source instead of deleting (#171).
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS pending_deletion timestamp;
+CREATE INDEX IF NOT EXISTS events_pending_deletion_idx ON public.events (pending_deletion);

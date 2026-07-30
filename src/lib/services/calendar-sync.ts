@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/client';
-import { calendarSources, events, tasks, taskLists } from '@/lib/db/schema';
-import { eq, and, gte, lte, sql, inArray } from 'drizzle-orm';
+import { calendarSources, events, tasks, taskLists, dismissedEvents } from '@/lib/db/schema';
+import { eq, and, gte, lte, sql, inArray, isNotNull } from 'drizzle-orm';
 import {
   fetchCalDAVEvents,
   fetchCalDAVTasks,
@@ -43,6 +43,86 @@ function tokenNeedsRefresh(expiresAt: Date | null): boolean {
 }
 
 /**
+ * Net-change counts for a sync — what actually changed this run, not the total
+ * number of events re-pulled. `synced` (added + updated) is kept for back-compat
+ * with callers/logging that read a single number.
+ */
+export interface SyncCounts {
+  added: number;
+  updated: number;
+  removed: number;
+  unchanged: number;
+  synced: number;
+  errors: string[];
+}
+
+/** The event fields a change is judged on (identity-independent content). */
+interface EventContent {
+  title: string;
+  description: string | null;
+  location: string | null;
+  startTime: Date | string;
+  endTime: Date | string;
+  allDay: boolean | null;
+  recurring: boolean | null;
+  recurrenceRule: string | null;
+}
+
+/** Seconds since epoch (drops sub-second drift from DB round-trips). */
+const secs = (d: Date | string): number => Math.floor(new Date(d).getTime() / 1000);
+
+/** True when the incoming event differs from the stored row in any shown field. */
+function eventChanged(a: EventContent, b: EventContent): boolean {
+  return (
+    a.title !== b.title ||
+    (a.description ?? '') !== (b.description ?? '') ||
+    (a.location ?? '') !== (b.location ?? '') ||
+    secs(a.startTime) !== secs(b.startTime) ||
+    secs(a.endTime) !== secs(b.endTime) ||
+    Boolean(a.allDay) !== Boolean(b.allDay) ||
+    Boolean(a.recurring) !== Boolean(b.recurring) ||
+    (a.recurrenceRule ?? '') !== (b.recurrenceRule ?? '')
+  );
+}
+
+/** A zero net-change result, optionally carrying errors (for early returns). */
+function emptyCounts(errors: string[] = []): SyncCounts {
+  return { added: 0, updated: 0, removed: 0, unchanged: 0, synced: 0, errors };
+}
+
+/** External event ids the user deleted locally (tombstones) — skip on re-sync. */
+async function loadDismissedExternalIds(sourceId: string): Promise<Set<string>> {
+  const rows = await db
+    .select({ externalEventId: dismissedEvents.externalEventId })
+    .from(dismissedEvents)
+    .where(eq(dismissedEvents.calendarSourceId, sourceId));
+  return new Set(rows.map((r) => r.externalEventId));
+}
+
+/** Build a lookup of a source's existing events by externalEventId (for classify). */
+async function loadExistingByExternalId(sourceId: string): Promise<Map<string, EventContent>> {
+  const rows = await db.query.events.findMany({
+    where: eq(events.calendarSourceId, sourceId),
+    columns: {
+      externalEventId: true,
+      title: true,
+      description: true,
+      location: true,
+      startTime: true,
+      endTime: true,
+      allDay: true,
+      recurring: true,
+      recurrenceRule: true,
+    },
+  });
+  const map = new Map<string, EventContent>();
+  for (const r of rows) {
+    if (r.externalEventId) map.set(r.externalEventId, r);
+  }
+  return map;
+}
+
+/**
  * Sync events from a single Google Calendar source
  */
 export async function syncGoogleCalendarSource(
@@ -51,9 +131,9 @@ export async function syncGoogleCalendarSource(
     timeMin?: Date;
     timeMax?: Date;
   } = {}
-): Promise<{ synced: number; errors: string[] }> {
+): Promise<SyncCounts> {
   const errors: string[] = [];
-  let synced = 0;
+  let added = 0, updated = 0, removed = 0, unchanged = 0;
 
   // Fetch the calendar source
   const source = await db.query.calendarSources.findFirst({
@@ -61,27 +141,27 @@ export async function syncGoogleCalendarSource(
   });
 
   if (!source) {
-    return { synced: 0, errors: ['Calendar source not found'] };
+    return emptyCounts(['Calendar source not found']);
   }
 
   if (source.provider !== 'google') {
-    return { synced: 0, errors: ['Not a Google Calendar source'] };
+    return emptyCounts(['Not a Google Calendar source']);
   }
 
   if (!source.accessToken) {
-    return { synced: 0, errors: ['No access token available'] };
+    return emptyCounts(['No access token available']);
   }
 
   let accessToken: string;
   try {
     accessToken = decrypt(source.accessToken);
   } catch (error) {
-    return { synced: 0, errors: [`Failed to decrypt access token (may need re-authentication): ${error instanceof Error ? error.message : String(error)}`] };
+    return emptyCounts([`Failed to decrypt access token (may need re-authentication): ${error instanceof Error ? error.message : String(error)}`]);
   }
 
   if (tokenNeedsRefresh(source.tokenExpiresAt)) {
     if (!source.refreshToken) {
-      return { synced: 0, errors: ['Token expired and no refresh token available'] };
+      return emptyCounts(['Token expired and no refresh token available']);
     }
 
     try {
@@ -112,9 +192,9 @@ export async function syncGoogleCalendarSource(
             updatedAt: new Date(),
           })
           .where(eq(calendarSources.id, sourceId));
-        return { synced: 0, errors: ['Token expired or revoked. Re-authentication required.'] };
+        return emptyCounts(['Token expired or revoked. Re-authentication required.']);
       }
-      return { synced: 0, errors: [`Failed to refresh token: ${error}`] };
+      return emptyCounts([`Failed to refresh token: ${error}`]);
     }
   }
 
@@ -139,10 +219,18 @@ export async function syncGoogleCalendarSource(
     const prevErrors = (source.syncErrors as Record<string, unknown>) || {};
     const prevFailures = (typeof prevErrors.consecutiveFailures === 'number' ? prevErrors.consecutiveFailures : 0);
     const consecutiveFailures = prevFailures + 1;
+    // Auto-disable is gated on *consecutive 404s* specifically: a calendar the
+    // user deleted in Google keeps returning 404, whereas transient network /
+    // 5xx blips must not count toward disabling. The 404 streak resets on any
+    // non-404 failure (and a successful sync clears syncErrors entirely). The
+    // old code counted all failures, so two transient errors + one real 404
+    // disabled the calendar on its *first* 404 — contradicting this comment.
+    const prev404 = (typeof prevErrors.consecutive404 === 'number' ? prevErrors.consecutive404 : 0);
+    const consecutive404 = is404 ? prev404 + 1 : 0;
     const DISABLE_THRESHOLD = 3; // Only auto-disable after 3 consecutive 404s
 
     const shouldAutoDisable = is404
-      && consecutiveFailures >= DISABLE_THRESHOLD
+      && consecutive404 >= DISABLE_THRESHOLD
       && !prevErrors.userOverride; // Never auto-disable if user manually re-enabled
 
     await db
@@ -151,9 +239,10 @@ export async function syncGoogleCalendarSource(
         ...(shouldAutoDisable ? { enabled: false, showInEventModal: false } : {}),
         syncErrors: {
           lastError: is404
-            ? `Calendar not found in Google (404). Failure ${consecutiveFailures}/${DISABLE_THRESHOLD}.`
+            ? `Calendar not found in Google (404). Failure ${consecutive404}/${DISABLE_THRESHOLD}.`
             : errorStr,
           consecutiveFailures,
+          consecutive404,
           is404,
           ...(shouldAutoDisable ? { autoDisabled: true, autoDisabledAt: new Date().toISOString() } : {}),
           ...(prevErrors.userOverride ? { userOverride: true } : {}),
@@ -163,17 +252,20 @@ export async function syncGoogleCalendarSource(
       })
       .where(eq(calendarSources.id, sourceId));
 
-    return { synced: 0, errors: [`Failed to fetch events: ${error}`] };
+    return emptyCounts([`Failed to fetch events: ${error}`]);
   }
 
   // Build set of Google event IDs for deletion cleanup (excluding cancelled)
   const googleEventIds = new Set<string>();
+  const existingByExtId = await loadExistingByExternalId(sourceId);
+  const dismissed = await loadDismissedExternalIds(sourceId);
 
   // Process each event using upsert to prevent duplicates
   for (const googleEvent of googleEvents) {
     try {
       // Skip cancelled events (deleted recurring instances)
       if (googleEvent.status === 'cancelled') continue;
+      if (dismissed.has(googleEvent.id)) continue;
 
       googleEventIds.add(googleEvent.id);
       const internalEvent = convertGoogleEventToInternal(googleEvent, sourceId);
@@ -210,7 +302,10 @@ export async function syncGoogleCalendarSource(
           },
         });
 
-      synced++;
+      const prevG = existingByExtId.get(internalEvent.externalEventId);
+      if (!prevG) added++;
+      else if (eventChanged(prevG, internalEvent)) updated++;
+      else unchanged++;
     } catch (error) {
       errors.push(`Failed to sync event ${googleEvent.id}: ${error}`);
     }
@@ -229,10 +324,22 @@ export async function syncGoogleCalendarSource(
     ),
   });
 
+  // Clear the pending-deletion flag on any event that reappeared in the source.
+  if (googleEventIds.size > 0) {
+    await db.update(events).set({ pendingDeletion: null }).where(and(
+      eq(events.calendarSourceId, sourceId),
+      inArray(events.externalEventId, [...googleEventIds]),
+      isNotNull(events.pendingDeletion),
+    ));
+  }
+
   for (const prismEvent of prismEventsToCheck) {
-    // Only delete if it has an external_event_id (was synced) but is no longer in Google
+    // Only flag if it has an external_event_id (was synced) but is no longer in Google
     if (prismEvent.externalEventId && !googleEventIds.has(prismEvent.externalEventId)) {
-      await db.delete(events).where(eq(events.id, prismEvent.id));
+      if (!prismEvent.pendingDeletion) {
+        await db.update(events).set({ pendingDeletion: new Date() }).where(eq(events.id, prismEvent.id));
+        removed++;
+      }
     }
   }
 
@@ -247,7 +354,7 @@ export async function syncGoogleCalendarSource(
     })
     .where(eq(calendarSources.id, sourceId));
 
-  return { synced, errors };
+  return { added, updated, removed, unchanged, synced: added + updated, errors };
 }
 
 /**
@@ -258,9 +365,9 @@ export async function syncAllGoogleCalendars(
     timeMin?: Date;
     timeMax?: Date;
   } = {}
-): Promise<{ total: number; errors: string[] }> {
+): Promise<{ total: number; added: number; updated: number; removed: number; errors: string[] }> {
   const allErrors: string[] = [];
-  let total = 0;
+  let total = 0, added = 0, updated = 0, removed = 0;
 
   // Get all enabled Google Calendar sources
   const sources = await db.query.calendarSources.findMany({
@@ -363,6 +470,9 @@ export async function syncAllGoogleCalendars(
     try {
       const result = await syncGoogleCalendarSource(source.id, options);
       total += result.synced;
+      added += result.added;
+      updated += result.updated;
+      removed += result.removed;
       allErrors.push(...result.errors);
     } catch (error) {
       const errorMsg = `Failed to sync calendar "${source.dashboardCalendarName}": ${error instanceof Error ? error.message : String(error)}`;
@@ -371,7 +481,7 @@ export async function syncAllGoogleCalendars(
     }
   }
 
-  return { total, errors: allErrors };
+  return { total, added, updated, removed, errors: allErrors };
 }
 
 const ICAL_DISABLE_THRESHOLD = 3;
@@ -413,22 +523,22 @@ export async function syncIcalCalendarSource(
     timeMin?: Date;
     timeMax?: Date;
   } = {}
-): Promise<{ synced: number; errors: string[] }> {
+): Promise<SyncCounts> {
   const errors: string[] = [];
-  let synced = 0;
+  let added = 0, updated = 0, removed = 0, unchanged = 0;
 
   const source = await db.query.calendarSources.findFirst({
     where: eq(calendarSources.id, sourceId),
   });
 
   if (!source) {
-    return { synced: 0, errors: ['Calendar source not found'] };
+    return emptyCounts(['Calendar source not found']);
   }
   if (source.provider !== 'ical') {
-    return { synced: 0, errors: ['Not an iCal calendar source'] };
+    return emptyCounts(['Not an iCal calendar source']);
   }
   if (!source.icalUrl) {
-    return { synced: 0, errors: ['No iCal URL configured'] };
+    return emptyCounts(['No iCal URL configured']);
   }
 
   const timeMin = options.timeMin || new Date(Date.now() - DEFAULT_TIME_MIN_MS);
@@ -452,7 +562,7 @@ export async function syncIcalCalendarSource(
           updatedAt: new Date(),
         })
         .where(eq(calendarSources.id, sourceId));
-      return { synced: 0, errors: ['iCal URL points at a private or loopback address'] };
+      return emptyCounts(['iCal URL points at a private or loopback address']);
     }
     throw err;
   }
@@ -482,10 +592,12 @@ export async function syncIcalCalendarSource(
       })
       .where(eq(calendarSources.id, sourceId));
 
-    return { synced: 0, errors: [`Failed to fetch iCal feed: ${errorStr}`] };
+    return emptyCounts([`Failed to fetch iCal feed: ${errorStr}`]);
   }
 
   const externalIds = new Set<string>();
+  const existingByExtId = await loadExistingByExternalId(sourceId);
+  const dismissed = await loadDismissedExternalIds(sourceId);
 
   for (const item of Object.values(parsed)) {
     if (!item || item.type !== 'VEVENT') continue;
@@ -556,6 +668,7 @@ export async function syncIcalCalendarSource(
       const location = readIcalString(vevent.location);
 
       for (const inst of instances) {
+        if (dismissed.has(inst.externalId)) continue;
         externalIds.add(inst.externalId);
         await db
           .insert(events)
@@ -588,7 +701,10 @@ export async function syncIcalCalendarSource(
             },
           });
 
-        synced++;
+        const prevI = existingByExtId.get(inst.externalId);
+        if (!prevI) added++;
+        else if (eventChanged(prevI, { title, description, location, startTime: inst.start, endTime: inst.end, allDay, recurring: isRecurring, recurrenceRule })) updated++;
+        else unchanged++;
       }
     } catch (error) {
       errors.push(`Failed to sync VEVENT ${uid}: ${error instanceof Error ? error.message : String(error)}`);
@@ -604,9 +720,19 @@ export async function syncIcalCalendarSource(
       lte(events.startTime, timeMax)
     ),
   });
+  if (externalIds.size > 0) {
+    await db.update(events).set({ pendingDeletion: null }).where(and(
+      eq(events.calendarSourceId, sourceId),
+      inArray(events.externalEventId, [...externalIds]),
+      isNotNull(events.pendingDeletion),
+    ));
+  }
   for (const ev of prismEvents) {
     if (ev.externalEventId && !externalIds.has(ev.externalEventId)) {
-      await db.delete(events).where(eq(events.id, ev.id));
+      if (!ev.pendingDeletion) {
+        await db.update(events).set({ pendingDeletion: new Date() }).where(eq(events.id, ev.id));
+        removed++;
+      }
     }
   }
 
@@ -620,7 +746,7 @@ export async function syncIcalCalendarSource(
     })
     .where(eq(calendarSources.id, sourceId));
 
-  return { synced, errors };
+  return { added, updated, removed, unchanged, synced: added + updated, errors };
 }
 
 /**
@@ -632,9 +758,9 @@ export async function syncAllIcalCalendars(
     timeMin?: Date;
     timeMax?: Date;
   } = {}
-): Promise<{ total: number; errors: string[] }> {
+): Promise<{ total: number; added: number; updated: number; removed: number; errors: string[] }> {
   const allErrors: string[] = [];
-  let total = 0;
+  let total = 0, added = 0, updated = 0, removed = 0;
 
   const sources = await db.query.calendarSources.findMany({
     where: and(
@@ -647,6 +773,9 @@ export async function syncAllIcalCalendars(
     try {
       const result = await syncIcalCalendarSource(source.id, options);
       total += result.synced;
+      added += result.added;
+      updated += result.updated;
+      removed += result.removed;
       allErrors.push(...result.errors);
     } catch (error) {
       const errorMsg = `Failed to sync iCal calendar "${source.dashboardCalendarName}": ${error instanceof Error ? error.message : String(error)}`;
@@ -655,7 +784,7 @@ export async function syncAllIcalCalendars(
     }
   }
 
-  return { total, errors: allErrors };
+  return { total, added, updated, removed, errors: allErrors };
 }
 
 /**
@@ -707,39 +836,39 @@ export async function getCalendarSourcesWithStatus() {
 export async function syncCalDAVCalendarSource(
   sourceId: string,
   options: { timeMin?: Date; timeMax?: Date } = {}
-): Promise<{ synced: number; errors: string[] }> {
+): Promise<SyncCounts> {
   const errors: string[] = [];
-  let synced = 0;
+  let added = 0, updated = 0, removed = 0, unchanged = 0;
 
   const source = await db.query.calendarSources.findFirst({
     where: eq(calendarSources.id, sourceId),
   });
 
   if (!source || source.provider !== 'caldav') {
-    return { synced: 0, errors: ['Not a CalDAV source'] };
+    return emptyCounts(['Not a CalDAV source']);
   }
 
   if (!source.accessToken) {
-    return { synced: 0, errors: ['No credentials available'] };
+    return emptyCounts(['No credentials available']);
   }
 
   let password: string;
   try {
     password = decrypt(source.accessToken);
   } catch {
-    return { synced: 0, errors: ['Failed to decrypt credentials — may need to reconnect'] };
+    return emptyCounts(['Failed to decrypt credentials — may need to reconnect']);
   }
 
   const config = source.providerConfig as CalDAVConnectionConfig | null;
   if (!config?.serverUrl || !config?.username) {
-    return { synced: 0, errors: ['Missing CalDAV connection config'] };
+    return emptyCounts(['Missing CalDAV connection config']);
   }
 
   // Skip event sync for sources whose discovery flagged them as VTODO-only.
   // (undefined === legacy row from before flags were stored, so default to
   // running the sync — back-compatible.)
   if (config.supportsEvents === false) {
-    return { synced: 0, errors: [] };
+    return emptyCounts([]);
   }
 
   const timeMin = options.timeMin || new Date(Date.now() - DEFAULT_TIME_MIN_MS);
@@ -755,7 +884,9 @@ export async function syncCalDAVCalendarSource(
       timeMax,
     );
 
+    const dismissed = await loadDismissedExternalIds(sourceId);
     for (const event of caldavEvents) {
+      if (dismissed.has(event.uid)) continue;
       const existing = await db.query.events.findFirst({
         where: and(
           eq(events.calendarSourceId, sourceId),
@@ -775,16 +906,22 @@ export async function syncCalDAVCalendarSource(
         recurrenceRule: event.recurrenceRule,
         calendarSourceId: sourceId,
         externalEventId: event.uid,
+        // Persist the object href + ETag so a local delete can propagate
+        // upstream (CalDAV addresses objects by href, not UID). Refreshed on
+        // every sync even when the event is otherwise unchanged, keeping the
+        // ETag current for a conflict-safe delete.
+        caldavHref: event.href,
+        caldavEtag: event.etag,
         updatedAt: new Date(),
       };
 
       if (existing) {
+        if (eventChanged(existing, eventData)) updated++; else unchanged++;
         await db.update(events).set(eventData).where(eq(events.id, existing.id));
       } else {
+        added++;
         await db.insert(events).values(eventData);
       }
-
-      synced++;
     }
 
     // Drop events that no longer exist upstream (within the sync window only —
@@ -798,9 +935,19 @@ export async function syncCalDAVCalendarSource(
       ),
     });
 
+    if (upstreamUids.size > 0) {
+      await db.update(events).set({ pendingDeletion: null }).where(and(
+        eq(events.calendarSourceId, sourceId),
+        inArray(events.externalEventId, [...upstreamUids]),
+        isNotNull(events.pendingDeletion),
+      ));
+    }
     for (const local of localEvents) {
       if (local.externalEventId && !upstreamUids.has(local.externalEventId)) {
-        await db.delete(events).where(eq(events.id, local.id));
+        if (!local.pendingDeletion) {
+          await db.update(events).set({ pendingDeletion: new Date() }).where(eq(events.id, local.id));
+          removed++;
+        }
       }
     }
 
@@ -820,7 +967,7 @@ export async function syncCalDAVCalendarSource(
       .where(eq(calendarSources.id, sourceId));
   }
 
-  return { synced, errors };
+  return { added, updated, removed, unchanged, synced: added + updated, errors };
 }
 
 /**
@@ -828,7 +975,7 @@ export async function syncCalDAVCalendarSource(
  */
 export async function syncCalDAVTasks(
   sourceId: string,
-): Promise<{ synced: number; errors: string[] }> {
+): Promise<SyncCounts> {
   const errors: string[] = [];
   let synced = 0;
 
@@ -837,27 +984,27 @@ export async function syncCalDAVTasks(
   });
 
   if (!source || source.provider !== 'caldav') {
-    return { synced: 0, errors: ['Not a CalDAV source'] };
+    return emptyCounts(['Not a CalDAV source']);
   }
   if (!source.accessToken) {
-    return { synced: 0, errors: ['No credentials available'] };
+    return emptyCounts(['No credentials available']);
   }
 
   let password: string;
   try {
     password = decrypt(source.accessToken);
   } catch {
-    return { synced: 0, errors: ['Failed to decrypt credentials'] };
+    return emptyCounts(['Failed to decrypt credentials']);
   }
 
   const config = source.providerConfig as CalDAVConnectionConfig | null;
   if (!config?.serverUrl || !config?.username) {
-    return { synced: 0, errors: ['Missing CalDAV connection config'] };
+    return emptyCounts(['Missing CalDAV connection config']);
   }
 
   // Skip task sync for sources whose discovery flagged them as VEVENT-only.
   if (config.supportsTasks === false) {
-    return { synced: 0, errors: [] };
+    return emptyCounts([]);
   }
 
   try {
@@ -988,7 +1135,7 @@ export async function syncCalDAVTasks(
     }
   }
 
-  return { synced, errors };
+  return { added: 0, updated: 0, removed: 0, unchanged: 0, synced, errors };
 }
 
 /**
@@ -996,9 +1143,9 @@ export async function syncCalDAVTasks(
  */
 export async function syncAllCalDAVCalendars(
   options: { timeMin?: Date; timeMax?: Date } = {}
-): Promise<{ total: number; errors: string[] }> {
+): Promise<{ total: number; added: number; updated: number; removed: number; errors: string[] }> {
   const allErrors: string[] = [];
-  let total = 0;
+  let total = 0, added = 0, updated = 0, removed = 0;
 
   const sources = await db.query.calendarSources.findMany({
     where: and(
@@ -1010,6 +1157,9 @@ export async function syncAllCalDAVCalendars(
   for (const source of sources) {
     const eventResult = await syncCalDAVCalendarSource(source.id, options);
     total += eventResult.synced;
+    added += eventResult.added;
+    updated += eventResult.updated;
+    removed += eventResult.removed;
     allErrors.push(...eventResult.errors);
 
     const taskResult = await syncCalDAVTasks(source.id);
@@ -1017,7 +1167,7 @@ export async function syncAllCalDAVCalendars(
     allErrors.push(...taskResult.errors);
   }
 
-  return { total, errors: allErrors };
+  return { total, added, updated, removed, errors: allErrors };
 }
 
 /**

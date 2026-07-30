@@ -162,6 +162,18 @@ export const events = pgTable('events', {
 
   lastSynced: timestamp('last_synced'),
 
+  // Set when sync finds this synced event gone from its source. Instead of
+  // deleting silently, it's flagged pending so the user reviews the removal
+  // (deletes-only review). Null = not pending.
+  pendingDeletion: timestamp('pending_deletion'),
+
+  // CalDAV calendar-object href + ETag, captured at sync time. A CalDAV DELETE
+  // targets the object by href (not UID), so we need it to propagate a local
+  // delete upstream to the source server (single-event scope; recurring events
+  // share one parent object and are excluded from write-back).
+  caldavHref: varchar('caldav_href', { length: 1024 }),
+  caldavEtag: varchar('caldav_etag', { length: 255 }),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -170,6 +182,24 @@ export const events = pgTable('events', {
   calendarSourceIdx: index('events_calendar_source_idx').on(table.calendarSourceId),
   // Unique constraint to prevent duplicate synced events
   sourceExternalUnique: uniqueIndex('events_source_external_unique')
+    .on(table.calendarSourceId, table.externalEventId),
+}));
+
+/**
+ * Tombstones for synced events the user deleted locally. A one-way pull sync
+ * would otherwise re-add them from the source on the next run. The sync skips
+ * any (calendarSourceId, externalEventId) listed here. Cascade-deletes with the
+ * source. (Google deletes propagate upstream too; CalDAV/iCal rely on this.)
+ */
+export const dismissedEvents = pgTable('dismissed_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  calendarSourceId: uuid('calendar_source_id')
+    .notNull()
+    .references(() => calendarSources.id, { onDelete: 'cascade' }),
+  externalEventId: varchar('external_event_id', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  dismissedSourceExternalUnique: uniqueIndex('dismissed_events_source_external_unique')
     .on(table.calendarSourceId, table.externalEventId),
 }));
 
@@ -496,6 +526,30 @@ export const userKrogerConnections = pgTable('user_kroger_connections', {
 }));
 
 
+/**
+ * A connected recipe server (Tandoor / Mealie). Recipes pulled from it carry
+ * recipes.sourceId + externalId so the review-and-approve sync can match,
+ * update, and (opt-in) remove them. The API token is encrypted at the app
+ * layer (AES-256-GCM via lib/utils/crypto), like other source credentials.
+ */
+export const recipeSources = pgTable('recipe_sources', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  provider: varchar('provider', { length: 50 }).notNull()
+    .$type<'tandoor' | 'mealie'>(),
+  name: varchar('name', { length: 255 }),
+  serverUrl: text('server_url').notNull(),
+  accessToken: text('access_token'),
+  enabled: boolean('enabled').default(true).notNull(),
+  lastSynced: timestamp('last_synced'),
+  syncErrors: jsonb('sync_errors'),
+  providerConfig: jsonb('provider_config'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  enabledIdx: index('recipe_sources_enabled_idx').on(table.enabled),
+}));
+
 export const recipes = pgTable('recipes', {
   id: uuid('id').defaultRandom().primaryKey(),
 
@@ -507,7 +561,15 @@ export const recipes = pgTable('recipes', {
 
   // Where did this recipe come from?
   sourceType: varchar('source_type', { length: 50 }).default('manual').notNull()
-    .$type<'manual' | 'url_import' | 'paprika_import'>(),
+    .$type<'manual' | 'url_import' | 'paprika_import' | 'tandoor_import'>(),
+
+  // Sync-source linkage (for recipes pulled from a Tandoor/Mealie source).
+  // (sourceId, externalId) keys the review-and-approve sync; externalUpdatedAt
+  // is the remote's last-modified time, used for last-write-wins. All null for
+  // locally-created recipes.
+  sourceId: uuid('source_id').references(() => recipeSources.id, { onDelete: 'set null' }),
+  externalId: varchar('external_id', { length: 255 }),
+  externalUpdatedAt: timestamp('external_updated_at'),
 
   // Structured ingredients (JSON array of {name, amount, unit, notes})
   ingredients: jsonb('ingredients').default([]).notNull(),
@@ -545,6 +607,9 @@ export const recipes = pgTable('recipes', {
   nameIdx: index('recipes_name_idx').on(table.name),
   favoriteIdx: index('recipes_favorite_idx').on(table.isFavorite),
   sourceTypeIdx: index('recipes_source_type_idx').on(table.sourceType),
+  // Upsert/match key for synced recipes. (null, null) local rows don't collide
+  // — Postgres treats NULLs as distinct in a unique index.
+  sourceExternalUnique: uniqueIndex('recipes_source_external_unique').on(table.sourceId, table.externalId),
 }));
 
 

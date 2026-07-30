@@ -4,6 +4,58 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+### Calendar
+- **Deleting a synced Apple/CalDAV event in Prism now removes it from the source too.** Previously only Google deletes propagated upstream — a CalDAV event you deleted in Prism was tombstoned locally but lingered on iCloud/Nextcloud/etc. Prism now captures each event's server address at sync time and sends the delete back to the source. Single (non-recurring) events only; recurring series still delete locally without touching the source (they need proper recurrence editing first). Ships one additive database migration, applied automatically on start.
+
+## [1.10.0] – 2026-07-27
+
+A feature release: recipe & meal-plan sync with Tandoor and Mealie, a calendar-sync overhaul that stops the sync from ever silently losing events, and a settings reshuffle so household basics live where you'd expect. Ships three database migrations (recipe sources, deleted-event tombstones, and a pending-deletion flag) — all applied automatically on start.
+
+### Recipes & meals
+- **Sync recipes and meal plans from Tandoor and Mealie.** Connect a server once (read-only API token) and pull recipes — ingredients, steps, times, tags, and photos — and your meal plan into Prism, from **Recipes → Add ▾ → "Sync recipes…"** and **Meals → Add ▾ → "Sync meal plan…"**. It's review-and-approve: every sync shows exactly what would change and you pick what to apply — adds and updates are pre-selected, removals are opt-in, and a mass-delete guard keeps a source glitch from wiping your library. A planned meal automatically brings its recipe along if you haven't imported it yet. Re-syncing is idempotent (unchanged items show "up to date"). Both apps ride one reusable framework, so more integrations are straightforward from here.
+- **Fixed ingredient scaling.** Scaling a recipe's servings multiplied *every* number in an ingredient line, so "1 8 oz can" doubled to "2 16 oz can". It now scales only the leading quantity (handling fractions and mixed numbers) and leaves pack/size numbers alone.
+
+### Calendar
+- **Sync never silently deletes anymore.** When an event disappears from its source calendar, Prism no longer removes it on the next pull — it *holds* it and shows a "**Review N**" badge on the calendar. You review each removal and choose **Delete** (remove it) or **Keep** (turn it into a permanent local event). Adds and updates still apply automatically, so the dashboard stays current; only removals wait for you. Applying requires delete permission, so a shared display shows the badge but can't act on it without a parent.
+- **Deleting an event in Prism now sticks.** Previously a synced event you deleted could reappear on the next sync; a tombstone now keeps it gone (and Google deletes also propagate back to Google).
+- **Calendar management moved onto the Calendar page.** Connected calendars, groups, hours, and iCal subscriptions now live behind a **Manage** button on the calendar itself instead of buried in Settings.
+- **Honest sync counts + a smoother sync.** The sync toast reports what actually changed ("2 added, 1 updated, 3 flagged for review") instead of the total re-pulled, a manual sync refreshes the calendar immediately (no page reload), and the Add-Event date field is now clickable to change the date, not just the time.
+
+### Settings
+- **New "General" section** groups the household basics that were scattered before: **Location**, **Time zone**, and **Week starts on**.
+- **Household time zone setting** — server-side scheduling and syncs (e.g. placing imported meal-plan times) now anchor to your zone; defaults to your browser's.
+- **Set your weather location by ZIP / postal code** with a clean, single-result lookup (no API key required), instead of fiddly free text.
+
+## [1.9.0] – 2026-07-24
+
+Security-hardening release from a full codebase audit. It closes a cluster of access-control gaps on the API, adds server-side-request-forgery guards to the calendar/photo integrations, hardens sessions and OAuth, and updates dependencies carrying published advisories. No changes to how Prism behaves for you day-to-day, and no database migration — but if you run Prism on a network-exposed Home Assistant ingress, this is a recommended upgrade.
+
+### Security — Access control
+- **Item-level edit/delete on events, chores, calendars, and photo sources now enforce the same permissions as the rest of the app.** Several `PATCH`/`DELETE` endpoints checked only that you were signed in, not *which* role you had — so a child, guest, or a narrowly-scoped API token could edit or delete family data (and, for calendars/photo sources, cascade-delete the linked source and its on-disk originals) by addressing it directly by id. Every one of these now applies the owner-or-role check the collection routes already used. Chore completion is now anchored to the signed-in caller, closing an approval bypass where a child could self-approve by supplying a parent's id.
+- **API-token scopes are enforced on the admin routes.** Bearer tokens were treated as full parent on the database and backup routes regardless of their scope; a `voice`-scoped token could truncate/seed the database or download/restore/delete backups. Scopes are now honored.
+- **Kiosk PIN lockout can no longer be brute-forced** (the lockout counter is keyed on the resolved user, so failed attempts actually accumulate).
+
+### Security — Server-side request forgery (SSRF)
+- **CalDAV, CardDAV, and Immich outbound fetches now validate the target address.** A signed-in parent could previously point one of these at a loopback / private / cloud-metadata address and use Prism to probe the internal network. All three now reject private targets before connecting, the CalDAV *test* endpoint no longer leaks whether an internal host exists, and Immich no longer follows a redirect to an internal host.
+
+### Security — Sessions, OAuth & storage
+- **Sessions now have an absolute lifetime** (parent 30 days / child 7 / guest 1 hour) on top of the existing sliding window, so a stolen session cookie can't be kept alive indefinitely.
+- **Google and Microsoft OAuth now verify a single-use state nonce**, matching the Kroger flow — closing a window where a valid `code` could bind an attacker's account (or an attacker-chosen owner) to the dashboard. The Microsoft photo-source callback, previously unauthenticated, now requires a signed-in parent.
+- **The service worker no longer caches authenticated `/api` responses to disk** — previously messages, family, tokens, and other per-session data were written into on-disk Cache Storage and outlived the session on a shared kiosk.
+- **Avatar and recipe-image URLs validate the id** before reading from disk, rejecting path-traversal payloads.
+
+### Security — Dependencies
+- Updated dependencies carrying published advisories: **Next.js** (`15.5.21`), **drizzle-orm** (`0.45.2`), **node-ical** (`0.27.1`, which also drops a vulnerable bundled `axios`), **undici** (`6.27.0`), and **dompurify** (`3.4.x`), plus dev tooling (postcss, next-tooling alignment). The abandoned `next-pwa`/Workbox build chain is a known remaining item slated for a separate migration.
+
+### Fixed — Correctness
+- **The API rate limiter can no longer permanently lock you out.** If Redis dropped the window's expiry (e.g. a crash at the wrong moment), the counter never reset and you'd stay blocked; the window now self-heals.
+- **Weather "Morning / Afternoon / Evening" temperatures now bucket by the forecast location's timezone**, not the server's UTC clock — so day-parts land on the right hours and don't roll to the wrong day.
+- **A Google calendar is only auto-disabled after 3 *consecutive* 404s**, not three assorted failures — transient network/5xx blips no longer count toward disabling a calendar that still exists.
+- **The travel globe re-highlights trip stops correctly** when you select or deselect a trip.
+
+### Fixed — Photos
+- **Immich album photo sources now sync on Immich v3.** An album-backed source synced **zero photos** on Immich v3: the old `GET /api/albums/{id}` listing returns an empty asset array over a share key, so the sync finished without error and added nothing. Prism now lists album assets via the paginated `POST /api/search/metadata` endpoint (requesting EXIF so photo GPS still reaches the Travel Map); thumbnail and original downloads were already fine and are unchanged. Thanks @guylenical for the report and the suggested fix (verified against a live v3 instance). Closes [#154](https://github.com/sandydargoport/prism/pull/154).
+
 ## [1.8.14] – 2026-06-29
 
 ### Fixed — Display

@@ -7,6 +7,25 @@
 
 import { createDAVClient, type DAVCalendar, type DAVObject } from 'tsdav';
 import ICAL from 'ical.js';
+import { validatePublicUrl, UnsafeUrlError } from '@/lib/utils/safeFetch';
+
+/**
+ * Guard a user-supplied CalDAV server URL before handing it to tsdav.
+ *
+ * Every exported entry point below forwards `serverUrl` straight into tsdav,
+ * which performs the outbound request — so without this an authenticated
+ * parent could paste a loopback / RFC1918 / 169.254.169.254 address into the
+ * server-URL field and use Prism to probe the internal network (the /test
+ * endpoint's distinct connect-vs-401 errors make it a clean existence oracle).
+ *
+ * tsdav owns the fetch and follows HTTP redirects internally, so — like the
+ * caveat documented in safeFetch.ts — this validates only the initial host
+ * literal, not redirect targets or the DNS-resolved IP. That still closes the
+ * primary vector. Throws UnsafeUrlError on a private / non-http(s) target.
+ */
+function assertSafeCalDAVUrl(serverUrl: string): void {
+  validatePublicUrl(serverUrl);
+}
 
 export interface CalDAVCalendar {
   href: string;
@@ -29,6 +48,12 @@ export interface CalDAVEvent {
   color: string | null;
   recurring: boolean;
   recurrenceRule: string | null;
+  /** href (path) of the CalDAV object this event was parsed from, plus its
+   *  ETag. Needed to propagate a delete/update back to the server, which
+   *  addresses objects by href, not UID. Recurring instances share the parent
+   *  object's href — write-back is single-event-only, so that's acceptable. */
+  href: string | null;
+  etag: string | null;
 }
 
 export interface CalDAVTask {
@@ -69,6 +94,11 @@ export async function testCalDAVConnection(
   password: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Reject private/loopback/metadata targets *before* the fetch so this
+    // endpoint can't be used as an internal-host existence oracle (the
+    // rejection is identical whether or not the internal host exists).
+    assertSafeCalDAVUrl(serverUrl);
+
     const client = await createDAVClient({
       serverUrl,
       credentials: { username, password },
@@ -81,6 +111,9 @@ export async function testCalDAVConnection(
 
     return { success: true };
   } catch (error) {
+    if (error instanceof UnsafeUrlError) {
+      return { success: false, error: 'Server URL is not allowed (points at a private or local address).' };
+    }
     const msg = error instanceof Error ? error.message : String(error);
     if (msg.includes('401') || msg.includes('Unauthorized')) {
       return { success: false, error: 'Authentication failed. Check username and password.' };
@@ -100,6 +133,8 @@ export async function discoverCalendars(
   username: string,
   password: string,
 ): Promise<CalDAVCalendar[]> {
+  assertSafeCalDAVUrl(serverUrl);
+
   const client = await createDAVClient({
     serverUrl,
     credentials: { username, password },
@@ -157,6 +192,8 @@ export async function fetchCalDAVEvents(
   timeMin: Date,
   timeMax: Date,
 ): Promise<CalDAVEvent[]> {
+  assertSafeCalDAVUrl(serverUrl);
+
   const client = await createDAVClient({
     serverUrl,
     credentials: { username, password },
@@ -213,6 +250,12 @@ function parseICalObject(
   const vevents = comp.getAllSubcomponents('vevent');
   const events: CalDAVEvent[] = [];
 
+  // Object identity on the server: the href addresses the .ics resource and
+  // the ETag guards a conflict-safe delete/update. Both come from the DAV
+  // object, not the iCal body.
+  const href = obj.url || null;
+  const etag = obj.etag || null;
+
   for (const vevent of vevents) {
     const event = new ICAL.Event(vevent);
 
@@ -246,6 +289,8 @@ function parseICalObject(
               color: null,
               recurring: true,
               recurrenceRule: vevent.getFirstPropertyValue('rrule')?.toString() || null,
+              href,
+              etag,
             });
           }
 
@@ -254,17 +299,22 @@ function parseICalObject(
         }
       } catch {
         // If recurrence expansion fails, add the base event
-        events.push(makeEvent(event, vevent));
+        events.push(makeEvent(event, vevent, href, etag));
       }
     } else {
-      events.push(makeEvent(event, vevent));
+      events.push(makeEvent(event, vevent, href, etag));
     }
   }
 
   return events;
 }
 
-function makeEvent(event: ICAL.Event, vevent: ICAL.Component): CalDAVEvent {
+function makeEvent(
+  event: ICAL.Event,
+  vevent: ICAL.Component,
+  href: string | null,
+  etag: string | null,
+): CalDAVEvent {
   return {
     uid: event.uid,
     title: event.summary,
@@ -276,6 +326,8 @@ function makeEvent(event: ICAL.Event, vevent: ICAL.Component): CalDAVEvent {
     color: null,
     recurring: false,
     recurrenceRule: null,
+    href,
+    etag,
   };
 }
 
@@ -288,6 +340,8 @@ export async function fetchCalDAVTasks(
   password: string,
   calendarHref: string,
 ): Promise<CalDAVTask[]> {
+  assertSafeCalDAVUrl(serverUrl);
+
   const client = await createDAVClient({
     serverUrl,
     credentials: { username, password },
@@ -458,6 +512,8 @@ export async function createCalDAVEvent(
   calendarHref: string,
   ev: CalDAVEventWrite,
 ): Promise<{ href: string }> {
+  assertSafeCalDAVUrl(serverUrl);
+
   const client = await createDAVClient({
     serverUrl,
     credentials: { username, password },
@@ -496,6 +552,8 @@ export async function updateCalDAVEvent(
   etag: string | undefined,
   ev: CalDAVEventWrite,
 ): Promise<void> {
+  assertSafeCalDAVUrl(serverUrl);
+
   const client = await createDAVClient({
     serverUrl,
     credentials: { username, password },
@@ -527,6 +585,8 @@ export async function deleteCalDAVEvent(
   calendarObjectHref: string,
   etag?: string,
 ): Promise<void> {
+  assertSafeCalDAVUrl(serverUrl);
+
   const client = await createDAVClient({
     serverUrl,
     credentials: { username, password },
