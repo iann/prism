@@ -27,6 +27,8 @@ import { SideNav } from './SideNav';
 import { MobileFab } from './MobileFab';
 import { PortraitNav } from './PortraitNav';
 import { WallpaperBackground } from './WallpaperBackground';
+import { LCARSNavigation, LCARSStatusBar, LCARSStatusFooter } from '@/components/lcars';
+import { useTheme } from '@/components/providers/ThemeProvider';
 import { cn } from '@/lib/utils';
 import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
@@ -94,6 +96,7 @@ export function AppShell({
   const orientation = useOrientation();
   const isMobile = useIsMobile();
   const { uiHidden } = useAutoHideUI();
+  const { colorTheme } = useTheme();
   useInactivityRedirect();
   const [measureHideNav, setMeasureHideNav] = React.useState(false);
 
@@ -120,40 +123,88 @@ export function AppShell({
   const showPortraitNav = !isMobile && orientation === 'portrait';
   const showMobileNav = isMobile;
 
+  const isLCARS = colorTheme === 'lcars';
+  const chromeHidden = uiHidden || measureHideNav;
+  const showLCARSChrome = isLCARS && !hideNav;
+  const lcarsMainStyle: React.CSSProperties | undefined = showLCARSChrome
+    ? {
+        paddingTop: chromeHidden ? 0 : 'var(--lcars-status-height)',
+        paddingBottom: chromeHidden
+          ? 0
+          : showPortraitNav
+            ? 'calc(var(--lcars-footer-height) + 6rem)'
+            : 'var(--lcars-footer-height)',
+        marginLeft: !chromeHidden && showSideNav ? 'var(--lcars-nav-width)' : 0,
+      }
+    : undefined;
+
   return (
-    <div className={cn('relative min-h-screen', !showWallpaper && 'bg-background')}>
+    <div
+      className={cn(
+        'relative min-h-screen',
+        isLCARS && 'lcars-shell',
+        (!showWallpaper || isLCARS) && 'bg-background'
+      )}
+      data-layout-theme={isLCARS ? 'lcars' : 'standard'}
+      data-chrome-hidden={showLCARSChrome && chromeHidden ? 'true' : undefined}
+    >
       {/* WALLPAPER BACKGROUND (only on dashboard/screensaver) */}
-      {showWallpaper && <WallpaperBackground />}
+      {showWallpaper && !isLCARS && <WallpaperBackground />}
+
+      {showLCARSChrome && <LCARSStatusBar hidden={chromeHidden} />}
 
       {/* SIDE NAVIGATION - landscape mode on larger screens */}
-      {!hideNav && showSideNav && (
-        <SideNav user={user} onLogout={onLogout} onLogin={onLogin} uiHidden={uiHidden || measureHideNav} />
+      {!isLCARS && !hideNav && showSideNav && (
+        <SideNav
+          user={user}
+          onLogout={onLogout}
+          onLogin={onLogin}
+          uiHidden={uiHidden || measureHideNav}
+        />
+      )}
+
+      {showLCARSChrome && showSideNav && (
+        <LCARSNavigation user={user} onLogout={onLogout} onLogin={onLogin} hidden={chromeHidden} />
       )}
 
       {/* MAIN CONTENT AREA */}
       <main
+        style={lcarsMainStyle}
         className={cn(
           'min-h-screen',
+          isLCARS && 'lcars-main',
           // Snap margin/padding when nav hides — animating layout properties causes
           // layout reflow on every frame, which is expensive on weak CPUs (Atom).
           // The nav itself slides smoothly via GPU-composited transform; the content
           // just needs to reflow once when the class changes.
-          !hideNav && showSideNav && !measureHideNav && !uiHidden && 'ml-16',
-          !hideNav && showPortraitNav && !measureHideNav && !uiHidden && 'pb-24',
+          !isLCARS && !hideNav && showSideNav && !measureHideNav && !uiHidden && 'ml-16',
+          !isLCARS && !hideNav && showPortraitNav && !measureHideNav && !uiHidden && 'pb-24',
           className
         )}
       >
         {children}
       </main>
 
+      {showLCARSChrome && <LCARSStatusFooter hidden={chromeHidden} navOffset={showPortraitNav} />}
+
       {/* PORTRAIT BOTTOM NAVIGATION - portrait mode on larger screens */}
       {!hideNav && showPortraitNav && (
-        <PortraitNav user={user} onLogin={onLogin} onLogout={onLogout} uiHidden={uiHidden || measureHideNav} />
+        <PortraitNav
+          user={user}
+          onLogin={onLogin}
+          onLogout={onLogout}
+          uiHidden={uiHidden || measureHideNav}
+        />
       )}
 
       {/* MOBILE FAB - small screens only */}
       {!hideNav && showMobileNav && (
-        <MobileFab user={user} onLogin={onLogin} onLogout={onLogout} uiHidden={uiHidden || measureHideNav} />
+        <MobileFab
+          user={user}
+          onLogin={onLogin}
+          onLogout={onLogout}
+          uiHidden={uiHidden || measureHideNav}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ export const APP_THEME_IDS = [
   'herb-garden',
   'warm-clay',
   'soft-slate',
+  'lcars',
 ] as const;
 
 export type AppThemeId = (typeof APP_THEME_IDS)[number];
@@ -83,6 +84,45 @@ const prismDark: ThemeTokens = {
   '--widget-planning': '222 47% 15%',
   '--widget-family': '222 47% 15%',
   '--widget-info': '222 47% 15%',
+};
+
+/**
+ * LCARS is intentionally a low-light palette in both brightness modes. The
+ * structural shell does most of the visual work; these semantic tokens keep
+ * existing Prism widgets and dialogs readable without teaching them about the
+ * themed layout.
+ */
+const lcars: ThemeTokens = {
+  '--background': '240 11% 3%',
+  '--foreground': '42 38% 94%',
+  '--card': '252 16% 8%',
+  '--card-foreground': '42 38% 94%',
+  '--popover': '252 16% 9%',
+  '--popover-foreground': '42 38% 94%',
+  '--primary': '27 86% 65%',
+  '--primary-foreground': '276 15% 9%',
+  '--secondary': '260 40% 73%',
+  '--secondary-foreground': '276 15% 9%',
+  '--muted': '258 14% 16%',
+  '--muted-foreground': '258 25% 74%',
+  '--accent': '25 82% 74%',
+  '--accent-foreground': '276 15% 9%',
+  '--destructive': '359 57% 64%',
+  '--destructive-foreground': '276 15% 9%',
+  '--border': '260 40% 68%',
+  '--input': '260 40% 68%',
+  '--ring': '44 71% 66%',
+  '--chart-1': '27 86% 65%',
+  '--chart-2': '260 40% 73%',
+  '--chart-3': '359 57% 64%',
+  '--chart-4': '44 71% 66%',
+  '--chart-5': '218 38% 61%',
+  '--calendar-surface': '252 16% 9%',
+  '--calendar-today': '260 21% 17%',
+  '--widget-calendar': '252 16% 9%',
+  '--widget-planning': '264 15% 10%',
+  '--widget-family': '345 14% 10%',
+  '--widget-info': '228 15% 10%',
 };
 
 export const appThemes: Record<AppThemeId, AppTheme> = {
@@ -350,6 +390,14 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
       '--widget-family': '226 13% 20%',
       '--widget-info': '192 14% 20%',
     },
+  },
+  lcars: {
+    id: 'lcars',
+    name: 'LCARS Console',
+    description:
+      'A low-light bridge console with segmented rails, technical readouts, and bold system colors.',
+    light: { ...lcars },
+    dark: { ...lcars },
   },
 };
 
