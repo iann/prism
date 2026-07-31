@@ -26,7 +26,7 @@ describe('buildWidgetProps calendar data sharing', () => {
   it('passes the shared calendar event array through even when it is empty', () => {
     const events: unknown[] = [];
     const props = buildWidgetProps(
-      makeDashboardData(events) as Parameters<typeof buildWidgetProps>[0],
+      makeDashboardData(events) as unknown as Parameters<typeof buildWidgetProps>[0],
       jest.fn(),
       {
         setShowAddTask: jest.fn(),
@@ -36,7 +36,8 @@ describe('buildWidgetProps calendar data sharing', () => {
       }
     );
 
-    expect(props.calendar).toHaveProperty('events', events);
-    expect(props.calendar.events).toBe(events);
+    const calendarProps = props.calendar!;
+    expect(calendarProps).toHaveProperty('events', events);
+    expect(calendarProps.events).toBe(events);
   });
 });

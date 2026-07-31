@@ -34,7 +34,7 @@ describe('CoordinateEditor duplicate widget instances', () => {
     );
 
     openAddMenu();
-    const calendarButtons = screen.getAllByRole('button', { name: 'Calendar', exact: true });
+    const calendarButtons = screen.getAllByRole('button', { name: /^Calendar$/ });
     fireEvent.click(calendarButtons[calendarButtons.length - 1]!);
 
     const nextWidgets = onWidgetsChange.mock.calls[0]![0] as WidgetConfig[];
@@ -54,7 +54,7 @@ describe('CoordinateEditor duplicate widget instances', () => {
     );
 
     openAddMenu();
-    fireEvent.click(screen.getByRole('button', { name: 'Calendar', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: /^Calendar$/ }));
 
     const nextWidgets = onWidgetsChange.mock.calls[0]![0] as WidgetConfig[];
     expect(nextWidgets.map((widget) => widget.i)).toEqual(['calendar', 'calendar-2', 'calendar-3']);
@@ -71,7 +71,7 @@ describe('CoordinateEditor duplicate widget instances', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Calendar 2', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: /^Calendar 2$/ }));
 
     const nextWidgets = onWidgetsChange.mock.calls[0]![0] as WidgetConfig[];
     expect(nextWidgets).toEqual([
@@ -91,7 +91,7 @@ describe('CoordinateEditor duplicate widget instances', () => {
     );
 
     openAddMenu();
-    expect(screen.getAllByRole('button', { name: 'Calendar', exact: true })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /^Calendar$/ })).toHaveLength(1);
     expect(onWidgetsChange).not.toHaveBeenCalled();
   });
 
@@ -106,7 +106,7 @@ describe('CoordinateEditor duplicate widget instances', () => {
     );
 
     openAddMenu();
-    fireEvent.click(screen.getByRole('button', { name: 'Calendar', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: /^Calendar$/ }));
 
     const nextWidgets = onWidgetsChange.mock.calls[0]![0] as WidgetConfig[];
     expect(nextWidgets).toEqual([expect.objectContaining({ i: 'calendar', visible: true })]);

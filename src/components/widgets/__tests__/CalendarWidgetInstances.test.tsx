@@ -71,7 +71,7 @@ const calendarPrefs = {
   availableViews: ['agenda' as const],
   effectiveView: 'agenda' as const,
   resolvedView: 'agenda' as const,
-  resolvedWeekCount: 1,
+  resolvedWeekCount: 1 as const,
   viewUnavailable: false,
   goToToday: jest.fn(),
   goToPrevious: jest.fn(),
@@ -85,6 +85,7 @@ beforeEach(() => {
     loading: false,
     error: null,
     refresh: jest.fn(),
+    syncCalendars: jest.fn(),
   });
   jest.mocked(useCalendarFilter).mockReturnValue({
     selectedCalendarIds: new Set(['all']),
@@ -94,10 +95,15 @@ beforeEach(() => {
   });
   jest.mocked(useCalendarNotes).mockReturnValue({
     notesByDate: new Map(),
+    loading: false,
+    error: null,
     upsertNote: jest.fn(),
+    refresh: jest.fn(),
   });
   jest.mocked(useDayBucketsForRange).mockReturnValue({
     bucketsByDate: new Map(),
+    loading: false,
+    error: null,
     refresh: jest.fn(),
   });
   jest.mocked(useWeekMutations).mockReturnValue({
