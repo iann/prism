@@ -462,4 +462,32 @@ describe('sun and moon day rollover', () => {
     const rolledDay = getTimes.mock.calls.at(-1)?.[0];
     expect(rolledDay).toEqual(new Date(2026, 6, 18, 0, 0, 0, 0));
   });
+
+  it('uses the weather temperature ramp for sun and moon arc colors', () => {
+    const sunrise = new Date(2026, 6, 17, 5, 30);
+    const sunset = new Date(2026, 6, 17, 20, 15);
+    const { container } = render(
+      <WeatherWidget
+        data={makeWeatherData({
+          sunrise,
+          sunset,
+          moonrise: new Date(2026, 6, 17, 21, 0),
+          moonset: new Date(2026, 6, 18, 5, 0),
+          moonPhase: 0.5,
+          lat: 42.46,
+          lon: -71.06,
+        })}
+      />
+    );
+
+    const gradientStops = Array.from(container.querySelectorAll('linearGradient stop'));
+    expect(gradientStops.map((stop) => stop.getAttribute('stop-color'))).toEqual([
+      'hsl(var(--weather-temp-very-hot))',
+      'hsl(var(--weather-temp-hot))',
+      'hsl(var(--weather-temp-warm))',
+    ]);
+
+    const moonArc = container.querySelector('path[stroke="hsl(var(--weather-temp-freezing))"]');
+    expect(moonArc).not.toBeNull();
+  });
 });
