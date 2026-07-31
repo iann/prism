@@ -40,6 +40,16 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
 
+    /* Weather temperature-range ramp; presets override these semantic stops. */
+    --weather-temp-very-cold: 213 90% 48%;
+    --weather-temp-freezing: 199 92% 48%;
+    --weather-temp-cold: 184 88% 44%;
+    --weather-temp-cool: 150 65% 38%;
+    --weather-temp-mild: 48 95% 45%;
+    --weather-temp-warm: 28 95% 48%;
+    --weather-temp-hot: 9 90% 48%;
+    --weather-temp-very-hot: 348 78% 48%;
+
     --seasonal-accent: 222 47% 31%;
     --seasonal-accent-foreground: 210 40% 98%;
     --seasonal-highlight: 210 40% 96%;
@@ -81,6 +91,15 @@
     --chart-4: 280 65% 65%;
     --chart-5: 340 75% 60%;
 
+    --weather-temp-very-cold: 213 95% 66%;
+    --weather-temp-freezing: 199 92% 65%;
+    --weather-temp-cold: 184 89% 61%;
+    --weather-temp-cool: 150 68% 60%;
+    --weather-temp-mild: 48 96% 65%;
+    --weather-temp-warm: 28 96% 63%;
+    --weather-temp-hot: 9 92% 64%;
+    --weather-temp-very-hot: 348 86% 68%;
+
     --seasonal-accent: 210 40% 98%;
     --seasonal-accent-foreground: 222 47% 11%;
     --seasonal-highlight: 217 33% 17%;
@@ -106,6 +125,14 @@
     --border: 105 12% 76%;
     --input: 105 12% 45%;
     --ring: 164 24% 38%;
+    --weather-temp-very-cold: 204 78% 50%;
+    --weather-temp-freezing: 190 79% 47%;
+    --weather-temp-cold: 174 65% 43%;
+    --weather-temp-cool: 143 52% 39%;
+    --weather-temp-mild: 47 76% 45%;
+    --weather-temp-warm: 28 78% 49%;
+    --weather-temp-hot: 12 74% 51%;
+    --weather-temp-very-hot: 350 65% 48%;
     --calendar-surface: 48 26% 94%;
     --calendar-today: 91 23% 85%;
     --widget-calendar: 48 28% 95%;
@@ -134,6 +161,14 @@
     --border: 142 9% 29%;
     --input: 142 10% 50%;
     --ring: 143 22% 63%;
+    --weather-temp-very-cold: 204 80% 65%;
+    --weather-temp-freezing: 190 78% 64%;
+    --weather-temp-cold: 174 63% 58%;
+    --weather-temp-cool: 143 55% 58%;
+    --weather-temp-mild: 47 85% 65%;
+    --weather-temp-warm: 28 84% 64%;
+    --weather-temp-hot: 12 80% 65%;
+    --weather-temp-very-hot: 350 76% 68%;
     --calendar-surface: 153 12% 18%;
     --calendar-today: 104 12% 25%;
     --widget-calendar: 153 12% 19%;
