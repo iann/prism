@@ -23,6 +23,7 @@ import { useWeekMutations } from '@/lib/hooks/useWeekMutations';
 import { useAuth } from '@/components/providers';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import { useCalendarWidgetPrefs, VIEW_OPTIONS } from '@/lib/hooks/useCalendarWidgetPrefs';
+import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { CalendarWidgetControls } from './CalendarWidgetControls';
 import type { CalendarEvent } from '@/types/calendar';
 export type { CalendarEvent };
@@ -56,6 +57,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   gridH = 2,
 }: CalendarWidgetProps) {
   const { activeUser } = useAuth();
+  const { uiHidden } = useAutoHideUI();
   const { weekStartsOn } = useWeekStartsOn();
   const bgOverride = useWidgetBgOverride();
   const transparentMode = bgOverride?.hasCustomBg === true;
@@ -249,37 +251,40 @@ export const CalendarWidget = React.memo(function CalendarWidget({
       titleHref={titleHref}
       icon={<Calendar className="h-4 w-4" />}
       size="large"
+      showHeader={!uiHidden}
       loading={loading}
       error={error}
       actions={
-        <CalendarWidgetControls
-          viewType={viewType}
-          setViewType={setViewType}
-          availableViews={availableViews}
-          resolvedView={resolvedView}
-          widgetBordered={widgetBordered}
-          setWidgetBordered={setWidgetBordered}
-          mergedView={mergedView}
-          setMergedView={setMergedView}
-          showNotes={showNotes}
-          setShowNotes={setShowNotes}
-          notesSupported={notesSupported}
-          transparentMode={transparentMode}
-          showMerge={showMerge}
-          displayMode={displayMode}
-          setDisplayMode={setDisplayMode}
-          hideWeekends={hideWeekends}
-          setHideWeekends={setHideWeekends}
-          overlays={overlays}
-          setOverlays={setOverlays}
-          goToPrevious={goToPrevious}
-          goToToday={goToToday}
-          goToNext={goToNext}
-        />
+        !uiHidden && (
+          <CalendarWidgetControls
+            viewType={viewType}
+            setViewType={setViewType}
+            availableViews={availableViews}
+            resolvedView={resolvedView}
+            widgetBordered={widgetBordered}
+            setWidgetBordered={setWidgetBordered}
+            mergedView={mergedView}
+            setMergedView={setMergedView}
+            showNotes={showNotes}
+            setShowNotes={setShowNotes}
+            notesSupported={notesSupported}
+            transparentMode={transparentMode}
+            showMerge={showMerge}
+            displayMode={displayMode}
+            setDisplayMode={setDisplayMode}
+            hideWeekends={hideWeekends}
+            setHideWeekends={setHideWeekends}
+            overlays={overlays}
+            setOverlays={setOverlays}
+            goToPrevious={goToPrevious}
+            goToToday={goToToday}
+            goToNext={goToNext}
+          />
+        )
       }
       className={className}
     >
-      {calendarChips}
+      {!uiHidden && calendarChips}
       {viewUnavailable && (
         <div className="text-[10px] text-muted-foreground text-center py-1 bg-muted/50 rounded mb-1">
           Resize widget for {VIEW_OPTIONS.find(v => v.value === viewType)?.label} view
