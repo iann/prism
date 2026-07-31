@@ -277,18 +277,18 @@ function ChoreItem({
 
           {/* Points badge */}
           {chore.pointValue > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            <Badge variant="secondary" className="text-[12px] px-1.5 py-0">
               +{chore.pointValue}
             </Badge>
           )}
 
           {/* Pending approval badge - takes priority over "requires approval" */}
           {isPendingApproval ? (
-            <Badge variant="warning" className="text-[10px] px-1.5 py-0">
+            <Badge variant="warning" className="text-[12px] px-1.5 py-0">
               Pending
             </Badge>
           ) : chore.requiresApproval && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            <Badge variant="outline" className="text-[12px] px-1.5 py-0">
               Approval
             </Badge>
           )}

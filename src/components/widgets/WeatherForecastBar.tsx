@@ -133,11 +133,11 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
             {/* Day label + precip % + weather icon + moon phase glyph */}
             <div className="flex items-center gap-1.5 w-28 flex-shrink-0">
               <div className="w-12 flex-shrink-0 h-8 flex flex-col justify-center">
-                <div className="text-[11px] font-bold tracking-wide text-foreground leading-tight whitespace-nowrap">
+                <div className="text-[14px] font-bold tracking-wide text-foreground leading-tight whitespace-nowrap">
                   {label}
                 </div>
                 {day.precipProbability !== undefined && (
-                  <div className="flex items-center gap-0.5 text-[10px] text-primary leading-tight">
+                  <div className="flex items-center gap-0.5 text-[14px] text-primary leading-tight">
                     <Droplets className="h-2.5 w-2.5 flex-shrink-0" />
                     <span>{day.precipProbability}%</span>
                   </div>
@@ -153,7 +153,7 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
                 adjacent to the bar at its position within the week's range. */}
             <div className="flex-1 flex items-center min-w-0">
               <div style={{ flex: leftPct }} />
-              <span className="flex-none text-[11px] text-muted-foreground tabular-nums pr-1">
+              <span className="flex-none text-[14px] text-muted-foreground tabular-nums pr-1">
                 {fmt(day.low)}°
               </span>
               <div
@@ -165,7 +165,7 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
                   filter: 'saturate(1.18)',
                 }}
               />
-              <span className="flex-none text-[11px] font-semibold tabular-nums pl-1">
+              <span className="flex-none text-[14px] font-semibold tabular-nums pl-1">
                 {fmt(day.high)}°
               </span>
               <div style={{ flex: Math.max(100 - rightPct, 0) }} />

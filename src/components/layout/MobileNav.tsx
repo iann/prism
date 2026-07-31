@@ -219,7 +219,7 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
                 )}
               >
                 <Icon className={cn('h-6 w-6', isActive && 'stroke-[2.5]')} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[12px] font-medium">{item.label}</span>
               </Link>
             );
           })}
@@ -235,7 +235,7 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
             )}
           >
             <MoreHorizontal className={cn('h-6 w-6', (showMore || isSecondaryActive) && 'stroke-[2.5]')} />
-            <span className="text-[10px] font-medium">More</span>
+            <span className="text-[12px] font-medium">More</span>
           </button>
         </div>
       </nav>

@@ -57,7 +57,7 @@ export function TwoWeekView({
       <div
         className={cn(
           'border border-border rounded-md h-full',
-          !transparentMode && 'bg-card/85 backdrop-blur-sm',
+          !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm',
           'flex flex-col overflow-hidden',
           !transparentMode && isPast && 'bg-muted/50 text-muted-foreground',
           isToday(date) && 'border-primary border-2'
@@ -89,7 +89,7 @@ export function TwoWeekView({
               onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
               className={cn(
                 'w-full text-left rounded truncate hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all',
-                compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-1 py-0.5'
+                compact ? 'text-[12px] px-0.5 py-px' : 'text-xs px-1 py-0.5'
               )}
               style={event.allDay
                 ? { backgroundColor: event.color + '20', borderLeft: `2px solid ${event.color}` }
@@ -111,10 +111,10 @@ export function TwoWeekView({
         {/* Header row with week numbers */}
         <div className="flex shrink-0 gap-1">
           <div className="w-10 shrink-0" /> {/* Day label spacer */}
-          <div className="flex-1 text-center text-sm font-bold text-muted-foreground py-1 bg-card/50 rounded-md">
+          <div className="flex-1 text-center text-sm font-bold text-muted-foreground py-1 bg-card dark:bg-card/50 rounded-md">
             Week {week1Num}
           </div>
-          <div className="flex-1 text-center text-sm font-bold text-muted-foreground py-1 bg-card/50 rounded-md">
+          <div className="flex-1 text-center text-sm font-bold text-muted-foreground py-1 bg-card dark:bg-card/50 rounded-md">
             Week {week2Num}
           </div>
         </div>

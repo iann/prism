@@ -212,10 +212,10 @@ export const CalendarWidget = React.memo(function CalendarWidget({
       <button
         onClick={() => toggleCalendar('all')}
         className={cn(
-          'px-2 py-1 rounded-full text-[10px] font-medium transition-colors leading-none',
+          'px-2 py-1 rounded-full text-[12px] font-medium transition-colors leading-none',
           selectedCalendarIds.has('all')
             ? 'bg-primary text-primary-foreground'
-            : transparentMode ? 'text-current/70 hover:text-current' : 'bg-muted text-muted-foreground hover:bg-accent'
+            : transparentMode ? 'text-current hover:text-current' : 'bg-muted text-muted-foreground hover:bg-accent'
         )}
       >
         All
@@ -225,10 +225,10 @@ export const CalendarWidget = React.memo(function CalendarWidget({
           key={group.id}
           onClick={() => toggleCalendar(group.id)}
           className={cn(
-            'px-2 py-1 rounded-full text-[10px] font-medium transition-colors inline-flex items-center gap-1 leading-none',
+            'px-2 py-1 rounded-full text-[12px] font-medium transition-colors inline-flex items-center gap-1 leading-none',
             selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
               ? isLightColor(group.color) ? '!text-black' : '!text-white'
-              : transparentMode ? 'text-current/60 hover:text-current' : 'bg-muted text-muted-foreground hover:bg-accent'
+              : transparentMode ? 'text-current hover:text-current' : 'bg-muted text-muted-foreground hover:bg-accent'
           )}
           style={
             selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
@@ -281,13 +281,13 @@ export const CalendarWidget = React.memo(function CalendarWidget({
     >
       {calendarChips}
       {viewUnavailable && (
-        <div className="text-[10px] text-muted-foreground text-center py-1 bg-muted/50 rounded mb-1">
+        <div className="text-[12px] text-muted-foreground text-center py-1 bg-muted/50 rounded mb-1">
           Resize widget for {VIEW_OPTIONS.find(v => v.value === viewType)?.label} view
         </div>
       )}
 
       {moveError && (
-        <div className="text-[10px] text-destructive text-center py-1 bg-destructive/10 rounded mb-1">
+        <div className="text-[12px] text-destructive text-center py-1 bg-destructive/10 rounded mb-1">
           {moveError}
         </div>
       )}

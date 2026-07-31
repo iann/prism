@@ -248,12 +248,12 @@ function DayCell({
         isPast && !cellBgStyle && 'opacity-50',
         // Cards mode: every cell gets a subtle border, today gets the month's
         // seasonal-accent ring (lavender in April, etc.).
-        cards && !cellBgStyle && 'border border-border bg-card/85 backdrop-blur-sm',
+        cards && !cellBgStyle && 'border border-border bg-card dark:bg-card/85 dark:backdrop-blur-sm',
         cards && cellBgStyle && 'border border-border',
         cards && (today || (enableDnd && droppable.isOver)) && 'border-transparent',
         cards && enableDnd && droppable.isOver && 'shadow-lg',
         // Inline mode keeps the legacy bordered look.
-        !cards && bordered && !cellBgStyle && 'border border-border bg-card/85',
+        !cards && bordered && !cellBgStyle && 'border border-border bg-card dark:bg-card/85',
         !cards && bordered && cellBgStyle && 'border border-border',
         !cards && bordered && isPast && !cellBgStyle && 'bg-muted/65',
       )}
@@ -278,7 +278,7 @@ function DayCell({
           <span
             className={cn(
               'font-medium leading-none truncate',
-              compact ? 'text-[11px]' : 'text-xs',
+              compact ? 'text-[12px]' : 'text-xs',
               !today && 'text-muted-foreground',
             )}
             style={today ? { color: monthAccent } : undefined}
@@ -289,7 +289,7 @@ function DayCell({
         {dayWeather && (
           <div className={cn(
             'flex shrink-0 items-center gap-1 text-muted-foreground tabular-nums',
-            compact ? 'text-[10px]' : 'text-[11px]',
+            compact ? 'text-[12px]' : 'text-[12px]',
           )}>
             {weatherIcon(dayWeather.condition)}
             <span>{Math.round(dayWeather.high)}°/{Math.round(dayWeather.low)}°</span>

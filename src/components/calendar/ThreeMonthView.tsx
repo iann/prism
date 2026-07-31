@@ -81,7 +81,7 @@ function MiniMonth({
   return (
     <div className={cn(
       'flex flex-col flex-1 rounded-lg overflow-hidden',
-      !transparentMode && 'bg-card/85 backdrop-blur-sm',
+      !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm',
       isCenter && 'ring-2 ring-primary/30'
     )}>
       {/* Month header with themed color — compact band so the three minis
@@ -96,7 +96,7 @@ function MiniMonth({
       {/* Day name headers */}
       <div className="grid grid-cols-7 gap-px px-1 flex-shrink-0">
         {dayNames.map((name, i) => (
-          <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">
+          <div key={i} className="text-center text-[12px] font-medium text-muted-foreground py-1">
             {name}
           </div>
         ))}
@@ -130,13 +130,13 @@ function MiniMonth({
                   className={cn(
                     'flex flex-col rounded text-xs cursor-pointer overflow-hidden p-0.5',
                     bordered && 'border border-border',
-                    !inMonth && 'text-muted-foreground/40',
+                    !inMonth && 'text-muted-foreground',
                     !transparentMode && isPast && inMonth && 'bg-muted/30 text-muted-foreground',
                     today && 'bg-seasonal-highlight/20',
                   )}
                 >
                   <span className={cn(
-                    'text-center text-[10px] leading-tight flex-shrink-0',
+                    'text-center text-[12px] leading-tight flex-shrink-0',
                     today && 'font-bold text-seasonal-accent',
                   )}>
                     {format(date, 'd')}
@@ -151,7 +151,7 @@ function MiniMonth({
                             e.stopPropagation();
                             onEventClick(event);
                           }}
-                          className="text-[8px] leading-tight px-0.5 rounded truncate cursor-pointer hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all"
+                          className="text-[12px] leading-tight px-0.5 rounded truncate cursor-pointer hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all"
                           style={event.allDay
                             ? { backgroundColor: event.color + '20', borderLeft: `2px solid ${event.color}` }
                             : { color: event.color }

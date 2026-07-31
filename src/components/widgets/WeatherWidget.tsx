@@ -393,7 +393,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
             {/* Multi-day summary */}
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {visibleForecast.length}-Day Forecast
               </span>
               <DayHeader
@@ -636,11 +636,11 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
         Next 9 Hours
       </span>
       <div
-        className="overflow-hidden rounded-xl border border-border/80 bg-background/30 shadow-sm"
+        className="overflow-hidden rounded-xl border border-border dark:border-border/80 bg-background/30 shadow-sm"
         data-keep-bg=""
       >
         <div className="flex min-h-6 border-b border-border/60" aria-label="Hourly conditions">
@@ -653,7 +653,7 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
               )}
               style={{ flex: band.hours }}
             >
-              <span className="truncate text-[9px] font-medium text-foreground">
+              <span className="truncate text-[14px] font-medium text-foreground">
                 {conditionBandLabel(band.condition, band.precipIntensity)}
               </span>
             </div>
@@ -683,14 +683,14 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
                 {index === 0 && (
                   <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
                 )}
-                <span className="text-[10px] font-semibold text-muted-foreground">
+                <span className="text-[14px] font-semibold text-muted-foreground">
                   {index === 0 ? 'Now' : formatHour(hour.time)}
                 </span>
                 <WeatherIcon condition={hour.condition} className="my-0.5 h-4 w-4 text-primary" />
                 <span className="text-sm font-semibold leading-none tabular-nums text-foreground">
                   {formatTemperature(hour.temp)}°
                 </span>
-                <span className="max-w-full truncate text-[9px] leading-tight text-muted-foreground">
+                <span className="max-w-full truncate text-[14px] leading-tight text-muted-foreground">
                   {detail}
                 </span>
               </div>
@@ -773,11 +773,11 @@ function PrecipitationChart({ minutely }: { minutely: MinutelyData[] }) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-          <CloudRain className="h-3 w-3 text-blue-400" />
+        <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+          <CloudRain className="h-3 w-3 text-primary" />
           Rain next hour
         </span>
-        <span className="text-[10px] text-blue-400 font-medium">{rainMessage}</span>
+        <span className="text-[14px] text-primary font-medium">{rainMessage}</span>
       </div>
       <div ref={containerRef} className="w-full">
         <svg width={width} height={totalH} style={{ display: 'block' }}>
@@ -1172,8 +1172,8 @@ function SunriseSunsetArc({
           X, duration in the middle (amber to match the arc), sunset on the
           right. The header row above duplicates the rise/set times, which is
           deliberate: this row anchors them to the arc itself. */}
-      <div className="relative text-[11px] text-muted-foreground/70 select-none" style={{ height: 14 }}>
-        <div className="relative h-3.5">
+      <div className="relative text-[12px] text-muted-foreground select-none" style={{ height: 14 }}>
+        <div className="relative h-5">
           {inWindow(sunRiseFrac) && (
             <span className="absolute -translate-x-1/2 whitespace-nowrap tabular-nums" style={{ left: xOf(sunRiseFrac) }}>
               {fmtTime(sunrise)}

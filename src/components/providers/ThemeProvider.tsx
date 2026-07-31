@@ -75,10 +75,7 @@ interface ThemeProviderProps {
  *   <App />
  * </ThemeProvider>
  */
-export function ThemeProvider({
-  children,
-  defaultTheme = 'system',
-}: ThemeProviderProps) {
+export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>(defaultTheme);
   const [colorTheme, setColorThemeState] = useState<AppThemeId>(DEFAULT_COLOR_THEME);
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
@@ -103,7 +100,9 @@ export function ThemeProvider({
 
     // Determine the actual theme to apply
     let actualTheme: 'light' | 'dark';
-    if (theme === 'system') {
+    if (colorTheme === 'lcars') {
+      actualTheme = 'dark';
+    } else if (theme === 'system') {
       actualTheme = getSystemTheme();
     } else {
       actualTheme = theme;
@@ -127,7 +126,7 @@ export function ThemeProvider({
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
     const handleChange = (e: MediaQueryListEvent) => {
-      const newTheme = e.matches ? 'dark' : 'light';
+      const newTheme = colorTheme === 'lcars' || e.matches ? 'dark' : 'light';
       setResolvedTheme(newTheme);
       applyAppTheme(colorTheme, newTheme);
 
@@ -163,7 +162,9 @@ export function ThemeProvider({
   // Return null or a loading state until mounted
   if (!mounted) {
     return (
-      <ThemeContext.Provider value={{ theme: defaultTheme, resolvedTheme: 'light', setTheme, colorTheme, setColorTheme }}>
+      <ThemeContext.Provider
+        value={{ theme: defaultTheme, resolvedTheme: 'light', setTheme, colorTheme, setColorTheme }}
+      >
         {children}
       </ThemeContext.Provider>
     );

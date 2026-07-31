@@ -43,7 +43,7 @@ function ScreensPanel() {
   const portraitZones = computeZones(screens, 'portrait');
 
   return (
-    <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-xl p-4 w-[560px] max-w-[calc(100vw-2rem)] space-y-3">
+    <div className="bg-card dark:bg-card/95 dark:backdrop-blur-sm border border-border rounded-xl shadow-xl p-4 w-[560px] max-w-[calc(100vw-2rem)] space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">Screen Safe Zones</p>
         <p className="text-xs text-muted-foreground">Guides shown in the layout grid</p>
@@ -150,10 +150,10 @@ export function LayoutEditorMeasureBar({ measureHideNav, onToggleNav, onExit, pr
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-2">
       {showScreens && <ScreensPanel />}
 
-      <div className="flex items-center gap-2 bg-card/90 backdrop-blur-sm border border-border rounded-full px-4 py-2 shadow-lg">
+      <div className="flex items-center gap-2 bg-card dark:bg-card/90 dark:backdrop-blur-sm border border-border rounded-full px-4 py-2 shadow-lg">
         <button
           onClick={() => setShowScreens(prev => !prev)}
-          className={`px-3 py-1.5 text-xs rounded-full transition-colors whitespace-nowrap ${
+          className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs transition-colors ${
             showScreens
               ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30'
               : 'bg-muted text-muted-foreground hover:bg-accent'
@@ -174,7 +174,7 @@ export function LayoutEditorMeasureBar({ measureHideNav, onToggleNav, onExit, pr
                     key={zone.name}
                     onClick={() => onZoneChange(idx)}
                     title={`Preview as ${zone.name}`}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-full transition-colors whitespace-nowrap ${
+                    className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs transition-colors ${
                       isActive
                         ? 'bg-card border border-border text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -195,7 +195,7 @@ export function LayoutEditorMeasureBar({ measureHideNav, onToggleNav, onExit, pr
         <div className="w-px h-4 bg-border" />
         <button
           onClick={onToggleNav}
-          className={`px-3 py-1.5 text-xs rounded-full transition-colors whitespace-nowrap ${
+          className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs transition-colors ${
             measureHideNav
               ? 'bg-muted text-muted-foreground hover:bg-accent'
               : 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
@@ -210,7 +210,7 @@ export function LayoutEditorMeasureBar({ measureHideNav, onToggleNav, onExit, pr
         >
           Exit Preview
         </button>
-        <span className="text-[10px] text-muted-foreground hidden sm:inline">Ctrl+Shift+M</span>
+        <span className="text-[12px] text-muted-foreground hidden sm:inline">Ctrl+Shift+M</span>
       </div>
     </div>
   );

@@ -128,7 +128,7 @@ export function ChoreGroupCard({
           {isPendingApproval && (
             <Badge
               variant="default"
-              className="text-[10px] bg-amber-500 hover:bg-amber-500 px-1.5 py-0"
+              className="text-[12px] bg-amber-500 hover:bg-amber-500 px-1.5 py-0"
             >
               Pending
             </Badge>

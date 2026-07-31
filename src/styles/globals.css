@@ -226,6 +226,10 @@
   }
 
   [data-theme-widget="calendar"] > [data-widget][data-theme-surface="preset"] {
+    background-color: hsl(var(--widget-calendar));
+  }
+
+  .dark [data-theme-widget="calendar"] > [data-widget][data-theme-surface="preset"] {
     background-color: hsl(var(--widget-calendar) / 0.9);
   }
 
@@ -233,6 +237,13 @@
   [data-theme-widget="shopping"] > [data-widget][data-theme-surface="preset"],
   [data-theme-widget="meals"] > [data-widget][data-theme-surface="preset"],
   [data-theme-widget="chores"] > [data-widget][data-theme-surface="preset"] {
+    background-color: hsl(var(--widget-planning));
+  }
+
+  .dark [data-theme-widget="tasks"] > [data-widget][data-theme-surface="preset"],
+  .dark [data-theme-widget="shopping"] > [data-widget][data-theme-surface="preset"],
+  .dark [data-theme-widget="meals"] > [data-widget][data-theme-surface="preset"],
+  .dark [data-theme-widget="chores"] > [data-widget][data-theme-surface="preset"] {
     background-color: hsl(var(--widget-planning) / 0.9);
   }
 
@@ -240,6 +251,13 @@
   [data-theme-widget="birthdays"] > [data-widget][data-theme-surface="preset"],
   [data-theme-widget="points"] > [data-widget][data-theme-surface="preset"],
   [data-theme-widget="wishes"] > [data-widget][data-theme-surface="preset"] {
+    background-color: hsl(var(--widget-family));
+  }
+
+  .dark [data-theme-widget="messages"] > [data-widget][data-theme-surface="preset"],
+  .dark [data-theme-widget="birthdays"] > [data-widget][data-theme-surface="preset"],
+  .dark [data-theme-widget="points"] > [data-widget][data-theme-surface="preset"],
+  .dark [data-theme-widget="wishes"] > [data-widget][data-theme-surface="preset"] {
     background-color: hsl(var(--widget-family) / 0.9);
   }
 
@@ -247,6 +265,13 @@
   [data-theme-widget="weather"] > [data-widget][data-theme-surface="preset"],
   [data-theme-widget="busTracking"] > [data-widget][data-theme-surface="preset"],
   [data-theme-widget="travel"] > [data-widget][data-theme-surface="preset"] {
+    background-color: hsl(var(--widget-info));
+  }
+
+  .dark [data-theme-widget="clock"] > [data-widget][data-theme-surface="preset"],
+  .dark [data-theme-widget="weather"] > [data-widget][data-theme-surface="preset"],
+  .dark [data-theme-widget="busTracking"] > [data-widget][data-theme-surface="preset"],
+  .dark [data-theme-widget="travel"] > [data-widget][data-theme-surface="preset"] {
     background-color: hsl(var(--widget-info) / 0.9);
   }
 

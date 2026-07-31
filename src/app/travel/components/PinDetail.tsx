@@ -48,13 +48,13 @@ function SortableChildItem({ child, idx, onSelect, onDelete }: {
       <button {...attributes} {...listeners} className="cursor-grab shrink-0 text-muted-foreground/40 hover:text-muted-foreground touch-none">
         <GripVertical className="h-3.5 w-3.5" />
       </button>
-      <span className="text-[10px] font-bold text-muted-foreground/50 w-4 shrink-0 text-right">{idx + 1}</span>
+      <span className="text-[12px] text-muted-foreground font-bold w-4 shrink-0 text-right">{idx + 1}</span>
       {child.pinType === 'national_park'
         ? <TreePine className="h-3.5 w-3.5 shrink-0" style={{ color: NPS_COLOR }} />
         : <MapPin className="h-3.5 w-3.5 text-violet-500 shrink-0" />}
       <button onClick={onSelect} className="flex-1 text-left text-xs font-medium hover:underline truncate">
         {child.name}
-        {!child.latitude && !child.longitude && <span className="text-[10px] text-amber-500 ml-1.5">no location</span>}
+        {!child.latitude && !child.longitude && <span className="text-[12px] text-amber-700 dark:text-amber-500 ml-1.5">no location</span>}
       </button>
       <button onClick={onDelete} className="shrink-0 text-muted-foreground/40 hover:text-red-500 transition-colors" title="Remove">
         <X className="h-3 w-3" />
@@ -242,12 +242,12 @@ export function PinDetail({ pin, childPins, onUpdate, onDelete, onDeleteChild, o
             </div>
             <div className="flex gap-2">
               <div className="flex-1 space-y-0.5">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{status === 'been_there' ? 'From' : 'Planned'}</p>
+                <p className="text-[12px] text-muted-foreground uppercase tracking-wide">{status === 'been_there' ? 'From' : 'Planned'}</p>
                 <Input type="date" value={visitedDate} onChange={e => setVisitedDate(e.target.value)} className="h-7 text-xs" />
               </div>
               {status === 'been_there' && (
                 <div className="flex-1 space-y-0.5">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">To</p>
+                  <p className="text-[12px] text-muted-foreground uppercase tracking-wide">To</p>
                   <Input type="date" value={visitedEndDate} onChange={e => setVisitedEndDate(e.target.value)} min={visitedDate} className="h-7 text-xs" />
                 </div>
               )}
