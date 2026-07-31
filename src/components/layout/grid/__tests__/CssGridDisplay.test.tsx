@@ -49,4 +49,35 @@ describe('CssGridDisplay', () => {
     );
     expect(renders).toEqual({ weather: 2, tasks: 1 });
   });
+
+  it('renders duplicate widget types as separate instances', () => {
+    const layout: WidgetConfig[] = [
+      { i: 'calendar', type: 'calendar', x: 0, y: 0, w: 24, h: 24 },
+      { i: 'calendar-2', type: 'calendar', x: 24, y: 0, w: 24, h: 24 },
+    ];
+    const renders = { first: 0, second: 0 };
+    const renderWidget = (widget: WidgetConfig) => {
+      if (widget.i === 'calendar') renders.first += 1;
+      if (widget.i === 'calendar-2') renders.second += 1;
+      return <span>{widget.i}</span>;
+    };
+
+    const { rerender } = render(
+      <CssGridDisplay
+        layout={layout}
+        renderWidget={renderWidget}
+        widgetRevisions={{ calendar: { count: 1 } }}
+      />
+    );
+    expect(renders).toEqual({ first: 1, second: 1 });
+
+    rerender(
+      <CssGridDisplay
+        layout={layout}
+        renderWidget={renderWidget}
+        widgetRevisions={{ calendar: { count: 2 } }}
+      />
+    );
+    expect(renders).toEqual({ first: 2, second: 2 });
+  });
 });

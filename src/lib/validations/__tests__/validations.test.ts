@@ -111,7 +111,9 @@ describe('createChoreSchema', () => {
   });
 
   it('rejects invalid category', () => {
-    expect(createChoreSchema.safeParse({ ...validChore, category: 'swimming' }).success).toBe(false);
+    expect(createChoreSchema.safeParse({ ...validChore, category: 'swimming' }).success).toBe(
+      false
+    );
   });
 
   it('rejects invalid frequency', () => {
@@ -125,7 +127,16 @@ describe('createChoreSchema', () => {
   });
 
   it('accepts all valid frequencies', () => {
-    for (const freq of ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'semi-annually', 'annually', 'custom']) {
+    for (const freq of [
+      'daily',
+      'weekly',
+      'biweekly',
+      'monthly',
+      'quarterly',
+      'semi-annually',
+      'annually',
+      'custom',
+    ]) {
       expect(createChoreSchema.safeParse({ ...validChore, frequency: freq }).success).toBe(true);
     }
   });
@@ -282,11 +293,37 @@ describe('createLayoutSchema', () => {
   });
 
   it('rejects invalid slug characters', () => {
-    expect(createLayoutSchema.safeParse({ ...validLayout, slug: 'My Kitchen!' }).success).toBe(false);
+    expect(createLayoutSchema.safeParse({ ...validLayout, slug: 'My Kitchen!' }).success).toBe(
+      false
+    );
   });
 
   it('accepts valid slug', () => {
     expect(createLayoutSchema.safeParse({ ...validLayout, slug: 'my-kitchen' }).success).toBe(true);
+  });
+
+  it('accepts duplicate widget types with unique instance IDs', () => {
+    expect(
+      createLayoutSchema.safeParse({
+        ...validLayout,
+        widgets: [
+          { i: 'calendar', type: 'calendar', x: 0, y: 0, w: 24, h: 24 },
+          { i: 'calendar-2', type: 'calendar', x: 24, y: 0, w: 24, h: 24 },
+        ],
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects duplicate widget instance IDs', () => {
+    expect(
+      createLayoutSchema.safeParse({
+        ...validLayout,
+        widgets: [
+          { i: 'calendar', type: 'calendar', x: 0, y: 0, w: 24, h: 24 },
+          { i: 'calendar', type: 'calendar', x: 24, y: 0, w: 24, h: 24 },
+        ],
+      }).success
+    ).toBe(false);
   });
 });
 

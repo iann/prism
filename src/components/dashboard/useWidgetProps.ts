@@ -20,7 +20,11 @@ interface EditHandlers {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RequireAuthFn = (prompt: string, title?: string) => Promise<any>;
 
-type ConfirmFn = (title: string, description?: string, options?: { confirmLabel?: string; variant?: 'default' | 'destructive' }) => Promise<boolean>;
+type ConfirmFn = (
+  title: string,
+  description?: string,
+  options?: { confirmLabel?: string; variant?: 'default' | 'destructive' }
+) => Promise<boolean>;
 
 export function buildWidgetProps(
   data: ReturnType<typeof useDashboardData>,
@@ -28,7 +32,7 @@ export function buildWidgetProps(
   modals: ModalSetters,
   weatherLocation?: string,
   confirmAction?: ConfirmFn,
-  editHandlers?: EditHandlers,
+  editHandlers?: EditHandlers
 ): Record<string, Record<string, unknown>> {
   return {
     clock: {},
@@ -39,7 +43,9 @@ export function buildWidgetProps(
       error: data.weather.error,
     },
     calendar: {
-      events: data.calendar.events.length > 0 ? data.calendar.events : undefined,
+      // Pass the shared dashboard result even when empty so each calendar
+      // instance does not start its own duplicate events request.
+      events: data.calendar.events,
       loading: data.calendar.loading,
       error: data.calendar.error,
       initialView: '3days',
@@ -87,13 +93,24 @@ export function buildWidgetProps(
         const user = await requireAuth("Who's completing this chore?");
         if (!user) return;
         try {
-          const chore = data.chores.chores.find((c: { id: string; pendingApproval?: { completionId: string; completedBy: { name: string } }; assignedTo?: { id: string; name: string }; pointValue: number; title: string }) => c.id === choreId);
+          const chore = data.chores.chores.find(
+            (c: {
+              id: string;
+              pendingApproval?: { completionId: string; completedBy: { name: string } };
+              assignedTo?: { id: string; name: string };
+              pointValue: number;
+              title: string;
+            }) => c.id === choreId
+          );
           if (!chore) return;
 
           // Parent approving a pending completion
           if (chore.pendingApproval && user.role === 'parent') {
             await data.chores.approveChore(choreId, chore.pendingApproval.completionId);
-            toast({ title: `Approved! ${chore.pendingApproval.completedBy.name} earned ${chore.pointValue} points for "${chore.title}".`, variant: 'success' });
+            toast({
+              title: `Approved! ${chore.pendingApproval.completedBy.name} earned ${chore.pointValue} points for "${chore.title}".`,
+              variant: 'success',
+            });
             data.chores.refresh();
             return;
           }
@@ -121,9 +138,15 @@ export function buildWidgetProps(
 
           const result = await data.chores.completeChore(choreId, { completedBy: completedById });
           if (result?.requiresApproval) {
-            toast({ title: `Great job! "${chore.title}" is now pending parental approval.`, variant: 'success' });
+            toast({
+              title: `Great job! "${chore.title}" is now pending parental approval.`,
+              variant: 'success',
+            });
           } else {
-            toast({ title: `Chore completed! ${chore.pointValue} points awarded.`, variant: 'success' });
+            toast({
+              title: `Chore completed! ${chore.pointValue} points awarded.`,
+              variant: 'success',
+            });
           }
           data.chores.refresh();
         } catch (err) {
@@ -167,7 +190,7 @@ export function buildWidgetProps(
       loading: data.meals.loading,
       error: data.meals.error,
       onMarkCooked: async (mealId: string) => {
-        const user = await requireAuth("Who cooked this?");
+        const user = await requireAuth('Who cooked this?');
         if (user) await data.meals.markCooked(mealId, user.id);
       },
       onUnmarkCooked: async (mealId: string) => {
@@ -178,7 +201,9 @@ export function buildWidgetProps(
             body: JSON.stringify({ cookedBy: null }),
           });
           data.meals.refresh();
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       },
       onAddMeal: async (meal: Record<string, unknown>) => {
         const user = await requireAuth("Who's planning this meal?");
@@ -190,7 +215,9 @@ export function buildWidgetProps(
             body: JSON.stringify({ ...meal, createdBy: user.id }),
           });
           data.meals.refresh();
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       },
       onMealClick: editHandlers?.onEditMeal,
       titleHref: '/meals',

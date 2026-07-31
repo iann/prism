@@ -7,6 +7,7 @@ import { useSquareCells } from './useSquareCells';
 import { GRID_COLS } from '@/lib/constants/grid';
 import type { CssGridDisplayProps } from './gridEditorTypes';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+import { getWidgetType } from '@/lib/utils/widgetInstances';
 
 interface WidgetCellProps {
   widget: WidgetConfig;
@@ -30,7 +31,8 @@ const WidgetCell = memo(function WidgetCell({ widget, renderWidget }: WidgetCell
   return (
     <div
       className={`widget-cell relative overflow-hidden ${textClass}`}
-      data-widget={widget.i}
+      data-widget={getWidgetType(widget)}
+      data-widget-instance={widget.i}
       style={{
         gridColumn: `${widget.x + 1} / span ${widget.w}`,
         gridRow: `${widget.y + 1} / span ${widget.h}`,
@@ -65,10 +67,7 @@ export function CssGridDisplay({
 }: CssGridDisplayProps) {
   const { containerRef, cellSize } = useSquareCells(cols, containerPadding, margin, fillHeight);
 
-  const visibleWidgets = useMemo(
-    () => layout.filter(w => w.visible !== false),
-    [layout],
-  );
+  const visibleWidgets = useMemo(() => layout.filter((w) => w.visible !== false), [layout]);
 
   // Compute how many rows fit in the viewport (for fixed-height container)
   const visibleRows = useMemo(() => {
@@ -98,12 +97,12 @@ export function CssGridDisplay({
           height: '100%',
         }}
       >
-        {visibleWidgets.map(widget => (
+        {visibleWidgets.map((widget) => (
           <WidgetCell
             key={widget.i}
             widget={widget}
             renderWidget={renderWidget}
-            revision={widgetRevisions?.[widget.i]}
+            revision={widgetRevisions?.[getWidgetType(widget)]}
           />
         ))}
       </div>
