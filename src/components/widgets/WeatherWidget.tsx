@@ -1044,10 +1044,15 @@ function SunriseSunsetArc({
   const inWindow = (f: number | null): f is number => f !== null && f >= 0 && f <= 1;
 
 
-  const SUN_COLOR = '#FBBF24';   // amber-400 — sun at zenith
-  const SUN_LOW   = '#F97316';   // orange-500 — sun at low altitude
-  const SUN_HORIZON = '#EF4444'; // red-500 — sun at the horizon
-  const MOON_COLOR = '#60A5FA';
+  // Reuse the weather ramp so the celestial arcs feel like part of the same
+  // temperature story: warm-to-hot colors for the sun, cool blue for moonlight.
+  // The active named theme supplies brighter values in dark mode automatically.
+  const SUN_COLOR = 'hsl(var(--weather-temp-warm))';
+  const SUN_LOW = 'hsl(var(--weather-temp-hot))';
+  const SUN_HORIZON = 'hsl(var(--weather-temp-very-hot))';
+  const SUN_NIGHT = 'hsl(var(--weather-temp-cold))';
+  const MOON_COLOR = 'hsl(var(--weather-temp-freezing))';
+  const MOON_MUTED = 'hsl(var(--weather-temp-cold))';
 
   const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -1060,7 +1065,7 @@ function SunriseSunsetArc({
       : sunPos.altitude < 0.314 // ~18°
         ? SUN_LOW
         : SUN_COLOR
-    : '#94A3B8';
+    : SUN_NIGHT;
 
   return (
     <div ref={containerRef} className="flex flex-col gap-1 w-full">
@@ -1144,11 +1149,11 @@ function SunriseSunsetArc({
             {isMoonUp && <circle cx={moonX} cy={moonY} r={11} fill={MOON_COLOR} opacity={0.18} />}
             <circle cx={moonX} cy={moonY} r={moonGlyphR}
               fill="none"
-              stroke={isMoonUp ? MOON_COLOR : '#94A3B8'}
+              stroke={isMoonUp ? MOON_COLOR : MOON_MUTED}
               strokeOpacity={isMoonUp ? 0.65 : 0.4}
               strokeWidth={1} />
             <path d={moonPhasePath(moonX, moonY, moonGlyphR, moonPhase!)}
-              fill={isMoonUp ? MOON_COLOR : '#94A3B8'}
+              fill={isMoonUp ? MOON_COLOR : MOON_MUTED}
               opacity={isMoonUp ? 1 : 0.55} />
           </g>
         )}

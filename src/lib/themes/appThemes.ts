@@ -20,7 +20,124 @@ export type AppTheme = {
   dark: ThemeTokens;
 };
 
+/**
+ * Temperature ranges use their own semantic ramp so weather can stay vivid
+ * without borrowing a theme's primary/action color. Each preset can tune the
+ * same ramp to its own character, and dark variants lift the luminance for
+ * the same contrast at a glance.
+ */
+const prismWeatherLight: ThemeTokens = {
+  '--weather-temp-very-cold': '213 90% 48%',
+  '--weather-temp-freezing': '199 92% 48%',
+  '--weather-temp-cold': '184 88% 44%',
+  '--weather-temp-cool': '150 65% 38%',
+  '--weather-temp-mild': '48 95% 45%',
+  '--weather-temp-warm': '28 95% 48%',
+  '--weather-temp-hot': '9 90% 48%',
+  '--weather-temp-very-hot': '348 78% 48%',
+};
+
+const prismWeatherDark: ThemeTokens = {
+  '--weather-temp-very-cold': '213 95% 66%',
+  '--weather-temp-freezing': '199 92% 65%',
+  '--weather-temp-cold': '184 89% 61%',
+  '--weather-temp-cool': '150 68% 60%',
+  '--weather-temp-mild': '48 96% 65%',
+  '--weather-temp-warm': '28 96% 63%',
+  '--weather-temp-hot': '9 92% 64%',
+  '--weather-temp-very-hot': '348 86% 68%',
+};
+
+const kitchenWeatherLight: ThemeTokens = {
+  '--weather-temp-very-cold': '204 78% 50%',
+  '--weather-temp-freezing': '190 79% 47%',
+  '--weather-temp-cold': '174 65% 43%',
+  '--weather-temp-cool': '143 52% 39%',
+  '--weather-temp-mild': '47 76% 45%',
+  '--weather-temp-warm': '28 78% 49%',
+  '--weather-temp-hot': '12 74% 51%',
+  '--weather-temp-very-hot': '350 65% 48%',
+};
+
+const kitchenWeatherDark: ThemeTokens = {
+  '--weather-temp-very-cold': '204 80% 65%',
+  '--weather-temp-freezing': '190 78% 64%',
+  '--weather-temp-cold': '174 63% 58%',
+  '--weather-temp-cool': '143 55% 58%',
+  '--weather-temp-mild': '47 85% 65%',
+  '--weather-temp-warm': '28 84% 64%',
+  '--weather-temp-hot': '12 80% 65%',
+  '--weather-temp-very-hot': '350 76% 68%',
+};
+
+const herbWeatherLight: ThemeTokens = {
+  '--weather-temp-very-cold': '215 80% 48%',
+  '--weather-temp-freezing': '197 82% 47%',
+  '--weather-temp-cold': '177 70% 41%',
+  '--weather-temp-cool': '105 52% 39%',
+  '--weather-temp-mild': '52 86% 44%',
+  '--weather-temp-warm': '31 83% 48%',
+  '--weather-temp-hot': '16 78% 50%',
+  '--weather-temp-very-hot': '5 70% 48%',
+};
+
+const herbWeatherDark: ThemeTokens = {
+  '--weather-temp-very-cold': '215 88% 66%',
+  '--weather-temp-freezing': '197 88% 64%',
+  '--weather-temp-cold': '177 76% 59%',
+  '--weather-temp-cool': '105 58% 59%',
+  '--weather-temp-mild': '52 92% 66%',
+  '--weather-temp-warm': '31 89% 65%',
+  '--weather-temp-hot': '16 86% 66%',
+  '--weather-temp-very-hot': '5 78% 68%',
+};
+
+const warmClayWeatherLight: ThemeTokens = {
+  '--weather-temp-very-cold': '211 78% 49%',
+  '--weather-temp-freezing': '194 78% 46%',
+  '--weather-temp-cold': '171 62% 41%',
+  '--weather-temp-cool': '128 48% 39%',
+  '--weather-temp-mild': '49 84% 45%',
+  '--weather-temp-warm': '31 88% 49%',
+  '--weather-temp-hot': '14 82% 50%',
+  '--weather-temp-very-hot': '350 70% 49%',
+};
+
+const warmClayWeatherDark: ThemeTokens = {
+  '--weather-temp-very-cold': '211 84% 65%',
+  '--weather-temp-freezing': '194 84% 63%',
+  '--weather-temp-cold': '171 68% 58%',
+  '--weather-temp-cool': '128 54% 58%',
+  '--weather-temp-mild': '49 92% 66%',
+  '--weather-temp-warm': '31 94% 64%',
+  '--weather-temp-hot': '14 90% 65%',
+  '--weather-temp-very-hot': '350 80% 68%',
+};
+
+const softSlateWeatherLight: ThemeTokens = {
+  '--weather-temp-very-cold': '215 88% 48%',
+  '--weather-temp-freezing': '201 90% 46%',
+  '--weather-temp-cold': '187 82% 42%',
+  '--weather-temp-cool': '161 62% 38%',
+  '--weather-temp-mild': '49 92% 45%',
+  '--weather-temp-warm': '29 94% 48%',
+  '--weather-temp-hot': '10 89% 49%',
+  '--weather-temp-very-hot': '348 78% 48%',
+};
+
+const softSlateWeatherDark: ThemeTokens = {
+  '--weather-temp-very-cold': '215 94% 68%',
+  '--weather-temp-freezing': '201 94% 65%',
+  '--weather-temp-cold': '187 88% 61%',
+  '--weather-temp-cool': '161 68% 60%',
+  '--weather-temp-mild': '49 96% 66%',
+  '--weather-temp-warm': '29 96% 64%',
+  '--weather-temp-hot': '10 92% 65%',
+  '--weather-temp-very-hot': '348 86% 68%',
+};
+
 const prismLight: ThemeTokens = {
+  ...prismWeatherLight,
   '--background': '0 0% 100%',
   '--foreground': '222 47% 11%',
   '--card': '0 0% 100%',
@@ -54,6 +171,7 @@ const prismLight: ThemeTokens = {
 };
 
 const prismDark: ThemeTokens = {
+  ...prismWeatherDark,
   '--background': '222 47% 11%',
   '--foreground': '210 40% 98%',
   '--card': '222 47% 15%',
@@ -93,6 +211,14 @@ const prismDark: ThemeTokens = {
  * themed layout.
  */
 const lcars: ThemeTokens = {
+  '--weather-temp-very-cold': '200 88% 60%',
+  '--weather-temp-freezing': '214 90% 63%',
+  '--weather-temp-cold': '190 85% 60%',
+  '--weather-temp-cool': '165 70% 56%',
+  '--weather-temp-mild': '45 95% 66%',
+  '--weather-temp-warm': '26 95% 65%',
+  '--weather-temp-hot': '6 90% 66%',
+  '--weather-temp-very-hot': '335 85% 68%',
   '--background': '240 11% 3%',
   '--foreground': '42 38% 94%',
   '--card': '252 16% 8%',
@@ -138,6 +264,7 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     name: 'Kitchen Calm',
     description: 'Linen and oat surfaces with sage reserved for controls and highlights.',
     light: {
+      ...kitchenWeatherLight,
       '--background': '42 24% 89%',
       '--foreground': '155 15% 19%',
       '--card': '45 25% 94%',
@@ -170,6 +297,7 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
       '--widget-info': '78 14% 92%',
     },
     dark: {
+      ...kitchenWeatherDark,
       '--background': '155 13% 14%',
       '--foreground': '47 23% 89%',
       '--card': '153 12% 18%',
@@ -208,6 +336,7 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     description: 'Cream, thyme, and muted olive with a softly botanical character.',
     light: {
       ...prismLight,
+      ...herbWeatherLight,
       '--background': '76 17% 88%',
       '--foreground': '103 16% 18%',
       '--card': '58 24% 94%',
@@ -241,6 +370,7 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     },
     dark: {
       ...prismDark,
+      ...herbWeatherDark,
       '--background': '104 12% 13%',
       '--foreground': '58 22% 89%',
       '--card': '101 11% 18%',
@@ -274,6 +404,7 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     description: 'Parchment, mushroom, and muted terracotta for a warmer kitchen.',
     light: {
       ...prismLight,
+      ...warmClayWeatherLight,
       '--background': '31 25% 88%',
       '--foreground': '22 19% 19%',
       '--card': '37 31% 94%',
@@ -307,6 +438,7 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     },
     dark: {
       ...prismDark,
+      ...warmClayWeatherDark,
       '--background': '24 14% 13%',
       '--foreground': '39 25% 89%',
       '--card': '25 13% 18%',
@@ -340,6 +472,7 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     description: 'A restrained blue-gray palette with cool, low-glare surfaces.',
     light: {
       ...prismLight,
+      ...softSlateWeatherLight,
       '--background': '210 18% 89%',
       '--foreground': '215 22% 20%',
       '--card': '210 20% 94%',
@@ -365,6 +498,7 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     },
     dark: {
       ...prismDark,
+      ...softSlateWeatherDark,
       '--background': '216 18% 13%',
       '--foreground': '210 20% 90%',
       '--card': '215 17% 18%',
