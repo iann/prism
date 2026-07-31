@@ -24,7 +24,7 @@ function TileShell({ href, icon, title, children, accent }: {
   accent?: string; // Tailwind text color class for the summary
 }) {
   const inner = (
-    <div className="h-full bg-card/85 backdrop-blur-sm rounded-xl border border-border p-3 flex flex-col gap-2 hover:border-primary/30 transition-colors overflow-hidden">
+    <div className="h-full bg-card hover:border-primary dark:bg-card/85 dark:backdrop-blur-sm dark:hover:border-primary/30 rounded-xl border border-border p-3 flex flex-col gap-2 transition-colors overflow-hidden">
       <div className="flex items-center justify-between gap-1">
         <div className="flex items-center gap-1.5 min-w-0">
           {icon}
@@ -45,7 +45,7 @@ function TileShell({ href, icon, title, children, accent }: {
 
 function TileLine({ children, dim }: { children: React.ReactNode; dim?: boolean }) {
   return (
-    <p className={cn('text-xs leading-snug truncate', dim ? 'text-muted-foreground' : 'text-foreground/90')}>
+    <p className={cn('text-xs leading-snug truncate', dim ? 'text-muted-foreground' : 'text-foreground')}>
       {children}
     </p>
   );

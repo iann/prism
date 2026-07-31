@@ -84,7 +84,7 @@ export const PointsWidget = React.memo(function PointsWidget({
                         style={{ width: `${pct}%`, backgroundColor: child.color }}
                       />
                     </div>
-                    <span className="text-[10px] text-muted-foreground tabular-nums w-8 text-right">
+                    <span className="text-[12px] text-muted-foreground tabular-nums w-8 text-right">
                       {allocated}
                     </span>
                   </div>

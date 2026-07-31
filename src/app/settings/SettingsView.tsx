@@ -205,7 +205,7 @@ export function SettingsView() {
   return (
     <PageWrapper>
       <div className="h-screen flex flex-col">
-        <header className="flex-shrink-0 border-b border-border bg-card/85 backdrop-blur-sm px-4">
+        <header className="flex-shrink-0 border-b border-border bg-card dark:bg-card/85 dark:backdrop-blur-sm px-4">
           <div className="flex items-center gap-4 h-16">
             <Button variant="ghost" size="icon" asChild>
               <Link href="/" aria-label="Back to dashboard">
@@ -220,7 +220,7 @@ export function SettingsView() {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <nav className="hidden md:block w-64 flex-shrink-0 border-r border-border bg-card/85 backdrop-blur-sm p-4">
+          <nav className="hidden md:block w-64 flex-shrink-0 border-r border-border bg-card dark:bg-card/85 dark:backdrop-blur-sm p-4">
             <div className="space-y-1">
               {sections.map((section) => {
                 const Icon = section.icon;

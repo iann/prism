@@ -81,7 +81,7 @@ export function AddToMealPlanSection({ recipe }: { recipe: Recipe }) {
         {/* Day headers */}
         <div className="grid grid-cols-7 mb-1">
           {dayHeaders.map((h, i) => (
-            <div key={i} className="text-center text-[11px] font-medium text-muted-foreground py-0.5">
+            <div key={i} className="text-center text-[12px] font-medium text-muted-foreground py-0.5">
               {h}
             </div>
           ))}
@@ -102,7 +102,7 @@ export function AddToMealPlanSection({ recipe }: { recipe: Recipe }) {
                       isSelected
                         ? 'bg-primary text-primary-foreground'
                         : isPastDay
-                        ? 'text-muted-foreground/50 hover:bg-accent'
+                        ? 'text-muted-foreground hover:bg-accent'
                         : 'hover:bg-accent text-foreground'
                     )}
                   >

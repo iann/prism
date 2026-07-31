@@ -63,7 +63,7 @@ export function LayoutEditorPreviewPanel({
               <button
                 key={size}
                 onClick={() => onToggleSize?.(size)}
-                className={`text-xs px-1.5 py-0.5 rounded transition-colors whitespace-nowrap ${
+                className={`whitespace-nowrap rounded px-1.5 py-0.5 text-xs transition-colors ${
                   isEnabled ? 'text-white' : 'text-muted-foreground/50 line-through'
                 }`}
                 style={{
@@ -75,7 +75,7 @@ export function LayoutEditorPreviewPanel({
               </button>
             );
           })}
-          <span className="text-[9px] text-muted-foreground mt-1 leading-tight">
+          <span className="text-[12px] text-muted-foreground mt-1 leading-tight">
             Click map<br />to scroll
           </span>
         </div>

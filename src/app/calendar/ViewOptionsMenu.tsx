@@ -82,7 +82,7 @@ function CheckRow({ checked, onChange, label, Icon, disabled }: CheckRowProps) {
       <span
         className={cn(
           'flex h-4 w-4 items-center justify-center rounded border',
-          checked ? 'bg-primary border-primary' : 'border-muted-foreground/40',
+          checked ? 'bg-primary border-primary' : 'border-muted-foreground dark:border-muted-foreground/40',
         )}
         aria-hidden
       >
@@ -155,7 +155,7 @@ export function ViewOptionsMenu({
             // active — the button's outer fill stays the same regardless,
             // so it sits uniformly alongside the View popover + Today
             // button in the toolbar.
-            <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+            <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[12px] font-semibold text-primary-foreground">
               {nonDefaultCount}
             </span>
           )}
@@ -164,7 +164,7 @@ export function ViewOptionsMenu({
       <PopoverContent align="end" className="w-64 p-2">
         <div className="space-y-3">
           <section>
-            <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
               Display
             </p>
             <div className="space-y-0.5">
@@ -182,7 +182,7 @@ export function ViewOptionsMenu({
                     <span
                       className={cn(
                         'flex h-4 w-4 items-center justify-center rounded-full border',
-                        displayMode === 'cards' ? 'border-primary' : 'border-muted-foreground/40',
+                        displayMode === 'cards' ? 'border-primary' : 'border-muted-foreground dark:border-muted-foreground/40',
                       )}
                     >
                       {displayMode === 'cards' && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -201,7 +201,7 @@ export function ViewOptionsMenu({
                     <span
                       className={cn(
                         'flex h-4 w-4 items-center justify-center rounded-full border',
-                        displayMode === 'inline' ? 'border-primary' : 'border-muted-foreground/40',
+                        displayMode === 'inline' ? 'border-primary' : 'border-muted-foreground dark:border-muted-foreground/40',
                       )}
                     >
                       {displayMode === 'inline' && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -240,7 +240,7 @@ export function ViewOptionsMenu({
           </section>
 
           <section>
-            <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
               Show on calendar
             </p>
             <div className="space-y-0.5">
@@ -256,7 +256,7 @@ export function ViewOptionsMenu({
               ))}
             </div>
             {!showOverlayRows && (
-              <p className="mt-2 px-2 text-[10px] leading-snug text-muted-foreground">
+              <p className="mt-2 px-2 text-[12px] leading-snug text-muted-foreground">
                 Switch to Cards mode to show meals, chores, and tasks alongside events.
               </p>
             )}

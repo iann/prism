@@ -783,7 +783,7 @@ function PinnedPhotosCard() {
                       (selectingFor === 'wallpaper' && photo.id === pinnedWallpaper) ||
                       (selectingFor === 'screensaver' && photo.id === pinnedScreensaver)
                         ? 'border-primary ring-2 ring-primary/50'
-                        : 'border-transparent hover:border-primary/50'
+                        : 'border-transparent hover:border-primary dark:hover:border-primary/50'
                     )}
                     style={{ backgroundImage: `url(/api/photos/${photo.id}/file)` }}
                     title={photo.originalFilename}

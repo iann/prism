@@ -24,7 +24,7 @@ export function WeekendPlaceCard({ place, selected, onClick }: WeekendPlaceCardP
       onClick={onClick}
       className={cn(
         'w-full text-left rounded-xl border-2 bg-card transition-all hover:shadow-md active:scale-[0.99]',
-        selected ? 'border-primary shadow-md' : 'border-border hover:border-muted-foreground/30'
+        selected ? 'border-primary shadow-md' : 'border-border hover:border-muted-foreground dark:hover:border-muted-foreground/30'
       )}
     >
       <div className="p-3 space-y-2">
@@ -60,7 +60,7 @@ export function WeekendPlaceCard({ place, selected, onClick }: WeekendPlaceCardP
 
         {/* Status + pips row */}
         <div className="flex items-center justify-between gap-2">
-          <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-full', cfg.bgClass, cfg.textClass)}>
+          <span className={cn('text-[12px] font-medium px-1.5 py-0.5 rounded-full', cfg.bgClass, cfg.textClass)}>
             {cfg.label}
           </span>
           <VisitPips count={place.visitCount} color={pipColor} />
@@ -78,7 +78,7 @@ export function WeekendPlaceCard({ place, selected, onClick }: WeekendPlaceCardP
               <TagChip key={tag} tag={tag} size="sm" />
             ))}
             {place.tags.length > 4 && (
-              <span className="text-[10px] text-muted-foreground">+{place.tags.length - 4}</span>
+              <span className="text-[12px] text-muted-foreground">+{place.tags.length - 4}</span>
             )}
           </div>
         )}

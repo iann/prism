@@ -110,7 +110,7 @@ export function HelpView() {
               <button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
-                className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-card/85 hover:bg-accent transition-colors text-left"
+                className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-card dark:bg-card/85 hover:bg-accent transition-colors text-left"
               >
                 <span className="font-medium text-sm">{section.title}</span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

@@ -29,6 +29,7 @@ import {
 import type { useDashboardData } from './useDashboardData';
 import type { CalendarEvent } from '@/types/calendar';
 import type { BusRouteStatus, BusPrediction } from '@/lib/hooks/useBusTracking';
+import { getBusStatusColorClass } from '@/components/widgets/busStatusColors';
 
 type DashData = ReturnType<typeof useDashboardData>;
 
@@ -44,7 +45,7 @@ function CardShell({ href, icon, title, count, children }: {
 }) {
   const compact = useContext(LayoutCtx) === 'tiles';
   const inner = (
-    <div className={`bg-card/85 backdrop-blur-sm rounded-xl border border-border hover:border-primary/30 transition-colors ${compact ? 'p-3' : 'p-3'}`}>
+    <div className={`bg-card dark:bg-card/85 dark:backdrop-blur-sm rounded-xl border border-border hover:border-primary dark:hover:border-primary/30 transition-colors ${compact ? 'p-3' : 'p-3'}`}>
       <div className={`flex items-center justify-between ${compact ? '' : 'mb-2'}`}>
         <div className="flex items-center gap-2 min-w-0">
           {icon}
@@ -79,7 +80,7 @@ export function WeatherCard({ data }: { data: DashData['weather'] }) {
     <Cloud className={iconCls} />;
 
   return (
-    <div className="bg-card/85 backdrop-blur-sm rounded-xl border border-border p-3 flex items-center gap-3">
+    <div className="bg-card dark:bg-card/85 dark:backdrop-blur-sm rounded-xl border border-border p-3 flex items-center gap-3">
       {icon}
       <span className="text-2xl font-light tabular-nums">{Math.round(cur.temperature)}°{wd.units.temperature}</span>
       <span className="text-sm text-muted-foreground capitalize">{cur.description}</span>
@@ -89,7 +90,7 @@ export function WeatherCard({ data }: { data: DashData['weather'] }) {
 
 export function ClockCard() {
   return (
-    <div className="bg-card/85 backdrop-blur-sm rounded-xl border border-border p-3 flex items-center gap-3">
+    <div className="bg-card dark:bg-card/85 dark:backdrop-blur-sm rounded-xl border border-border p-3 flex items-center gap-3">
       <Clock className="h-5 w-5 text-muted-foreground" />
       <span className="text-2xl font-light tabular-nums">{format(new Date(), 'h:mm a')}</span>
       <span className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, MMM d')}</span>
@@ -286,17 +287,6 @@ export function PhotosCard() {
   );
 }
 
-function busStatusColor(p: BusPrediction): string {
-  switch (p.status) {
-    case 'at_stop':
-    case 'at_school': return 'bg-green-500';
-    case 'in_transit':
-    case 'cold_start': return 'bg-amber-500';
-    case 'overdue': return 'bg-red-500';
-    default: return 'bg-muted-foreground/40';
-  }
-}
-
 function busStatusText(p: BusPrediction): string {
   switch (p.status) {
     case 'at_stop': return 'Arrived at stop';
@@ -331,15 +321,15 @@ export function BusTrackingCard({ routes }: { routes: BusRouteStatus[] }) {
             <div key={r.id} className="space-y-0.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium truncate">{r.label}</span>
-                <span className="text-[11px] text-muted-foreground shrink-0 ml-2">{r.scheduledTime}</span>
+                <span className="text-[14px] text-muted-foreground shrink-0 ml-2">{r.scheduledTime}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${busStatusColor(r.prediction)}`} />
-                <span className="text-[11px] text-muted-foreground">{busStatusText(r.prediction)}</span>
+                <div className={`w-2 h-2 rounded-full shrink-0 ${getBusStatusColorClass(r.prediction.status)}`} />
+                <span className="text-[14px] text-muted-foreground">{busStatusText(r.prediction)}</span>
               </div>
               {r.prediction.lastCheckpointName && r.prediction.minutesSinceLastCheckpoint != null &&
                 r.prediction.status === 'in_transit' && (
-                <p className="text-[10px] text-muted-foreground/70 pl-3.5">
+                <p className="text-[14px] text-muted-foreground pl-3.5">
                   Last: {r.prediction.lastCheckpointName} ({r.prediction.minutesSinceLastCheckpoint}m ago)
                 </p>
               )}

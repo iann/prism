@@ -137,7 +137,7 @@ export function GiftIdeasView({ selectedMemberIds }: GiftIdeasViewProps = {}) {
             <div
               key={member.id}
               className={cn(
-                'flex flex-col rounded-xl border-2 bg-card/50 overflow-hidden min-h-0',
+                'flex flex-col rounded-xl border-2 bg-card dark:bg-card/50 overflow-hidden min-h-0',
                 isCarousel && 'snap-start'
               )}
               style={{ borderColor: member.color }}

@@ -123,7 +123,7 @@ export function CommunityGallery({ mode, onApplyLayout }: CommunityGalleryProps)
             <button
               key={size}
               onClick={() => setScreenSize(prev => prev === size ? '' : size)}
-              className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+              className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
                 screenSize === size
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'bg-muted border-border hover:bg-accent'
@@ -172,7 +172,7 @@ function CommunityLayoutCard({
   }, [entry.file]);
 
   return (
-    <div className="bg-muted/50 rounded-lg border border-border p-2 space-y-2 hover:border-primary/50 transition-colors">
+    <div className="bg-muted/50 rounded-lg border border-border p-2 space-y-2 hover:border-primary dark:hover:border-primary/50 transition-colors">
       <LayoutPreview widgets={widgets} width={160} height={100} />
       <div>
         <div className="text-sm font-medium leading-tight">{entry.name}</div>
