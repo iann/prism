@@ -37,10 +37,17 @@ export function LayoutEditorPreviewPanel({
   validation,
 }: LayoutEditorPreviewPanelProps) {
   return (
-    <div className="p-3 space-y-3">
-      <div className="flex gap-2 items-start">
+    <div className="space-y-3 p-3">
+      <div className="flex items-start gap-2">
         <LayoutPreview
-          widgets={visibleWidgets.map(w => ({ i: w.i, x: w.x, y: w.y, w: w.w, h: w.h }))}
+          widgets={visibleWidgets.map((w) => ({
+            i: w.i,
+            type: w.type,
+            x: w.x,
+            y: w.y,
+            w: w.w,
+            h: w.h,
+          }))}
           width={200}
           height={200}
           highlightWidget={focusedWidget}
@@ -56,8 +63,8 @@ export function LayoutEditorPreviewPanel({
           safeZones={zones}
         />
         <div className="flex flex-col gap-1">
-          {allSizeNames.map(size => {
-            const zone = zones[screenGuideOrientation].find(z => z.name === size);
+          {allSizeNames.map((size) => {
+            const zone = zones[screenGuideOrientation].find((z) => z.name === size);
             const isEnabled = effectiveEnabledSizes.includes(size);
             return (
               <button
@@ -75,25 +82,31 @@ export function LayoutEditorPreviewPanel({
               </button>
             );
           })}
-          <span className="text-[12px] text-muted-foreground mt-1 leading-tight">
-            Click map<br />to scroll
+          <span className="mt-1 text-[12px] leading-tight text-muted-foreground">
+            Click map
+            <br />
+            to scroll
           </span>
         </div>
       </div>
       {validation.errors.length > 0 && (
-        <div className="bg-destructive/10 border border-destructive/30 rounded-md p-2">
-          <p className="text-xs font-medium text-destructive mb-0.5">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2">
+          <p className="mb-0.5 text-xs font-medium text-destructive">
             {validation.errors.length} issue{validation.errors.length > 1 ? 's' : ''}
           </p>
           {validation.errors.map((err, i) => (
-            <p key={i} className="text-xs text-destructive/80 leading-tight">{err}</p>
+            <p key={i} className="text-xs leading-tight text-destructive/80">
+              {err}
+            </p>
           ))}
         </div>
       )}
       {validation.warnings.length > 0 && validation.errors.length === 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-2">
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2">
           {validation.warnings.map((w, i) => (
-            <p key={i} className="text-xs text-amber-600 leading-tight">{w}</p>
+            <p key={i} className="text-xs leading-tight text-amber-600">
+              {w}
+            </p>
           ))}
         </div>
       )}

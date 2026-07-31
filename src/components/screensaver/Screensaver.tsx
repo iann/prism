@@ -4,9 +4,14 @@ import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { usePhotos } from '@/lib/hooks/usePhotos';
 import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
-import { useAutoOrientationSetting, usePinnedPhoto, useScreensaverInterval } from '@/components/layout/WallpaperBackground';
+import {
+  useAutoOrientationSetting,
+  usePinnedPhoto,
+  useScreensaverInterval,
+} from '@/components/layout/WallpaperBackground';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+import { getWidgetType } from '@/lib/utils/widgetInstances';
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { useDashboardData } from '@/components/dashboard/useDashboardData';
 import { buildWidgetProps } from '@/components/dashboard/useWidgetProps';
@@ -30,9 +35,11 @@ export function Screensaver() {
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: screensaverInterval } = useScreensaverInterval();
   const screenOrientation = useScreenOrientation();
-  const orientationOverride = typeof window !== 'undefined'
-    ? (localStorage.getItem('prism-orientation-override') as 'landscape' | 'portrait' | null) || null
-    : null;
+  const orientationOverride =
+    typeof window !== 'undefined'
+      ? (localStorage.getItem('prism-orientation-override') as 'landscape' | 'portrait' | null) ||
+        null
+      : null;
   const effectiveOrientation = orientationOverride || screenOrientation;
   const { photos } = usePhotos({
     sort: 'random',
@@ -93,33 +100,63 @@ export function Screensaver() {
 function ScreensaverGrid() {
   const layout = useMemo(() => loadScreensaverLayout(), []);
   const visibleWidgets = useMemo(
-    () => new Set(layout.filter(widget => widget.visible !== false).map(widget => widget.i)),
-    [layout],
+    () =>
+      new Set(
+        layout.filter((widget) => widget.visible !== false).map((widget) => getWidgetType(widget))
+      ),
+    [layout]
   );
   const data = useDashboardData(visibleWidgets);
-  const widgetProps = useMemo(() =>
-    buildWidgetProps(
-      data,
-      async () => null, // no auth in screensaver
-      { setShowAddTask: () => {}, setShowAddMessage: () => {}, setShowAddChore: () => {}, setShowAddShopping: () => {} },
-      '',
-    ),
-  [data]);
+  const widgetProps = useMemo(
+    () =>
+      buildWidgetProps(
+        data,
+        async () => null, // no auth in screensaver
+        {
+          setShowAddTask: () => {},
+          setShowAddMessage: () => {},
+          setShowAddChore: () => {},
+          setShowAddShopping: () => {},
+        },
+        ''
+      ),
+    [data]
+  );
 
   const renderWidget = (w: WidgetConfig) => {
-    const reg = WIDGET_REGISTRY[w.i];
+    const widgetType = getWidgetType(w);
+    const reg = WIDGET_REGISTRY[widgetType];
     if (!reg) return null;
     const Component = reg.component;
-    const rawProps = { ...widgetProps[w.i] || {}, gridW: w.w, gridH: w.h };
+    const rawProps = {
+      ...(widgetProps[widgetType] || {}),
+      instanceId: w.i,
+      gridW: w.w,
+      gridH: w.h,
+    };
     // Strip interactive callbacks — screensaver widgets are display-only
     const {
-      onAddClick, onAddMeal, onListChange, onItemToggle, onTaskToggle,
-      onChoreComplete, onEventClick, onMessageClick, onDeleteClick,
-      onMarkCooked, onUnmarkCooked,
+      onAddClick,
+      onAddMeal,
+      onListChange,
+      onItemToggle,
+      onTaskToggle,
+      onChoreComplete,
+      onEventClick,
+      onMessageClick,
+      onDeleteClick,
+      onMarkCooked,
+      onUnmarkCooked,
       ...props
     } = rawProps as Record<string, unknown>;
     return (
-      <React.Suspense fallback={<div className="flex items-center justify-center h-full opacity-50 text-sm">Loading...</div>}>
+      <React.Suspense
+        fallback={
+          <div className="flex h-full items-center justify-center text-sm opacity-50">
+            Loading...
+          </div>
+        }
+      >
         <div className="h-full w-full [&_*:not([data-keep-bg]):not([data-keep-bg]_*)]:!bg-transparent [&_.bg-card]:!bg-white/10 [&_.border-border]:!border-white/20">
           <Component {...props} />
         </div>
@@ -144,7 +181,7 @@ function ScreensaverGrid() {
       containerPadding={12}
       cols={GRID_COLS}
       fillHeight
-      className="w-full h-full"
+      className="h-full w-full"
     />
   );
 }
