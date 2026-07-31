@@ -5,8 +5,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { useAutoHideUI } from '../useAutoHideUI';
 
+const mockUsePathname = jest.fn((): string | null => '/');
+
 jest.mock('next/navigation', () => ({
-  usePathname: () => '/',
+  usePathname: () => mockUsePathname(),
 }));
 
 describe('useAutoHideUI', () => {
@@ -14,6 +16,7 @@ describe('useAutoHideUI', () => {
     jest.useFakeTimers();
     localStorage.clear();
     localStorage.setItem('prism:auto-hide-ui', 'true');
+    mockUsePathname.mockReturnValue('/');
   });
 
   afterEach(() => {
@@ -28,6 +31,17 @@ describe('useAutoHideUI', () => {
     });
 
     expect(result.current.uiHidden).toBe(true);
+  });
+
+  it('does not hide chrome while the pathname is unavailable', () => {
+    mockUsePathname.mockReturnValue(null);
+    const { result } = renderHook(() => useAutoHideUI());
+
+    act(() => {
+      jest.advanceTimersByTime(10_000);
+    });
+
+    expect(result.current.uiHidden).toBe(false);
   });
 
   it('ignores scroll events caused by the hide reflow', () => {
