@@ -416,7 +416,7 @@ export function CalendarsSection() {
                               ? 'iCal Subscription'
                               : cal.provider}
                           {cal.displayName && cal.displayName !== cal.dashboardCalendarName && (
-                            <span className="ml-2 text-muted-foreground/60">
+                            <span className="ml-2 text-muted-foreground">
                               (Source: {cal.displayName})
                             </span>
                           )}
@@ -512,11 +512,11 @@ export function CalendarsSection() {
                     return (
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
                         <div className="flex items-center gap-2">
-                          <span className={cn("text-xs", isWritable ? "text-muted-foreground" : "text-muted-foreground/50")}>
+                          <span className={cn("text-xs", isWritable ? "text-muted-foreground text-xs" : "text-muted-foreground/50")}>
                             Show in &quot;Add Event&quot; modal
                           </span>
                           {isSubscription && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 opacity-60">Read-only</Badge>
+                            <Badge variant="outline" className="text-[12px] px-1 py-0">Read-only</Badge>
                           )}
                         </div>
                         <Switch

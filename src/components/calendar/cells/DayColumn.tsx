@@ -88,7 +88,7 @@ const SIZE_PROFILES: Record<WeekItemSize, SizeProfile> = {
     itemSize: 'xs',
     minHeight: 'min-h-[40px]',
     headerDateText: 'text-xs font-bold',
-    headerLabelText: 'text-[9px]',
+    headerLabelText: 'text-[12px]',
     showWeather: false,
     showEmptyState: false,
     containerPadding: 'p-1',
@@ -98,7 +98,7 @@ const SIZE_PROFILES: Record<WeekItemSize, SizeProfile> = {
     itemSize: 'sm',
     minHeight: 'min-h-[70px]',
     headerDateText: 'text-base font-bold',
-    headerLabelText: 'text-[10px]',
+    headerLabelText: 'text-[12px]',
     showWeather: false,
     showEmptyState: false,
     containerPadding: 'p-1.5',
@@ -167,13 +167,13 @@ export function DayColumn({
       data-droppable-day={disableDrop ? undefined : droppableId}
       className={cn(
         'flex flex-col rounded-lg',
-        'bg-card/60 backdrop-blur-sm',
-        'border border-border/30',
+        'bg-card dark:bg-card/60 dark:backdrop-blur-sm',
+        'border border-border dark:border-border/30',
         profile.containerPadding,
         profile.minHeight,
         profile.gap,
         today && 'ring-2 ring-seasonal-accent/60',
-        droppable.isOver && !disableDrop && 'ring-2 ring-seasonal-accent shadow-lg bg-card/80',
+        droppable.isOver && !disableDrop && 'ring-2 ring-seasonal-accent shadow-lg bg-card dark:bg-card/80',
         className,
       )}
     >
@@ -196,7 +196,7 @@ export function DayColumn({
           </span>
         </div>
         {profile.showWeather && bucket.weather && (
-          <div className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+          <div className="flex shrink-0 items-center gap-1 text-[14px] text-muted-foreground">
             {weatherIcon(bucket.weather.condition, size === 'lg' ? 'lg' : 'sm')}
             <span className="tabular-nums">
               {Math.round(bucket.weather.high)}°/{Math.round(bucket.weather.low)}°
@@ -280,7 +280,7 @@ export function DayColumn({
         ))}
 
       {profile.showEmptyState && isEmpty && (
-        <div className="flex flex-1 items-center justify-center rounded border border-dashed border-border/30 bg-black/10 py-3 text-[10px] text-muted-foreground">
+        <div className="flex flex-1 items-center justify-center rounded border border-dashed border-border text-[12px] dark:border-border/30 bg-black/10 py-3 text-muted-foreground">
           Nothing planned
         </div>
       )}

@@ -38,7 +38,7 @@ export function DayOverflowPopover({
         <button
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            'block w-full text-left text-[10px] font-medium px-1 py-0.5 rounded',
+            'block w-full text-left text-[12px] font-medium px-1 py-0.5 rounded',
             'bg-muted/60 hover:bg-muted text-muted-foreground transition-colors',
             'min-h-[20px]',
             triggerClassName,
@@ -63,11 +63,11 @@ export function DayOverflowPopover({
                   onEventClick(event);
                   setOpen(false);
                 }}
-                className="w-full text-left px-2 py-1 rounded bg-card hover:bg-accent transition-colors flex items-center gap-2 border border-border/40"
+                className="w-full text-left px-2 py-1 rounded bg-card hover:bg-accent transition-colors flex items-center gap-2 border border-border dark:border-border/40"
                 style={{ borderLeft: `3px solid ${event.color}` }}
               >
                 {!event.allDay && (
-                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                  <span className="text-[12px] text-muted-foreground tabular-nums shrink-0">
                     {format(event.startTime, 'h:mm a')}
                   </span>
                 )}

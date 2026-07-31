@@ -4,6 +4,13 @@ import * as React from 'react';
 import { Bus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WidgetContainer, WidgetEmpty } from './WidgetContainer';
+import {
+  getBusLabelGeometry,
+  getBusLabelLane,
+  getBusRouteHorizontalInset,
+  type BusLabelGeometry,
+} from './busLabelLayout';
+import { getBusStatusColorClass } from './busStatusColors';
 import { useBusTracking } from '@/lib/hooks/useBusTracking';
 import type { BusRouteStatus, BusPrediction } from '@/lib/hooks/useBusTracking';
 
@@ -143,7 +150,7 @@ function buildNodes(route: BusRouteStatus): TrainNode[] {
 
 function RouteStatusCard({ route, compact }: { route: BusRouteStatus; compact: boolean }) {
   const p = route.prediction;
-  const statusColor = getStatusColor(p);
+  const statusColor = getBusStatusColorClass(p.status);
   const statusText = getStatusText(p);
   const nodes = buildNodes(route);
 
@@ -152,7 +159,7 @@ function RouteStatusCard({ route, compact }: { route: BusRouteStatus; compact: b
       {/* Header row: label + scheduled time */}
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium truncate">{route.label}</span>
-        <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+        <span className="text-[12px] text-muted-foreground flex-shrink-0 ml-2">
           {route.scheduledTime}
         </span>
       </div>
@@ -160,19 +167,19 @@ function RouteStatusCard({ route, compact }: { route: BusRouteStatus; compact: b
       {/* Status text with color indicator */}
       <div className="flex items-center gap-2">
         <div data-keep-bg className={cn('h-2 w-2 rounded-full flex-shrink-0', statusColor)} />
-        <span className="text-xs text-muted-foreground">{statusText}</span>
+        <span className="text-[14px] text-muted-foreground">{statusText}</span>
       </div>
 
-      {/* Train map — px-8 gives room for centered labels that extend ~26px each side */}
+      {/* Keep centered endpoint labels inside the widget's clipped content area. */}
       {nodes.length > 0 && (
-        <div className="px-8">
+        <div style={{ paddingInline: compact ? 32 : getBusRouteHorizontalInset() }}>
           <TrainMap nodes={nodes} prediction={p} compact={compact} statusColor={statusColor} />
         </div>
       )}
 
       {/* Last update info */}
       {p.lastCheckpointName && p.minutesSinceLastCheckpoint !== null && (
-        <div className="text-[11px] text-muted-foreground">
+        <div className="text-[14px] text-muted-foreground">
           Last: {p.lastCheckpointName} ({formatMinutes(p.minutesSinceLastCheckpoint)} ago)
         </div>
       )}
@@ -192,9 +199,29 @@ function TrainMap({
   statusColor: string;
 }) {
   const lastIdx = prediction.lastCheckpointIndex;
-  const labelHeight = compact ? 0 : 40;
+  const labelLaneOffset = 36;
   const nodeSize = compact ? 10 : 14;
   const trackY = Math.floor(nodeSize / 2) - 1;
+  const mapRootRef = React.useRef<HTMLDivElement>(null);
+  const [rowWidth, setRowWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    const root = mapRootRef.current;
+    if (!root) return;
+
+    const initialWidth = root.getBoundingClientRect().width;
+    if (initialWidth > 0) setRowWidth(initialWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setRowWidth(entry.contentRect.width);
+    });
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+
+  const labelHeight = (geometry: BusLabelGeometry) =>
+    compact ? 0 : 48 + (geometry.laneCount - 1) * labelLaneOffset;
 
   // Origin nodes (PM school diamond) light up the instant ANY event has fired,
   // since the bus came from there but FirstView doesn't emit a "left" email.
@@ -206,15 +233,21 @@ function TrainMap({
     return from.index < lastIdx || (from.index === lastIdx && to.index <= lastIdx);
   };
 
-  const renderNodeAt = (node: TrainNode, leftPct: number, topOffset: number) => {
+  const renderNodeAt = (
+    node: TrainNode,
+    leftPct: number,
+    topOffset: number,
+    labelIndex: number,
+    geometry: BusLabelGeometry,
+  ) => {
     const reached = isReached(node);
     // Origin nodes never pulse — the bus has left them, it isn't *at* them.
     const current = !node.isOrigin && node.index === lastIdx && prediction.status !== 'no_data';
     const shapeBase = cn(
       'border-2 transition-all',
       reached
-        ? cn(statusColor, statusColor.replace('bg-', 'border-'))
-        : 'border-muted-foreground/40 bg-background',
+        ? cn(statusColor, statusColor.replaceAll('bg-', 'border-'))
+        : 'border-muted-foreground bg-background dark:border-muted-foreground/40',
       current && 'animate-pulse',
     );
     return (
@@ -238,17 +271,19 @@ function TrainMap({
         )}
         {!compact && (
           <div
-            className="absolute text-[9px] leading-tight text-muted-foreground text-center pointer-events-none"
+            className="absolute text-[14px] leading-tight text-muted-foreground text-center pointer-events-none"
             style={{
-              top: nodeSize + 3,
+              top: nodeSize + 3 + getBusLabelLane(labelIndex, geometry.laneCount) * labelLaneOffset,
               left: '50%',
               transform: 'translateX(-50%)',
-              width: 56,
+              width: geometry.labelWidth,
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
+              overflowWrap: 'anywhere',
             }}
+            title={node.name}
           >
             {node.name}
           </div>
@@ -263,9 +298,13 @@ function TrainMap({
     const half = Math.ceil(nodes.length / 2);
     const topNodes = nodes.slice(0, half);
     const botNodes = nodes.slice(half);
-    const rowH = nodeSize + labelHeight;
+    const topGeometry = getBusLabelGeometry(rowWidth, topNodes.length);
+    const botGeometry = getBusLabelGeometry(rowWidth, botNodes.length);
+    const topRowHeight = nodeSize + labelHeight(topGeometry);
+    const botRowHeight = nodeSize + labelHeight(botGeometry);
     const connGap = 16;
-    const totalH = rowH * 2 + connGap;
+    const botRowTop = topRowHeight + connGap;
+    const totalH = topRowHeight + connGap + botRowHeight;
 
     // Both rows left→right
     const topPct = (i: number) =>
@@ -276,12 +315,12 @@ function TrainMap({
     const connPassed = botNodes.length > 0 && botNodes[0]!.index <= lastIdx;
 
     // U-turn connector geometry
-    const connTopY = nodeSize / 2;           // centre of last top-row node
-    const connMidY = rowH + connGap / 2;     // midpoint of gap between rows
-    const connBotY = rowH + connGap + nodeSize / 2; // centre of first bottom-row node
+    const connTopY = nodeSize / 2; // centre of last top-row node
+    const connMidY = topRowHeight + connGap / 2; // midpoint of gap between rows
+    const connBotY = botRowTop + nodeSize / 2; // centre of first bottom-row node
 
     return (
-      <div className="relative w-full select-none" style={{ height: totalH }}>
+      <div ref={mapRootRef} className="relative w-full select-none" style={{ height: totalH }}>
         {/* Top row segments */}
         {topNodes.map((node, i) => i < topNodes.length - 1 && (
           <div key={`ts-${i}`} data-keep-bg
@@ -296,7 +335,7 @@ function TrainMap({
         {botNodes.map((node, i) => i < botNodes.length - 1 && (
           <div key={`bs-${i}`} data-keep-bg
             className={cn('absolute', isSegPassed(node, botNodes[i + 1]!) ? statusColor : 'bg-muted-foreground/25')}
-            style={{ top: rowH + connGap + trackY, height: 2,
+            style={{ top: botRowTop + trackY, height: 2,
               left: `calc(${botPct(i)}% + ${nodeSize / 2}px)`,
               right: `calc(${100 - botPct(i + 1)}% + ${nodeSize / 2}px)` }}
           />
@@ -316,15 +355,17 @@ function TrainMap({
           style={{ top: connMidY, left: 0, width: 1, height: connBotY - connMidY, opacity: 0.6 }}
         />
 
-        {topNodes.map((node, i) => renderNodeAt(node, topPct(i), 0))}
-        {botNodes.map((node, i) => renderNodeAt(node, botPct(i), rowH + connGap))}
+        {topNodes.map((node, i) => renderNodeAt(node, topPct(i), 0, i, topGeometry))}
+        {botNodes.map((node, i) => renderNodeAt(node, botPct(i), botRowTop, i, botGeometry))}
       </div>
     );
   }
 
   // Single-row layout (compact mode or ≤5 nodes)
+  const geometry = getBusLabelGeometry(rowWidth, nodes.length);
   return (
-    <div className="relative w-full select-none" style={{ height: nodeSize + labelHeight + 2 }}>
+    <div ref={mapRootRef} className="relative w-full select-none"
+      style={{ height: nodeSize + labelHeight(geometry) + 2 }}>
       {nodes.map((node, i) => i < nodes.length - 1 && (
         <div key={`seg-${i}`} data-keep-bg
           className={cn('absolute', isSegPassed(node, nodes[i + 1]!) ? statusColor : 'bg-muted-foreground/25')}
@@ -334,26 +375,16 @@ function TrainMap({
         />
       ))}
       {nodes.map((node, i) =>
-        renderNodeAt(node, nodes.length === 1 ? 50 : (i / (nodes.length - 1)) * 100, 0)
+        renderNodeAt(
+          node,
+          nodes.length === 1 ? 50 : (i / (nodes.length - 1)) * 100,
+          0,
+          i,
+          geometry,
+        )
       )}
     </div>
   );
-}
-
-function getStatusColor(p: BusPrediction): string {
-  switch (p.status) {
-    case 'at_stop':
-    case 'at_school':
-      return 'bg-green-500';
-    case 'in_transit':
-    case 'cold_start':
-      return 'bg-amber-500';
-    case 'overdue':
-      return 'bg-red-500';
-    case 'no_data':
-    default:
-      return 'bg-muted-foreground/50';
-  }
 }
 
 function getStatusText(p: BusPrediction): string {

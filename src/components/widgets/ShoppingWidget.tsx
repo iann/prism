@@ -280,7 +280,7 @@ function ShoppingItemRow({
 
           {/* Quantity */}
           {quantityDisplay && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            <Badge variant="secondary" className="text-[12px] px-1.5 py-0">
               {quantityDisplay}
             </Badge>
           )}

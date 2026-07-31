@@ -40,7 +40,7 @@ export function TaskItem({
   return (
     <div
       className={cn(
-        'group flex items-center gap-4 p-4 rounded-lg border border-border bg-card/85 backdrop-blur-sm',
+        'group flex items-center gap-4 p-4 rounded-lg border border-border bg-card dark:bg-card/85 dark:backdrop-blur-sm',
         'hover:border-seasonal-accent hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
         task.completed && 'opacity-60'
       )}

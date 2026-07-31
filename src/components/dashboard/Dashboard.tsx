@@ -361,7 +361,7 @@ export function Dashboard({
     const props = { ...widgetPropsRef.current[w.i] || {}, gridW: w.w, gridH: w.h };
     return (
       <WidgetBoundary name={w.i}>
-        <Suspense fallback={<div className="flex items-center justify-center h-full text-white/50 text-sm">Loading...</div>}>
+        <Suspense fallback={<div className="flex items-center justify-center h-full text-white text-sm">Loading...</div>}>
           <div className="h-full w-full [&_*]:!bg-transparent [&_.bg-card]:!bg-white/10 [&_.border-border]:!border-white/20">
             <Component {...props} />
           </div>

@@ -29,10 +29,10 @@ export function DashboardDropdown({ layoutName, isActive, onToggle, allDashboard
               sessionStorage.setItem('prism:editing', 'true'); window.location.href = '/';
             }
             onClose();
-          }} className={`w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors flex items-center gap-2 ${d.id === currentDashboardId ? 'bg-accent/50' : ''}`}>
+          }} className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent ${d.id === currentDashboardId ? 'bg-accent/50' : ''}`}>
             <span className="flex-1 truncate">{d.name}</span>
             {d.id === currentDashboardId && <CheckIcon />}
-            {d.isDefault && d.id !== currentDashboardId && <span className="text-[10px] text-muted-foreground">default</span>}
+            {d.isDefault && d.id !== currentDashboardId && <span className="text-[12px] text-muted-foreground">default</span>}
           </button>
         ))}
         <div className="border-t border-border my-1" />
@@ -106,10 +106,10 @@ export function SaveAsDialog({
                   >
                     <span className="flex-1 truncate">{d.name}</span>
                     {d.id === currentDashboardId && (
-                      <span className="text-[10px] text-muted-foreground">current</span>
+                      <span className="text-[12px] text-muted-foreground">current</span>
                     )}
                     {d.isDefault && d.id !== currentDashboardId && (
-                      <span className="text-[10px] text-muted-foreground">default</span>
+                      <span className="text-[12px] text-muted-foreground">default</span>
                     )}
                   </button>
                 ))}
@@ -211,7 +211,7 @@ export function CreateDashboardDialog({
               <button
                 key={opt.value}
                 onClick={() => setCreateForm(f => ({ ...f, startFrom: opt.value }))}
-                className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                className={`rounded-md border px-2 py-1 text-xs transition-colors ${
                   createForm.startFrom === opt.value
                     ? 'bg-primary text-primary-foreground border-primary'
                     : 'bg-muted border-border hover:bg-accent'

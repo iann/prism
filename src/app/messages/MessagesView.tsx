@@ -275,7 +275,7 @@ export function MessagesView() {
               {messagesByAuthor.map(({ member, messages: msgs }) => (
                 <div
                   key={member.id}
-                  className="flex flex-col border-2 rounded-lg overflow-hidden bg-card/90 backdrop-blur-sm"
+                  className="flex flex-col border-2 rounded-lg overflow-hidden bg-card dark:bg-card/90 dark:backdrop-blur-sm"
                   style={{ borderColor: member.color }}
                 >
                   <div
@@ -402,7 +402,7 @@ function MessageCard({
     return (
       <div
         className={cn(
-          'p-2 rounded-md border border-border bg-card/50',
+          'p-2 rounded-md border border-border bg-card dark:bg-card/50',
           'hover:bg-muted/50 transition-colors group',
           message.important && 'bg-red-100/50 dark:bg-red-950/50 border-destructive/20'
         )}
@@ -428,7 +428,7 @@ function MessageCard({
                   <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={cancelEdit} disabled={saving}>
                     Cancel
                   </Button>
-                  <span className="text-[10px] text-muted-foreground ml-auto">Ctrl+Enter</span>
+                  <span className="text-[12px] text-muted-foreground ml-auto">Ctrl+Enter</span>
                 </div>
               </div>
             ) : (
@@ -437,12 +437,12 @@ function MessageCard({
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                   <span className="text-xs text-muted-foreground" title={fullDate}>{timeAgo}</span>
                   {message.pinned && (
-                    <Badge variant="outline" className="gap-0.5 text-[10px] h-4 px-1">
+                    <Badge variant="outline" className="gap-0.5 text-[12px] h-4 px-1">
                       <Pin className="h-2.5 w-2.5" />Pinned
                     </Badge>
                   )}
                   {message.important && (
-                    <Badge variant="destructive" className="gap-0.5 text-[10px] h-4 px-1">
+                    <Badge variant="destructive" className="gap-0.5 text-[12px] h-4 px-1">
                       <AlertTriangle className="h-2.5 w-2.5" />
                     </Badge>
                   )}
@@ -480,7 +480,7 @@ function MessageCard({
   return (
     <div
       className={cn(
-        'p-4 rounded-lg border border-border bg-card/85 backdrop-blur-sm',
+        'p-4 rounded-lg border border-border bg-card dark:bg-card/85 dark:backdrop-blur-sm',
         'hover:border-seasonal-accent hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
         'group',
         message.important && 'bg-red-100/85 dark:bg-red-950/85 border-destructive/20'
