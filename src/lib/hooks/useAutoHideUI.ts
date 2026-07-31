@@ -17,7 +17,7 @@ export function useAutoHideUI() {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   // Only auto-hide on dashboard routes (/ and /d/[slug])
-  const isDashboard = pathname === '/' || pathname.startsWith('/d/');
+  const isDashboard = pathname === '/' || pathname?.startsWith('/d/') === true;
 
   // Read from localStorage after mount to avoid SSR hydration mismatch
   useEffect(() => {
