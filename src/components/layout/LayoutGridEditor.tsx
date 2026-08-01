@@ -233,12 +233,23 @@ export function LayoutGridEditor({
   }, []);
 
   const layoutRef = useRef(layout);
-  const layoutJson = JSON.stringify(layout);
   const stableLayout = useMemo(() => {
+    // Dashboard layout arrays can be recreated by the parent when unrelated
+    // data changes. Keep the previous array when its item identities are
+    // unchanged so the grid does not invalidate every memoized cell. This is
+    // linear and allocation-free compared with serializing the full layout on
+    // every render.
+    const previous = layoutRef.current;
+    if (
+      previous.length === layout.length &&
+      previous.every((widget, index) => widget === layout[index])
+    ) {
+      return previous;
+    }
+
     layoutRef.current = layout;
     return layout;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutJson]);
+  }, [layout]);
 
   const updateWidgetColor = useCallback(
     (

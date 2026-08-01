@@ -9,7 +9,7 @@
  * cleanup on unmount, and disabled behavior.
  */
 
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { useVisibilityPolling } from '../useVisibilityPolling';
 
 // Helper to simulate visibilitychange
@@ -174,5 +174,29 @@ describe('useVisibilityPolling', () => {
     expect(addCall).toBeTruthy();
 
     addSpy.mockRestore();
+  });
+
+  it('does not overlap an async callback when a request runs long', async () => {
+    let release: (() => void) | undefined;
+    const callback = jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        })
+    );
+    const { unmount } = renderHook(() => useVisibilityPolling(callback, 1000));
+
+    jest.advanceTimersByTime(1000);
+    jest.advanceTimersByTime(1000);
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      release?.();
+      await Promise.resolve();
+    });
+
+    jest.advanceTimersByTime(1000);
+    expect(callback).toHaveBeenCalledTimes(2);
+    unmount();
   });
 });

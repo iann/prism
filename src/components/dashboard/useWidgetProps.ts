@@ -48,6 +48,17 @@ export function buildWidgetProps(
       events: data.calendar.events,
       loading: data.calendar.loading,
       error: data.calendar.error,
+      refreshEvents: data.calendar.refresh,
+      // Calendar overlays reuse the dashboard's already-active data streams.
+      // The enabled guards are important: if a domain is not represented by
+      // another visible widget, CalendarWidget keeps its standalone fetch.
+      overlayMeals: data.meals.enabled ? data.meals.meals : undefined,
+      overlayChores: data.chores.enabled ? data.chores.calendarChores : undefined,
+      overlayTasks: data.tasks.enabled ? data.tasks.calendarTasks : undefined,
+      overlayWeather: data.weather.enabled ? data.weather.data : undefined,
+      refreshOverlayMeals: data.meals.enabled ? data.meals.refresh : undefined,
+      refreshOverlayChores: data.chores.enabled ? data.chores.refresh : undefined,
+      refreshOverlayTasks: data.tasks.enabled ? data.tasks.refresh : undefined,
       initialView: '3days',
       maxEventsPerDay: 4,
       onEventClick: (_event: unknown) => {},

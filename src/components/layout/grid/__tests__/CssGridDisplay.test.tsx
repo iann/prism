@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { CssGridDisplay } from '../CssGridDisplay';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 
@@ -79,5 +79,56 @@ describe('CssGridDisplay', () => {
       />
     );
     expect(renders).toEqual({ first: 2, second: 2 });
+  });
+
+  it('defers mounting widgets outside the initial display viewport', () => {
+    const originalHeight = window.innerHeight;
+    const originalObserver = globalThis.IntersectionObserver;
+    let intersectionCallback: IntersectionObserverCallback | undefined;
+
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 768 });
+    Object.defineProperty(globalThis, 'IntersectionObserver', {
+      configurable: true,
+      value: jest.fn((callback: IntersectionObserverCallback) => {
+        intersectionCallback = callback;
+        return {
+          observe: jest.fn(),
+          disconnect: jest.fn(),
+        } as unknown as IntersectionObserver;
+      }),
+    });
+
+    const renders = { clock: 0, tasks: 0 };
+    render(
+      <CssGridDisplay
+        layout={[
+          { i: 'clock', x: 0, y: 0, w: 2, h: 2 },
+          { i: 'tasks', x: 0, y: 100, w: 2, h: 2 },
+        ]}
+        renderWidget={(widget) => {
+          renders[widget.i as keyof typeof renders] += 1;
+          return <span>{widget.i}</span>;
+        }}
+      />
+    );
+
+    expect(renders).toEqual({ clock: 1, tasks: 0 });
+
+    act(() => {
+      intersectionCallback?.(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver
+      );
+    });
+    expect(renders).toEqual({ clock: 1, tasks: 1 });
+
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: originalHeight,
+    });
+    Object.defineProperty(globalThis, 'IntersectionObserver', {
+      configurable: true,
+      value: originalObserver,
+    });
   });
 });

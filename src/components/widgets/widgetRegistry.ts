@@ -1,8 +1,10 @@
 import { ComponentType, lazy } from 'react';
 import { ClockWidget } from './ClockWidget';
-import { WeatherWidget } from './WeatherWidget';
 
-// Lazy-load non-default widgets to reduce initial bundle size
+// Keep the tiny clock in the shell so the always-visible time display has no
+// extra waterfall. Weather is substantially larger (forecast/astronomy SVG
+// work), so defer that module like the other widgets.
+const WeatherWidget = lazy(() => import('./WeatherWidget').then(m => ({ default: m.WeatherWidget })));
 const CalendarWidget = lazy(() => import('./CalendarWidget').then(m => ({ default: m.CalendarWidget })));
 const TasksWidget = lazy(() => import('./TasksWidget').then(m => ({ default: m.TasksWidget })));
 const MessagesWidget = lazy(() => import('./MessagesWidget').then(m => ({ default: m.MessagesWidget })));

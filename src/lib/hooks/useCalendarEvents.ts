@@ -36,6 +36,44 @@ interface UseCalendarEventsResult {
   syncCalendars: () => Promise<void>;
 }
 
+export type CalendarSource = {
+  id: string;
+  provider: string;
+  dashboardCalendarName: string;
+  displayName: string | null;
+  color: string | null;
+  enabled: boolean;
+  showInEventModal: boolean;
+  isFamily: boolean;
+  groupId: string | null;
+  groupName: string | null;
+  groupColor: string | null;
+  lastSynced: string | null;
+  syncErrors: { needsReauth?: boolean; lastError?: string; timestamp?: string } | null;
+  providerConfig: Record<string, unknown> | null;
+  user: { id: string; name: string; color: string } | null;
+};
+
+// Several calendar widgets can mount together. Share the in-flight source
+// lookup so each instance does not issue the same request during hydration.
+let calendarSourcesRequest: Promise<CalendarSource[]> | null = null;
+
+function requestCalendarSources(): Promise<CalendarSource[]> {
+  if (calendarSourcesRequest) return calendarSourcesRequest;
+
+  calendarSourcesRequest = fetch('/api/calendars')
+    .then(async (response) => {
+      if (!response.ok) throw new Error('Failed to fetch calendars');
+      const data = await response.json();
+      return (data.calendars || []) as CalendarSource[];
+    })
+    .finally(() => {
+      calendarSourcesRequest = null;
+    });
+
+  return calendarSourcesRequest;
+}
+
 /**
  * Hook for fetching calendar events from the API
  */
@@ -213,39 +251,14 @@ export function useCalendarEvents(
  * Hook for fetching calendar sources
  */
 export function useCalendarSources() {
-  const [calendars, setCalendars] = useState<
-    Array<{
-      id: string;
-      provider: string;
-      dashboardCalendarName: string;
-      displayName: string | null;
-      color: string | null;
-      enabled: boolean;
-      showInEventModal: boolean;
-      isFamily: boolean;
-      groupId: string | null;
-      groupName: string | null;
-      groupColor: string | null;
-      lastSynced: string | null;
-      syncErrors: { needsReauth?: boolean; lastError?: string; timestamp?: string } | null;
-      providerConfig: Record<string, unknown> | null;
-      user: { id: string; name: string; color: string } | null;
-    }>
-  >([]);
+  const [calendars, setCalendars] = useState<CalendarSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCalendars = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch('/api/calendars');
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch calendars');
-      }
-
-      const data = await response.json();
-      setCalendars(data.calendars);
+      setCalendars(await requestCalendarSources());
     } catch (err) {
       console.error('Error fetching calendars:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch calendars');

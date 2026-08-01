@@ -33,6 +33,11 @@ export interface CssGridDisplayProps {
   cols?: number;
   /** Fill viewport height (screensaver mode) */
   fillHeight?: boolean;
+  /**
+   * Avoid mounting widget subtrees that are outside the display viewport.
+   * The outer grid cells remain in place so layout and scrolling are stable.
+   */
+  deferOffscreen?: boolean;
   /** Offset from top of viewport for visible row calculation */
   headerOffset?: number;
   /** Offset from bottom for portrait nav */

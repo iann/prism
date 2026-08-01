@@ -1,6 +1,8 @@
 import { useEffect, useCallback, useRef, useMemo } from 'react';
+import { format } from 'date-fns';
 import { useCalendarEvents, useWeather, useMessages, useTasks, useChores, useShoppingLists, useMeals, useBirthdays, useLayouts, useGoals, usePoints } from '@/lib/hooks';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
+import type { Chore } from '@/types';
 
 const AUTO_SYNC_STALE_MINUTES = 5;
 const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
@@ -50,19 +52,25 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
   );
 
   const isEnabled = (domain: string) => enabledDomains.has(domain);
+  const calendarEnabled = isEnabled('calendar');
+  const weatherEnabled = isEnabled('weather');
+  const choresEnabled = isEnabled('chores');
   const tasksEnabled = isEnabled('tasks');
+  const mealsEnabled = isEnabled('meals');
 
   const {
     events: calendarEvents,
     loading: calendarLoading,
     error: calendarError,
-  } = useCalendarEvents({ daysToShow: 30, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.calendar, enabled: isEnabled('calendar') });
+    refresh: refreshCalendar,
+  } = useCalendarEvents({ daysToShow: 30, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.calendar, enabled: calendarEnabled });
 
   const {
     data: weatherData,
     loading: weatherLoading,
     error: weatherError,
-  } = useWeather({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.weather, enabled: isEnabled('weather') });
+    refresh: refreshWeather,
+  } = useWeather({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.weather, enabled: weatherEnabled });
 
   const {
     messages,
@@ -78,7 +86,15 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     error: tasksError,
     refresh: refreshTasks,
     toggleTask,
-  } = useTasks({ showCompleted: true, limit: 20, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.tasks, enabled: isEnabled('tasks') });
+  } = useTasks({
+    showCompleted: true,
+    // Calendar overlays need a larger window than the compact Tasks widget.
+    // Fetch the superset once and slice the widget view below instead of
+    // starting a second task request from the calendar.
+    limit: calendarEnabled ? 50 : 20,
+    refreshOffsetMs: DASHBOARD_POLL_OFFSETS.tasks,
+    enabled: tasksEnabled,
+  });
 
   const {
     chores,
@@ -87,7 +103,16 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     refresh: refreshChores,
     completeChore,
     approveChore,
-  } = useChores({ showDisabled: false, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.chores, enabled: isEnabled('chores') });
+  } = useChores({
+    showDisabled: false,
+    // Calendar overlays must retain future-dated chores for drag-and-drop.
+    // The dashboard list is filtered back to its original due-only behavior
+    // below, so both consumers share this one request without changing the
+    // compact widget's contents.
+    includeFuture: calendarEnabled,
+    refreshOffsetMs: DASHBOARD_POLL_OFFSETS.chores,
+    enabled: choresEnabled,
+  });
 
   const {
     lists: shoppingLists,
@@ -103,7 +128,7 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     error: mealsError,
     refresh: refreshMeals,
     markCooked,
-  } = useMeals({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.meals, enabled: isEnabled('meals') });
+  } = useMeals({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.meals, enabled: mealsEnabled });
 
   const {
     birthdays: birthdaysList,
@@ -173,33 +198,90 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     DASHBOARD_POLL_OFFSETS.taskSync,
   );
 
+  const dashboardTasks = useMemo(
+    () => (calendarEnabled ? tasks.slice(0, 20) : tasks),
+    [calendarEnabled, tasks],
+  );
+  const calendarTasks = calendarEnabled ? tasks : undefined;
+
+  const dashboardChores = useMemo(() => {
+    if (!calendarEnabled) return chores;
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    return chores.filter((chore: Chore) => {
+      const isDue = !chore.nextDue || chore.nextDue <= today;
+      const recentlyCompleted = chore.lastCompleted
+        ? new Date(chore.lastCompleted).getTime() > oneDayAgo
+        : false;
+      return isDue || Boolean(chore.pendingApproval) || recentlyCompleted;
+    });
+  }, [calendarEnabled, chores]);
+  const calendarChores = calendarEnabled ? chores : undefined;
+
   const calendar = useMemo(
-    () => ({ events: calendarEvents, loading: calendarLoading, error: calendarError }),
-    [calendarEvents, calendarLoading, calendarError],
+    () => ({
+      events: calendarEvents,
+      loading: calendarLoading,
+      error: calendarError,
+      refresh: refreshCalendar,
+      enabled: calendarEnabled,
+    }),
+    [calendarEnabled, calendarEvents, calendarError, calendarLoading, refreshCalendar],
   );
   const weather = useMemo(
-    () => ({ data: weatherData, loading: weatherLoading, error: weatherError }),
-    [weatherData, weatherLoading, weatherError],
+    () => ({
+      data: weatherData,
+      loading: weatherLoading,
+      error: weatherError,
+      refresh: refreshWeather,
+      enabled: weatherEnabled,
+    }),
+    [weatherData, weatherLoading, weatherError, refreshWeather, weatherEnabled],
   );
   const messageData = useMemo(
     () => ({ messages, loading: messagesLoading, error: messagesError, refresh: refreshMessages, deleteMessage }),
     [messages, messagesLoading, messagesError, refreshMessages, deleteMessage],
   );
   const taskData = useMemo(
-    () => ({ tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks, toggleTask }),
-    [tasks, tasksLoading, tasksError, refreshTasks, toggleTask],
+    () => ({
+      tasks: dashboardTasks,
+      calendarTasks,
+      loading: tasksLoading,
+      error: tasksError,
+      refresh: refreshTasks,
+      toggleTask,
+      enabled: tasksEnabled,
+    }),
+    [calendarTasks, dashboardTasks, tasksEnabled, tasksError, tasksLoading, refreshTasks, toggleTask],
   );
   const choreData = useMemo(
-    () => ({ chores, loading: choresLoading, error: choresError, refresh: refreshChores, completeChore, approveChore }),
-    [chores, choresLoading, choresError, refreshChores, completeChore, approveChore],
+    () => ({
+      chores: dashboardChores,
+      calendarChores,
+      loading: choresLoading,
+      error: choresError,
+      refresh: refreshChores,
+      completeChore,
+      approveChore,
+      enabled: choresEnabled,
+    }),
+    [approveChore, calendarChores, choresEnabled, choresError, choresLoading, completeChore, dashboardChores, refreshChores],
   );
   const shopping = useMemo(
     () => ({ lists: shoppingLists, loading: shoppingLoading, error: shoppingError, refresh: refreshShopping, toggleItem: toggleShoppingItem }),
     [shoppingLists, shoppingLoading, shoppingError, refreshShopping, toggleShoppingItem],
   );
   const mealData = useMemo(
-    () => ({ meals, loading: mealsLoading, error: mealsError, refresh: refreshMeals, markCooked }),
-    [meals, mealsLoading, mealsError, refreshMeals, markCooked],
+    () => ({
+      meals,
+      loading: mealsLoading,
+      error: mealsError,
+      refresh: refreshMeals,
+      markCooked,
+      enabled: mealsEnabled,
+    }),
+    [meals, mealsLoading, mealsError, refreshMeals, markCooked, mealsEnabled],
   );
   const birthdays = useMemo(
     () => ({ birthdays: birthdaysList, loading: birthdaysLoading, error: birthdaysError, syncFromGoogle: syncBirthdays }),

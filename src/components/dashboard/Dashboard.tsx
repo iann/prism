@@ -315,22 +315,38 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     }
   }, [layout.activeLayout, data.layouts, router]);
 
-  const widgetProps = buildWidgetProps(
-    data,
-    requireAuth,
-    {
+  const widgetProps = useMemo(
+    () =>
+      buildWidgetProps(
+        data,
+        requireAuth,
+        {
+          setShowAddTask,
+          setShowAddMessage,
+          setShowAddChore,
+          setShowAddShopping,
+        },
+        weatherLocation,
+        confirmAction,
+        {
+          onEditTask: setEditingTask,
+          onEditChore: setEditingChore,
+          onEditMeal: setEditingMeal,
+        }
+      ),
+    [
+      data,
+      requireAuth,
+      weatherLocation,
+      confirmAction,
       setShowAddTask,
       setShowAddMessage,
       setShowAddChore,
       setShowAddShopping,
-    },
-    weatherLocation,
-    confirmAction,
-    {
-      onEditTask: setEditingTask,
-      onEditChore: setEditingChore,
-      onEditMeal: setEditingMeal,
-    }
+      setEditingTask,
+      setEditingChore,
+      setEditingMeal,
+    ]
   );
   const widgetPropsRef = useRef(widgetProps);
   widgetPropsRef.current = widgetProps;
