@@ -26,7 +26,7 @@ jest.mock('../WidgetContainer', () => ({
     error?: string | null;
   }) {
     if (loading) return <div data-testid="loading-state">Loading</div>;
-    if (error)   return <div data-testid="error-state">{error}</div>;
+    if (error) return <div data-testid="error-state">{error}</div>;
     return (
       <div data-testid="widget-container">
         {title && <div data-testid="widget-title">{title}</div>}
@@ -68,7 +68,7 @@ function makeForecastDay(overrides: Partial<ForecastDay> = {}): ForecastDay {
  */
 function makeHourlyForecast(
   conditionOrList: WeatherCondition | WeatherCondition[] = 'sunny',
-  temp = 70,
+  temp = 70
 ): HourlyForecast[] {
   const conditions: WeatherCondition[] = Array.isArray(conditionOrList)
     ? conditionOrList
@@ -79,13 +79,17 @@ function makeHourlyForecast(
   base.setMinutes(0, 0, 0);
 
   return Array.from({ length: 24 }, (_, i) => ({
-    time:      new Date(base.getTime() + i * 60 * 60_000),
+    time: new Date(base.getTime() + i * 60 * 60_000),
     condition: conditions[i] ?? 'sunny',
     temp,
   }));
 }
 
-const DEFAULT_UNITS = { temperature: 'F' as const, windSpeed: 'mph' as const, precipitation: 'in' as const };
+const DEFAULT_UNITS = {
+  temperature: 'F' as const,
+  windSpeed: 'mph' as const,
+  precipitation: 'in' as const,
+};
 
 /** Build a full WeatherData object. */
 function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
@@ -97,7 +101,7 @@ function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
     date: new Date(NOON_MS + (1 + i) * DAY_MS),
     dayName,
     high: 70 + i,
-    low:  50 + i,
+    low: 50 + i,
     condition: 'sunny' as WeatherCondition,
   }));
 
@@ -106,10 +110,10 @@ function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
     units: DEFAULT_UNITS,
     current: {
       temperature: 68,
-      feelsLike:   65,
-      condition:   'sunny',
-      humidity:    45,
-      windSpeed:   10,
+      feelsLike: 65,
+      condition: 'sunny',
+      humidity: 45,
+      windSpeed: 10,
       description: 'Clear sky',
     },
     forecast,
@@ -118,7 +122,6 @@ function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
     ...overrides,
   };
 }
-
 
 // ===========================================================================
 // 1. Hourly glance panel
@@ -169,6 +172,23 @@ describe('hourly timeline', () => {
   });
 });
 
+describe('precipitation notice', () => {
+  it('uses the semantic primary color for the rain icon and message', () => {
+    const minutely = Array.from({ length: 61 }, (_, index) => ({
+      time: index * 60,
+      precipIntensity: 0.2,
+      precipProbability: 1,
+    }));
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    const heading = screen.getByText('Rain next hour');
+    expect(heading.querySelector('svg')?.classList.contains('text-primary')).toBe(true);
+    expect(screen.getByText('Raining through the hour').classList.contains('text-primary')).toBe(
+      true
+    );
+    expect(container.querySelector('.text-blue-400')).toBeNull();
+  });
+});
 
 // ===========================================================================
 // 2. Day summary header (driven by forecastDays, not the hourly row)
@@ -236,7 +256,6 @@ describe('day summary header', () => {
   });
 });
 
-
 // ===========================================================================
 // 3. forecastDays prop — controls the day summary, not the hourly cards
 // ===========================================================================
@@ -280,7 +299,6 @@ describe('forecastDays prop', () => {
     expect(screen.queryByText('WED')).toBeNull();
   });
 });
-
 
 // ===========================================================================
 // 4. Current conditions display
@@ -346,7 +364,6 @@ describe('current conditions', () => {
   });
 });
 
-
 // ===========================================================================
 // 5. showForecast prop
 // ===========================================================================
@@ -368,7 +385,6 @@ describe('showForecast prop', () => {
   });
 });
 
-
 // ===========================================================================
 // 6. Loading and error states
 // ===========================================================================
@@ -389,7 +405,6 @@ describe('loading and error states', () => {
     expect(screen.queryByTestId('widget-container')).not.toBeNull();
   });
 });
-
 
 // ===========================================================================
 // 7. Demo data fallback
@@ -417,7 +432,6 @@ describe('demo data fallback', () => {
   });
 });
 
-
 // ===========================================================================
 // 8. Sun and moon day rollover
 // ===========================================================================
@@ -436,11 +450,7 @@ describe('sun and moon day rollover', () => {
     const sunrise = new Date(2026, 6, 17, 5, 30);
     const sunset = new Date(2026, 6, 17, 20, 15);
 
-    render(
-      <WeatherWidget
-        data={makeWeatherData({ sunrise, sunset, lat: 42.46, lon: -71.06 })}
-      />,
-    );
+    render(<WeatherWidget data={makeWeatherData({ sunrise, sunset, lat: 42.46, lon: -71.06 })} />);
 
     const initialDay = getTimes.mock.calls.at(-1)?.[0];
     expect(initialDay).toEqual(new Date(2026, 6, 17, 0, 0, 0, 0));
@@ -451,5 +461,33 @@ describe('sun and moon day rollover', () => {
 
     const rolledDay = getTimes.mock.calls.at(-1)?.[0];
     expect(rolledDay).toEqual(new Date(2026, 6, 18, 0, 0, 0, 0));
+  });
+
+  it('uses the weather temperature ramp for sun and moon arc colors', () => {
+    const sunrise = new Date(2026, 6, 17, 5, 30);
+    const sunset = new Date(2026, 6, 17, 20, 15);
+    const { container } = render(
+      <WeatherWidget
+        data={makeWeatherData({
+          sunrise,
+          sunset,
+          moonrise: new Date(2026, 6, 17, 21, 0),
+          moonset: new Date(2026, 6, 18, 5, 0),
+          moonPhase: 0.5,
+          lat: 42.46,
+          lon: -71.06,
+        })}
+      />
+    );
+
+    const gradientStops = Array.from(container.querySelectorAll('linearGradient stop'));
+    expect(gradientStops.map((stop) => stop.getAttribute('stop-color'))).toEqual([
+      'hsl(var(--weather-temp-very-hot))',
+      'hsl(var(--weather-temp-hot))',
+      'hsl(var(--weather-temp-warm))',
+    ]);
+
+    const moonArc = container.querySelector('path[stroke="hsl(var(--weather-temp-freezing))"]');
+    expect(moonArc).not.toBeNull();
   });
 });

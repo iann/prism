@@ -1,6 +1,6 @@
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 
-export const EXPORT_VERSION = 2;
+export const EXPORT_VERSION = 3;
 
 export interface SavedLayout {
   id: string;
@@ -58,6 +58,7 @@ export interface LayoutEditorProps {
 
 export interface ExportWidget {
   i: string;
+  type?: string;
   x: number;
   y: number;
   w: number;
@@ -68,7 +69,7 @@ export interface ExportWidget {
   minH?: number;
 }
 
-export interface LayoutExportV2 {
+export interface LayoutExportV3 {
   type: 'prism-layout';
   version: number;
   mode: 'dashboard' | 'screensaver';
@@ -81,4 +82,15 @@ export interface LayoutExportV2 {
   widgets: ExportWidget[];
 }
 
-export type ActivePopover = 'dashboard' | 'widgets' | 'templates' | 'community' | 'preview' | 'more' | 'save' | null;
+/** Backward-compatible name for callers that only care about the shape. */
+export type LayoutExportV2 = LayoutExportV3;
+
+export type ActivePopover =
+  | 'dashboard'
+  | 'widgets'
+  | 'templates'
+  | 'community'
+  | 'preview'
+  | 'more'
+  | 'save'
+  | null;

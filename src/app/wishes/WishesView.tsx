@@ -387,7 +387,7 @@ function MemberWishCard({
         // engage. GiftIdeasView avoids this by making the card the grid
         // cell directly; here a wrapper div sits between the grid and
         // the card to attach snap-start without changing the card API.
-        'flex flex-col h-full rounded-xl border-2 bg-card/50 overflow-hidden min-h-0',
+        'flex flex-col h-full rounded-xl border-2 bg-card dark:bg-card/50 overflow-hidden min-h-0',
         'transition-all',
         !isMobile && 'cursor-grab active:cursor-grabbing touch-none',
         isDragging && 'opacity-50 scale-95 ring-4 ring-primary/50',

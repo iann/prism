@@ -92,7 +92,7 @@ export const BirthdaysWidget = React.memo(function BirthdaysWidget({
                   <td className="py-1.5 pr-2 truncate max-w-[140px]" title={item.name}>
                     {item.name}
                     {item.daysUntil === 0 && (
-                      <span className="ml-1.5 text-[10px] bg-primary text-primary-foreground px-1 py-0.5 rounded">
+                      <span className="ml-1.5 text-[12px] bg-primary text-primary-foreground px-1 py-0.5 rounded">
                         TODAY
                       </span>
                     )}

@@ -85,7 +85,7 @@ export function NestedGroupedTaskGrid({
             key={group.key}
             {...(!isTouch && !isMobile ? getDragProps(group.key) : {})}
             className={cn(
-              'flex flex-col border-2 rounded-lg overflow-hidden bg-card/90 backdrop-blur-sm transition-all',
+              'flex flex-col border-2 rounded-lg overflow-hidden bg-card dark:bg-card/90 dark:backdrop-blur-sm transition-all',
               !isTouch && !isMobile && 'cursor-grab active:cursor-grabbing touch-none',
               isDragging && 'opacity-50 scale-95 ring-4 ring-primary/50',
               isCarousel && 'snap-start'
@@ -137,7 +137,7 @@ export function NestedGroupedTaskGrid({
                   <div className="flex items-center gap-1.5 py-1">
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sub.color }} />
                     <span className="text-xs font-medium text-muted-foreground">{sub.label}</span>
-                    <Badge variant="outline" className="ml-auto text-[10px] h-4 px-1">
+                    <Badge variant="outline" className="ml-auto text-[12px] h-4 px-1">
                       {sub.tasks.filter(t => t.completed).length}/{sub.tasks.length}
                     </Badge>
                   </div>

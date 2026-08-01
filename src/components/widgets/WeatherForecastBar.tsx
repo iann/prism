@@ -22,31 +22,33 @@ import type { ForecastDay, WeatherUnits, WeatherCondition } from './WeatherWidge
 // Helpers (duplicated from WeatherWidget.tsx to keep this file self-contained)
 // ---------------------------------------------------------------------------
 
-const TEMP_COLOR_STOPS: Array<{ temp: number; rgb: [number, number, number] }> = [
-  { temp:  0, rgb: [134, 165, 192] },
-  { temp: 32, rgb: [128, 168, 188] },
-  { temp: 45, rgb: [127, 184, 185] },
-  { temp: 55, rgb: [151, 188, 158] },
-  { temp: 65, rgb: [212, 193, 132] },
-  { temp: 75, rgb: [220, 171, 103] },
-  { temp: 85, rgb: [218, 139,  85] },
-  { temp: 95, rgb: [196,  97,  80] },
+const TEMP_COLOR_STOPS: Array<{ temp: number; cssVar: string }> = [
+  { temp:  0, cssVar: '--weather-temp-very-cold' },
+  { temp: 32, cssVar: '--weather-temp-freezing' },
+  { temp: 45, cssVar: '--weather-temp-cold' },
+  { temp: 55, cssVar: '--weather-temp-cool' },
+  { temp: 65, cssVar: '--weather-temp-mild' },
+  { temp: 75, cssVar: '--weather-temp-warm' },
+  { temp: 85, cssVar: '--weather-temp-hot' },
+  { temp: 95, cssVar: '--weather-temp-very-hot' },
 ];
 
 function tempToColor(fahrenheit: number): string {
   const stops = TEMP_COLOR_STOPS;
-  if (fahrenheit <= stops[0]!.temp) { const [r, g, b] = stops[0]!.rgb; return `rgb(${r},${g},${b})`; }
-  if (fahrenheit >= stops[stops.length - 1]!.temp) { const [r, g, b] = stops[stops.length - 1]!.rgb; return `rgb(${r},${g},${b})`; }
+  const color = (cssVar: string) => `hsl(var(${cssVar}))`;
+  if (fahrenheit <= stops[0]!.temp) return color(stops[0]!.cssVar);
+  if (fahrenheit >= stops[stops.length - 1]!.temp) return color(stops[stops.length - 1]!.cssVar);
   for (let i = 0; i < stops.length - 1; i++) {
     const a = stops[i]!;
     const b = stops[i + 1]!;
     if (fahrenheit >= a.temp && fahrenheit <= b.temp) {
       const t = (fahrenheit - a.temp) / (b.temp - a.temp);
-      return `rgb(${Math.round(a.rgb[0] + t * (b.rgb[0] - a.rgb[0]))},${Math.round(a.rgb[1] + t * (b.rgb[1] - a.rgb[1]))},${Math.round(a.rgb[2] + t * (b.rgb[2] - a.rgb[2]))})`;
+      if (t === 0) return color(a.cssVar);
+      if (t === 1) return color(b.cssVar);
+      return `color-mix(in srgb, ${color(a.cssVar)} ${(1 - t) * 100}%, ${color(b.cssVar)})`;
     }
   }
-  const [r, g, b] = stops[stops.length - 1]!.rgb;
-  return `rgb(${r},${g},${b})`;
+  return color(stops[stops.length - 1]!.cssVar);
 }
 
 function toFahrenheitForColor(value: number, units: WeatherUnits): number {
@@ -131,11 +133,11 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
             {/* Day label + precip % + weather icon + moon phase glyph */}
             <div className="flex items-center gap-1.5 w-28 flex-shrink-0">
               <div className="w-12 flex-shrink-0 h-8 flex flex-col justify-center">
-                <div className="text-[11px] font-bold tracking-wide text-foreground leading-tight whitespace-nowrap">
+                <div className="text-[14px] font-bold tracking-wide text-foreground leading-tight whitespace-nowrap">
                   {label}
                 </div>
                 {day.precipProbability !== undefined && (
-                  <div className="flex items-center gap-0.5 text-[10px] text-primary leading-tight">
+                  <div className="flex items-center gap-0.5 text-[14px] text-primary leading-tight">
                     <Droplets className="h-2.5 w-2.5 flex-shrink-0" />
                     <span>{day.precipProbability}%</span>
                   </div>
@@ -151,17 +153,19 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
                 adjacent to the bar at its position within the week's range. */}
             <div className="flex-1 flex items-center min-w-0">
               <div style={{ flex: leftPct }} />
-              <span className="flex-none text-[11px] text-muted-foreground tabular-nums pr-1">
+              <span className="flex-none text-[14px] text-muted-foreground tabular-nums pr-1">
                 {fmt(day.low)}°
               </span>
               <div
-                className="h-2.5 rounded-full opacity-80 ring-1 ring-inset ring-foreground/5"
+                className="h-3 rounded-full ring-1 ring-inset ring-foreground/10"
+                data-weather-temperature-range
                 style={{
                   flex: Math.max(widthPct, 4),
                   background: `linear-gradient(to right, ${colorFor(day.low)}, ${colorFor(day.high)})`,
+                  filter: 'saturate(1.18)',
                 }}
               />
-              <span className="flex-none text-[11px] font-semibold tabular-nums pl-1">
+              <span className="flex-none text-[14px] font-semibold tabular-nums pl-1">
                 {fmt(day.high)}°
               </span>
               <div style={{ flex: Math.max(100 - rightPct, 0) }} />

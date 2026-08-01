@@ -78,7 +78,7 @@ export function DisplaySection() {
                 onClick={() => setColorTheme(id)}
                 className={cn(
                   'rounded-xl border p-3 text-left transition-all',
-                  selected ? 'border-primary ring-2 ring-primary/25' : 'border-border hover:border-primary/50'
+                  selected ? 'border-primary ring-2 ring-primary/25' : 'border-border hover:border-primary dark:hover:border-primary/50'
                 )}
               >
                 <div

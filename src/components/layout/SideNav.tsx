@@ -124,7 +124,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
         onClick={handleAsideClick}
         className={cn(
           'fixed left-0 top-0 z-40 h-screen',
-          'bg-card/95',
+          'bg-card dark:bg-card/95',
           'flex flex-col',
           'transition-[transform,opacity,width] duration-300 ease-in-out',
           expanded ? 'w-60 shadow-xl' : 'w-16',
@@ -184,7 +184,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
             prefetch={false}
             aria-label="Help"
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors',
+              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
               expanded ? 'justify-start' : 'justify-center'
             )}
           >

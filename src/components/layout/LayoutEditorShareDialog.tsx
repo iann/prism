@@ -5,9 +5,11 @@ import { useState } from 'react';
 import { validateCommunityLayout } from '@/lib/community/validateLayout';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
+import { getWidgetType } from '@/lib/utils/widgetInstances';
 
 interface ExportWidget {
   i: string;
+  type?: string;
   x: number;
   y: number;
   w: number;
@@ -73,7 +75,7 @@ export function LayoutEditorShareDialog({
 
   const buildExportData = (): LayoutExportV2 => ({
     type: 'prism-layout',
-    version: 2,
+    version: 3,
     mode,
     name: layoutName || (mode === 'screensaver' ? 'Screensaver' : 'Dashboard'),
     description: '',
@@ -82,11 +84,13 @@ export function LayoutEditorShareDialog({
     screenSizes: [],
     orientation: 'landscape',
     widgets: currentWidgets
-      .filter(w => w.visible !== false)
-      .map(widget => {
-        const reg = WIDGET_REGISTRY[widget.i];
+      .filter((w) => w.visible !== false)
+      .map((widget) => {
+        const widgetType = getWidgetType(widget);
+        const reg = WIDGET_REGISTRY[widgetType];
         const exported: ExportWidget = {
           i: widget.i,
+          type: widgetType,
           x: widget.x,
           y: widget.y,
           w: widget.w,
@@ -111,7 +115,10 @@ export function LayoutEditorShareDialog({
       author: shareForm.author,
       screenSizes: shareForm.screenSizes,
       orientation: shareForm.orientation,
-      tags: shareForm.tags.split(',').map(t => t.trim()).filter(Boolean),
+      tags: shareForm.tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
     };
 
     const result = validateCommunityLayout(submissionData, { communitySubmission: true });
@@ -122,10 +129,12 @@ export function LayoutEditorShareDialog({
 
     const title = encodeURIComponent(`Community Layout: ${shareForm.name}`);
     const body = encodeURIComponent(
-      '```json\n' + JSON.stringify(submissionData, null, 2) + '\n```\n\n' +
-      `**Author:** ${shareForm.author}\n` +
-      `**Screen Sizes:** ${shareForm.screenSizes.join(', ')}\n` +
-      `**Orientation:** ${shareForm.orientation}\n`
+      '```json\n' +
+        JSON.stringify(submissionData, null, 2) +
+        '\n```\n\n' +
+        `**Author:** ${shareForm.author}\n` +
+        `**Screen Sizes:** ${shareForm.screenSizes.join(', ')}\n` +
+        `**Orientation:** ${shareForm.orientation}\n`
     );
     const url = `https://github.com/sandydargoport/prism/issues/new?labels=layout-submission&title=${title}&body=${body}`;
     window.open(url, '_blank');
@@ -135,11 +144,18 @@ export function LayoutEditorShareDialog({
   const presetSizes = ['1920x1080', '2560x1440', '3840x2160', '2560x1600', '2048x1536', '1366x768'];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-popover border border-border rounded-lg shadow-xl p-4 max-w-2xl w-full mx-4 space-y-3" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="mx-4 w-full max-w-2xl space-y-3 rounded-lg border border-border bg-popover p-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="text-sm font-medium">Share to Community</div>
         <p className="text-xs text-muted-foreground">
-          Submit your layout to the Prism community gallery. This opens a GitHub Issue with your layout data.
+          Submit your layout to the Prism community gallery. This opens a GitHub Issue with your
+          layout data.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -147,8 +163,8 @@ export function LayoutEditorShareDialog({
             <input
               type="text"
               value={shareForm.name}
-              onChange={e => setShareForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full px-2 py-1 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              onChange={(e) => setShareForm((f) => ({ ...f, name: e.target.value }))}
+              className="w-full rounded-md border border-border bg-muted px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               maxLength={100}
             />
           </div>
@@ -157,8 +173,8 @@ export function LayoutEditorShareDialog({
             <input
               type="text"
               value={shareForm.author}
-              onChange={e => setShareForm(f => ({ ...f, author: e.target.value }))}
-              className="w-full px-2 py-1 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              onChange={(e) => setShareForm((f) => ({ ...f, author: e.target.value }))}
+              className="w-full rounded-md border border-border bg-muted px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               maxLength={50}
             />
           </div>
@@ -168,27 +184,29 @@ export function LayoutEditorShareDialog({
           <input
             type="text"
             value={shareForm.description}
-            onChange={e => setShareForm(f => ({ ...f, description: e.target.value }))}
-            className="w-full px-2 py-1 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            onChange={(e) => setShareForm((f) => ({ ...f, description: e.target.value }))}
+            className="w-full rounded-md border border-border bg-muted px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
         <div className="flex items-center gap-4">
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Target Resolutions *</label>
-            <div className="flex gap-1 flex-wrap items-center">
-              {presetSizes.map(size => (
+            <label className="mb-1 block text-xs text-muted-foreground">Target Resolutions *</label>
+            <div className="flex flex-wrap items-center gap-1">
+              {presetSizes.map((size) => (
                 <button
                   key={size}
-                  onClick={() => setShareForm(f => ({
-                    ...f,
-                    screenSizes: f.screenSizes.includes(size)
-                      ? f.screenSizes.filter(s => s !== size)
-                      : [...f.screenSizes, size],
-                  }))}
-                  className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                  onClick={() =>
+                    setShareForm((f) => ({
+                      ...f,
+                      screenSizes: f.screenSizes.includes(size)
+                        ? f.screenSizes.filter((s) => s !== size)
+                        : [...f.screenSizes, size],
+                    }))
+                  }
+                  className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
                     shareForm.screenSizes.includes(size)
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted border-border hover:bg-accent'
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-muted hover:bg-accent'
                   }`}
                 >
                   {size}
@@ -197,43 +215,50 @@ export function LayoutEditorShareDialog({
               <input
                 type="text"
                 placeholder="Custom (e.g. 2736x1824)"
-                className="px-2 py-0.5 text-xs bg-muted border border-border rounded-full w-[155px] focus:outline-none focus:ring-1 focus:ring-primary"
-                onKeyDown={e => {
+                className="w-[155px] rounded-full border border-border bg-muted px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     const val = (e.target as HTMLInputElement).value.trim();
                     if (/^\d{3,5}x\d{3,5}$/.test(val) && !shareForm.screenSizes.includes(val)) {
-                      setShareForm(f => ({ ...f, screenSizes: [...f.screenSizes, val] }));
+                      setShareForm((f) => ({ ...f, screenSizes: [...f.screenSizes, val] }));
                       (e.target as HTMLInputElement).value = '';
                     }
                   }
                 }}
               />
             </div>
-            {shareForm.screenSizes.filter(s => !presetSizes.includes(s)).length > 0 && (
-              <div className="flex gap-1 flex-wrap mt-1">
-                {shareForm.screenSizes.filter(s => !presetSizes.includes(s)).map(size => (
-                  <button
-                    key={size}
-                    onClick={() => setShareForm(f => ({ ...f, screenSizes: f.screenSizes.filter(s => s !== size) }))}
-                    className="px-2 py-0.5 text-xs rounded-full border bg-primary text-primary-foreground border-primary transition-colors"
-                  >
-                    {size} &times;
-                  </button>
-                ))}
+            {shareForm.screenSizes.filter((s) => !presetSizes.includes(s)).length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {shareForm.screenSizes
+                  .filter((s) => !presetSizes.includes(s))
+                  .map((size) => (
+                    <button
+                      key={size}
+                      onClick={() =>
+                        setShareForm((f) => ({
+                          ...f,
+                          screenSizes: f.screenSizes.filter((s) => s !== size),
+                        }))
+                      }
+                      className="rounded-full border border-primary bg-primary px-2 py-0.5 text-xs text-primary-foreground transition-colors"
+                    >
+                      {size} &times;
+                    </button>
+                  ))}
               </div>
             )}
           </div>
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Orientation *</label>
+            <label className="mb-1 block text-xs text-muted-foreground">Orientation *</label>
             <div className="flex gap-1">
-              {(['landscape', 'portrait'] as const).map(orient => (
+              {(['landscape', 'portrait'] as const).map((orient) => (
                 <button
                   key={orient}
-                  onClick={() => setShareForm(f => ({ ...f, orientation: orient }))}
-                  className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                  onClick={() => setShareForm((f) => ({ ...f, orientation: orient }))}
+                  className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
                     shareForm.orientation === orient
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted border-border hover:bg-accent'
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-muted hover:bg-accent'
                   }`}
                 >
                   {orient}
@@ -247,28 +272,30 @@ export function LayoutEditorShareDialog({
           <input
             type="text"
             value={shareForm.tags}
-            onChange={e => setShareForm(f => ({ ...f, tags: e.target.value }))}
+            onChange={(e) => setShareForm((f) => ({ ...f, tags: e.target.value }))}
             placeholder="e.g. family, minimal, kitchen"
-            className="w-full px-2 py-1 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-border bg-muted px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
         {shareErrors.length > 0 && (
-          <div className="bg-destructive/10 border border-destructive/30 rounded-md p-2">
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2">
             {shareErrors.map((err, i) => (
-              <p key={i} className="text-xs text-destructive">{err}</p>
+              <p key={i} className="text-xs text-destructive">
+                {err}
+              </p>
             ))}
           </div>
         )}
-        <div className="flex gap-2 justify-end">
+        <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-md bg-muted hover:bg-accent transition-colors"
+            className="rounded-md bg-muted px-3 py-1.5 text-sm transition-colors hover:bg-accent"
           >
             Cancel
           </button>
           <button
             onClick={handleShareSubmit}
-            className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Open GitHub Issue
           </button>

@@ -21,6 +21,8 @@ import type { CalendarEvent } from '@/types/calendar';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { DroppableOverlayCell, useDayDroppable, weatherIcon, getMealTime, getChoreTime, getTaskTime, formatTimeOfDay, type OverlayItemRef } from './cells';
 import { WeekItemCard } from './cells/WeekItemCard';
+import { getTimedEventContentVisibility } from './timedEventDensity';
+import { useMeasuredHourRowHeight } from './useMeasuredHourRowHeight';
 
 export type CalendarDisplayMode = 'inline' | 'cards';
 
@@ -72,6 +74,8 @@ export function WeekView({
 
   // Get visible hours (filtered if hidden mode is enabled)
   const hours = getVisibleHours(timedWeekEvents, { from: weekStart, to: weekEnd });
+  const { gridRef: landscapeHourGridRef, rowHeightPx: landscapeHourRowHeightPx } =
+    useMeasuredHourRowHeight(hours.length);
 
   // Get all-day events for a day (multi-day events span across days)
   const getAllDayEvents = (date: Date) => {
@@ -131,14 +135,14 @@ export function WeekView({
 
         {/* All-day events */}
         {allDayEvents.length > 0 && (
-          <div className={cn('shrink-0 p-0.5 flex flex-col gap-px', !transparentMode && 'bg-card/50')}>
+          <div className={cn('shrink-0 p-0.5 flex flex-col gap-px', !transparentMode && 'bg-card dark:bg-card/50')}>
             {allDayEvents.map((event, idx) => (
               <button
                 key={event.id}
                 onClick={() => onEventClick(event)}
                 className={cn(
                   'w-full text-left text-xs px-1 py-px rounded truncate hover:opacity-80 transition-all',
-                  cards && 'bg-card/85 backdrop-blur-sm border border-border/40 shadow-sm',
+                  cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
                 )}
                 style={
                   cards
@@ -160,12 +164,13 @@ export function WeekView({
           {hours.map((hour) => {
             const hourEvents = getHourEvents(date, hour);
             return (
-              <div key={hour} className={cn('relative min-h-0 overflow-visible', bordered && 'border-t border-border/50')} style={cellBgStyle}>
+              <div key={hour} className={cn('relative min-h-0 overflow-visible', bordered && 'border-t border-border dark:border-border/50')} style={cellBgStyle}>
                 {hourEvents.map((event) => {
                   const pos = dayPositions.get(event.id);
                   if (!pos) return null;
                   const css = positionToCSS(pos);
                   const durationMin = ((event.endTime?.getTime() ?? (event.startTime.getTime() + 3600000)) - event.startTime.getTime()) / 60000;
+                  const contentVisibility = getTimedEventContentVisibility(durationMin, 20);
                   const heightPct = Math.max((durationMin / 60) * 100, 20);
                   return (
                     <button
@@ -173,7 +178,7 @@ export function WeekView({
                       onClick={() => onEventClick(event)}
                       className={cn(
                         'absolute text-left text-xs px-0.5 pt-0.5 rounded overflow-hidden hover:opacity-90 hover:ring-1 hover:ring-seasonal-accent/50 transition-all z-10 flex flex-col items-start',
-                        cards && 'bg-card/85 backdrop-blur-sm border border-border/40 shadow-sm',
+                        cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
                       )}
                       style={
                         cards
@@ -195,20 +200,15 @@ export function WeekView({
                             }
                       }
                     >
-                      <span className={cn('truncate w-full text-[10px] font-medium leading-tight', cards && 'text-foreground')}>{event.title}</span>
-                      {cards && durationMin >= 30 && (
-                        <span className="text-[9px] leading-tight text-muted-foreground truncate w-full">
+                      <span className={cn('truncate w-full text-[12px] font-medium leading-tight', cards && 'text-foreground')}>{event.title}</span>
+                      {contentVisibility.showTime && (
+                        <span className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
                           {format(event.startTime, 'h:mm')}&ndash;{format(event.endTime ?? new Date(event.startTime.getTime() + 3600000), 'h:mm a')}
                         </span>
                       )}
-                      {cards && durationMin >= 60 && (event.location || event.calendarName) && (
-                        <span className="text-[9px] leading-tight text-muted-foreground truncate w-full">
+                      {contentVisibility.showDetails && (event.location || event.calendarName) && (
+                        <span className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
                           {event.location || event.calendarName}
-                        </span>
-                      )}
-                      {!cards && (
-                        <span className="text-[9px] leading-tight opacity-70">
-                          {format(event.startTime, 'h:mm')}&ndash;{format(event.endTime ?? new Date(event.startTime.getTime() + 3600000), 'h:mm a')}
                         </span>
                       )}
                     </button>
@@ -226,7 +226,7 @@ export function WeekView({
   if (isPortrait) {
     return (
       <div className="h-full grid gap-1 overflow-auto" style={{ gridTemplateRows: `repeat(2, minmax(${48 + hours.length * 20}px, 1fr))` }}>
-        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-card/85 backdrop-blur-sm')}>
+        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm')}>
           {/* Time column */}
           <div className="w-8 shrink-0 flex flex-col">
             {/* Header with toggle button */}
@@ -249,7 +249,7 @@ export function WeekView({
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="text-[9px] text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
+                  className="text-[12px] text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
                 >
                   {format(new Date().setHours(hour, 0), 'ha')}
                 </div>
@@ -258,7 +258,7 @@ export function WeekView({
           </div>
           {row1Days.map((date) => renderDayColumn(date, true))}
         </div>
-        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-card/85 backdrop-blur-sm')}>
+        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm')}>
           {/* Time column */}
           <div className="w-8 shrink-0 flex flex-col">
             <div className="h-12 shrink-0" /> {/* Header spacer */}
@@ -266,7 +266,7 @@ export function WeekView({
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="text-[9px] text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
+                  className="text-[12px] text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
                 >
                   {format(new Date().setHours(hour, 0), 'ha')}
                 </div>
@@ -284,7 +284,7 @@ export function WeekView({
   // The inner min-h-full flex-col wrapper makes the hourly grid stretch to fill available
   // space; 1fr rows distribute the remaining height so hours grow when fewer are visible.
   return (
-    <div className={cn('h-full rounded-md overflow-hidden', !transparentMode && 'bg-card/85 backdrop-blur-sm')}>
+    <div className={cn('h-full rounded-md overflow-hidden', !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm')}>
       <div className="h-full overflow-y-auto">
         <div className="h-full min-h-full flex flex-col">
           {/* Sticky day headers */}
@@ -354,7 +354,7 @@ export function WeekView({
                       </span>
                     </div>
                     {dayWeather && (
-                      <div className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+                      <div className="flex shrink-0 items-center gap-1 text-[14px] text-muted-foreground">
                         {weatherIcon(dayWeather.condition)}
                         <span className="tabular-nums">
                           {Math.round(dayWeather.high)}°/{Math.round(dayWeather.low)}°
@@ -363,14 +363,14 @@ export function WeekView({
                     )}
                   </div>
                   {allDayEvents.length > 0 && (
-                    <div className={cn('px-0.5 pb-0.5 flex flex-col gap-px', !transparentMode && 'bg-card/50')}>
+                    <div className={cn('px-0.5 pb-0.5 flex flex-col gap-px', !transparentMode && 'bg-card dark:bg-card/50')}>
                       {allDayEvents.map((event) => (
                         <button
                           key={event.id}
                           onClick={() => onEventClick(event)}
                           className={cn(
-                            'w-full text-left text-[10px] font-medium px-1 py-px rounded truncate hover:opacity-80 transition-all leading-tight',
-                            cards && 'bg-card/85 backdrop-blur-sm border border-border/40 shadow-sm',
+                            'w-full text-left text-[12px] font-medium px-1 py-px rounded truncate hover:opacity-80 transition-all leading-tight',
+                            cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
                           )}
                           style={
                             cards
@@ -402,7 +402,7 @@ export function WeekView({
           </div>
 
           {/* Hourly grid — flex-1 fills remaining space; 1fr rows stretch when hours are hidden */}
-          <div className="flex-1 flex">
+          <div ref={landscapeHourGridRef} className="flex-1 flex">
             {/* Time column */}
             <div className="w-16 shrink-0 h-full grid" style={{ gridTemplateRows: `repeat(${hours.length}, 1fr)` }}>
               {hours.map((hour) => (
@@ -438,6 +438,10 @@ export function WeekView({
                           if (!pos) return null;
                           const css = positionToCSS(pos);
                           const durationMin = ((event.endTime?.getTime() ?? (event.startTime.getTime() + 3600000)) - event.startTime.getTime()) / 60000;
+                          const contentVisibility = getTimedEventContentVisibility(
+                            durationMin,
+                            landscapeHourRowHeightPx,
+                          );
                           const heightPct = Math.max((durationMin / 60) * 100, 20);
                           return (
                             <button
@@ -445,7 +449,7 @@ export function WeekView({
                               onClick={() => onEventClick(event)}
                               className={cn(
                                 'absolute p-0.5 rounded text-left text-xs z-10 overflow-hidden hover:opacity-90 hover:ring-2 hover:ring-seasonal-accent/50 transition-all flex flex-col items-start',
-                                cards && 'bg-card/85 backdrop-blur-sm border border-border/40 shadow-sm',
+                                cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
                               )}
                               style={
                                 cards
@@ -467,25 +471,15 @@ export function WeekView({
                                     }
                               }
                             >
-                              {/* Time-grid rows in priority order: title, then
-                                  time, then subtitle. Thresholds tuned so a
-                                  45-min block stays single-line and a 60-min
-                                  block stays at most two lines (60-min cells
-                                  can't fit 3 lines without clipping). */}
-                              <div className={cn('font-medium truncate w-full text-[10px] leading-tight', cards && 'text-foreground')}>{event.title}</div>
-                              {cards && durationMin >= 60 && (
-                                <div className="text-[9px] leading-tight text-muted-foreground truncate w-full">
+                              <div className={cn('font-medium truncate w-full text-[12px] leading-tight', cards && 'text-foreground')}>{event.title}</div>
+                              {contentVisibility.showTime && (
+                                <div className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
                                   {format(event.startTime, 'h:mm')}&ndash;{format(event.endTime ?? new Date(event.startTime.getTime() + 3600000), 'h:mm a')}
                                 </div>
                               )}
-                              {cards && durationMin >= 90 && (event.location || event.calendarName) && (
-                                <div className="text-[9px] leading-tight text-muted-foreground truncate w-full">
+                              {contentVisibility.showDetails && (event.location || event.calendarName) && (
+                                <div className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
                                   {event.location || event.calendarName}
-                                </div>
-                              )}
-                              {!cards && durationMin >= 45 && (
-                                <div className="text-[9px] leading-tight opacity-70">
-                                  {format(event.startTime, 'h:mm')}&ndash;{format(event.endTime ?? new Date(event.startTime.getTime() + 3600000), 'h:mm a')}
                                 </div>
                               )}
                             </button>

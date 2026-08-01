@@ -59,13 +59,13 @@ export function PhotoGallery({
               loading="lazy"
             />
             {/* Resolution quality dot */}
-            <span className={`absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full ${qualityColors[getResolutionQuality(photo.width, photo.height)]} ring-1 ring-black/30`} />
+            <span className={`absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full ${qualityColors[getResolutionQuality(photo.width, photo.height)]} ring-1 ring-black/30`} />
             {/* Usage badge */}
-            <span className="absolute bottom-1.5 left-1.5 px-1 py-0.5 text-[10px] font-bold leading-none rounded bg-black/50 text-white/80">
+            <span className="absolute bottom-1.5 left-1.5 px-1 py-0.5 bg-black/70 text-[12px] text-white font-bold leading-none rounded">
               {usageBadge(photo.usage)}
             </span>
             {/* Orientation badge */}
-            <span className="absolute bottom-1.5 right-1.5 px-1 py-0.5 text-[10px] font-bold leading-none rounded bg-black/50 text-white/80">
+            <span className="absolute bottom-1.5 right-1.5 px-1 py-0.5 bg-black/70 text-[12px] text-white font-bold leading-none rounded">
               {orientationBadge(photo.width, photo.height)}
             </span>
           </div>

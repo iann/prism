@@ -66,7 +66,7 @@ export function ChoreItem({
   return (
     <div
       className={cn(
-        'flex items-center gap-4 p-4 rounded-lg border border-border bg-card/85 backdrop-blur-sm',
+        'flex items-center gap-4 p-4 rounded-lg border border-border bg-card dark:bg-card/85 dark:backdrop-blur-sm',
         'hover:border-seasonal-accent hover:ring-2 hover:ring-seasonal-accent/50 transition-all group',
         !chore.enabled && 'opacity-50',
         isPendingApproval && 'bg-amber-100/85 dark:bg-amber-950/85 border-amber-500/30'

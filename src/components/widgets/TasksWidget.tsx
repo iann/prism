@@ -255,7 +255,7 @@ function TaskItem({
 
           {/* Priority badge */}
           {task.priority === 'high' && (
-            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+            <Badge variant="destructive" className="text-[12px] px-1.5 py-0">
               High
             </Badge>
           )}

@@ -43,7 +43,7 @@ export function ChoreCompletionsList({
             <div
               key={c.id}
               className={cn(
-                'flex items-center gap-3 p-3 rounded-lg border bg-card/85 backdrop-blur-sm',
+                'flex items-center gap-3 p-3 rounded-lg border bg-card dark:bg-card/85 dark:backdrop-blur-sm',
                 c.approvedBy
                   ? 'border-border'
                   : 'border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/30'

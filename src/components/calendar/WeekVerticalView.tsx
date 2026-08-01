@@ -226,7 +226,7 @@ function WeekListDayRow({
           {format(day, 'd')}
         </span>
         <span className={cn(
-          'text-[10px]',
+          'text-[12px]',
           isCurrentDay ? 'text-primary-foreground/80' : 'text-muted-foreground'
         )}>
           {format(day, 'MMM')}
@@ -356,7 +356,7 @@ function DayEventList({
           onClick={() => onEventClick(event)}
           className={cn(
             'w-full text-left text-xs px-1.5 py-1 rounded hover:opacity-80 transition-opacity truncate block',
-            cards && 'bg-card/85 backdrop-blur-sm border border-border/40 shadow-sm',
+            cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
           )}
           style={
             cards
@@ -376,7 +376,7 @@ function DayEventList({
             className={cn(
               'w-full text-left text-xs px-1.5 py-1 rounded hover:opacity-90 transition-opacity truncate block',
               cards
-                ? 'bg-card/85 backdrop-blur-sm border border-border/40 shadow-sm text-foreground'
+                ? 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm text-foreground'
                 : undefined,
               isPastEvent && 'opacity-70',
             )}

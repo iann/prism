@@ -82,7 +82,7 @@ export function PhotoUpload({ onUploadComplete }: PhotoUploadProps) {
         onDrop={handleDrop}
         className={cn(
           'border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer',
-          isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+          isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground dark:border-muted-foreground/25 hover:border-muted-foreground dark:hover:border-muted-foreground/50'
         )}
         onClick={() => document.getElementById('photo-file-input')?.click()}
       >

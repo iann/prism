@@ -422,7 +422,7 @@ function GmailConnectionCard({
                 placeholder="e.g. bus"
                 className="h-8 text-sm"
               />
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[12px] text-muted-foreground mt-0.5">
                 If you filter bus emails to a Gmail label, enter it here. Leave blank to search all mail.
               </p>
             </div>
@@ -474,7 +474,7 @@ function SortableRouteRow({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm truncate">{route.label}</span>
-            <Badge variant="outline" className="text-[10px]">{route.direction}</Badge>
+            <Badge variant="outline" className="text-[12px]">{route.direction}</Badge>
           </div>
           <div className="text-xs text-muted-foreground">
             Trip {route.tripId} &middot; {route.scheduledTime}
@@ -535,7 +535,7 @@ function SortableCheckpointItem({
         className="flex-1 h-7 text-sm"
       />
       {isStop && (
-        <Badge variant="outline" className="text-[10px] flex-shrink-0">stop</Badge>
+        <Badge variant="outline" className="text-[12px] flex-shrink-0">stop</Badge>
       )}
       <Button
         size="icon"
@@ -742,7 +742,7 @@ function RouteDialog({
                 value={form.scheduledTime}
                 onChange={e => setForm(p => ({ ...p, scheduledTime: e.target.value }))}
               />
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[12px] text-muted-foreground mt-0.5">
                 Expected arrival at your stop.
               </p>
             </div>
@@ -773,7 +773,7 @@ function RouteDialog({
                   disabled={checkpointNames.length === 0}
                 />
               )}
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[12px] text-muted-foreground mt-0.5">
                 ETA target — select the checkpoint where your child gets off.
               </p>
             </div>

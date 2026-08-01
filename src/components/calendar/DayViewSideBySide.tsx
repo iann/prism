@@ -19,6 +19,8 @@ import type { CalendarNote } from '@/lib/hooks/useCalendarNotes';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { DroppableOverlayCell, useDayDroppable, getMealTime, getChoreTime, getTaskTime, formatTimeOfDay, type OverlayItemRef } from './cells';
 import { WeekItemCard } from './cells/WeekItemCard';
+import { getTimedEventContentVisibility } from './timedEventDensity';
+import { useMeasuredHourRowHeight } from './useMeasuredHourRowHeight';
 
 export interface DayViewSideBySideProps {
   currentDate: Date;
@@ -88,6 +90,7 @@ export function DayViewSideBySide({
   const timedEvents = dayEvents.filter((e) => !e.allDay);
 
   const hours = getVisibleHours(timedEvents, { from: dayStart, to: addDays(dayStart, 1) });
+  const { gridRef: hourGridRef, rowHeightPx } = useMeasuredHourRowHeight(hours.length);
 
   // If there are no calendar groups configured or merged view is on, show all events in a single column
   const showAllInOne = calendarGroups.length === 0 || mergedView;
@@ -124,14 +127,14 @@ export function DayViewSideBySide({
       data-droppable-day={cards && enableDnd ? droppable.droppableId : undefined}
       className={cn(
         'h-full rounded-md overflow-hidden',
-        !transparentMode && 'bg-card/85 backdrop-blur-sm',
+        !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-lg',
       )}
     >
       <div className="h-full overflow-y-auto">
         <div className="h-full min-h-full flex flex-col">
           {/* Sticky all-day / group-label header */}
-          <div className={cn('flex sticky top-0 z-20', !transparentMode && 'bg-card/95')}>
+          <div className={cn('flex sticky top-0 z-20', !transparentMode && 'bg-card dark:bg-card/95')}>
             {/* Time column header with toggle button */}
             <div className="w-16 flex-shrink-0 flex items-center justify-center">
               <button
@@ -192,7 +195,7 @@ export function DayViewSideBySide({
                           onClick={() => onEventClick(event)}
                           className={cn(
                             'w-full text-left text-xs px-1 py-0.5 rounded truncate hover:opacity-80 hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
-                            cards && 'bg-card/85 backdrop-blur-sm border border-border/40 shadow-sm text-foreground',
+                            cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm text-foreground',
                           )}
                           style={
                             cards
@@ -239,7 +242,7 @@ export function DayViewSideBySide({
               shares the row with a sibling column's all-day event. */}
 
           {/* Hourly grid — flex-1 fills remaining space; 1fr rows stretch when hours are hidden */}
-          <div className="flex-1 flex">
+          <div ref={hourGridRef} className="flex-1 flex">
             {/* Time column */}
             <div className="w-16 flex-shrink-0 h-full grid" style={{ gridTemplateRows: `repeat(${hours.length}, 1fr)` }}>
               {hours.map((hour) => {
@@ -311,6 +314,10 @@ export function DayViewSideBySide({
                           if (!pos) return null;
                           const css = positionToCSS(pos);
                           const durationMin = ((event.endTime?.getTime() ?? (event.startTime.getTime() + 3600000)) - event.startTime.getTime()) / 60000;
+                          const contentVisibility = getTimedEventContentVisibility(
+                            durationMin,
+                            rowHeightPx,
+                          );
                           const heightPct = Math.max((durationMin / 60) * 100, 20);
                           return (
                             <button
@@ -318,7 +325,7 @@ export function DayViewSideBySide({
                               onClick={() => onEventClick(event)}
                               className={cn(
                                 'absolute p-0.5 rounded text-left text-xs z-10 overflow-hidden hover:opacity-90 hover:ring-2 hover:ring-seasonal-accent/50 transition-all flex flex-col items-start',
-                                cards && 'bg-card/85 backdrop-blur-sm border border-border/40 shadow-sm',
+                                cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
                               )}
                               style={
                                 cards
@@ -340,13 +347,15 @@ export function DayViewSideBySide({
                                     }
                               }
                             >
-                              {/* Title first; show time row only when the
-                                  block is at least an hour. 45-min and shorter
-                                  blocks fit only one line without clipping. */}
-                              <div className={cn('font-medium truncate w-full text-[11px] leading-tight', cards && 'text-foreground')}>{event.title}</div>
-                              {durationMin >= 60 && (
-                                <div className={cn('text-[9px] leading-tight', cards ? 'text-muted-foreground' : 'opacity-70')}>
+                              <div className={cn('font-medium truncate w-full text-[12px] leading-tight', cards && 'text-foreground')}>{event.title}</div>
+                              {contentVisibility.showTime && (
+                                <div className={cn('text-[12px] leading-tight', cards && 'text-muted-foreground')}>
                                   {format(event.startTime, 'h:mm')}&ndash;{format(event.endTime ?? new Date(event.startTime.getTime() + 3600000), 'h:mm a')}
+                                </div>
+                              )}
+                              {contentVisibility.showDetails && (event.location || event.calendarName) && (
+                                <div className={cn('w-full truncate text-[12px] leading-tight', cards && 'text-muted-foreground')}>
+                                  {event.location || event.calendarName}
                                 </div>
                               )}
                             </button>
