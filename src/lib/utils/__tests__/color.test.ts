@@ -1,4 +1,4 @@
-import { isLightColor } from '../color';
+import { contrastText, isLightColor } from '../color';
 
 describe('isLightColor', () => {
   // --- Clearly light colors ---
@@ -76,5 +76,17 @@ describe('isLightColor', () => {
 
   it('handles mixed case hex', () => {
     expect(isLightColor('#FfFfFf')).toBe(true);
+  });
+});
+
+describe('contrastText', () => {
+  it('uses dark text for light event colors', () => {
+    expect(contrastText('#F59E0B')).toBe('#000000');
+    expect(contrastText('#EC4899')).toBe('#000000');
+  });
+
+  it('uses light text for dark event colors', () => {
+    expect(contrastText('#1D4ED8')).toBe('#ffffff');
+    expect(contrastText('#166534')).toBe('#ffffff');
   });
 });

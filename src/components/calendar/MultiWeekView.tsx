@@ -13,7 +13,7 @@ import {
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
-import { hexToRgba } from '@/lib/utils/color';
+import { contrastText, hexToRgba } from '@/lib/utils/color';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import { seasonalPalettes } from '@/lib/themes/seasonalThemes';
 import type { CalendarEvent } from '@/types/calendar';
@@ -348,7 +348,7 @@ function DayCell({
                   compact ? 'text-xs px-0.5 py-px' : 'text-xs px-1 py-0.5',
                 )}
                 style={event.allDay
-                  ? { backgroundColor: event.color, color: '#fff', borderLeft: `2px solid ${event.color}` }
+                  ? { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
                   : { color: event.color }
                 }
               >

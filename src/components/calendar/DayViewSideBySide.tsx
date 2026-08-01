@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
 import { useHiddenHours } from '@/lib/hooks/useHiddenHours';
 import { calculateEventPositions, positionToCSS } from '@/lib/utils/eventLayout';
-import { hexToRgba } from '@/lib/utils/color';
+import { contrastText, hexToRgba } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
 import type { CalendarNote } from '@/lib/hooks/useCalendarNotes';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
@@ -179,8 +179,8 @@ export function DayViewSideBySide({
               return (
                 <div key={group.id} className="flex-1 min-w-0 border-l border-border p-1">
                   <div
-                    className="text-sm font-medium text-center py-1 mb-1 rounded text-white"
-                    style={{ backgroundColor: group.color }}
+                    className="text-sm font-medium text-center py-1 mb-1 rounded"
+                    style={{ backgroundColor: group.color, color: contrastText(group.color) }}
                   >
                     {group.name}
                   </div>
@@ -197,7 +197,7 @@ export function DayViewSideBySide({
                           style={
                             cards
                               ? { borderLeft: `3px solid ${event.color}` }
-                              : { backgroundColor: event.color, color: '#fff', borderLeft: `2px solid ${event.color}` }
+                              : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
                           }
                         >
                           {event.title}
@@ -224,8 +224,8 @@ export function DayViewSideBySide({
             {showNotes && (
               <div className="w-2/5 min-w-[180px] border-l border-border p-1">
                 <div
-                  className="text-sm font-medium text-center py-1 mb-1 rounded text-white"
-                  style={{ backgroundColor: '#6366f1' }}
+                  className="text-sm font-medium text-center py-1 mb-1 rounded"
+                  style={{ backgroundColor: '#6366f1', color: contrastText('#6366f1') }}
                 >
                   Notes
                 </div>
@@ -331,7 +331,7 @@ export function DayViewSideBySide({
                                     }
                                   : {
                                       backgroundColor: event.color,
-                                      color: '#fff',
+                                      color: contrastText(event.color),
                                       borderLeft: `2px solid ${event.color}`,
                                       top: `${(event.startTime.getMinutes() / 60) * 100}%`,
                                       height: `${heightPct}%`,
@@ -521,4 +521,3 @@ function DayTimedBucketLayer({
     </div>
   );
 }
-
