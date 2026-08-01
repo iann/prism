@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/client';
-import { calendarSources, events, tasks, taskLists, dismissedEvents } from '@/lib/db/schema';
+import { calendarSources, events, tasks, taskLists, dismissedEvents, settings } from '@/lib/db/schema';
 import { eq, and, gte, lte, sql, inArray, isNotNull } from 'drizzle-orm';
+import { AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY } from '@/lib/constants';
 import {
   fetchCalDAVEvents,
   fetchCalDAVTasks,
@@ -51,6 +52,7 @@ export interface SyncCounts {
   added: number;
   updated: number;
   removed: number;
+  autoDeleted: number;
   unchanged: number;
   synced: number;
   errors: string[];
@@ -87,7 +89,24 @@ function eventChanged(a: EventContent, b: EventContent): boolean {
 
 /** A zero net-change result, optionally carrying errors (for early returns). */
 function emptyCounts(errors: string[] = []): SyncCounts {
-  return { added: 0, updated: 0, removed: 0, unchanged: 0, synced: 0, errors };
+  return { added: 0, updated: 0, removed: 0, autoDeleted: 0, unchanged: 0, synced: 0, errors };
+}
+
+/**
+ * Read the family-wide source deletion preference. Review is the safe default
+ * if the setting is missing or temporarily unavailable, preserving the
+ * original behavior.
+ */
+async function shouldAutoDeleteRemovedEvents(): Promise<boolean> {
+  try {
+    const [setting] = await db
+      .select({ value: settings.value })
+      .from(settings)
+      .where(eq(settings.key, AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY));
+    return setting?.value === true;
+  } catch {
+    return false;
+  }
 }
 
 /** External event ids the user deleted locally (tombstones) — skip on re-sync. */
@@ -133,7 +152,7 @@ export async function syncGoogleCalendarSource(
   } = {}
 ): Promise<SyncCounts> {
   const errors: string[] = [];
-  let added = 0, updated = 0, removed = 0, unchanged = 0;
+  let added = 0, updated = 0, removed = 0, autoDeleted = 0, unchanged = 0;
 
   // Fetch the calendar source
   const source = await db.query.calendarSources.findFirst({
@@ -259,6 +278,7 @@ export async function syncGoogleCalendarSource(
   const googleEventIds = new Set<string>();
   const existingByExtId = await loadExistingByExternalId(sourceId);
   const dismissed = await loadDismissedExternalIds(sourceId);
+  const autoDeleteRemovedEvents = await shouldAutoDeleteRemovedEvents();
 
   // Process each event using upsert to prevent duplicates
   for (const googleEvent of googleEvents) {
@@ -336,7 +356,11 @@ export async function syncGoogleCalendarSource(
   for (const prismEvent of prismEventsToCheck) {
     // Only flag if it has an external_event_id (was synced) but is no longer in Google
     if (prismEvent.externalEventId && !googleEventIds.has(prismEvent.externalEventId)) {
-      if (!prismEvent.pendingDeletion) {
+      if (autoDeleteRemovedEvents) {
+        await db.delete(events).where(eq(events.id, prismEvent.id));
+        removed++;
+        autoDeleted++;
+      } else if (!prismEvent.pendingDeletion) {
         await db.update(events).set({ pendingDeletion: new Date() }).where(eq(events.id, prismEvent.id));
         removed++;
       }
@@ -354,7 +378,7 @@ export async function syncGoogleCalendarSource(
     })
     .where(eq(calendarSources.id, sourceId));
 
-  return { added, updated, removed, unchanged, synced: added + updated, errors };
+  return { added, updated, removed, autoDeleted, unchanged, synced: added + updated, errors };
 }
 
 /**
@@ -365,9 +389,9 @@ export async function syncAllGoogleCalendars(
     timeMin?: Date;
     timeMax?: Date;
   } = {}
-): Promise<{ total: number; added: number; updated: number; removed: number; errors: string[] }> {
+): Promise<{ total: number; added: number; updated: number; removed: number; autoDeleted: number; errors: string[] }> {
   const allErrors: string[] = [];
-  let total = 0, added = 0, updated = 0, removed = 0;
+  let total = 0, added = 0, updated = 0, removed = 0, autoDeleted = 0;
 
   // Get all enabled Google Calendar sources
   const sources = await db.query.calendarSources.findMany({
@@ -473,6 +497,7 @@ export async function syncAllGoogleCalendars(
       added += result.added;
       updated += result.updated;
       removed += result.removed;
+      autoDeleted += result.autoDeleted;
       allErrors.push(...result.errors);
     } catch (error) {
       const errorMsg = `Failed to sync calendar "${source.dashboardCalendarName}": ${error instanceof Error ? error.message : String(error)}`;
@@ -481,7 +506,7 @@ export async function syncAllGoogleCalendars(
     }
   }
 
-  return { total, added, updated, removed, errors: allErrors };
+  return { total, added, updated, removed, autoDeleted, errors: allErrors };
 }
 
 const ICAL_DISABLE_THRESHOLD = 3;
@@ -525,7 +550,7 @@ export async function syncIcalCalendarSource(
   } = {}
 ): Promise<SyncCounts> {
   const errors: string[] = [];
-  let added = 0, updated = 0, removed = 0, unchanged = 0;
+  let added = 0, updated = 0, removed = 0, autoDeleted = 0, unchanged = 0;
 
   const source = await db.query.calendarSources.findFirst({
     where: eq(calendarSources.id, sourceId),
@@ -598,6 +623,7 @@ export async function syncIcalCalendarSource(
   const externalIds = new Set<string>();
   const existingByExtId = await loadExistingByExternalId(sourceId);
   const dismissed = await loadDismissedExternalIds(sourceId);
+  const autoDeleteRemovedEvents = await shouldAutoDeleteRemovedEvents();
 
   for (const item of Object.values(parsed)) {
     if (!item || item.type !== 'VEVENT') continue;
@@ -729,7 +755,11 @@ export async function syncIcalCalendarSource(
   }
   for (const ev of prismEvents) {
     if (ev.externalEventId && !externalIds.has(ev.externalEventId)) {
-      if (!ev.pendingDeletion) {
+      if (autoDeleteRemovedEvents) {
+        await db.delete(events).where(eq(events.id, ev.id));
+        removed++;
+        autoDeleted++;
+      } else if (!ev.pendingDeletion) {
         await db.update(events).set({ pendingDeletion: new Date() }).where(eq(events.id, ev.id));
         removed++;
       }
@@ -746,7 +776,7 @@ export async function syncIcalCalendarSource(
     })
     .where(eq(calendarSources.id, sourceId));
 
-  return { added, updated, removed, unchanged, synced: added + updated, errors };
+  return { added, updated, removed, autoDeleted, unchanged, synced: added + updated, errors };
 }
 
 /**
@@ -758,9 +788,9 @@ export async function syncAllIcalCalendars(
     timeMin?: Date;
     timeMax?: Date;
   } = {}
-): Promise<{ total: number; added: number; updated: number; removed: number; errors: string[] }> {
+): Promise<{ total: number; added: number; updated: number; removed: number; autoDeleted: number; errors: string[] }> {
   const allErrors: string[] = [];
-  let total = 0, added = 0, updated = 0, removed = 0;
+  let total = 0, added = 0, updated = 0, removed = 0, autoDeleted = 0;
 
   const sources = await db.query.calendarSources.findMany({
     where: and(
@@ -776,6 +806,7 @@ export async function syncAllIcalCalendars(
       added += result.added;
       updated += result.updated;
       removed += result.removed;
+      autoDeleted += result.autoDeleted;
       allErrors.push(...result.errors);
     } catch (error) {
       const errorMsg = `Failed to sync iCal calendar "${source.dashboardCalendarName}": ${error instanceof Error ? error.message : String(error)}`;
@@ -784,7 +815,7 @@ export async function syncAllIcalCalendars(
     }
   }
 
-  return { total, added, updated, removed, errors: allErrors };
+  return { total, added, updated, removed, autoDeleted, errors: allErrors };
 }
 
 /**
@@ -838,7 +869,7 @@ export async function syncCalDAVCalendarSource(
   options: { timeMin?: Date; timeMax?: Date } = {}
 ): Promise<SyncCounts> {
   const errors: string[] = [];
-  let added = 0, updated = 0, removed = 0, unchanged = 0;
+  let added = 0, updated = 0, removed = 0, autoDeleted = 0, unchanged = 0;
 
   const source = await db.query.calendarSources.findFirst({
     where: eq(calendarSources.id, sourceId),
@@ -885,6 +916,7 @@ export async function syncCalDAVCalendarSource(
     );
 
     const dismissed = await loadDismissedExternalIds(sourceId);
+    const autoDeleteRemovedEvents = await shouldAutoDeleteRemovedEvents();
     for (const event of caldavEvents) {
       if (dismissed.has(event.uid)) continue;
       const existing = await db.query.events.findFirst({
@@ -944,7 +976,11 @@ export async function syncCalDAVCalendarSource(
     }
     for (const local of localEvents) {
       if (local.externalEventId && !upstreamUids.has(local.externalEventId)) {
-        if (!local.pendingDeletion) {
+        if (autoDeleteRemovedEvents) {
+          await db.delete(events).where(eq(events.id, local.id));
+          removed++;
+          autoDeleted++;
+        } else if (!local.pendingDeletion) {
           await db.update(events).set({ pendingDeletion: new Date() }).where(eq(events.id, local.id));
           removed++;
         }
@@ -967,7 +1003,7 @@ export async function syncCalDAVCalendarSource(
       .where(eq(calendarSources.id, sourceId));
   }
 
-  return { added, updated, removed, unchanged, synced: added + updated, errors };
+  return { added, updated, removed, autoDeleted, unchanged, synced: added + updated, errors };
 }
 
 /**
@@ -1135,7 +1171,7 @@ export async function syncCalDAVTasks(
     }
   }
 
-  return { added: 0, updated: 0, removed: 0, unchanged: 0, synced, errors };
+  return { added: 0, updated: 0, removed: 0, autoDeleted: 0, unchanged: 0, synced, errors };
 }
 
 /**
@@ -1143,9 +1179,9 @@ export async function syncCalDAVTasks(
  */
 export async function syncAllCalDAVCalendars(
   options: { timeMin?: Date; timeMax?: Date } = {}
-): Promise<{ total: number; added: number; updated: number; removed: number; errors: string[] }> {
+): Promise<{ total: number; added: number; updated: number; removed: number; autoDeleted: number; errors: string[] }> {
   const allErrors: string[] = [];
-  let total = 0, added = 0, updated = 0, removed = 0;
+  let total = 0, added = 0, updated = 0, removed = 0, autoDeleted = 0;
 
   const sources = await db.query.calendarSources.findMany({
     where: and(
@@ -1160,6 +1196,7 @@ export async function syncAllCalDAVCalendars(
     added += eventResult.added;
     updated += eventResult.updated;
     removed += eventResult.removed;
+    autoDeleted += eventResult.autoDeleted;
     allErrors.push(...eventResult.errors);
 
     const taskResult = await syncCalDAVTasks(source.id);
@@ -1167,7 +1204,7 @@ export async function syncAllCalDAVCalendars(
     allErrors.push(...taskResult.errors);
   }
 
-  return { total, added, updated, removed, errors: allErrors };
+  return { total, added, updated, removed, autoDeleted, errors: allErrors };
 }
 
 /**
