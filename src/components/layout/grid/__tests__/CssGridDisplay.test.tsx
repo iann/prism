@@ -2,13 +2,26 @@
  * @jest-environment jsdom
  */
 
-import { act, render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { CssGridDisplay } from '../CssGridDisplay';
+import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 
 jest.mock('../useSquareCells', () => ({
   useSquareCells: () => ({ containerRef: jest.fn(), cellSize: 20 }),
 }));
+
+function OverrideProbe() {
+  const value = useWidgetBgOverride();
+  return (
+    <output
+      data-testid="override-probe"
+      data-background={value?.backgroundColor}
+      data-text={value?.textColor}
+      data-custom-shell={String(value?.hasCustomShell)}
+    />
+  );
+}
 
 describe('CssGridDisplay', () => {
   it('rerenders only the widget whose revision changed', () => {
@@ -130,5 +143,53 @@ describe('CssGridDisplay', () => {
       configurable: true,
       value: originalObserver,
     });
+  });
+
+  it('passes a contrast-safe resolved foreground to the widget context and shell', () => {
+    const { container } = render(
+      <CssGridDisplay
+        layout={[
+          {
+            i: 'calendar',
+            x: 0,
+            y: 0,
+            w: 12,
+            h: 12,
+            backgroundColor: '#F7F3E8',
+            textColor: '#FFFFFF',
+          },
+        ]}
+        renderWidget={() => <OverrideProbe />}
+      />
+    );
+
+    const shell = container.querySelector<HTMLElement>('.widget-cell');
+    expect(shell).not.toBeNull();
+    expect(shell?.classList.contains('rounded-xl')).toBe(true);
+    expect(shell?.classList.contains('border')).toBe(true);
+    expect(shell?.classList.contains('border-border')).toBe(true);
+    expect(shell?.classList.contains('shadow-sm')).toBe(true);
+    expect(shell?.style.borderRadius).toBe('0.75rem');
+    expect(shell?.style.borderWidth).toBe('1px');
+    expect(shell?.style.color).toBe('rgb(0, 0, 0)');
+    expect(screen.getByTestId('override-probe').getAttribute('data-text')).toBe('#000000');
+    expect(screen.getByTestId('override-probe').getAttribute('data-background')).toBe('#F7F3E8');
+    expect(screen.getByTestId('override-probe').getAttribute('data-custom-shell')).toBe('true');
+  });
+
+  it('leaves preset grid wrappers free of duplicate card chrome', () => {
+    const { container } = render(
+      <CssGridDisplay
+        layout={[{ i: 'calendar', x: 0, y: 0, w: 12, h: 12 }]}
+        renderWidget={() => <OverrideProbe />}
+      />
+    );
+
+    const shell = container.querySelector<HTMLElement>('.widget-cell');
+    expect(shell).not.toBeNull();
+    expect(shell?.classList.contains('rounded-xl')).toBe(false);
+    expect(shell?.classList.contains('border')).toBe(false);
+    expect(shell?.classList.contains('shadow-sm')).toBe(false);
+    expect(screen.getByTestId('override-probe').getAttribute('data-custom-shell')).toBe('false');
   });
 });

@@ -81,8 +81,8 @@ export function CalendarFilterPopover({
                 style={isSelected ? { backgroundColor: group.color, color: contrastText(group.color) } : undefined}
               >
                 <span
-                  className="w-2 h-2 rounded-full flex-shrink-0 border border-white/60 dark:border-white/80"
-                  style={{ backgroundColor: group.color }}
+                  className="w-2 h-2 rounded-full flex-shrink-0 bg-current"
+                  style={isSelected ? { opacity: 0.6 } : { backgroundColor: group.color }}
                 />
                 {group.name}
               </button>

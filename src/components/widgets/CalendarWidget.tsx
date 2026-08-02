@@ -340,8 +340,10 @@ export const CalendarWidget = React.memo(function CalendarWidget({
               style={{
                 backgroundColor:
                   selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
-                    ? 'rgba(255,255,255,0.55)'
+                    ? 'currentColor'
                     : group.color,
+                opacity:
+                  selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all') ? 0.55 : 1,
               }}
             />
             {group.name}

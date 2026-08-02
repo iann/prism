@@ -1,19 +1,67 @@
+export interface ParsedHexColor {
+  r: number;
+  g: number;
+  b: number;
+  /** Alpha channel normalized to 0-1. */
+  a: number;
+  /** Canonical opaque representation used by storage and CSS-variable helpers. */
+  hex: `#${string}`;
+}
+
+const FALLBACK_COLOR: ParsedHexColor = {
+  r: 0,
+  g: 0,
+  b: 0,
+  a: 1,
+  hex: '#000000',
+};
+
 /**
- * Returns true if the given hex color is light (luminance > 0.5).
- * Used for auto light/dark text detection on colored backgrounds.
+ * Parse CSS hex notation into normalized channels.
  *
- * Future: per-widget text color manual override could replace this auto-detection.
+ * Supports #RGB, #RGBA, #RRGGBB, #RRGGBBAA and the same forms without a
+ * leading hash. The returned `hex` always expands to uppercase #RRGGBB; alpha
+ * remains available separately so storage callers can deliberately drop it.
  */
+export function parseHexColor(value: string): ParsedHexColor | null {
+  if (typeof value !== 'string') return null;
+
+  const raw = value.trim().replace(/^#/, '');
+  if (![3, 4, 6, 8].includes(raw.length) || !/^[0-9a-f]+$/i.test(raw)) return null;
+
+  const expanded = raw.length <= 4
+    ? raw.split('').map((channel) => channel.repeat(2)).join('')
+    : raw;
+  const rgb = expanded.slice(0, 6);
+  const alpha = expanded.length === 8 ? expanded.slice(6, 8) : 'ff';
+
+  return {
+    r: Number.parseInt(rgb.slice(0, 2), 16),
+    g: Number.parseInt(rgb.slice(2, 4), 16),
+    b: Number.parseInt(rgb.slice(4, 6), 16),
+    a: Number.parseInt(alpha, 16) / 255,
+    hex: `#${rgb.toUpperCase()}`,
+  };
+}
+
+function normalizedOpacity(opacity: number): number {
+  if (!Number.isFinite(opacity)) return 1;
+  return Math.min(1, Math.max(0, opacity));
+}
+
 /**
  * Converts a hex color + opacity to an rgba() string.
  * Keeps opacity on the background only — sibling content stays fully opaque.
+ * Embedded alpha in #RGBA/#RRGGBBAA is multiplied by the requested opacity.
+ * Invalid colors fall back to black rather than emitting `NaN` CSS channels.
  */
 export function hexToRgba(hex: string, opacity: number): string {
-  const c = hex.replace('#', '');
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  return `rgba(${r},${g},${b},${opacity})`;
+  const parsed = parseHexColor(hex) ?? FALLBACK_COLOR;
+  const requestedOpacity = normalizedOpacity(opacity);
+  const alpha = parsed.a === 1
+    ? requestedOpacity
+    : Math.round(parsed.a * requestedOpacity * 10_000) / 10_000;
+  return `rgba(${parsed.r},${parsed.g},${parsed.b},${alpha})`;
 }
 
 /** sRGB linearization for a single channel (0–1). */
@@ -23,10 +71,10 @@ function linearize(c: number): number {
 
 /** WCAG 2.1 relative luminance from hex color. */
 export function relativeLuminance(hex: string): number {
-  const c = hex.replace('#', '');
-  const r = linearize(parseInt(c.substring(0, 2), 16) / 255);
-  const g = linearize(parseInt(c.substring(2, 4), 16) / 255);
-  const b = linearize(parseInt(c.substring(4, 6), 16) / 255);
+  const parsed = parseHexColor(hex) ?? FALLBACK_COLOR;
+  const r = linearize(parsed.r / 255);
+  const g = linearize(parsed.g / 255);
+  const b = linearize(parsed.b / 255);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
@@ -35,6 +83,18 @@ function contrastRatio(l1: number, l2: number): number {
   const lighter = Math.max(l1, l2);
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
+}
+
+/**
+ * WCAG contrast ratio between two hex colors.
+ *
+ * Alpha channels are intentionally ignored because a ratio cannot be resolved
+ * without knowing the surface beneath both colors. Invalid input returns 1:1,
+ * the conservative "no measurable contrast" fallback.
+ */
+export function colorContrastRatio(foreground: string, background: string): number {
+  if (!parseHexColor(foreground) || !parseHexColor(background)) return 1;
+  return contrastRatio(relativeLuminance(foreground), relativeLuminance(background));
 }
 
 /**
@@ -61,10 +121,10 @@ export function contrastText(hex: string): string {
  * Used to override CSS custom properties like --foreground, --muted-foreground.
  */
 export function hexToHslValues(hex: string): string {
-  const c = hex.replace('#', '');
-  const r = parseInt(c.substring(0, 2), 16) / 255;
-  const g = parseInt(c.substring(2, 4), 16) / 255;
-  const b = parseInt(c.substring(4, 6), 16) / 255;
+  const parsed = parseHexColor(hex) ?? FALLBACK_COLOR;
+  const r = parsed.r / 255;
+  const g = parsed.g / 255;
+  const b = parsed.b / 255;
 
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);

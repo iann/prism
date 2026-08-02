@@ -110,4 +110,24 @@ describe('public serverUrl is allowed through to tsdav', () => {
     await discoverCalendars('https://caldav.icloud.com', 'u', 'p');
     expect(mockCreateDAVClient).toHaveBeenCalledTimes(1);
   });
+
+  it('normalizes shorthand and alpha calendar colors to stored #RRGGBB values', async () => {
+    mockCreateDAVClient.mockResolvedValue({
+      fetchCalendars: jest.fn().mockResolvedValue([
+        { url: '/short', displayName: 'Short', calendarColor: '#abc', components: ['VEVENT'] },
+        { url: '/short-alpha', displayName: 'Short alpha', calendarColor: '#abcd', components: ['VEVENT'] },
+        { url: '/long-alpha', displayName: 'Long alpha', calendarColor: '#12345680', components: ['VEVENT'] },
+        { url: '/invalid', displayName: 'Invalid', calendarColor: 'not-a-color', components: ['VEVENT'] },
+      ]),
+    });
+
+    const calendars = await discoverCalendars('https://caldav.icloud.com', 'u', 'p');
+
+    expect(calendars.map((calendar) => calendar.color)).toEqual([
+      '#AABBCC',
+      '#AABBCC',
+      '#123456',
+      null,
+    ]);
+  });
 });

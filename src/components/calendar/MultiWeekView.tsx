@@ -13,19 +13,13 @@ import {
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
-import { contrastText, hexToRgba } from '@/lib/utils/color';
+import { hexToRgba } from '@/lib/utils/color';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
-import { seasonalPalettes } from '@/lib/themes/seasonalThemes';
 import type { CalendarEvent } from '@/types/calendar';
 import { CardHeightProbe, DayOverflowPopover, DroppableOverlayCell, WeekItemCard, useDayDroppable, weatherIcon, type OverlayItemRef } from './cells';
-
-/** HSL color for the seasonal accent of the cell's month. */
-function getMonthAccentColor(date: Date): string {
-  const palette = seasonalPalettes[date.getMonth() + 1];
-  return palette ? `hsl(${palette.light.accent})` : 'hsl(var(--seasonal-accent))';
-}
 import { useCardCapacity } from '@/lib/hooks/useCardCapacity';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 
 export interface MultiWeekViewProps {
   currentDate: Date;
@@ -233,7 +227,6 @@ function DayCell({
         : format(date, 'EEEE');
   const dayWeather = bucket?.weather;
   const cardSize = compact ? 'sm' : 'md';
-  const monthAccent = getMonthAccentColor(date);
 
   return (
     <div
@@ -246,23 +239,20 @@ function DayCell({
         // the capacity probe has a real target height.
         cards && (showAll ? 'min-h-0' : 'min-h-0 h-full'),
         isPast && !cellBgStyle && 'opacity-50',
-        // Cards mode: every cell gets a subtle border, today gets the month's
-        // seasonal-accent ring (lavender in April, etc.).
-        cards && !cellBgStyle && 'border border-border bg-card dark:bg-card/85 dark:backdrop-blur-sm',
+        !cellBgStyle && 'bg-calendar-surface',
+        today && !cellBgStyle && 'bg-calendar-today',
+        // Cards always retain their boundary. In inline mode the grid-lines
+        // setting alone controls whether day-cell boundaries are drawn.
+        cards && !cellBgStyle && 'border border-border',
         cards && cellBgStyle && 'border border-border',
-        cards && (today || (enableDnd && droppable.isOver)) && 'border-transparent',
         cards && enableDnd && droppable.isOver && 'shadow-lg',
-        // Inline mode keeps the legacy bordered look.
-        !cards && bordered && !cellBgStyle && 'border border-border bg-card dark:bg-card/85',
+        !cards && bordered && !cellBgStyle && 'border border-border',
         !cards && bordered && cellBgStyle && 'border border-border',
         !cards && bordered && isPast && !cellBgStyle && 'bg-muted/65',
+        today && !(cards && enableDnd && droppable.isOver) && 'ring-2 ring-inset ring-ring',
+        cards && enableDnd && droppable.isOver && 'ring-2 ring-inset ring-seasonal-accent',
       )}
-      style={{
-        ...cellBgStyle,
-        ...(cards && (today || (enableDnd && droppable.isOver))
-          ? { boxShadow: `0 0 0 2px ${monthAccent}` }
-          : {}),
-      }}
+      style={cellBgStyle}
     >
       {/* Date header — large bold day number, relative day label, weather upper-right. */}
       <div
@@ -279,9 +269,8 @@ function DayCell({
             className={cn(
               'font-medium leading-none truncate',
               compact ? 'text-[12px]' : 'text-xs',
-              !today && 'text-muted-foreground',
+              today ? 'font-semibold text-foreground' : 'text-muted-foreground',
             )}
-            style={today ? { color: monthAccent } : undefined}
           >
             {dayLabel}
           </span>
@@ -348,8 +337,8 @@ function DayCell({
                   compact ? 'text-xs px-0.5 py-px' : 'text-xs px-1 py-0.5',
                 )}
                 style={event.allDay
-                  ? { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
-                  : { color: event.color }
+                  ? inlineAllDayEventStyle(event.color)
+                  : inlineTimedEventStyle(event.color)
                 }
               >
                 {event.allDay ? event.title : `${format(event.startTime, 'h:mm')} ${event.title}`}

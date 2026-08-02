@@ -1,4 +1,44 @@
-import { contrastText, isLightColor } from '../color';
+import {
+  colorContrastRatio,
+  contrastText,
+  hexToHslValues,
+  hexToRgba,
+  isLightColor,
+  parseHexColor,
+  relativeLuminance,
+} from '../color';
+
+describe('parseHexColor', () => {
+  it.each([
+    ['#fff', { r: 255, g: 255, b: 255, a: 1, hex: '#FFFFFF' }],
+    ['abc', { r: 170, g: 187, b: 204, a: 1, hex: '#AABBCC' }],
+    ['#abcd', { r: 170, g: 187, b: 204, a: 221 / 255, hex: '#AABBCC' }],
+    ['11223380', { r: 17, g: 34, b: 51, a: 128 / 255, hex: '#112233' }],
+  ])('normalizes %s', (value, expected) => {
+    expect(parseHexColor(value)).toEqual(expected);
+  });
+
+  it.each(['', '#12', '#12345', '#ggg', 'not-a-color'])('rejects invalid input %s', (value) => {
+    expect(parseHexColor(value)).toBeNull();
+  });
+});
+
+describe('hex conversion helpers', () => {
+  it('expands shorthand channels for rgba and HSL conversion', () => {
+    expect(hexToRgba('#abc', 0.5)).toBe('rgba(170,187,204,0.5)');
+    expect(hexToHslValues('#abc')).toBe('210 25% 73%');
+  });
+
+  it('combines embedded alpha with the requested opacity', () => {
+    expect(hexToRgba('#abcd', 0.5)).toBe('rgba(170,187,204,0.4333)');
+  });
+
+  it('uses controlled black fallbacks and clamps invalid opacity', () => {
+    expect(hexToRgba('invalid', 2)).toBe('rgba(0,0,0,1)');
+    expect(hexToHslValues('invalid')).toBe('0 0% 0%');
+    expect(relativeLuminance('invalid')).toBe(0);
+  });
+});
 
 describe('isLightColor', () => {
   // --- Clearly light colors ---
@@ -80,6 +120,16 @@ describe('isLightColor', () => {
 });
 
 describe('contrastText', () => {
+  it('uses dark text for shorthand light colors', () => {
+    expect(contrastText('#fff')).toBe('#000000');
+    expect(contrastText('#eee')).toBe('#000000');
+  });
+
+  it('uses light text for shorthand dark colors', () => {
+    expect(contrastText('#000')).toBe('#ffffff');
+    expect(contrastText('036')).toBe('#ffffff');
+  });
+
   it('uses dark text for light event colors', () => {
     expect(contrastText('#F59E0B')).toBe('#000000');
     expect(contrastText('#EC4899')).toBe('#000000');
@@ -88,5 +138,21 @@ describe('contrastText', () => {
   it('uses light text for dark event colors', () => {
     expect(contrastText('#1D4ED8')).toBe('#ffffff');
     expect(contrastText('#166534')).toBe('#ffffff');
+  });
+
+  it('uses a controlled light-text fallback for invalid colors', () => {
+    expect(isLightColor('invalid')).toBe(false);
+    expect(contrastText('invalid')).toBe('#ffffff');
+  });
+});
+
+describe('colorContrastRatio', () => {
+  it('computes WCAG ratios for full and shorthand hex colors', () => {
+    expect(colorContrastRatio('#000', '#fff')).toBeCloseTo(21, 5);
+    expect(colorContrastRatio('777', 'FFFFFF')).toBeCloseTo(4.478, 3);
+  });
+
+  it('returns a conservative 1:1 fallback for invalid input', () => {
+    expect(colorContrastRatio('invalid', '#fff')).toBe(1);
   });
 });

@@ -58,7 +58,7 @@ export const PointsWidget = React.memo(function PointsWidget({
             <div key={goal.id} className="space-y-1">
               <div className="flex items-center gap-1.5 text-sm">
                 {goal.fullyAchieved && (
-                  <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                  <Check className="h-3.5 w-3.5 text-primary shrink-0" />
                 )}
                 <span>{goal.emoji || '🎯'}</span>
                 <span className="font-medium truncate">{goal.name}</span>

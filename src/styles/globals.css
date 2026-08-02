@@ -106,11 +106,13 @@
     --seasonal-subtle: 217 33% 17%;
   }
 
-  /* Low-glare first paint before ThemeProvider restores a saved preset. */
+  /* Kitchen Calm first paint before ThemeProvider restores a saved preset.
+   * Keep this duplicate in sync with appThemes['kitchen-calm'] to avoid a
+   * visible surface and border flash during hydration. */
   :root:not([data-color-theme]) {
-    --background: 42 24% 89%;
+    --background: 42 24% 83%;
     --foreground: 155 15% 19%;
-    --card: 45 25% 94%;
+    --card: 45 25% 96%;
     --card-foreground: 155 15% 19%;
     --popover: 45 30% 96%;
     --popover-foreground: 155 15% 19%;
@@ -119,12 +121,19 @@
     --secondary: 94 16% 84%;
     --secondary-foreground: 151 17% 23%;
     --muted: 41 18% 84%;
-    --muted-foreground: 151 9% 33%;
+    --muted-foreground: 151 10% 29%;
     --accent: 96 18% 82%;
     --accent-foreground: 154 20% 22%;
-    --border: 105 12% 76%;
-    --input: 105 12% 45%;
-    --ring: 164 24% 38%;
+    --destructive: 5 50% 42%;
+    --destructive-foreground: 45 30% 97%;
+    --border: 105 12% 49%;
+    --input: 105 12% 40%;
+    --ring: 164 24% 34%;
+    --chart-1: 164 30% 39%;
+    --chart-2: 92 24% 44%;
+    --chart-3: 32 40% 52%;
+    --chart-4: 52 30% 48%;
+    --chart-5: 349 28% 55%;
     --weather-temp-very-cold: 204 78% 50%;
     --weather-temp-freezing: 190 79% 47%;
     --weather-temp-cold: 174 65% 43%;
@@ -133,11 +142,11 @@
     --weather-temp-warm: 28 78% 49%;
     --weather-temp-hot: 12 74% 51%;
     --weather-temp-very-hot: 350 65% 48%;
-    --calendar-surface: 48 26% 94%;
-    --calendar-today: 91 23% 85%;
-    --widget-calendar: 48 28% 95%;
-    --widget-planning: 91 22% 91%;
-    --widget-family: 27 27% 92%;
+    --calendar-surface: 48 26% 96%;
+    --calendar-today: 91 23% 83%;
+    --widget-calendar: 48 28% 96%;
+    --widget-planning: 91 22% 92%;
+    --widget-family: 27 27% 93%;
     --widget-info: 78 14% 92%;
   }
 
@@ -153,14 +162,19 @@
     --secondary: 151 11% 23%;
     --secondary-foreground: 47 23% 89%;
     --muted: 151 10% 22%;
-    --muted-foreground: 55 10% 66%;
+    --muted-foreground: 55 10% 67%;
     --accent: 102 13% 27%;
     --accent-foreground: 47 23% 89%;
     --destructive: 5 62% 69%;
     --destructive-foreground: 5 30% 12%;
-    --border: 142 9% 29%;
+    --border: 142 10% 48%;
     --input: 142 10% 50%;
     --ring: 143 22% 63%;
+    --chart-1: 151 27% 62%;
+    --chart-2: 91 22% 58%;
+    --chart-3: 34 37% 62%;
+    --chart-4: 52 28% 61%;
+    --chart-5: 350 30% 65%;
     --weather-temp-very-cold: 204 80% 65%;
     --weather-temp-freezing: 190 78% 64%;
     --weather-temp-cold: 174 63% 58%;

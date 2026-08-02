@@ -16,13 +16,14 @@ import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useHiddenHours } from '@/lib/hooks/useHiddenHours';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import { calculateEventPositions, positionToCSS } from '@/lib/utils/eventLayout';
-import { contrastText, hexToRgba } from '@/lib/utils/color';
+import { hexToRgba } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { DroppableOverlayCell, useDayDroppable, weatherIcon, getMealTime, getChoreTime, getTaskTime, formatTimeOfDay, type OverlayItemRef } from './cells';
 import { WeekItemCard } from './cells/WeekItemCard';
 import { getTimedEventContentVisibility } from './timedEventDensity';
 import { useMeasuredHourRowHeight } from './useMeasuredHourRowHeight';
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 
 export type CalendarDisplayMode = 'inline' | 'cards';
 
@@ -122,7 +123,7 @@ export function WeekView({
           className={cn(
             'text-center py-1 shrink-0 rounded-t-md',
             !transparentMode && isPast && 'bg-muted/50 text-muted-foreground',
-            isToday(date) && 'bg-primary text-primary-foreground'
+            isToday(date) && 'bg-calendar-today text-foreground ring-1 ring-inset ring-ring'
           )}
         >
           <div className={cn('font-bold uppercase tracking-wide', compact ? 'text-xs' : 'text-sm')}>
@@ -147,7 +148,7 @@ export function WeekView({
                 style={
                   cards
                     ? { borderLeft: `3px solid ${event.color}` }
-                    : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
+                    : inlineAllDayEventStyle(event.color)
                 }
               >
                 {event.title}
@@ -190,9 +191,7 @@ export function WeekView({
                               width: css.width,
                             }
                           : {
-                              backgroundColor: event.color,
-                              color: contrastText(event.color),
-                              borderLeft: `2px solid ${event.color}`,
+                              ...inlineTimedEventStyle(event.color),
                               top: `${(event.startTime.getMinutes() / 60) * 100}%`,
                               height: `${heightPct}%`,
                               left: css.left,
@@ -226,7 +225,7 @@ export function WeekView({
   if (isPortrait) {
     return (
       <div className="h-full grid gap-1 overflow-auto" style={{ gridTemplateRows: `repeat(2, minmax(${48 + hours.length * 20}px, 1fr))` }}>
-        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm')}>
+        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-calendar-surface')}>
           {/* Time column */}
           <div className="w-8 shrink-0 flex flex-col">
             {/* Header with toggle button */}
@@ -236,7 +235,7 @@ export function WeekView({
                 className={cn(
                   'p-1 rounded-full transition-colors',
                   hiddenSettings.enabled
-                    ? 'bg-blue-500 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-accent text-muted-foreground'
                 )}
                 title={hiddenSettings.enabled ? 'Show all hours' : 'Hide time block'}
@@ -258,7 +257,7 @@ export function WeekView({
           </div>
           {row1Days.map((date) => renderDayColumn(date, true))}
         </div>
-        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm')}>
+        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-calendar-surface')}>
           {/* Time column */}
           <div className="w-8 shrink-0 flex flex-col">
             <div className="h-12 shrink-0" /> {/* Header spacer */}
@@ -284,11 +283,11 @@ export function WeekView({
   // The inner min-h-full flex-col wrapper makes the hourly grid stretch to fill available
   // space; 1fr rows distribute the remaining height so hours grow when fewer are visible.
   return (
-    <div className={cn('h-full rounded-md overflow-hidden', !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm')}>
+    <div className={cn('h-full rounded-md overflow-hidden', !transparentMode && 'bg-calendar-surface')}>
       <div className="h-full overflow-y-auto">
         <div className="h-full min-h-full flex flex-col">
           {/* Sticky day headers */}
-          <div className={cn('flex sticky top-0 z-20', !transparentMode && 'bg-card')}>
+          <div className={cn('flex sticky top-0 z-20', !transparentMode && 'bg-calendar-surface')}>
             {/* Time column spacer with toggle button */}
             <div className="w-16 shrink-0 flex items-center justify-center">
               <button
@@ -296,7 +295,7 @@ export function WeekView({
                 className={cn(
                   'p-1.5 rounded-full transition-colors',
                   hiddenSettings.enabled
-                    ? 'bg-blue-500 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-accent text-muted-foreground'
                 )}
                 title={hiddenSettings.enabled ? 'Show all hours' : 'Hide time block'}
@@ -341,14 +340,14 @@ export function WeekView({
                     className={cn(
                       'flex items-baseline justify-between gap-1 px-2 py-1.5',
                       !transparentMode && isPast && 'bg-muted/50 text-muted-foreground',
-                      isToday(date) && !cards && 'bg-primary text-primary-foreground',
+                      isToday(date) && 'bg-calendar-today text-foreground ring-1 ring-inset ring-ring',
                     )}
                   >
                     <div className="flex items-baseline gap-1.5 min-w-0">
                       <span className="text-2xl font-bold leading-none">{format(date, 'd')}</span>
                       <span className={cn(
                         'text-xs font-medium uppercase tracking-wide truncate leading-none',
-                        isToday(date) && cards ? 'text-seasonal-accent font-semibold' : undefined,
+                        isToday(date) && cards ? 'text-foreground font-semibold' : undefined,
                       )}>
                         {isToday(date) ? 'Today' : format(date, 'EEE')}
                       </span>
@@ -375,7 +374,7 @@ export function WeekView({
                           style={
                             cards
                               ? { borderLeft: `3px solid ${event.color}` }
-                              : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
+                              : inlineAllDayEventStyle(event.color)
                           }
                         >
                           {event.title}
@@ -461,9 +460,7 @@ export function WeekView({
                                       width: css.width,
                                     }
                                   : {
-                                      backgroundColor: event.color,
-                                      color: contrastText(event.color),
-                                      borderLeft: `2px solid ${event.color}`,
+                                      ...inlineTimedEventStyle(event.color),
                                       top: `${(event.startTime.getMinutes() / 60) * 100}%`,
                                       height: `${heightPct}%`,
                                       left: css.left,
