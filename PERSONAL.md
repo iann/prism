@@ -191,6 +191,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
    Commit: 6b37df1
 
+19. **Automatic client updates after server releases**
+
+    Added a cache-proof server version endpoint and a global client checker
+    that polls for release changes, refreshes the PWA service worker, and
+    reloads the current page when the running server version changes.
+
+    Commit: d276d02
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
