@@ -1,5 +1,6 @@
 export const APP_THEME_IDS = [
   'prism',
+  'claude',
   'kitchen-calm',
   'herb-garden',
   'warm-clay',
@@ -204,6 +205,102 @@ const prismDark: ThemeTokens = {
   '--widget-info': '222 47% 15%',
 };
 
+const claudeWeatherLight: ThemeTokens = {
+  '--weather-temp-very-cold': '213 82% 48%',
+  '--weather-temp-freezing': '199 85% 47%',
+  '--weather-temp-cold': '185 76% 42%',
+  '--weather-temp-cool': '157 53% 37%',
+  '--weather-temp-mild': '45 86% 44%',
+  '--weather-temp-warm': '26 84% 47%',
+  '--weather-temp-hot': '8 80% 47%',
+  '--weather-temp-very-hot': '348 70% 48%',
+};
+
+const claudeWeatherDark: ThemeTokens = {
+  '--weather-temp-very-cold': '213 90% 68%',
+  '--weather-temp-freezing': '199 91% 66%',
+  '--weather-temp-cold': '185 84% 61%',
+  '--weather-temp-cool': '157 64% 59%',
+  '--weather-temp-mild': '45 93% 67%',
+  '--weather-temp-warm': '26 91% 65%',
+  '--weather-temp-hot': '8 88% 66%',
+  '--weather-temp-very-hot': '348 80% 70%',
+};
+
+/**
+ * Claude-inspired warmth: parchment and charcoal take the place of pure
+ * white/blue-gray surfaces, while a restrained terracotta carries actions and
+ * focus. Widget surfaces stay close to the canvas so a full dashboard feels
+ * calm rather than card-heavy.
+ */
+const claudeLight: ThemeTokens = {
+  ...claudeWeatherLight,
+  '--background': '38 28% 96%',
+  '--foreground': '28 16% 16%',
+  '--card': '38 24% 87%',
+  '--card-foreground': '28 16% 16%',
+  '--popover': '38 29% 92%',
+  '--popover-foreground': '28 16% 16%',
+  '--primary': '16 53% 40%',
+  '--primary-foreground': '38 30% 97%',
+  '--secondary': '34 17% 84%',
+  '--secondary-foreground': '28 16% 18%',
+  '--muted': '37 18% 85%',
+  '--muted-foreground': '29 10% 31%',
+  '--accent': '19 35% 86%',
+  '--accent-foreground': '20 27% 22%',
+  '--destructive': '3 58% 43%',
+  '--destructive-foreground': '38 30% 97%',
+  '--border': '30 13% 47%',
+  '--input': '29 18% 43%',
+  '--ring': '16 53% 40%',
+  '--chart-1': '16 53% 40%',
+  '--chart-2': '153 35% 38%',
+  '--chart-3': '35 62% 45%',
+  '--chart-4': '275 27% 50%',
+  '--chart-5': '345 45% 48%',
+  '--calendar-surface': '38 24% 86%',
+  '--calendar-today': '20 34% 79%',
+  '--widget-calendar': '38 24% 87%',
+  '--widget-planning': '68 12% 86%',
+  '--widget-family': '23 22% 87%',
+  '--widget-info': '38 20% 87%',
+};
+
+const claudeDark: ThemeTokens = {
+  ...claudeWeatherDark,
+  '--background': '36 7% 15%',
+  '--foreground': '36 25% 90%',
+  '--card': '34 8% 19%',
+  '--card-foreground': '36 25% 90%',
+  '--popover': '34 9% 21%',
+  '--popover-foreground': '36 25% 90%',
+  '--primary': '16 60% 60%',
+  '--primary-foreground': '28 16% 12%',
+  '--secondary': '33 8% 32%',
+  '--secondary-foreground': '36 25% 90%',
+  '--muted': '33 8% 26%',
+  '--muted-foreground': '32 14% 74%',
+  '--accent': '17 23% 30%',
+  '--accent-foreground': '36 25% 90%',
+  '--destructive': '4 54% 68%',
+  '--destructive-foreground': '28 16% 12%',
+  '--border': '32 9% 52%',
+  '--input': '30 10% 54%',
+  '--ring': '16 60% 68%',
+  '--chart-1': '16 60% 60%',
+  '--chart-2': '153 40% 58%',
+  '--chart-3': '35 70% 63%',
+  '--chart-4': '275 38% 70%',
+  '--chart-5': '345 55% 68%',
+  '--calendar-surface': '34 8% 20%',
+  '--calendar-today': '17 23% 30%',
+  '--widget-calendar': '34 8% 20%',
+  '--widget-planning': '52 7% 19%',
+  '--widget-family': '23 9% 20%',
+  '--widget-info': '38 9% 20%',
+};
+
 /**
  * LCARS is intentionally a low-light palette in both brightness modes. The
  * structural shell does most of the visual work; these semantic tokens keep
@@ -258,6 +355,13 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     description: 'The original crisp, neutral Prism palette.',
     light: prismLight,
     dark: prismDark,
+  },
+  claude: {
+    id: 'claude',
+    name: 'Claude',
+    description: 'Warm parchment, charcoal, and restrained terracotta for a quieter dashboard.',
+    light: claudeLight,
+    dark: claudeDark,
   },
   'kitchen-calm': {
     id: 'kitchen-calm',
