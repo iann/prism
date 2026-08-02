@@ -39,12 +39,22 @@ export class ErrorBoundary extends Component<Props, State> {
                 ? this.state.error?.message || 'An unexpected error occurred.'
                 : 'An unexpected error occurred. Please try again.'}
             </p>
-            <button
-              onClick={() => this.setState({ hasError: false, error: null })}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
-            >
-              Try again
-            </button>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => this.setState({ hasError: false, error: null })}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
+              >
+                Try again
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.assign('/')}
+                className="px-4 py-2 border border-border text-foreground rounded-md hover:bg-muted"
+              >
+                Reload dashboard
+              </button>
+            </div>
           </div>
         </div>
       );
