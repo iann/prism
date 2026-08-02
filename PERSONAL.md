@@ -173,6 +173,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
    Commit: 3c60369
 
+17. **Theme-safe text overrides and calendar surface consistency**
+
+   Prevented stale text-only widget overrides from forcing white text and dark
+   scrims onto light themes, then standardized calendar surfaces, today states,
+   popovers, event cards, notes, and borders across the calendar views.
+
+   Commit: 3c8f15a
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
