@@ -14,21 +14,23 @@
 'use client';
 
 import * as React from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useSeasonalTheme } from '@/lib/hooks/useSeasonalTheme';
 import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
+import { useWeather } from '@/lib/hooks/useWeather';
 import { applyAppTheme, isAppThemeId, type AppThemeId } from '@/lib/themes/appThemes';
+import { getNextSolarTransition, resolveSunsetTheme } from '@/lib/themes/sunsetTheme';
 
 /**
  * Theme modes
  */
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'system' | 'sunset';
 
 /**
  * Theme context value
  */
 interface ThemeContextValue {
-  /** Current theme setting (light, dark, or system) */
+  /** Current theme setting (light, dark, system, or sunset) */
   theme: ThemeMode;
   /** Resolved theme (light or dark - what's actually shown) */
   resolvedTheme: 'light' | 'dark';
@@ -57,6 +59,10 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => unknown;
+};
+
 /**
  * Theme Provider Props
  */
@@ -80,11 +86,21 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
   const [colorTheme, setColorThemeState] = useState<AppThemeId>(DEFAULT_COLOR_THEME);
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
+  const [solarTick, setSolarTick] = useState(0);
+  const hasAppliedThemeRef = useRef(false);
+  const previousAppliedThemeRef = useRef<{ resolvedTheme: 'light' | 'dark'; colorTheme: AppThemeId } | null>(null);
+
+  // Sunset mode only needs weather data when it is selected. The weather
+  // response carries the resolved location coordinates used for solar timing.
+  const { data: sunsetWeather } = useWeather({
+    enabled: mounted && theme === 'sunset',
+    refreshInterval: 5 * 60 * 1000,
+  });
 
   // On mount, load saved theme from localStorage
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
-    if (stored && ['light', 'dark', 'system'].includes(stored)) {
+    if (stored && ['light', 'dark', 'system', 'sunset'].includes(stored)) {
       setThemeState(stored);
     }
     const storedColorTheme = localStorage.getItem(COLOR_THEME_STORAGE_KEY);
@@ -104,20 +120,81 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
       actualTheme = 'dark';
     } else if (theme === 'system') {
       actualTheme = getSystemTheme();
+    } else if (theme === 'sunset') {
+      actualTheme =
+        resolveSunsetTheme(
+          new Date(),
+          sunsetWeather?.lat !== undefined && sunsetWeather.lon !== undefined
+            ? { lat: sunsetWeather.lat, lon: sunsetWeather.lon }
+            : undefined,
+          sunsetWeather?.sunset
+        ) ?? getSystemTheme();
     } else {
       actualTheme = theme;
     }
 
-    // Apply or remove dark class
-    if (actualTheme === 'dark') {
-      root.classList.add('dark');
+    const applyTheme = () => {
+      // Apply or remove dark class
+      if (actualTheme === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+
+      applyAppTheme(colorTheme, actualTheme);
+      setResolvedTheme(actualTheme);
+    };
+
+    const previousTheme = previousAppliedThemeRef.current;
+    const themeChanged =
+      previousTheme !== null &&
+      (previousTheme.resolvedTheme !== actualTheme || previousTheme.colorTheme !== colorTheme);
+    const transitionDocument = document as ViewTransitionDocument;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (
+      !hasAppliedThemeRef.current ||
+      !themeChanged ||
+      prefersReducedMotion ||
+      typeof transitionDocument.startViewTransition !== 'function'
+    ) {
+      applyTheme();
     } else {
-      root.classList.remove('dark');
+      try {
+        transitionDocument.startViewTransition(applyTheme);
+      } catch {
+        // Older or partially implemented browsers can expose the API but
+        // still reject it; the theme update itself must never be blocked.
+        applyTheme();
+      }
     }
 
-    setResolvedTheme(actualTheme);
-    applyAppTheme(colorTheme, actualTheme);
-  }, [theme, colorTheme, mounted]);
+    hasAppliedThemeRef.current = true;
+    previousAppliedThemeRef.current = { resolvedTheme: actualTheme, colorTheme };
+  }, [theme, colorTheme, mounted, sunsetWeather, solarTick]);
+
+  // Schedule the exact next sunrise/sunset transition. Weather polling is
+  // still useful as a fallback when a provider does not return coordinates.
+  useEffect(() => {
+    if (!mounted || theme !== 'sunset') return;
+
+    const now = new Date();
+    const coordinates =
+      sunsetWeather?.lat !== undefined && sunsetWeather.lon !== undefined
+        ? { lat: sunsetWeather.lat, lon: sunsetWeather.lon }
+        : undefined;
+    const nextTransition =
+      getNextSolarTransition(now, coordinates) ??
+      (sunsetWeather?.sunset && sunsetWeather.sunset.getTime() > now.getTime()
+        ? sunsetWeather.sunset
+        : null);
+
+    if (!nextTransition) return;
+
+    const delay = Math.max(0, nextTransition.getTime() - now.getTime()) + 50;
+    const timer = window.setTimeout(() => setSolarTick((tick) => tick + 1), delay);
+    return () => window.clearTimeout(timer);
+  }, [mounted, theme, sunsetWeather, solarTick]);
 
   // Listen for system theme changes when in "system" mode
   useEffect(() => {

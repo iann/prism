@@ -26,6 +26,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Sunset,
   User,
   LogOut,
   HelpCircle,
@@ -81,15 +82,16 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
   // Check if current path is in secondary items
   const isSecondaryActive = visibleSecondary.some(item => pathname === item.href);
 
-  // Cycle through themes: light → dark → system → light
+  // Cycle through themes: light → dark → system → sunset → light
   const cycleTheme = () => {
     if (theme === 'light') setTheme('dark');
     else if (theme === 'dark') setTheme('system');
+    else if (theme === 'system') setTheme('sunset');
     else setTheme('light');
   };
 
-  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
-  const themeLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'Auto';
+  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : theme === 'sunset' ? Sunset : Monitor;
+  const themeLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : theme === 'sunset' ? 'Sunset' : 'System';
 
   return (
     <>

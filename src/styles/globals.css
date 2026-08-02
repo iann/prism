@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Coordinate theme changes as one crossfade when the View Transition API is
+ * available. The CSS-variable transitions below remain the fallback. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 180ms;
+    animation-timing-function: ease;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

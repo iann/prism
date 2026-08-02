@@ -105,7 +105,7 @@ export const MAINTENANCE_CATEGORIES = ['car', 'home', 'appliance', 'yard', 'othe
 export type MaintenanceCategory = typeof MAINTENANCE_CATEGORIES[number];
 export const MAINTENANCE_SCHEDULES = ['monthly', 'quarterly', 'annually', 'custom'] as const;
 
-export const THEME_MODES = ['light', 'dark', 'system'] as const;
+export const THEME_MODES = ['light', 'dark', 'system', 'sunset'] as const;
 export type ThemeMode = typeof THEME_MODES[number];
 
 export const SEASONAL_THEMES = {

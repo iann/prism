@@ -10,6 +10,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Sunset,
   User,
   LayoutGrid,
   ArrowUpDown,
@@ -88,11 +89,12 @@ export function MobileFab({ user, onLogin, onLogout, uiHidden }: MobileFabProps)
   const cycleTheme = () => {
     if (theme === 'light') setTheme('dark');
     else if (theme === 'dark') setTheme('system');
+    else if (theme === 'system') setTheme('sunset');
     else setTheme('light');
   };
 
-  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
-  const themeLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'Auto';
+  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : theme === 'sunset' ? Sunset : Monitor;
+  const themeLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : theme === 'sunset' ? 'Sunset' : 'System';
 
   const isDashboard = pathname === '/' || pathname?.startsWith('/d/');
   const isShopping = pathname === '/shopping';

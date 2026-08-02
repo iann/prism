@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Sun, Moon, Monitor } from 'lucide-react';
+import { Sun, Moon, Monitor, Sunset } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -100,7 +100,9 @@ export function DisplaySection() {
       <Card>
         <CardHeader>
           <CardTitle>Brightness</CardTitle>
-          <CardDescription>Use a light or dark version of the selected palette.</CardDescription>
+          <CardDescription>
+            Use a light or dark version of the selected palette, or let Prism follow the sun at your weather location.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-3">
@@ -128,7 +130,18 @@ export function DisplaySection() {
               <Monitor className="h-4 w-4 mr-2" />
               System
             </Button>
+            <Button
+              variant={theme === 'sunset' ? 'default' : 'outline'}
+              onClick={() => setTheme('sunset')}
+              className="flex-1"
+            >
+              <Sunset className="h-4 w-4 mr-2" />
+              Sunset
+            </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Sunset mode stays light during the day and switches to dark after sunset, returning to light at sunrise. It uses the location configured under General settings.
+          </p>
         </CardContent>
       </Card>
 
