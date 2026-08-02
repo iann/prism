@@ -29,6 +29,11 @@ export const users = pgTable('users', {
   // Nullable because guests don't have PINs
   pin: varchar('pin', { length: 255 }),
 
+  // Per-member PIN length (4/5/6) — each member's PIN pad requires exactly
+  // this many digits. Defaults to 4; new installs' family-wide "PIN length"
+  // setting seeds this value when a member is created.
+  pinLength: integer('pin_length').default(4).notNull(),
+
   email: varchar('email', { length: 255 }),
 
   avatarUrl: text('avatar_url'),
@@ -36,7 +41,7 @@ export const users = pgTable('users', {
   // Flexible schema for future additions
   preferences: jsonb('preferences').default({}).notNull(),
 
-  // Display order in PinPad and profile lists (lower = first)
+  // Display order in the PIN login pad and profile lists (lower = first)
   sortOrder: integer('sort_order').default(0).notNull(),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -635,6 +640,14 @@ export const meals = pgTable('meals', {
 
   weekOf: date('week_of').notNull(),
 
+  // Absolute calendar date of this meal. `(week_of, day_of_week)` is a
+  // week-RELATIVE key that shifts when the user changes their "week starts on"
+  // preference — which orphaned whole meal plans (they became unfindable under
+  // the new week boundary). `date` is the stable identity the week views now
+  // query by (a 7-day date range), so toggling the preference only re-windows.
+  // week_of is retained and kept in sync for backward compatibility.
+  date: date('date').notNull(),
+
   dayOfWeek: varchar('day_of_week', { length: 20 }).notNull()
     .$type<'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'>(),
 
@@ -660,6 +673,7 @@ export const meals = pgTable('meals', {
 }, (table) => ({
   weekOfIdx: index('meals_week_of_idx').on(table.weekOf),
   dayOfWeekIdx: index('meals_day_of_week_idx').on(table.dayOfWeek),
+  dateIdx: index('meals_date_idx').on(table.date),
 }));
 
 

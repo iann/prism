@@ -450,6 +450,7 @@ CREATE TABLE IF NOT EXISTS public.meals (
     servings integer,
     ingredients text,
     week_of date NOT NULL,
+    date date NOT NULL,
     day_of_week character varying(20) NOT NULL,
     meal_type character varying(20) NOT NULL,
     cooked_at timestamp without time zone,
@@ -778,7 +779,8 @@ CREATE TABLE IF NOT EXISTS public.users (
     preferences jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    sort_order integer DEFAULT 0 NOT NULL
+    sort_order integer DEFAULT 0 NOT NULL,
+    pin_length integer DEFAULT 4 NOT NULL
 );
 
 
@@ -1537,6 +1539,13 @@ CREATE INDEX IF NOT EXISTS meals_day_of_week_idx ON public.meals USING btree (da
 --
 
 CREATE INDEX IF NOT EXISTS meals_week_of_idx ON public.meals USING btree (week_of);
+
+
+--
+-- Name: meals_date_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS meals_date_idx ON public.meals USING btree (date);
 
 
 --

@@ -8,9 +8,9 @@ interface MeasureBarProps {
   measureHideNav: boolean;
   onToggleNav: () => void;
   onExit: () => void;
-  previewZones: { name: string; color: string }[];
-  activeZoneIndex: number;
-  onZoneChange: (idx: number) => void;
+  previewZones?: { name: string; color: string }[];
+  activeZoneIndex?: number;
+  onZoneChange?: (idx: number) => void;
 }
 
 const PRESET_COLORS = ['#3B82F6', '#EF4444', '#F59E0B', '#22C55E', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
@@ -143,7 +143,14 @@ function ScreensPanel() {
   );
 }
 
-export function LayoutEditorMeasureBar({ measureHideNav, onToggleNav, onExit, previewZones, activeZoneIndex, onZoneChange }: MeasureBarProps) {
+export function LayoutEditorMeasureBar({
+  measureHideNav,
+  onToggleNav,
+  onExit,
+  previewZones = [],
+  activeZoneIndex = 0,
+  onZoneChange = () => {},
+}: MeasureBarProps) {
   const [showScreens, setShowScreens] = useState(false);
 
   return (

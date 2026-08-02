@@ -16,6 +16,10 @@ export function useSquareCells(
 ) {
   const [cellSize, setCellSize] = useState(SSR_FALLBACK);
   const [width, setWidth] = useState(0);
+  // Measured distance from the top of the viewport to the top of the grid
+  // container (i.e. the real header/chrome height) — more reliable than a
+  // hardcoded headerOffset for fitting the design into the viewport.
+  const [top, setTop] = useState(0);
   const [mounted, setMounted] = useState(false);
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const roRef = useRef<ResizeObserver | null>(null);
@@ -29,8 +33,10 @@ export function useSquareCells(
     }
     const el = nodeRef.current;
     if (!el) return;
+    const rect = el.getBoundingClientRect();
     const w = el.clientWidth;
     setWidth(w);
+    setTop(rect.top);
     setMounted(true);
     if (w <= 0) return;
     const available = w - 2 * containerPadding - (cols - 1) * gap;
@@ -47,24 +53,40 @@ export function useSquareCells(
     }
     if (node && !fillHeight) {
       compute();
+      // Re-measure after layout settles: the ResizeObserver fires on the
+      // container's SIZE, but its top offset (header/nav chrome above it) only
+      // becomes accurate once the surrounding chrome has laid out — a position
+      // change the observer never sees. rAF catches the first settled frame;
+      // the delayed passes catch late layout (fonts, async header content, a
+      // taller touch-device header) that would otherwise leave `top` stale and
+      // the grid mis-sized (bottom-row clip on a real kiosk).
+      requestAnimationFrame(compute);
+      // Multiple settle passes: the header height can change after first paint
+      // (web fonts, async toolbar toggles/badges, a taller touch-device header),
+      // which would otherwise leave `top` stale and clip the bottom row.
+      setTimeout(compute, 200);
+      setTimeout(compute, 600);
+      setTimeout(compute, 1200);
+      setTimeout(compute, 2500);
       const ro = new ResizeObserver(compute);
       ro.observe(node);
       roRef.current = ro;
     }
   }, [compute, fillHeight]);
 
-  // fillHeight mode: listen to window resize instead
+  // Re-measure on window resize (covers both fillHeight and fit modes — the
+  // latter needs it because the container's top can shift without its size
+  // changing, which the ResizeObserver wouldn't catch).
   useEffect(() => {
-    if (!fillHeight) return;
-    compute();
-    window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
-  }, [compute, fillHeight]);
+    const onResize = () => compute();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [compute]);
 
   // Cleanup ResizeObserver on unmount
   useEffect(() => {
     return () => roRef.current?.disconnect();
   }, []);
 
-  return { containerRef, cellSize, width, mounted };
+  return { containerRef, cellSize, width, top, mounted, remeasure: compute };
 }
