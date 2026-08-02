@@ -122,14 +122,16 @@ function ScreensaverGrid() {
       ),
     [data]
   );
+  const widgetPropsRef = React.useRef(widgetProps);
+  widgetPropsRef.current = widgetProps;
 
-  const renderWidget = (w: WidgetConfig) => {
+  const renderWidget = React.useCallback((w: WidgetConfig) => {
     const widgetType = getWidgetType(w);
     const reg = WIDGET_REGISTRY[widgetType];
     if (!reg) return null;
     const Component = reg.component;
     const rawProps = {
-      ...(widgetProps[widgetType] || {}),
+      ...(widgetPropsRef.current[widgetType] || {}),
       instanceId: w.i,
       gridW: w.w,
       gridH: w.h,
@@ -162,16 +164,19 @@ function ScreensaverGrid() {
         </div>
       </React.Suspense>
     );
-  };
+  }, []);
 
   // Override renderWidget to inject screensaver text defaults (white text)
-  const renderScreensaverWidget = (w: WidgetConfig) => {
-    return renderWidget({
-      ...w,
-      textColor: w.textColor || '#FFFFFF',
-      textOpacity: w.textOpacity ?? (w.textColor ? 1 : 0.9),
-    });
-  };
+  const renderScreensaverWidget = React.useCallback(
+    (w: WidgetConfig) => {
+      return renderWidget({
+        ...w,
+        textColor: w.textColor || '#FFFFFF',
+        textOpacity: w.textOpacity ?? (w.textColor ? 1 : 0.9),
+      });
+    },
+    [renderWidget]
+  );
 
   return (
     <CssGridDisplay

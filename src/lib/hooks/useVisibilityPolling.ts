@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePollingInterval } from './usePollingInterval';
 
 /**
@@ -15,11 +15,12 @@ import { usePollingInterval } from './usePollingInterval';
  * @param intervalMs - Interval in milliseconds (0 or negative to disable)
  */
 export function useVisibilityPolling(
-  callback: () => void,
+  callback: () => void | Promise<void>,
   intervalMs: number,
-  offsetMs = 0,
+  offsetMs = 0
 ): void {
   const effectiveInterval = usePollingInterval(intervalMs);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     if (effectiveInterval <= 0) return;
@@ -34,9 +35,39 @@ export function useVisibilityPolling(
       interval = null;
     };
 
+    const runCallback = () => {
+      // A slow Raspberry Pi can still be processing a request when the next
+      // interval fires. Do not stack another fetch on top of it; the next
+      // regular tick will observe the latest data after this one completes.
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+
+      let result: void | Promise<void>;
+      try {
+        result = callback();
+      } catch {
+        inFlightRef.current = false;
+        return;
+      }
+
+      if (!result || typeof (result as Promise<void>).then !== 'function') {
+        inFlightRef.current = false;
+        return;
+      }
+
+      result
+        .catch(() => {
+          // Fetch hooks report their own errors. This guard prevents a
+          // rejected callback from becoming an unhandled promise rejection.
+        })
+        .finally(() => {
+          inFlightRef.current = false;
+        });
+    };
+
     const startInterval = () => {
-      callback();
-      interval = setInterval(callback, effectiveInterval);
+      runCallback();
+      interval = setInterval(runCallback, effectiveInterval);
     };
 
     const resume = () => {

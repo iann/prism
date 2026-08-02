@@ -155,10 +155,8 @@ export function DashboardLayout({
         className
       )}
     >
-      {/* Main content area */}
-      <main className="flex-1 overflow-hidden">
-        {children}
-      </main>
+      {/* Main content area is owned by AppShell; keep this wrapper non-semantic. */}
+      <div className="flex-1 overflow-hidden">{children}</div>
     </div>
   );
 }
@@ -303,4 +301,3 @@ function ScreensaverIcon() {
     </svg>
   );
 }
-

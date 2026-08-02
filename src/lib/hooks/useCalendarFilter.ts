@@ -20,6 +20,27 @@ export interface UseCalendarFilterResult {
   calendarGroups: CalendarGroup[];
 }
 
+// Multiple calendar widgets share the same group metadata. Deduplicate the
+// concurrent request while retaining per-hook state for independent filters.
+let calendarGroupsRequest: Promise<CalendarGroup[]> | null = null;
+
+function requestCalendarGroups(): Promise<CalendarGroup[]> {
+  if (calendarGroupsRequest) return calendarGroupsRequest;
+
+  calendarGroupsRequest = fetch('/api/calendar-groups')
+    .then(async (res) => {
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.groups || []) as CalendarGroup[];
+    })
+    .catch(() => [])
+    .finally(() => {
+      calendarGroupsRequest = null;
+    });
+
+  return calendarGroupsRequest;
+}
+
 export function useCalendarFilter(): UseCalendarFilterResult {
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(new Set(['all']));
   const { calendars: calendarSources } = useCalendarSources();
@@ -27,18 +48,13 @@ export function useCalendarFilter(): UseCalendarFilterResult {
 
   // Fetch calendar groups from API
   useEffect(() => {
-    async function fetchGroups() {
-      try {
-        const res = await fetch('/api/calendar-groups');
-        if (res.ok) {
-          const data = await res.json();
-          setApiGroups(data.groups || []);
-        }
-      } catch {
-        // Fallback: derive from sources (legacy behavior)
-      }
-    }
-    fetchGroups();
+    let cancelled = false;
+    requestCalendarGroups().then((groups) => {
+      if (!cancelled) setApiGroups(groups);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Use API groups if available, otherwise fall back to legacy derivation

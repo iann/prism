@@ -23,6 +23,14 @@ type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'se' | 'sw';
 
 type EditMode = 'move' | 'resize';
 
+type ResizePreview = {
+  widgetId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
 export interface CssGridEditorProps {
   layout: WidgetConfig[];
   onLayoutChange: (layout: WidgetConfig[]) => void;
@@ -56,13 +64,9 @@ export function CssGridEditor({
 }: CssGridEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<EditMode>('move');
-  const [resizePreview, setResizePreview] = useState<{
-    widgetId: string;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-  } | null>(null);
+  const [resizePreview, setResizePreview] = useState<ResizePreview | null>(null);
+  const resizePreviewRef = useRef<ResizePreview | null>(null);
+  const resizeFrameRef = useRef<number | null>(null);
 
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
@@ -153,7 +157,18 @@ export function CssGridEditor({
       const startY = e.clientY;
       const currentStep = stepRef.current;
 
-      setResizePreview({ widgetId, ...orig });
+      const initialPreview = { widgetId, ...orig };
+      resizePreviewRef.current = initialPreview;
+      setResizePreview(initialPreview);
+
+      const schedulePreview = (next: ResizePreview) => {
+        resizePreviewRef.current = next;
+        if (resizeFrameRef.current !== null) return;
+        resizeFrameRef.current = window.requestAnimationFrame(() => {
+          resizeFrameRef.current = null;
+          if (resizePreviewRef.current) setResizePreview(resizePreviewRef.current);
+        });
+      };
 
       const onMove = (ev: PointerEvent) => {
         const dCol = Math.round((ev.clientX - startX) / currentStep);
@@ -178,24 +193,36 @@ export function CssGridEditor({
           h = orig.y + orig.h - y;
         }
 
-        setResizePreview({ widgetId, x, y, w, h });
+        schedulePreview({ widgetId, x, y, w, h });
       };
 
       const onUp = () => {
         document.removeEventListener('pointermove', onMove);
         document.removeEventListener('pointerup', onUp);
 
-        setResizePreview((prev) => {
-          if (!prev) return null;
-          const updated = layoutRef.current.map((w) => {
-            if (w.i === widgetId) {
-              return { ...w, x: prev.x, y: prev.y, w: prev.w, h: prev.h };
-            }
-            return w;
-          });
-          onLayoutChange(updated);
-          return null;
+        if (resizeFrameRef.current !== null) {
+          window.cancelAnimationFrame(resizeFrameRef.current);
+          resizeFrameRef.current = null;
+        }
+
+        const finalPreview = resizePreviewRef.current;
+        resizePreviewRef.current = null;
+        setResizePreview(null);
+        if (!finalPreview) return;
+
+        const updated = layoutRef.current.map((w) => {
+          if (w.i === widgetId) {
+            return {
+              ...w,
+              x: finalPreview.x,
+              y: finalPreview.y,
+              w: finalPreview.w,
+              h: finalPreview.h,
+            };
+          }
+          return w;
         });
+        onLayoutChange(updated);
       };
 
       document.addEventListener('pointermove', onMove);

@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { addDays, format, isSameDay, startOfDay } from 'date-fns';
+import { useCallback, useMemo } from 'react';
+import { addDays, format, startOfDay } from 'date-fns';
 import { useCalendarEvents } from './useCalendarEvents';
 import { useMeals } from './useMeals';
 import { useChores } from './useChores';
@@ -9,8 +9,8 @@ import { useTasks } from './useTasks';
 import { useWeather } from './useWeather';
 import { DAYS_OF_WEEK, type DayOfWeek } from '@/lib/constants/days';
 import type { CalendarEvent } from '@/types/calendar';
-import type { Chore, Meal } from '@/types';
-import type { Task } from '@/components/widgets/TasksWidget';
+import type { Chore, Meal, Task } from '@/types';
+import type { WeatherData } from '@/components/widgets/WeatherWidget';
 import type { DayBucket } from './useWeekViewData';
 
 export interface OverlayFlags {
@@ -29,6 +29,15 @@ interface UseDayBucketsForRangeOptions {
   overlays: OverlayFlags;
   /** Pre-fetched events from the parent — when provided, skip the events fetch and use these. */
   externalEvents?: CalendarEvent[];
+  /** Pre-fetched overlay streams from the parent dashboard. */
+  externalMeals?: Meal[];
+  externalChores?: Chore[];
+  externalTasks?: Task[];
+  externalWeather?: WeatherData | null;
+  /** Refresh callbacks for externally owned streams. */
+  refreshMeals?: () => Promise<void>;
+  refreshChores?: () => Promise<void>;
+  refreshTasks?: () => Promise<void>;
 }
 
 interface UseDayBucketsForRangeResult {
@@ -53,26 +62,21 @@ const EMPTY_EVENTS: CalendarEvent[] = [];
 const EMPTY_MEALS: Meal[] = [];
 const EMPTY_CHORES: Chore[] = [];
 const EMPTY_TASKS: Task[] = [];
+const TASK_PRIORITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
 
 function dateKey(d: Date): string {
   return format(d, 'yyyy-MM-dd');
 }
 
-function eventOnDay(event: CalendarEvent, day: Date): boolean {
-  const dayStart = startOfDay(day);
-  const dayEnd = addDays(dayStart, 1);
-  return event.startTime < dayEnd && event.endTime > dayStart;
-}
-
-function choreNextDueOnDay(chore: Chore, day: Date): boolean {
-  if (!chore.nextDue) return false;
+function choreDateKey(chore: Chore): string | null {
+  if (!chore.nextDue) return null;
   // chore.nextDue is a YYYY-MM-DD DATE column; parse as local to avoid the
   // UTC-shift bug that would otherwise put the chore on the previous day.
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(chore.nextDue);
-  if (!m) return false;
+  if (!m) return null;
   const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  if (Number.isNaN(due.getTime())) return false;
-  return isSameDay(due, day);
+  if (Number.isNaN(due.getTime())) return null;
+  return dateKey(due);
 }
 
 /**
@@ -87,9 +91,20 @@ export function useDayBucketsForRange({
   to,
   overlays,
   externalEvents,
+  externalMeals,
+  externalChores,
+  externalTasks,
+  externalWeather,
+  refreshMeals: refreshExternalMeals,
+  refreshChores: refreshExternalChores,
+  refreshTasks: refreshExternalTasks,
 }: UseDayBucketsForRangeOptions): UseDayBucketsForRangeResult {
   const fromKey = useMemo(() => dateKey(from), [from]);
   const toKey = useMemo(() => dateKey(to), [to]);
+  const hasExternalMeals = externalMeals !== undefined;
+  const hasExternalChores = externalChores !== undefined;
+  const hasExternalTasks = externalTasks !== undefined;
+  const hasExternalWeather = externalWeather !== undefined;
 
   // Use external events when provided (CalendarView already fetches events
   // with its own filter set). Otherwise fetch internally.
@@ -108,14 +123,17 @@ export function useDayBucketsForRange({
     loading: mealsLoading,
     error: mealsError,
     refresh: refreshMeals,
-  } = useMeals({ enabled: overlays.meals });
+  } = useMeals({ enabled: !hasExternalMeals && overlays.meals });
 
   const {
     chores,
     loading: choresLoading,
     error: choresError,
     refresh: refreshChores,
-  } = useChores({ enabled: overlays.chores, includeFuture: true });
+  } = useChores({
+    enabled: !hasExternalChores && overlays.chores,
+    includeFuture: true,
+  });
 
   const {
     tasks,
@@ -126,18 +144,79 @@ export function useDayBucketsForRange({
   // OverlayItemsCell's muted={task.completed} → WeekItemCard styling, matching
   // how cooked meals stay visible. Hiding them outright was a usability gap
   // (a task you completed today disappears entirely from the calendar).
-  } = useTasks({ showCompleted: true, enabled: overlays.tasks });
+  } = useTasks({
+    showCompleted: true,
+    enabled: !hasExternalTasks && overlays.tasks,
+  });
 
-  const { data: weather } = useWeather();
+  const { data: ownWeather } = useWeather({ enabled: !hasExternalWeather });
+
+  const resolvedMeals = hasExternalMeals ? externalMeals! : (overlays.meals ? meals : EMPTY_MEALS);
+  const resolvedChores = hasExternalChores ? externalChores! : (overlays.chores ? chores : EMPTY_CHORES);
+  const resolvedTasks = hasExternalTasks ? externalTasks! : (overlays.tasks ? tasks : EMPTY_TASKS);
+  const weather = hasExternalWeather ? externalWeather : ownWeather;
 
   const bucketsByDate = useMemo<Map<string, DayBucket>>(() => {
     const map = new Map<string, DayBucket>();
     const start = startOfDay(from);
     const end = startOfDay(to);
 
-    const safeMeals = overlays.meals ? meals ?? EMPTY_MEALS : EMPTY_MEALS;
-    const safeChores = overlays.chores ? chores ?? EMPTY_CHORES : EMPTY_CHORES;
-    const safeTasks = overlays.tasks ? tasks ?? EMPTY_TASKS : EMPTY_TASKS;
+    // Index streams once per data change. The previous implementation scanned
+    // every event/meal/chore/task for every day in the range, which became
+    // needlessly expensive for month and multi-week views.
+    const eventsByDate = new Map<string, CalendarEvent[]>();
+    if (overlays.events) {
+      for (const event of events) {
+        if (event.endTime <= event.startTime) continue;
+        const firstDay = startOfDay(event.startTime);
+        const lastDay = startOfDay(new Date(event.endTime.getTime() - 1));
+        let cursor = firstDay < start ? start : firstDay;
+        const finalDay = lastDay > end ? end : lastDay;
+        while (cursor <= finalDay) {
+          const key = dateKey(cursor);
+          const bucket = eventsByDate.get(key);
+          if (bucket) bucket.push(event);
+          else eventsByDate.set(key, [event]);
+          cursor = addDays(cursor, 1);
+        }
+      }
+    }
+
+    const mealsByDay = new Map<DayOfWeek, Meal[]>();
+    if (overlays.meals) {
+      for (const meal of resolvedMeals) {
+        const bucket = mealsByDay.get(meal.dayOfWeek);
+        if (bucket) bucket.push(meal);
+        else mealsByDay.set(meal.dayOfWeek, [meal]);
+      }
+    }
+
+    const choresByDate = new Map<string, Chore[]>();
+    if (overlays.chores) {
+      for (const chore of resolvedChores) {
+        const key = choreDateKey(chore);
+        if (!key) continue;
+        const bucket = choresByDate.get(key);
+        if (bucket) bucket.push(chore);
+        else choresByDate.set(key, [chore]);
+      }
+    }
+
+    const tasksByDate = new Map<string, Task[]>();
+    if (overlays.tasks) {
+      for (const task of resolvedTasks) {
+        if (!task.dueDate) continue;
+        const key = dateKey(task.dueDate);
+        const bucket = tasksByDate.get(key);
+        if (bucket) bucket.push(task);
+        else tasksByDate.set(key, [task]);
+      }
+    }
+
+    const weatherByDate = new Map<string, NonNullable<WeatherData['forecast']>[number]>();
+    for (const forecast of weather?.forecast ?? []) {
+      weatherByDate.set(dateKey(forecast.date), forecast);
+    }
 
     let cursor = start;
     let safety = 0;
@@ -146,9 +225,7 @@ export function useDayBucketsForRange({
       const dayOfWeek = DAYS_OF_WEEK[date.getDay()] as DayOfWeek;
       const key = dateKey(date);
 
-      const dayEvents = overlays.events
-        ? events.filter((e) => eventOnDay(e, date))
-        : EMPTY_EVENTS;
+      const dayEvents = eventsByDate.get(key) ?? EMPTY_EVENTS;
       const allDayEvents = dayEvents
         .filter((e) => e.allDay)
         .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
@@ -156,23 +233,19 @@ export function useDayBucketsForRange({
         .filter((e) => !e.allDay)
         .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
-      const dayMeals = safeMeals
-        .filter((m) => m.dayOfWeek === dayOfWeek)
+      const dayMeals = (mealsByDay.get(dayOfWeek) ?? EMPTY_MEALS)
         .filter((m) => isMealForWeek(m, date))
         .sort((a, b) => MEAL_TYPE_ORDER[a.mealType] - MEAL_TYPE_ORDER[b.mealType]);
 
-      const dayChores = safeChores
-        .filter((c) => choreNextDueOnDay(c, date))
+      const dayChores = (choresByDate.get(key) ?? EMPTY_CHORES)
         .sort((a, b) => a.title.localeCompare(b.title));
 
-      const dayTasks = safeTasks
-        .filter((t) => t.dueDate && isSameDay(t.dueDate, date))
+      const dayTasks = (tasksByDate.get(key) ?? EMPTY_TASKS)
         .sort((a, b) => {
-          const order = { high: 0, medium: 1, low: 2 } as const;
-          return order[a.priority] - order[b.priority];
+          return TASK_PRIORITY_ORDER[a.priority] - TASK_PRIORITY_ORDER[b.priority];
         });
 
-      const dayWeather = weather?.forecast.find((f) => isSameDay(f.date, date));
+      const dayWeather = weatherByDate.get(key);
 
       map.set(key, {
         date,
@@ -192,28 +265,74 @@ export function useDayBucketsForRange({
     return map;
     // fromKey/toKey trigger recompute on actual date changes, not Date identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromKey, toKey, events, meals, chores, tasks, weather, overlays.events, overlays.meals, overlays.chores, overlays.tasks]);
+  }, [
+    fromKey,
+    toKey,
+    events,
+    resolvedMeals,
+    resolvedChores,
+    resolvedTasks,
+    weather,
+    overlays.events,
+    overlays.meals,
+    overlays.chores,
+    overlays.tasks,
+  ]);
 
   const loading =
     (overlays.events && fetchEvents && eventsLoading) ||
-    (overlays.meals && mealsLoading) ||
-    (overlays.chores && choresLoading) ||
-    (overlays.tasks && tasksLoading);
+    (overlays.meals && !hasExternalMeals && mealsLoading) ||
+    (overlays.chores && !hasExternalChores && choresLoading) ||
+    (overlays.tasks && !hasExternalTasks && tasksLoading);
 
   const error =
     (overlays.events && fetchEvents ? eventsError : null) ||
-    (overlays.meals ? mealsError : null) ||
-    (overlays.chores ? choresError : null) ||
-    (overlays.tasks ? tasksError : null);
+    (overlays.meals && !hasExternalMeals ? mealsError : null) ||
+    (overlays.chores && !hasExternalChores ? choresError : null) ||
+    (overlays.tasks && !hasExternalTasks ? tasksError : null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const promises: Promise<unknown>[] = [];
     if (fetchEvents && overlays.events) promises.push(refreshEvents());
-    if (overlays.meals) promises.push(refreshMeals());
-    if (overlays.chores) promises.push(refreshChores());
-    if (overlays.tasks) promises.push(refreshTasks());
+    if (overlays.meals) {
+      promises.push(
+        hasExternalMeals
+          ? (refreshExternalMeals?.() ?? Promise.resolve())
+          : refreshMeals(),
+      );
+    }
+    if (overlays.chores) {
+      promises.push(
+        hasExternalChores
+          ? (refreshExternalChores?.() ?? Promise.resolve())
+          : refreshChores(),
+      );
+    }
+    if (overlays.tasks) {
+      promises.push(
+        hasExternalTasks
+          ? (refreshExternalTasks?.() ?? Promise.resolve())
+          : refreshTasks(),
+      );
+    }
     await Promise.all(promises);
-  };
+  }, [
+    fetchEvents,
+    hasExternalChores,
+    hasExternalMeals,
+    hasExternalTasks,
+    overlays.chores,
+    overlays.events,
+    overlays.meals,
+    overlays.tasks,
+    refreshEvents,
+    refreshExternalChores,
+    refreshExternalMeals,
+    refreshExternalTasks,
+    refreshChores,
+    refreshMeals,
+    refreshTasks,
+  ]);
 
   return { bucketsByDate, loading: Boolean(loading), error: error ?? null, refresh };
 }

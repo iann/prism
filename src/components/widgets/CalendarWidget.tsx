@@ -36,6 +36,8 @@ import { useCalendarWidgetPrefs, VIEW_OPTIONS } from '@/lib/hooks/useCalendarWid
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { CalendarWidgetControls } from './CalendarWidgetControls';
 import type { CalendarEvent } from '@/types/calendar';
+import type { Chore, Meal, Task } from '@/types';
+import type { WeatherData } from './WeatherWidget';
 export type { CalendarEvent };
 
 const MonthView = lazy(() =>
@@ -61,6 +63,15 @@ export interface CalendarWidgetProps {
   events?: CalendarEvent[];
   loading?: boolean;
   error?: string | null;
+  /** Shared dashboard data for calendar overlays; omitted on standalone pages. */
+  overlayMeals?: Meal[];
+  overlayChores?: Chore[];
+  overlayTasks?: Task[];
+  overlayWeather?: WeatherData | null;
+  refreshOverlayMeals?: () => Promise<void>;
+  refreshOverlayChores?: () => Promise<void>;
+  refreshOverlayTasks?: () => Promise<void>;
+  refreshEvents?: () => Promise<void>;
   onEventClick?: (event: CalendarEvent) => void;
   titleHref?: string;
   className?: string;
@@ -74,6 +85,14 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   events: externalEvents,
   loading: externalLoading,
   error: externalError,
+  overlayMeals,
+  overlayChores,
+  overlayTasks,
+  overlayWeather,
+  refreshOverlayMeals,
+  refreshOverlayChores,
+  refreshOverlayTasks,
+  refreshEvents: refreshExternalEvents,
   onEventClick,
   titleHref,
   className,
@@ -119,7 +138,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
     events: apiEvents,
     loading: apiLoading,
     error: apiError,
-    refresh: refreshEvents,
+    refresh: refreshApiEvents,
   } = useCalendarEvents({
     daysToShow: 60,
     enabled: !hasExternalEvents,
@@ -129,6 +148,9 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   const loading = externalLoading ?? apiLoading;
   const error = externalError ?? apiError;
   const rawEvents = externalEvents ?? apiEvents;
+  const refreshEvents = hasExternalEvents
+    ? (refreshExternalEvents ?? refreshApiEvents)
+    : refreshApiEvents;
   const events = useMemo(
     () => deduplicateEvents(filterEvents(rawEvents)),
     [filterEvents, rawEvents]
@@ -179,6 +201,13 @@ export const CalendarWidget = React.memo(function CalendarWidget({
     to: bucketsTo,
     overlays: effectiveOverlays,
     externalEvents: events,
+    externalMeals: overlayMeals,
+    externalChores: overlayChores,
+    externalTasks: overlayTasks,
+    externalWeather: overlayWeather,
+    refreshMeals: refreshOverlayMeals,
+    refreshChores: refreshOverlayChores,
+    refreshTasks: refreshOverlayTasks,
   });
 
   // Hide events from the calendar surface when the events overlay is off.
