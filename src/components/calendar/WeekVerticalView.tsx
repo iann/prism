@@ -18,6 +18,7 @@ import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import type { CalendarNote } from '@/lib/hooks/useCalendarNotes';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { DroppableOverlayCell, useDayDroppable, type OverlayItemRef } from './cells';
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 
 export interface WeekVerticalViewProps {
   currentDate: Date;
@@ -75,7 +76,7 @@ export function WeekVerticalView({
     ? calendarGroups.filter((g) => selectedCalendarIds.has(g.id))
     : calendarGroups;
   const displayGroups = showAllInOne || filteredGroups.length === 0
-    ? [{ id: 'all', name: 'All Events', color: '#3B82F6' }]
+    ? [{ id: 'all', name: 'All Events', color: 'currentColor' }]
     : filteredGroups;
 
   const getEventsForGroup = (dayEvents: CalendarEvent[], gid: string) => {
@@ -92,8 +93,14 @@ export function WeekVerticalView({
           {displayGroups.map((group) => (
             <div key={group.id} className="flex-1 min-w-0 px-1 py-1">
               <div
-                className="text-sm font-medium text-center py-1 rounded"
-                style={{ backgroundColor: group.color, color: contrastText(group.color) }}
+                className={cn(
+                  'text-sm font-medium text-center py-1 rounded',
+                  group.id === 'all' && 'bg-primary text-primary-foreground'
+                )}
+                style={group.id === 'all'
+                  ? undefined
+                  : { backgroundColor: group.color, color: contrastText(group.color) }
+                }
               >
                 {group.name}
               </div>
@@ -101,10 +108,7 @@ export function WeekVerticalView({
           ))}
           {showNotes && (
             <div className="w-2/5 min-w-[180px] border-l border-border px-1 py-1">
-              <div
-                className="text-sm font-medium text-center py-1 rounded"
-                style={{ backgroundColor: '#6366f1', color: contrastText('#6366f1') }}
-              >
+              <div className="text-sm font-medium text-center py-1 rounded bg-primary text-primary-foreground">
                 Notes
               </div>
             </div>
@@ -200,7 +204,10 @@ function WeekListDayRow({
       className={cn(
         'flex',
         bordered && 'border-b border-border',
+        !cellBgStyle && 'bg-calendar-surface',
         isPast && !isCurrentDay && !cellBgStyle && 'bg-muted/15',
+        isCurrentDay && !cellBgStyle && 'bg-calendar-today',
+        isCurrentDay && 'ring-1 ring-inset ring-ring',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-lg',
       )}
       style={cellBgStyle}
@@ -210,24 +217,23 @@ function WeekListDayRow({
           'w-16 shrink-0 p-2 flex flex-col items-center justify-start',
           bordered && 'border-r border-border',
           isPast && !isCurrentDay && 'bg-muted/15',
-          isCurrentDay && 'bg-primary text-primary-foreground',
         )}
       >
         <span className={cn(
           'text-xs font-medium uppercase tracking-wide',
-          isCurrentDay ? 'text-primary-foreground' : 'text-muted-foreground'
+          isCurrentDay ? 'text-foreground' : 'text-muted-foreground'
         )}>
           {format(day, 'EEE')}
         </span>
         <span className={cn(
           'text-2xl font-bold leading-tight',
-          isCurrentDay ? 'text-primary-foreground' : 'text-foreground'
+          'text-foreground'
         )}>
           {format(day, 'd')}
         </span>
         <span className={cn(
           'text-[12px]',
-          isCurrentDay ? 'text-primary-foreground/80' : 'text-muted-foreground'
+          isCurrentDay ? 'text-foreground' : 'text-muted-foreground'
         )}>
           {format(day, 'MMM')}
         </span>
@@ -361,7 +367,7 @@ function DayEventList({
           style={
             cards
               ? { borderLeft: `3px solid ${event.color}` }
-              : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `3px solid ${event.color}` }
+              : inlineAllDayEventStyle(event.color, 3)
           }
         >
           <span className={cn('font-medium', cards ? 'text-foreground' : undefined)}>{event.title}</span>
@@ -383,7 +389,7 @@ function DayEventList({
             style={
               cards
                 ? { borderLeft: `3px solid ${event.color}` }
-                : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `3px solid ${event.color}` }
+                : inlineTimedEventStyle(event.color, 3)
             }
           >
             <span className={cn('mr-1', cards ? 'text-muted-foreground' : 'opacity-80')}>{format(new Date(event.startTime), 'h:mm a')}</span>

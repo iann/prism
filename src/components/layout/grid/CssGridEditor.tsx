@@ -14,7 +14,14 @@ import {
   type Modifier,
 } from '@dnd-kit/core';
 import { WidgetBgOverrideProvider } from '@/components/widgets/WidgetContainer';
-import { getWidgetStyle, getWidgetContentStyle, getTextColorClass } from './gridWidgetStyles';
+import {
+  CUSTOM_WIDGET_SHELL_CLASS,
+  getEffectiveWidgetTextColor,
+  getWidgetStyle,
+  getWidgetContentStyle,
+  getTextColorClass,
+  hasCustomWidgetShell,
+} from './gridWidgetStyles';
 import type { EditorTheme } from './gridEditorTypes';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { getWidgetType } from '@/lib/utils/widgetInstances';
@@ -309,6 +316,8 @@ function DragOverlayContent({
   const widgetStyle = getWidgetStyle(widget);
   const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget);
+  const hasCustomShell = hasCustomWidgetShell(widget);
+  const effectiveTextColor = getEffectiveWidgetTextColor(widget);
 
   return (
     <div
@@ -316,14 +325,19 @@ function DragOverlayContent({
         width: widget.w * cellSize + (widget.w - 1) * margin,
         height: widget.h * cellSize + (widget.h - 1) * margin,
         ...widgetStyle,
+        borderWidth: '2px',
+        borderColor: 'hsl(var(--primary))',
         opacity: 0.85,
       }}
-      className={`rounded-lg border-2 border-primary shadow-lg ${textClass}`}
+      className={`rounded-xl border-2 border-primary shadow-lg ${textClass}`}
     >
       <WidgetBgOverrideProvider
         value={{
           hasCustomBg: !!widget.backgroundColor,
-          textColor: widget.textColor,
+          hasCustomShell,
+          backgroundColor: widget.backgroundColor,
+          backgroundOpacity: widget.backgroundOpacity,
+          textColor: effectiveTextColor,
           textOpacity: widget.textOpacity,
           gridLineOpacity: widget.gridLineOpacity,
           cellBackgroundColor: widget.cellBackgroundColor,
@@ -378,6 +392,8 @@ function DraggableWidget({
   const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget, '');
   const hasCustomBg = !!widget.backgroundColor;
+  const hasCustomShell = hasCustomWidgetShell(widget);
+  const effectiveTextColor = getEffectiveWidgetTextColor(widget);
 
   // Ring color: blue for move, orange for resize
   const ringClass = isSelected
@@ -389,7 +405,7 @@ function DraggableWidget({
   return (
     <div
       ref={setNodeRef}
-      className={`relative ${inResizeMode ? '' : 'cursor-grab active:cursor-grabbing'} ${ringClass} ${isDragging ? 'opacity-30' : ''}`}
+      className={`relative ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${inResizeMode ? '' : 'cursor-grab active:cursor-grabbing'} ${ringClass} ${isDragging ? 'opacity-30' : ''}`}
       style={{
         gridColumn: `${pos.x + 1} / span ${pos.w}`,
         gridRow: `${pos.y + 1} / span ${pos.h}`,
@@ -414,7 +430,7 @@ function DraggableWidget({
               ? 'border-solid border-orange-500'
               : 'border-dashed border-blue-500'
             : `border-dashed ${theme.borderDash}`
-        } pointer-events-none rounded-lg`}
+        } pointer-events-none rounded-xl`}
       />
 
       {/* Widget content — interactivity disabled in edit mode so a stray
@@ -426,7 +442,10 @@ function DraggableWidget({
       <WidgetBgOverrideProvider
         value={{
           hasCustomBg,
-          textColor: widget.textColor,
+          hasCustomShell,
+          backgroundColor: widget.backgroundColor,
+          backgroundOpacity: widget.backgroundOpacity,
+          textColor: effectiveTextColor,
           textOpacity: widget.textOpacity,
           gridLineOpacity: widget.gridLineOpacity,
           cellBackgroundColor: widget.cellBackgroundColor,

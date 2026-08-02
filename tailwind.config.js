@@ -44,6 +44,10 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        calendar: {
+          surface: 'hsl(var(--calendar-surface))',
+          today: 'hsl(var(--calendar-today))',
+        },
         seasonal: {
           accent: 'hsl(var(--seasonal-accent))',
           'accent-foreground': 'hsl(var(--seasonal-accent-foreground))',

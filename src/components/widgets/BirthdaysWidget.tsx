@@ -35,8 +35,8 @@ function formatDate(dateStr: string): string {
 
 function daysUntilColor(days: number): string {
   if (days === 0) return 'text-primary font-bold';
-  if (days < 7) return 'text-red-500 font-semibold';
-  if (days < 30) return 'text-amber-500';
+  if (days < 7) return 'text-destructive font-semibold';
+  if (days < 30) return 'text-primary';
   return 'text-muted-foreground';
 }
 

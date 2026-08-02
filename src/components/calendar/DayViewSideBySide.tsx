@@ -21,6 +21,7 @@ import { DroppableOverlayCell, useDayDroppable, getMealTime, getChoreTime, getTa
 import { WeekItemCard } from './cells/WeekItemCard';
 import { getTimedEventContentVisibility } from './timedEventDensity';
 import { useMeasuredHourRowHeight } from './useMeasuredHourRowHeight';
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 
 export interface DayViewSideBySideProps {
   currentDate: Date;
@@ -102,7 +103,7 @@ export function DayViewSideBySide({
 
   // For single-column mode or when no groups are selected, create a synthetic group
   const displayGroups = showAllInOne || filteredGroups.length === 0
-    ? [{ id: 'all', name: 'All Events', color: '#3B82F6' }]
+    ? [{ id: 'all', name: 'All Events', color: 'currentColor' }]
     : filteredGroups;
 
   const getEventsForGroup = (gid: string) => {
@@ -127,14 +128,14 @@ export function DayViewSideBySide({
       data-droppable-day={cards && enableDnd ? droppable.droppableId : undefined}
       className={cn(
         'h-full rounded-md overflow-hidden',
-        !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm',
+        !transparentMode && (isCurrentDay ? 'bg-calendar-today' : 'bg-calendar-surface'),
         cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-lg',
       )}
     >
       <div className="h-full overflow-y-auto">
         <div className="h-full min-h-full flex flex-col">
           {/* Sticky all-day / group-label header */}
-          <div className={cn('flex sticky top-0 z-20', !transparentMode && 'bg-card dark:bg-card/95')}>
+          <div className={cn('flex sticky top-0 z-20', !transparentMode && (isCurrentDay ? 'bg-calendar-today' : 'bg-calendar-surface'))}>
             {/* Time column header with toggle button */}
             <div className="w-16 flex-shrink-0 flex items-center justify-center">
               <button
@@ -142,7 +143,7 @@ export function DayViewSideBySide({
                 className={cn(
                   'p-1.5 rounded-full transition-colors',
                   hiddenSettings.enabled
-                    ? 'bg-blue-500 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-accent text-muted-foreground'
                 )}
                 title={hiddenSettings.enabled ? 'Show all hours' : 'Hide time block'}
@@ -182,8 +183,14 @@ export function DayViewSideBySide({
               return (
                 <div key={group.id} className="flex-1 min-w-0 border-l border-border p-1">
                   <div
-                    className="text-sm font-medium text-center py-1 mb-1 rounded"
-                    style={{ backgroundColor: group.color, color: contrastText(group.color) }}
+                    className={cn(
+                      'text-sm font-medium text-center py-1 mb-1 rounded',
+                      group.id === 'all' && 'bg-primary text-primary-foreground'
+                    )}
+                    style={group.id === 'all'
+                      ? undefined
+                      : { backgroundColor: group.color, color: contrastText(group.color) }
+                    }
                   >
                     {group.name}
                   </div>
@@ -200,7 +207,7 @@ export function DayViewSideBySide({
                           style={
                             cards
                               ? { borderLeft: `3px solid ${event.color}` }
-                              : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
+                              : inlineAllDayEventStyle(event.color)
                           }
                         >
                           {event.title}
@@ -226,10 +233,7 @@ export function DayViewSideBySide({
             })}
             {showNotes && (
               <div className="w-2/5 min-w-[180px] border-l border-border p-1">
-                <div
-                  className="text-sm font-medium text-center py-1 mb-1 rounded"
-                  style={{ backgroundColor: '#6366f1', color: contrastText('#6366f1') }}
-                >
+                <div className="text-sm font-medium text-center py-1 mb-1 rounded bg-primary text-primary-foreground">
                   Notes
                 </div>
               </div>
@@ -337,9 +341,7 @@ export function DayViewSideBySide({
                                       width: css.width,
                                     }
                                   : {
-                                      backgroundColor: event.color,
-                                      color: contrastText(event.color),
-                                      borderLeft: `2px solid ${event.color}`,
+                                      ...inlineTimedEventStyle(event.color),
                                       top: `${(event.startTime.getMinutes() / 60) * 100}%`,
                                       height: `${heightPct}%`,
                                       left: css.left,

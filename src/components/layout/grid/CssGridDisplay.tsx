@@ -3,7 +3,14 @@
 import * as React from 'react';
 import { memo, useMemo } from 'react';
 import { WidgetBgOverrideProvider } from '@/components/widgets/WidgetContainer';
-import { getWidgetStyle, getWidgetContentStyle, getTextColorClass } from './gridWidgetStyles';
+import {
+  CUSTOM_WIDGET_SHELL_CLASS,
+  getEffectiveWidgetTextColor,
+  getWidgetStyle,
+  getWidgetContentStyle,
+  getTextColorClass,
+  hasCustomWidgetShell,
+} from './gridWidgetStyles';
 import { useSquareCells } from './useSquareCells';
 import { GRID_COLS } from '@/lib/constants/grid';
 import type { CssGridDisplayProps } from './gridEditorTypes';
@@ -81,9 +88,14 @@ const WidgetCell = memo(function WidgetCell({
   const widgetStyle = getWidgetStyle(widget);
   const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget);
+  const hasCustomShell = hasCustomWidgetShell(widget);
+  const effectiveTextColor = getEffectiveWidgetTextColor(widget);
   const background = {
     hasCustomBg: !!widget.backgroundColor,
-    textColor: widget.textColor,
+    hasCustomShell,
+    backgroundColor: widget.backgroundColor,
+    backgroundOpacity: widget.backgroundOpacity,
+    textColor: effectiveTextColor,
     textOpacity: widget.textOpacity,
     gridLineOpacity: widget.gridLineOpacity,
     cellBackgroundColor: widget.cellBackgroundColor,
@@ -92,7 +104,7 @@ const WidgetCell = memo(function WidgetCell({
 
   return (
     <div
-      className={`widget-cell relative overflow-hidden ${textClass}`}
+      className={`widget-cell relative overflow-hidden ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${textClass}`}
       data-widget={getWidgetType(widget)}
       data-widget-instance={widget.i}
       style={{

@@ -37,7 +37,14 @@ import * as React from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
-import { isLightColor, hexToHslValues, hexToRgba } from '@/lib/utils/color';
+import {
+  colorContrastRatio,
+  contrastText,
+  isLightColor,
+  hexToHslValues,
+  hexToRgba,
+  parseHexColor,
+} from '@/lib/utils/color';
 
 /**
  * WIDGET ALIGNMENT
@@ -58,7 +65,9 @@ export function useWidgetAlignments() {
     try {
       const stored = localStorage.getItem(ALIGNMENT_STORAGE_KEY);
       return stored ? JSON.parse(stored) : {};
-    } catch { return {}; }
+    } catch {
+      return {};
+    }
   });
 
   const setAlignment = React.useCallback((widgetId: string, alignment: WidgetAlignment) => {
@@ -76,10 +85,22 @@ export function useWidgetAlignments() {
 const WidgetAlignmentContext = React.createContext<Record<string, WidgetAlignment>>({});
 export const WidgetAlignmentProvider = WidgetAlignmentContext.Provider;
 
-// Context for grid-level background override — when the grid wrapper applies a custom
-// background, the Card strips its own bg/border/shadow so there's no double background.
-// Also carries explicit textColor so WidgetContainer can apply it on the Card.
-const WidgetBgOverrideContext = React.createContext<{ hasCustomBg: boolean; textColor?: string; textOpacity?: number; gridLineOpacity?: number; cellBackgroundColor?: string; cellBackgroundOpacity?: number } | null>(null);
+// Context for grid-level styling overrides. The outer grid cell owns customized
+// background/border/radius/shadow chrome; WidgetContainer strips only the
+// duplicate pieces and keeps semantic tokens synchronized with the resolved colors.
+export type WidgetBgOverrideValue = {
+  hasCustomBg: boolean;
+  hasCustomShell?: boolean;
+  backgroundColor?: string;
+  backgroundOpacity?: number;
+  textColor?: string;
+  textOpacity?: number;
+  gridLineOpacity?: number;
+  cellBackgroundColor?: string;
+  cellBackgroundOpacity?: number;
+};
+
+const WidgetBgOverrideContext = React.createContext<WidgetBgOverrideValue | null>(null);
 export const WidgetBgOverrideProvider = WidgetBgOverrideContext.Provider;
 
 /** Hook for sub-components (e.g. calendar views) to check if widget has custom bg */
@@ -103,6 +124,49 @@ const vAlignClass: Record<VAlign, string> = {
   bottom: 'justify-end',
 };
 
+/**
+ * Mix two opaque hex colors and return a CSS-safe opaque hex value. Keeping
+ * derived semantic tokens opaque lets Tailwind opacity modifiers such as
+ * `border-border/40` compose without producing a double-alpha declaration.
+ */
+function mixHexColors(background: string, foreground: string, foregroundWeight: number): string {
+  const bg = parseHexColor(background) ?? parseHexColor('#000000')!;
+  const fg = parseHexColor(foreground) ?? parseHexColor('#FFFFFF')!;
+  const weight = Math.max(0, Math.min(1, foregroundWeight));
+  const channel = (back: number, front: number) =>
+    Math.round(back * (1 - weight) + front * weight)
+      .toString(16)
+      .padStart(2, '0');
+
+  return `#${channel(bg.r, fg.r)}${channel(bg.g, fg.g)}${channel(bg.b, fg.b)}`;
+}
+
+function readableTodayColor(background: string, foreground: string): string {
+  for (const weight of [0.12, 0.08, 0.04]) {
+    const candidate = mixHexColors(background, foreground, weight);
+    if (colorContrastRatio(foreground, candidate) >= 4.5) return candidate;
+  }
+  return mixHexColors(background, foreground, 0);
+}
+
+/** Find the lightest visual blend that reaches the requested contrast. */
+function contrastMixColor(
+  background: string,
+  foreground: string,
+  minimumContrast: number,
+  strength = 1
+): string {
+  let requiredWeight = 1;
+  for (let step = 1; step <= 20; step += 1) {
+    const weight = step / 20;
+    const candidate = mixHexColors(background, foreground, weight);
+    if (colorContrastRatio(candidate, background) >= minimumContrast) {
+      requiredWeight = weight;
+      break;
+    }
+  }
+  return mixHexColors(background, foreground, requiredWeight * Math.max(0, Math.min(1, strength)));
+}
 
 /**
  * WIDGET SIZE
@@ -110,7 +174,6 @@ const vAlignClass: Record<VAlign, string> = {
  * These map to grid column/row spans.
  */
 export type WidgetSize = 'small' | 'medium' | 'large' | 'wide' | 'tall';
-
 
 /**
  * WIDGET CONTAINER PROPS
@@ -147,7 +210,6 @@ export interface WidgetContainerProps {
   /** Click handler for the entire widget */
   onClick?: () => void;
 }
-
 
 /**
  * WIDGET CONTAINER COMPONENT
@@ -199,10 +261,15 @@ export function WidgetContainer({
   const resolvedId = widgetId || contextWidgetId;
   const alignment = alignmentProp || (resolvedId ? contextAlignments[resolvedId] : undefined);
 
-  // When grid-level background is applied, strip Card's own bg so it doesn't double up
+  // When grid-level chrome is applied, strip the Card pieces now owned by the
+  // outer cell. An outline-only override keeps the preset Card background.
   const bgOverride = React.useContext(WidgetBgOverrideContext);
   const stripCardBg = bgOverride?.hasCustomBg === true;
+  const stripCardChrome = bgOverride?.hasCustomShell ?? stripCardBg;
+  const customBackgroundColor = bgOverride?.backgroundColor ?? backgroundColor;
+  const customBackgroundOpacity = bgOverride?.backgroundOpacity ?? 1;
   const overrideTextColor = bgOverride?.textColor;
+  const overrideTextOpacity = bgOverride?.textOpacity ?? 1;
   const overrideGridLineOpacity = bgOverride?.gridLineOpacity ?? 1;
 
   // Size classes for the grid
@@ -225,23 +292,28 @@ export function WidgetContainer({
         // (CSS Grid gives the content row a definite height, enabling ScrollArea h-full)
         'grid overflow-hidden',
         // Interactive cursor if clickable
-        onClick && 'cursor-pointer hover:shadow-md transition-shadow',
-        // Strip Card styling when grid-level background is applied
-        stripCardBg && 'backdrop-blur-none border-transparent shadow-none',
-        // Auto text color based on background luminance (skipped when explicit textColor override)
-        !overrideTextColor && backgroundColor && (isLightColor(backgroundColor) ? 'text-black' : 'text-white'),
+        onClick && 'cursor-pointer transition-shadow hover:shadow-md',
+        // Strip Card styling already supplied by the customized grid shell.
+        stripCardBg && 'backdrop-blur-none',
+        stripCardChrome && 'border-transparent shadow-none',
+        // Direct-use fallback; grid-rendered widgets receive their resolved color via context.
+        !overrideTextColor &&
+          backgroundColor &&
+          (isLightColor(backgroundColor) ? 'text-black' : 'text-white'),
         className
       )}
       onClick={onClick}
       data-widget={widgetType ?? title}
-      data-theme-surface={stripCardBg ? 'custom' : 'preset'}
+      data-theme-surface={stripCardBg || !!overrideTextColor || !!backgroundColor ? 'custom' : 'preset'}
       style={{
         // Grid rows: auto for header (if present), 1fr for content
         gridTemplateRows: showHeader && title ? 'auto 1fr' : '1fr',
         ...(stripCardBg
           ? { backgroundColor: 'transparent' }
-          : backgroundColor ? { backgroundColor } : {}),
-        ...((() => {
+          : backgroundColor
+            ? { backgroundColor }
+            : {}),
+        ...(() => {
           // Two override surfaces, applied INDEPENDENTLY:
           //
           //   (1) Widget has its own backgroundColor — inner BG tokens
@@ -264,86 +336,126 @@ export function WidgetContainer({
           // faint text-color tint when one is set, falls back to a
           // theme-anchored low-alpha when neither is.
           const hasSolidWidgetBg =
-            !!backgroundColor &&
-            backgroundColor !== 'transparent' &&
-            backgroundColor !== 'frosted';
+            !!customBackgroundColor &&
+            customBackgroundColor !== 'transparent' &&
+            customBackgroundColor !== 'frosted' &&
+            customBackgroundOpacity >= 1 &&
+            parseHexColor(customBackgroundColor)?.a === 1;
 
-          if (!overrideTextColor && !hasSolidWidgetBg) return {};
+          // Grid adapters resolve persisted overrides before they reach this
+          // component. Keep the direct backgroundColor prop safe as well.
+          const effectiveTextColor =
+            overrideTextColor ??
+            (hasSolidWidgetBg ? contrastText(customBackgroundColor) : undefined);
+
+          if (!effectiveTextColor && !hasSolidWidgetBg) return {};
 
           const styles: Record<string, string> = {};
 
           // ---- Text-color side ----
           let textHsl: string | null = null;
           let textIsLight = false;
-          if (overrideTextColor) {
-            textHsl = hexToHslValues(overrideTextColor);
-            textIsLight = isLightColor(overrideTextColor);
-            const mutedHslVal = `${textHsl} / 0.6`;
-            const borderOpacity = overrideGridLineOpacity < 1 ? overrideGridLineOpacity : 1;
-            const borderHslVal = borderOpacity < 1 ? `${textHsl} / ${borderOpacity}` : textHsl;
-            styles.color = overrideTextColor;
+          if (effectiveTextColor) {
+            textHsl = hexToHslValues(effectiveTextColor);
+            textIsLight = isLightColor(effectiveTextColor);
+            styles.color =
+              overrideTextOpacity < 1
+                ? hexToRgba(effectiveTextColor, overrideTextOpacity)
+                : effectiveTextColor;
             styles['--foreground'] = textHsl;
             styles['--card-foreground'] = textHsl;
             styles['--popover-foreground'] = textHsl;
-            styles['--muted-foreground'] = mutedHslVal;
             styles['--secondary-foreground'] = textHsl;
+            styles['--accent-foreground'] = textHsl;
             styles['--seasonal-accent'] = textHsl;
-            styles['--input'] = borderHslVal;
-            styles['--border'] = borderHslVal;
+
+            // Solid custom surfaces need boundaries derived from the resolved
+            // foreground, but full-strength text-colored lines are visually
+            // harsh. Transparent/frosted/text-only overrides retain the
+            // palette's semantic --border and --input values.
+            if (hasSolidWidgetBg) {
+              const requestedStrength = Math.max(0, Math.min(1, overrideGridLineOpacity));
+              styles['--border'] = hexToHslValues(
+                contrastMixColor(customBackgroundColor!, effectiveTextColor, 3, requestedStrength)
+              );
+              styles['--input'] = hexToHslValues(
+                contrastMixColor(customBackgroundColor!, effectiveTextColor, 3.5, requestedStrength)
+              );
+            }
           }
 
           // ---- Inner-BG side ----
           if (hasSolidWidgetBg) {
-            const widgetHsl = hexToHslValues(backgroundColor!);
+            const widgetHsl = hexToHslValues(customBackgroundColor!);
+            const accentHex = mixHexColors(customBackgroundColor!, effectiveTextColor!, 0.12);
             styles['--card'] = widgetHsl;
             styles['--popover'] = widgetHsl;
             styles['--muted'] = widgetHsl;
             styles['--secondary'] = widgetHsl;
             styles['--background'] = widgetHsl;
-            styles['--accent'] = textHsl ? `${textHsl} / 0.12` : `${widgetHsl} / 0.6`;
+            styles['--accent'] = hexToHslValues(accentHex);
+            styles['--muted-foreground'] = hexToHslValues(
+              contrastMixColor(customBackgroundColor!, effectiveTextColor!, 4.5)
+            );
+            styles['--calendar-surface'] = widgetHsl;
+            styles['--calendar-today'] = hexToHslValues(
+              readableTodayColor(customBackgroundColor!, effectiveTextColor!)
+            );
           } else if (overrideTextColor) {
             // Auto-flip fallback (transparent / frosted widget with text-color override)
-            styles['--card'] = textIsLight ? '0 0% 0% / 0.55' : '0 0% 100% / 0.85';
-            styles['--popover'] = textIsLight ? '0 0% 8% / 0.95' : '0 0% 100% / 0.95';
-            styles['--accent'] = textIsLight ? '0 0% 100% / 0.12' : '0 0% 0% / 0.08';
-            styles['--background'] = textIsLight ? '0 0% 0% / 0.4' : '0 0% 100% / 0.7';
-            styles['--muted'] = textIsLight ? '0 0% 100% / 0.08' : '0 0% 0% / 0.06';
-            styles['--secondary'] = textIsLight ? '0 0% 100% / 0.15' : '0 0% 0% / 0.1';
+            const fallbackBackground = textIsLight ? '#000000' : '#FFFFFF';
+            const fallbackHsl = hexToHslValues(fallbackBackground);
+            if (!stripCardBg) {
+              styles.backgroundColor = textIsLight
+                ? 'rgba(0,0,0,0.55)'
+                : 'rgba(255,255,255,0.85)';
+            }
+            styles['--card'] = fallbackHsl;
+            styles['--popover'] = hexToHslValues(
+              mixHexColors(fallbackBackground, overrideTextColor, 0.08)
+            );
+            styles['--accent'] = hexToHslValues(
+              mixHexColors(fallbackBackground, overrideTextColor, 0.12)
+            );
+            styles['--background'] = fallbackHsl;
+            styles['--muted'] = hexToHslValues(
+              mixHexColors(fallbackBackground, overrideTextColor, 0.08)
+            );
+            styles['--secondary'] = hexToHslValues(
+              mixHexColors(fallbackBackground, overrideTextColor, 0.15)
+            );
+            styles['--muted-foreground'] = hexToHslValues(
+              mixHexColors(fallbackBackground, overrideTextColor, 0.65)
+            );
+            styles['--calendar-surface'] = textIsLight
+              ? '0 0% 0% / 0.55'
+              : '0 0% 100% / 0.85';
+            styles['--calendar-today'] = textIsLight
+              ? '0 0% 0% / 0.72'
+              : '0 0% 100% / 0.72';
           }
 
           return styles as unknown as React.CSSProperties;
-        })()),
+        })(),
       }}
     >
       {/* WIDGET HEADER */}
       {showHeader && title && (
-        <CardHeader className="flex-shrink-0 flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-shrink-0 flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center gap-2">
             {/* Icon */}
-            {icon && (
-              <span className="text-seasonal-accent">
-                {icon}
-              </span>
-            )}
+            {icon && <span className="text-seasonal-accent">{icon}</span>}
             {/* Title - clickable link if titleHref provided */}
             {titleHref ? (
               <Link href={titleHref} prefetch={false} className="hover:underline">
-                <CardTitle className="text-base font-medium">
-                  {title}
-                </CardTitle>
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
               </Link>
             ) : (
-              <CardTitle className="text-base font-medium">
-                {title}
-              </CardTitle>
+              <CardTitle className="text-base font-medium">{title}</CardTitle>
             )}
           </div>
           {/* Action buttons */}
-          {actions && (
-            <div className="flex items-center gap-1">
-              {actions}
-            </div>
-          )}
+          {actions && <div className="flex items-center gap-1">{actions}</div>}
         </CardHeader>
       )}
 
@@ -351,25 +463,21 @@ export function WidgetContainer({
       <CardContent
         className={cn(
           // Fill remaining space; min-h-0 prevents grid row overflow
-          'flex flex-col min-h-0',
+          'flex min-h-0 flex-col',
           // Clip content overflow (individual widgets use ScrollArea for scrolling)
           'overflow-hidden',
           // Remove padding if no header
           !showHeader && 'pt-4',
           // Per-widget alignment
           alignment && hAlignClass[alignment.horizontal],
-          alignment && vAlignClass[alignment.vertical],
+          alignment && vAlignClass[alignment.vertical]
         )}
       >
         {/* Loading State */}
-        {loading && (
-          <WidgetLoading />
-        )}
+        {loading && <WidgetLoading />}
 
         {/* Error State */}
-        {error && !loading && (
-          <WidgetError message={error} />
-        )}
+        {error && !loading && <WidgetError message={error} />}
 
         {/* Normal Content */}
         {!loading && !error && children}
@@ -377,7 +485,6 @@ export function WidgetContainer({
     </Card>
   );
 }
-
 
 /**
  * WIDGET LOADING
@@ -387,16 +494,15 @@ export function WidgetContainer({
 function WidgetLoading() {
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <div className="space-y-3 w-full">
+      <div className="w-full space-y-3">
         {/* Skeleton lines */}
-        <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
-        <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
-        <div className="h-4 bg-muted animate-pulse rounded w-2/3" />
+        <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+        <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+        <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
       </div>
     </div>
   );
 }
-
 
 /**
  * WIDGET ERROR
@@ -405,13 +511,12 @@ function WidgetLoading() {
  */
 function WidgetError({ message }: { message: string }) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center text-center p-4">
-      <div className="text-destructive text-4xl mb-2">⚠️</div>
+    <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
+      <div className="mb-2 text-4xl text-destructive">⚠️</div>
       <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
 }
-
 
 /**
  * WIDGET EMPTY
@@ -439,12 +544,8 @@ export function WidgetEmpty({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center text-center p-4 gap-3">
-      {icon && (
-        <div className="text-muted-foreground text-4xl">
-          {icon}
-        </div>
-      )}
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-4 text-center">
+      {icon && <div className="text-4xl text-muted-foreground">{icon}</div>}
       <p className="text-sm text-muted-foreground">{message}</p>
       {action}
     </div>

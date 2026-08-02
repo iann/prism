@@ -8,6 +8,7 @@
 import { createDAVClient, type DAVCalendar, type DAVObject } from 'tsdav';
 import ICAL from 'ical.js';
 import { validatePublicUrl, UnsafeUrlError } from '@/lib/utils/safeFetch';
+import { parseHexColor } from '@/lib/utils/color';
 
 /**
  * Guard a user-supplied CalDAV server URL before handing it to tsdav.
@@ -167,18 +168,18 @@ export async function discoverCalendars(
 
 /**
  * Coerce a CalDAV-reported color string to the #RRGGBB form our schema
- * stores (varchar(7)). Apple iCloud returns colors as `#RRGGBBAA` with an
- * alpha channel appended — that's 9 chars and overflows the column. Strip
- * the alpha when present, accept #RRGGBB and #RGB as-is, drop anything
- * that doesn't parse so callers can fall back to their default color.
+ * stores (varchar(7)). Apple iCloud may return shorthand or an appended
+ * alpha channel; expand shorthand and deliberately drop alpha before storage.
+ * Drop anything that does not parse so callers can use their default color.
  */
 function normalizeCalDAVColor(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const s = raw.trim();
-  if (/^#[0-9a-fA-F]{8}$/.test(s)) return s.slice(0, 7); // #RRGGBBAA → #RRGGBB
-  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s;
-  if (/^#[0-9a-fA-F]{3}$/.test(s)) return s;
-  return null;
+  // CalDAV's calendar-color property uses CSS hash notation. Keep rejecting
+  // non-standard hashless provider values even though the shared parser also
+  // supports hashless colors for existing internal callers.
+  if (!s.startsWith('#')) return null;
+  return parseHexColor(s)?.hex ?? null;
 }
 
 /**

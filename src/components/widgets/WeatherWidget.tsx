@@ -501,13 +501,13 @@ function CurrentConditions({
           <div className="flex items-center justify-end gap-2 tabular-nums">
             {sunrise && (
               <span className="flex items-center gap-0.5" title="Sunrise">
-                <Sunrise className="h-3 w-3" style={{ color: '#FBBF24' }} />
+                <Sunrise className="h-3 w-3 text-primary" />
                 {fmtTime(sunrise)}
               </span>
             )}
             {sunset && (
               <span className="flex items-center gap-0.5" title="Sunset">
-                <Sunset className="h-3 w-3" style={{ color: '#F97316' }} />
+                <Sunset className="h-3 w-3 text-destructive" />
                 {fmtTime(sunset)}
               </span>
             )}

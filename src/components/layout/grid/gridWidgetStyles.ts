@@ -1,6 +1,45 @@
 import type { CSSProperties } from 'react';
-import { hexToRgba, isLightColor } from '@/lib/utils/color';
+import { colorContrastRatio, contrastText, hexToRgba, parseHexColor } from '@/lib/utils/color';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+
+const MIN_TEXT_CONTRAST = 4.5;
+
+/** Shared chrome applied by the grid when it owns a customized widget shell. */
+export const CUSTOM_WIDGET_SHELL_CLASS = 'rounded-xl border border-border shadow-sm';
+
+export function hasCustomWidgetShell(w: WidgetConfig): boolean {
+  return !!w.backgroundColor || !!w.outlineColor;
+}
+
+function hasSolidWidgetBackground(
+  w: WidgetConfig
+): w is WidgetConfig & { backgroundColor: string } {
+  return (
+    !!w.backgroundColor &&
+    w.backgroundColor !== 'transparent' &&
+    w.backgroundColor !== 'frosted' &&
+    (w.backgroundOpacity ?? 1) >= 1 &&
+    parseHexColor(w.backgroundColor)?.a === 1
+  );
+}
+
+/**
+ * Resolve the text color that is actually safe to render on a widget.
+ * Explicit colors remain authoritative except when they fail WCAG AA against
+ * an opaque solid custom background. A solid background without an explicit
+ * text color also receives a deterministic contrast-safe foreground. Partly
+ * transparent backgrounds retain the explicit/theme foreground because their
+ * composited contrast depends on the unknown surface behind the widget.
+ */
+export function getEffectiveWidgetTextColor(w: WidgetConfig): string | undefined {
+  if (!hasSolidWidgetBackground(w)) return w.textColor;
+
+  if (w.textColor && colorContrastRatio(w.textColor, w.backgroundColor) >= MIN_TEXT_CONTRAST) {
+    return w.textColor;
+  }
+
+  return contrastText(w.backgroundColor);
+}
 
 /**
  * Compute inline CSSProperties for a widget's background, outline, and text
@@ -16,8 +55,20 @@ import type { WidgetConfig } from '@/lib/hooks/useLayouts';
  * algorithm and makes scaling deterministic across both views.
  */
 export function getWidgetStyle(w: WidgetConfig): CSSProperties | undefined {
-  if (!w.backgroundColor && !w.outlineColor && !w.textColor) return undefined;
-  const style: CSSProperties = { borderRadius: '0.5rem' };
+  const hasCustomShell = hasCustomWidgetShell(w);
+  const textColor = getEffectiveWidgetTextColor(w);
+  if (!hasCustomShell && !textColor) return undefined;
+
+  const style: CSSProperties = {};
+
+  if (hasCustomShell) {
+    // Match the shared Card's rounded-xl, one-pixel semantic boundary. The
+    // grid wrapper owns this chrome while WidgetContainer strips its duplicate.
+    style.borderRadius = '0.75rem';
+    style.borderWidth = '1px';
+    style.borderStyle = 'solid';
+    style.borderColor = 'hsl(var(--border))';
+  }
 
   if (w.backgroundColor === 'frosted') {
     // Blur intensity mapped from backgroundOpacity: 0.25=light, 0.5=med, 0.75=heavy, 1=max
@@ -26,24 +77,21 @@ export function getWidgetStyle(w: WidgetConfig): CSSProperties | undefined {
     const tintOpacity = 0.08 + intensity * 0.12; // 0.08 to 0.20
     style.backgroundColor = `rgba(255,255,255,${tintOpacity})`;
     style.backdropFilter = `blur(${blurPx}px) saturate(${1 + intensity * 0.3})`;
-    (style as Record<string, string>).WebkitBackdropFilter = `blur(${blurPx}px) saturate(${1 + intensity * 0.3})`;
+    (style as Record<string, string>).WebkitBackdropFilter =
+      `blur(${blurPx}px) saturate(${1 + intensity * 0.3})`;
   } else if (w.backgroundColor && w.backgroundColor !== 'transparent') {
     const opacity = w.backgroundOpacity ?? 1;
-    style.backgroundColor = opacity < 1
-      ? hexToRgba(w.backgroundColor, opacity)
-      : w.backgroundColor;
+    style.backgroundColor = opacity < 1 ? hexToRgba(w.backgroundColor, opacity) : w.backgroundColor;
   }
 
   if (w.outlineColor) {
     const olOpacity = w.outlineOpacity ?? 1;
-    style.border = `2px solid ${olOpacity < 1 ? hexToRgba(w.outlineColor, olOpacity) : w.outlineColor}`;
+    style.borderColor = olOpacity < 1 ? hexToRgba(w.outlineColor, olOpacity) : w.outlineColor;
   }
 
-  if (w.textColor) {
+  if (textColor) {
     const txtOpacity = w.textOpacity ?? 1;
-    style.color = txtOpacity < 1
-      ? hexToRgba(w.textColor, txtOpacity)
-      : w.textColor;
+    style.color = txtOpacity < 1 ? hexToRgba(textColor, txtOpacity) : textColor;
   }
 
   return style;
@@ -64,10 +112,8 @@ export function getWidgetContentStyle(w: WidgetConfig): CSSProperties | undefine
 
 /**
  * Get a Tailwind text color class based on widget background luminance.
- * Returns empty string if widget has explicit textColor (applied via context).
+ * Returns empty when the resolved text color is applied inline via context.
  */
 export function getTextColorClass(w: WidgetConfig, fallback = ''): string {
-  if (w.textColor) return '';
-  if (!w.backgroundColor || w.backgroundColor === 'transparent' || w.backgroundColor === 'frosted' || w.backgroundOpacity === 0) return fallback;
-  return isLightColor(w.backgroundColor) ? 'text-black' : 'text-white';
+  return getEffectiveWidgetTextColor(w) ? '' : fallback;
 }

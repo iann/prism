@@ -7,6 +7,7 @@ import { DndContext } from '@dnd-kit/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { AgendaView } from '@/components/calendar/AgendaView';
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from '@/components/calendar/eventStyles';
 import { WeatherCard } from '@/components/dashboard/MobileCards';
 import { Card } from '@/components/ui/card';
 import type { CalendarEvent } from '@/types/calendar';
@@ -109,7 +110,86 @@ describe('surface class contracts', () => {
     expectNoUnscopedAlphaClass('src/components/calendar/cells/DayColumn.tsx', 'border-border/30');
     expectNoUnscopedAlphaClass('src/components/calendar/WeekView.tsx', 'bg-card/50');
     expectNoUnscopedAlphaClass('src/components/calendar/WeekView.tsx', 'border-border/50');
-    expectNoUnscopedAlphaClass('src/components/calendar/TwoWeekView.tsx', 'bg-card/50');
+  });
+
+  it('maps Tailwind calendar colors to the named-theme surface tokens', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const config = require('../../../tailwind.config.js') as {
+      theme: { extend: { colors: { calendar: Record<string, string> } } };
+    };
+
+    expect(config.theme.extend.colors.calendar).toEqual({
+      surface: 'hsl(var(--calendar-surface))',
+      today: 'hsl(var(--calendar-today))',
+    });
+  });
+
+  it('keeps timed inline events on semantic ink while all-day fills choose contrast ink', () => {
+    expect(inlineTimedEventStyle('#2563eb', 3)).toEqual({
+      backgroundColor: 'rgba(37,99,235,0.14)',
+      borderLeft: '3px solid #2563eb',
+      color: 'hsl(var(--foreground))',
+    });
+    expect(inlineAllDayEventStyle('#2563eb', 3)).toEqual({
+      backgroundColor: '#2563eb',
+      borderLeft: '3px solid #2563eb',
+      color: '#ffffff',
+    });
+  });
+
+  it('uses semantic calendar surfaces, stable today rings, and mode-aware month borders', () => {
+    const month = readFileSync(
+      join(process.cwd(), 'src/components/calendar/MonthView.tsx'),
+      'utf8'
+    );
+    const multiWeek = readFileSync(
+      join(process.cwd(), 'src/components/calendar/MultiWeekView.tsx'),
+      'utf8'
+    );
+    const twoWeek = readFileSync(
+      join(process.cwd(), 'src/components/calendar/TwoWeekView.tsx'),
+      'utf8'
+    );
+
+    for (const source of [month, multiWeek, twoWeek]) {
+      expect(source).toContain('bg-calendar-surface');
+      expect(source).toContain('bg-calendar-today');
+      expect(source).toMatch(/ring-(?:1|2) ring-inset ring-ring/);
+    }
+    expect(month).toContain("(cards || bordered) && 'border border-border'");
+    expect(month).toContain("'cursor-pointer overflow-hidden rounded-md'");
+  });
+
+  it('uses semantic active calendar accents and current-color filter dots', () => {
+    const calendarSources = [
+      'src/components/calendar/CalendarFilterPopover.tsx',
+      'src/components/calendar/DayViewSideBySide.tsx',
+      'src/components/calendar/WeekVerticalView.tsx',
+      'src/components/calendar/WeekView.tsx',
+      'src/components/widgets/CalendarWidget.tsx',
+    ]
+      .map((relativePath) => readFileSync(join(process.cwd(), relativePath), 'utf8'))
+      .join('\n');
+
+    expect(calendarSources).not.toContain('bg-blue-500');
+    expect(calendarSources).not.toContain('#6366f1');
+    expect(calendarSources).not.toContain('rgba(255,255,255');
+    expect(calendarSources).not.toMatch(/border-white(?:\/\d+)?/);
+    expect(calendarSources).toContain('currentColor');
+  });
+
+  it('keeps known low-contrast widget literals out of dashboard widget sources', () => {
+    const forbiddenByFile: Record<string, string[]> = {
+      'src/components/widgets/BirthdaysWidget.tsx': ['text-red-500', 'text-amber-500'],
+      'src/components/widgets/PointsWidget.tsx': ['text-green-500'],
+      'src/components/widgets/TravelWidget.tsx': ['fill-amber-500', 'text-amber-500'],
+      'src/components/widgets/WeatherWidget.tsx': ["color: '#FBBF24'", "color: '#F97316'"],
+    };
+
+    for (const [relativePath, forbidden] of Object.entries(forbiddenByFile)) {
+      const source = readFileSync(join(process.cwd(), relativePath), 'utf8');
+      for (const literal of forbidden) expect(source).not.toContain(literal);
+    }
   });
 
   it('allows no translucent light card surfaces except documented visual overlays and tints', () => {

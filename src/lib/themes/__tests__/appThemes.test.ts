@@ -1,10 +1,12 @@
 /** @jest-environment jsdom */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { APP_THEME_IDS, appThemes, applyAppTheme, isAppThemeId } from '../appThemes';
 import { BUS_STATUS_COLORS, getBusStatusColorClass } from '@/components/widgets/busStatusColors';
 
 const STANDARD_THEME_IDS = APP_THEME_IDS.filter((id) => id !== 'lcars');
-const SURFACES = [
+const BASE_SURFACES = [
   '--background',
   '--card',
   '--widget-calendar',
@@ -12,7 +14,8 @@ const SURFACES = [
   '--widget-family',
   '--widget-info',
 ] as const;
-const BOUNDED_SURFACES = SURFACES.filter((surface) => surface !== '--background');
+const BOUNDED_SURFACES = BASE_SURFACES.filter((surface) => surface !== '--background');
+const CALENDAR_SURFACES = ['--calendar-surface', '--calendar-today'] as const;
 let contrastViolations: string[] = [];
 
 describe('app themes', () => {
@@ -60,7 +63,7 @@ describe('app themes', () => {
     );
   });
 
-  it('gives every standard light card and widget an opaque visible surface', () => {
+  it('gives every standard light card, calendar, and widget an opaque visible surface', () => {
     for (const id of STANDARD_THEME_IDS) {
       const tokens = appThemes[id].light;
       const background = opaqueSurface(tokens, '--background');
@@ -73,12 +76,27 @@ describe('app themes', () => {
           1.2
         );
       }
+      assertContrast(
+        `${id}/light calendar surface against background`,
+        opaqueSurface(tokens, '--calendar-surface'),
+        background,
+        1.2
+      );
+      assertContrast(
+        `${id}/light calendar today against calendar surface`,
+        opaqueSurface(tokens, '--calendar-today'),
+        opaqueSurface(tokens, '--calendar-surface'),
+        1.2
+      );
     }
   });
 
   it('keeps boundaries and text legible on every actual opaque surface', () => {
     const variants = [
-      ...STANDARD_THEME_IDS.map((id) => ({ id, variant: 'light' as const })),
+      ...STANDARD_THEME_IDS.flatMap((id) => [
+        { id, variant: 'light' as const },
+        { id, variant: 'dark' as const },
+      ]),
       { id: 'lcars' as const, variant: 'light' as const },
       { id: 'lcars' as const, variant: 'dark' as const },
     ];
@@ -87,7 +105,7 @@ describe('app themes', () => {
       const tokens = appThemes[id][variant];
       const background = opaqueSurface(tokens, '--background');
 
-      for (const surface of SURFACES) {
+      for (const surface of BASE_SURFACES) {
         const actualSurface = composite(parseHsl(token(tokens, surface)), background, 1);
         assertContrast(
           `${id}/${variant} foreground on ${surface}`,
@@ -132,6 +150,44 @@ describe('app themes', () => {
     }
   });
 
+  it('keeps calendar surfaces legible in every named-theme variant', () => {
+    const variants = APP_THEME_IDS.flatMap((id) =>
+      (['light', 'dark'] as const).map((variant) => ({ id, variant }))
+    );
+
+    for (const { id, variant } of variants) {
+      const tokens = appThemes[id][variant];
+
+      for (const surface of CALENDAR_SURFACES) {
+        assertContrast(
+          `${id}/${variant} foreground on ${surface}`,
+          parseHsl(token(tokens, '--foreground')),
+          opaqueSurface(tokens, surface),
+          4.5
+        );
+        assertContrast(
+          `${id}/${variant} muted on ${surface}`,
+          parseHsl(token(tokens, '--muted-foreground')),
+          opaqueSurface(tokens, surface),
+          4.5
+        );
+      }
+
+      assertContrast(
+        `${id}/${variant} border on calendar surface`,
+        parseHsl(token(tokens, '--border')),
+        opaqueSurface(tokens, '--calendar-surface'),
+        3
+      );
+      assertContrast(
+        `${id}/${variant} ring on calendar today`,
+        parseHsl(token(tokens, '--ring')),
+        opaqueSurface(tokens, '--calendar-today'),
+        3
+      );
+    }
+  });
+
   it('keeps bus status dots visible on every standard light widget surface', () => {
     for (const id of STANDARD_THEME_IDS) {
       const tokens = appThemes[id].light;
@@ -164,7 +220,33 @@ describe('app themes', () => {
       }
     }
   });
+
+  it('keeps Kitchen Calm first-paint tokens synchronized with the named preset', () => {
+    const css = readFileSync(join(process.cwd(), 'src/styles/globals.css'), 'utf8');
+
+    expect(readCssTokenBlock(css, ':root:not([data-color-theme])')).toEqual(
+      appThemes['kitchen-calm'].light
+    );
+    expect(readCssTokenBlock(css, ':root.dark:not([data-color-theme])')).toEqual(
+      appThemes['kitchen-calm'].dark
+    );
+  });
 });
+
+function readCssTokenBlock(css: string, selector: string): Record<`--${string}`, string> {
+  const selectorStart = css.indexOf(`${selector} {`);
+  if (selectorStart < 0) throw new Error(`Missing CSS token block: ${selector}`);
+  const bodyStart = css.indexOf('{', selectorStart) + 1;
+  const bodyEnd = css.indexOf('}', bodyStart);
+  if (bodyEnd < 0) throw new Error(`Unclosed CSS token block: ${selector}`);
+
+  return Object.fromEntries(
+    Array.from(css.slice(bodyStart, bodyEnd).matchAll(/(--[\w-]+):\s*([^;]+);/g), (match) => [
+      match[1]!,
+      match[2]!.trim(),
+    ])
+  ) as Record<`--${string}`, string>;
+}
 
 function token(tokens: Record<`--${string}`, string>, name: `--${string}`): string {
   const value = tokens[name];

@@ -15,6 +15,7 @@ import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
 import { useOrientation } from '@/lib/hooks/useOrientation';
 import type { CalendarEvent } from '@/types/calendar';
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 
 export interface TwoWeekViewProps {
   currentDate: Date;
@@ -57,10 +58,11 @@ export function TwoWeekView({
       <div
         className={cn(
           'border border-border rounded-md h-full',
-          !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm',
+          !transparentMode && 'bg-calendar-surface',
           'flex flex-col overflow-hidden',
           !transparentMode && isPast && 'bg-muted/50 text-muted-foreground',
-          isToday(date) && 'border-primary border-2'
+          !transparentMode && isToday(date) && 'bg-calendar-today',
+          isToday(date) && 'ring-2 ring-inset ring-ring'
         )}
       >
         {/* Date header */}
@@ -68,13 +70,12 @@ export function TwoWeekView({
           className={cn(
             'shrink-0 px-1',
             compact ? 'py-0.5' : 'py-1',
-            isToday(date) && 'bg-primary/10'
           )}
         >
           <div className={cn(
             'font-medium flex items-center gap-1',
             compact ? 'text-sm' : 'text-sm',
-            isToday(date) && 'text-primary'
+            isToday(date) && 'font-bold text-foreground'
           )}>
             <span className="font-bold">{format(date, 'd')}</span>
             <span className="text-xs text-muted-foreground">{format(date, 'MMM')}</span>
@@ -92,8 +93,8 @@ export function TwoWeekView({
                 compact ? 'text-[12px] px-0.5 py-px' : 'text-xs px-1 py-0.5'
               )}
               style={event.allDay
-                ? { backgroundColor: event.color + '20', borderLeft: `2px solid ${event.color}` }
-                : { color: event.color }
+                ? inlineAllDayEventStyle(event.color)
+                : inlineTimedEventStyle(event.color)
               }
             >
               {event.allDay ? event.title : `• ${format(event.startTime, 'h:mm')} ${event.title}`}
@@ -111,10 +112,10 @@ export function TwoWeekView({
         {/* Header row with week numbers */}
         <div className="flex shrink-0 gap-1">
           <div className="w-10 shrink-0" /> {/* Day label spacer */}
-          <div className="flex-1 text-center text-sm font-bold text-muted-foreground py-1 bg-card dark:bg-card/50 rounded-md">
+          <div className="flex-1 text-center text-sm font-bold text-muted-foreground py-1 bg-calendar-surface rounded-md">
             Week {week1Num}
           </div>
-          <div className="flex-1 text-center text-sm font-bold text-muted-foreground py-1 bg-card dark:bg-card/50 rounded-md">
+          <div className="flex-1 text-center text-sm font-bold text-muted-foreground py-1 bg-calendar-surface rounded-md">
             Week {week2Num}
           </div>
         </div>

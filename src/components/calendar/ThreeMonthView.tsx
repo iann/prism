@@ -14,29 +14,14 @@ import {
   isToday,
   isBefore,
   startOfDay,
-  getMonth,
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DAYS_SINGLE_ARRAY } from '@/lib/constants/days';
 import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
 import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
-import { contrastText, hslToHex } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
-import { seasonalPalettes } from '@/lib/themes/seasonalThemes';
-
-// Get the accent color for a month (1-12)
-function getMonthColor(month: Date): string {
-  const monthNum = getMonth(month) + 1; // getMonth returns 0-11
-  const palette = seasonalPalettes[monthNum];
-  return palette ? `hsl(${palette.light.accent})` : '#3B82F6';
-}
-
-function getMonthTextColor(month: Date): string {
-  const monthNum = getMonth(month) + 1;
-  const palette = seasonalPalettes[monthNum];
-  return contrastText(palette ? hslToHex(palette.light.accent) : '#3B82F6');
-}
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 
 export interface ThreeMonthViewProps {
   currentDate: Date;
@@ -71,7 +56,6 @@ function MiniMonth({
   const monthEnd = endOfMonth(month);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn });
-  const monthColor = getMonthColor(month);
 
   const days: Date[] = [];
   let day = calendarStart;
@@ -88,15 +72,12 @@ function MiniMonth({
   return (
     <div className={cn(
       'flex flex-col flex-1 rounded-lg overflow-hidden',
-      !transparentMode && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm',
+      !transparentMode && 'bg-calendar-surface',
       isCenter && 'ring-2 ring-primary/30'
     )}>
       {/* Month header with themed color — compact band so the three minis
           can use more vertical space for actual day cells. */}
-      <div
-        className="text-center py-1 font-semibold text-sm flex-shrink-0 shadow-sm"
-        style={{ backgroundColor: monthColor, color: getMonthTextColor(month) }}
-      >
+      <div className="text-center py-1 font-semibold text-sm flex-shrink-0 shadow-sm bg-primary text-primary-foreground">
         {format(month, 'MMMM yyyy')}
       </div>
 
@@ -137,14 +118,16 @@ function MiniMonth({
                   className={cn(
                     'flex flex-col rounded text-xs cursor-pointer overflow-hidden p-0.5',
                     bordered && 'border border-border',
+                    !transparentMode && 'bg-calendar-surface',
                     !inMonth && 'text-muted-foreground',
                     !transparentMode && isPast && inMonth && 'bg-muted/30 text-muted-foreground',
-                    today && 'bg-seasonal-highlight/20',
+                    !transparentMode && today && 'bg-calendar-today',
+                    today && 'ring-1 ring-inset ring-ring',
                   )}
                 >
                   <span className={cn(
                     'text-center text-[12px] leading-tight flex-shrink-0',
-                    today && 'font-bold text-seasonal-accent',
+                    today && 'font-bold text-foreground',
                   )}>
                     {format(date, 'd')}
                   </span>
@@ -160,8 +143,8 @@ function MiniMonth({
                           }}
                           className="text-[12px] leading-tight px-0.5 rounded truncate cursor-pointer hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all"
                           style={event.allDay
-                            ? { backgroundColor: event.color + '20', borderLeft: `2px solid ${event.color}` }
-                            : { color: event.color }
+                            ? inlineAllDayEventStyle(event.color)
+                            : inlineTimedEventStyle(event.color)
                           }
                         >
                           {event.allDay ? event.title : `• ${event.title}`}

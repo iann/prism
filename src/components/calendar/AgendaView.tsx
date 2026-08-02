@@ -12,11 +12,11 @@ import { Calendar } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
-import { contrastText } from '@/lib/utils/color';
 import { Badge } from '@/components/ui';
 import type { CalendarEvent } from '@/types/calendar';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { useDayDroppable, getMealTime, getChoreTime, getTaskTime, parseTimeOfDay, formatTimeOfDay, type OverlayItemRef } from './cells';
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 
 const MEAL_FALLBACK_COLOR = '#10b981';
 const CHORE_FALLBACK_COLOR = '#f59e0b';
@@ -48,6 +48,8 @@ type AgendaRow = {
   sortMinutes: number;
   /** Whether this row has no time-of-day (renders "All day" / "—"). */
   floating: boolean;
+  /** True only for calendar all-day events, which intentionally stay filled. */
+  filled?: boolean;
   /** Optional drag id (`meal:<id>` etc.). Read-only for events. */
   dragId?: string;
   stripeColor: string;
@@ -177,13 +179,13 @@ function AgendaDaySection({
         <span
           className={cn(
             'text-sm font-semibold',
-            isToday(date) && 'text-seasonal-accent'
+            isToday(date) && 'text-foreground'
           )}
         >
           {formatAgendaDayHeader(date)}
         </span>
         {isToday(date) && (
-          <Badge className="text-[12px] px-1.5 py-0 bg-seasonal-highlight text-foreground">
+          <Badge className="text-[12px] px-1.5 py-0 bg-calendar-today text-foreground">
             Today
           </Badge>
         )}
@@ -226,6 +228,7 @@ function buildAgendaRows({
         ? -1
         : event.startTime.getHours() * 60 + event.startTime.getMinutes(),
       floating: allDay,
+      filled: allDay,
       stripeColor: event.color,
       timeLabel: allDay ? 'All day' : format(event.startTime, 'h:mm a'),
       title: event.title,
@@ -306,13 +309,17 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
     data: { dragId: row.dragId },
   });
 
+  const eventColorStyle = cards
+    ? { borderLeft: `3px solid ${row.stripeColor}` }
+    : row.filled
+      ? inlineAllDayEventStyle(row.stripeColor, 3)
+      : inlineTimedEventStyle(row.stripeColor, 3);
+
   const transformStyle: React.CSSProperties = {
     transform: CSS.Translate.toString(draggable.transform),
     touchAction: row.dragId ? 'none' : undefined,
     zIndex: draggable.isDragging ? 50 : undefined,
-    borderLeft: `3px solid ${row.stripeColor}`,
-    backgroundColor: cards ? undefined : row.stripeColor,
-    color: cards ? undefined : contrastText(row.stripeColor),
+    ...eventColorStyle,
   };
 
   const Tag: 'button' | 'div' = row.onClick ? 'button' : 'div';

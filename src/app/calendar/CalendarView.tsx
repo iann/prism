@@ -460,7 +460,10 @@ export function CalendarView() {
                   className={cn('h-7 text-xs gap-1.5', isSelected && 'border-transparent')}
                   style={isSelected ? { backgroundColor: group.color, color: contrastText(group.color) } : undefined}
                 >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.55)' : group.color }} />
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={isSelected ? { backgroundColor: 'currentColor', opacity: 0.55 } : { backgroundColor: group.color }}
+                  />
                   {group.name}
                 </Button>
               );

@@ -13,31 +13,17 @@ import {
   isToday,
   isBefore,
   startOfDay,
-  getMonth,
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
-import { contrastText, hexToRgba, hslToHex } from '@/lib/utils/color';
+import { hexToRgba } from '@/lib/utils/color';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import type { CalendarEvent } from '@/types/calendar';
-import { seasonalPalettes } from '@/lib/themes/seasonalThemes';
 import { CardHeightProbe, DayOverflowPopover, DroppableOverlayCell, useDayDroppable, type OverlayItemRef } from './cells';
 import { useCardCapacity } from '@/lib/hooks/useCardCapacity';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
-
-// Get the accent color for a month (1-12)
-function getMonthColor(month: Date): string {
-  const monthNum = getMonth(month) + 1;
-  const palette = seasonalPalettes[monthNum];
-  return palette ? `hsl(${palette.light.accent})` : '#3B82F6';
-}
-
-function getMonthTextColor(month: Date): string {
-  const monthNum = getMonth(month) + 1;
-  const palette = seasonalPalettes[monthNum];
-  return contrastText(palette ? hslToHex(palette.light.accent) : '#3B82F6');
-}
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 
 export interface MonthViewProps {
   currentDate: Date;
@@ -77,7 +63,6 @@ export function MonthView({
   const monthEnd = endOfMonth(currentDate);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn });
-  const monthColor = getMonthColor(currentDate);
 
   const days: Date[] = [];
   let day = calendarStart;
@@ -95,10 +80,7 @@ export function MonthView({
       {/* Month header — kept compact (py-1, text-sm) so it doesn't eat into
           the calendar grid. The toolbar already shows the month name; this
           band is mostly a colored anchor. */}
-      <div
-        className="shrink-0 text-center py-1 font-semibold text-sm rounded-t-md mb-1 shadow-sm"
-        style={{ backgroundColor: monthColor, color: getMonthTextColor(currentDate) }}
-      >
+      <div className="shrink-0 text-center py-1 font-semibold text-sm rounded-t-md mb-1 shadow-sm bg-primary text-primary-foreground">
         {format(currentDate, 'MMMM yyyy')}
       </div>
       <div className="shrink-0 grid grid-cols-7 gap-1 mb-1">
@@ -202,26 +184,23 @@ function MonthDayCell({
       data-droppable-day={cards && enableDnd ? droppable.droppableId : undefined}
       onClick={() => onDateClick(date)}
       className={cn(
-        bordered && 'border border-border rounded-md',
-        'cursor-pointer overflow-hidden',
-        !transparentMode && !cellBgStyle && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm',
+        (cards || bordered) && 'border border-border',
+        'cursor-pointer overflow-hidden rounded-md',
+        !transparentMode && !cellBgStyle && 'bg-calendar-surface',
         'flex flex-col min-h-0',
         !isSameMonth(date, currentDate) && 'text-muted-foreground',
         !transparentMode && !cellBgStyle && isPast && isSameMonth(date, currentDate) && 'bg-muted/65 text-muted-foreground',
+        !transparentMode && !cellBgStyle && isToday(date) && 'bg-calendar-today',
+        isToday(date) && !(cards && enableDnd && droppable.isOver) && 'ring-2 ring-inset ring-ring',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-lg',
       )}
       style={cellBgStyle}
     >
-      {/* Today gets a blue bar; other days just show the date */}
-      {isToday(date) ? (
-        <div className="bg-primary px-1 py-0.5 mb-0.5 rounded-t-[3px]">
-          <span className="text-sm font-bold text-primary-foreground">{format(date, 'd')}</span>
-        </div>
-      ) : (
-        <div className="text-sm font-medium px-1 pt-1 mb-0.5">
+      <div className="px-1 pt-1 mb-0.5">
+        <span className={cn('text-sm font-medium', isToday(date) && 'font-bold text-foreground')}>
           {format(date, 'd')}
-        </div>
-      )}
+        </span>
+      </div>
 
       {cards ? (
         <DayCardsCell
@@ -247,8 +226,8 @@ function MonthDayCell({
                 event.allDay ? 'py-px' : 'py-0.5'
               )}
               style={event.allDay
-                ? { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
-                : { color: event.color }
+                ? inlineAllDayEventStyle(event.color)
+                : inlineTimedEventStyle(event.color)
               }
             >
               {event.allDay ? event.title : `• ${format(event.startTime, 'h:mm a')} ${event.title}`}
