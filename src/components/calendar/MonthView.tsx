@@ -302,7 +302,7 @@ function DayCardsCell({
             e.stopPropagation();
             onEventClick(event);
           }}
-          className="w-full text-left border-border bg-card text-[12px] dark:border-border/40 dark:bg-card/85 dark:backdrop-blur-sm px-1 py-0.5 rounded border shadow-sm truncate hover:bg-card transition-colors leading-tight"
+          className="w-full text-left border-border bg-calendar-surface text-[12px] px-1 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight"
           style={{ borderLeft: `3px solid ${event.color}` }}
         >
           <span className="font-medium text-foreground">{event.title}</span>

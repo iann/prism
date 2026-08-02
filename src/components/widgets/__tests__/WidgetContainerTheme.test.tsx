@@ -113,17 +113,18 @@ describe('WidgetContainer theme overrides', () => {
     expect(card.style.backgroundColor).toBe('');
   });
 
-  it('keeps a white text-only override off light preset and calendar surfaces', () => {
+  it('keeps a text-only override on the active preset and calendar surfaces', () => {
     const card = renderWidget({
       hasCustomBg: false,
       hasCustomShell: false,
       textColor: '#FFFFFF',
     });
 
-    expect(card.dataset.themeSurface).toBe('custom');
-    expect(card.style.backgroundColor).toBe('rgba(0, 0, 0, 0.55)');
-    expect(card.style.getPropertyValue('--card')).toBe('0 0% 0%');
-    expect(card.style.getPropertyValue('--calendar-surface')).toBe('0 0% 0% / 0.55');
-    expect(card.style.getPropertyValue('--calendar-today')).toBe('0 0% 0% / 0.72');
+    expect(card.dataset.themeSurface).toBe('preset');
+    expect(card.style.backgroundColor).toBe('');
+    expect(card.style.color).toBe('');
+    expect(card.style.getPropertyValue('--card')).toBe('');
+    expect(card.style.getPropertyValue('--calendar-surface')).toBe('');
+    expect(card.style.getPropertyValue('--calendar-today')).toBe('');
   });
 });

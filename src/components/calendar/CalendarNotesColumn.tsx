@@ -23,7 +23,7 @@ export function CalendarNotesColumn({
         const dateKey = format(day, 'yyyy-MM-dd');
         const note = notesByDate.get(dateKey);
         return (
-          <div key={dateKey} className="border-b border-border/50">
+          <div key={dateKey} className="border-b border-border">
             {!hideDateHeaders && (
               <div className="px-3 pt-2 pb-1">
                 <span className="text-xs font-medium text-muted-foreground">

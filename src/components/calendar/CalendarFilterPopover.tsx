@@ -51,7 +51,7 @@ export function CalendarFilterPopover({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg p-2 min-w-[160px]">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg p-2 min-w-[160px]">
           {/* All toggle */}
           <button
             onClick={() => onToggle('all')}

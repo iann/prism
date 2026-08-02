@@ -167,13 +167,13 @@ export function DayColumn({
       data-droppable-day={disableDrop ? undefined : droppableId}
       className={cn(
         'flex flex-col rounded-lg',
-        'bg-card dark:bg-card/60 dark:backdrop-blur-sm',
-        'border border-border dark:border-border/30',
+        'bg-calendar-surface',
+        'border border-border',
         profile.containerPadding,
         profile.minHeight,
         profile.gap,
-        today && 'ring-2 ring-seasonal-accent/60',
-        droppable.isOver && !disableDrop && 'ring-2 ring-seasonal-accent shadow-lg bg-card dark:bg-card/80',
+        today && 'ring-1 ring-inset ring-ring',
+        droppable.isOver && !disableDrop && 'ring-2 ring-seasonal-accent shadow-lg bg-calendar-today',
         className,
       )}
     >
@@ -188,7 +188,7 @@ export function DayColumn({
               'truncate leading-none',
               profile.headerLabelText,
               today
-                ? 'font-semibold text-seasonal-accent'
+                ? 'font-semibold text-foreground'
                 : 'text-muted-foreground',
             )}
           >
@@ -280,7 +280,7 @@ export function DayColumn({
         ))}
 
       {profile.showEmptyState && isEmpty && (
-        <div className="flex flex-1 items-center justify-center rounded border border-dashed border-border text-[12px] dark:border-border/30 bg-black/10 py-3 text-muted-foreground">
+        <div className="flex flex-1 items-center justify-center rounded border border-dashed border-border bg-muted/30 py-3 text-[12px] text-muted-foreground">
           Nothing planned
         </div>
       )}

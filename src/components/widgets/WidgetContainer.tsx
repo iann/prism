@@ -268,7 +268,16 @@ export function WidgetContainer({
   const stripCardChrome = bgOverride?.hasCustomShell ?? stripCardBg;
   const customBackgroundColor = bgOverride?.backgroundColor ?? backgroundColor;
   const customBackgroundOpacity = bgOverride?.backgroundOpacity ?? 1;
-  const overrideTextColor = bgOverride?.textColor;
+  const hasOpaqueOverrideBackground =
+    !!bgOverride?.backgroundColor &&
+    bgOverride.backgroundColor !== 'transparent' &&
+    bgOverride.backgroundColor !== 'frosted' &&
+    customBackgroundOpacity >= 1 &&
+    parseHexColor(bgOverride.backgroundColor)?.a === 1;
+  // Text-only, transparent, and frosted overrides inherit the active theme.
+  // Older layouts commonly persisted #FFFFFF here for wallpaper displays;
+  // treating that as authoritative made light themes render black scrims.
+  const overrideTextColor = hasOpaqueOverrideBackground ? bgOverride?.textColor : undefined;
   const overrideTextOpacity = bgOverride?.textOpacity ?? 1;
   const overrideGridLineOpacity = bgOverride?.gridLineOpacity ?? 1;
 
@@ -326,10 +335,9 @@ export function WidgetContainer({
           //       inner surfaces because the override block used to be
           //       gated on textColor).
           //
-          //   (2) Widget has a custom textColor — text tokens track that
-          //       color; if no widget backgroundColor (transparent /
-          //       frosted), inner BG tokens auto-flip to opposite
-          //       luminance so the widget stays readable over wallpaper.
+          //   (2) Widget has a textColor without an opaque background. The
+          //       active theme owns that foreground and its preset/frosted
+          //       surface; stale wallpaper colors are intentionally ignored.
           //
           // The two paths compose: BG override sets inner surface, text
           // override sets foreground colors. Hover (--accent) gets a
@@ -401,38 +409,6 @@ export function WidgetContainer({
             styles['--calendar-today'] = hexToHslValues(
               readableTodayColor(customBackgroundColor!, effectiveTextColor!)
             );
-          } else if (overrideTextColor) {
-            // Auto-flip fallback (transparent / frosted widget with text-color override)
-            const fallbackBackground = textIsLight ? '#000000' : '#FFFFFF';
-            const fallbackHsl = hexToHslValues(fallbackBackground);
-            if (!stripCardBg) {
-              styles.backgroundColor = textIsLight
-                ? 'rgba(0,0,0,0.55)'
-                : 'rgba(255,255,255,0.85)';
-            }
-            styles['--card'] = fallbackHsl;
-            styles['--popover'] = hexToHslValues(
-              mixHexColors(fallbackBackground, overrideTextColor, 0.08)
-            );
-            styles['--accent'] = hexToHslValues(
-              mixHexColors(fallbackBackground, overrideTextColor, 0.12)
-            );
-            styles['--background'] = fallbackHsl;
-            styles['--muted'] = hexToHslValues(
-              mixHexColors(fallbackBackground, overrideTextColor, 0.08)
-            );
-            styles['--secondary'] = hexToHslValues(
-              mixHexColors(fallbackBackground, overrideTextColor, 0.15)
-            );
-            styles['--muted-foreground'] = hexToHslValues(
-              mixHexColors(fallbackBackground, overrideTextColor, 0.65)
-            );
-            styles['--calendar-surface'] = textIsLight
-              ? '0 0% 0% / 0.55'
-              : '0 0% 100% / 0.85';
-            styles['--calendar-today'] = textIsLight
-              ? '0 0% 0% / 0.72'
-              : '0 0% 100% / 0.72';
           }
 
           return styles as unknown as React.CSSProperties;

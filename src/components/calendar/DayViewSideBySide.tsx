@@ -202,7 +202,7 @@ export function DayViewSideBySide({
                           onClick={() => onEventClick(event)}
                           className={cn(
                             'w-full text-left text-xs px-1 py-0.5 rounded truncate hover:opacity-80 hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
-                            cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm text-foreground',
+                            cards && 'bg-calendar-surface border border-border shadow-sm text-foreground',
                           )}
                           style={
                             cards
@@ -329,7 +329,7 @@ export function DayViewSideBySide({
                               onClick={() => onEventClick(event)}
                               className={cn(
                                 'absolute p-0.5 rounded text-left text-xs z-10 overflow-hidden hover:opacity-90 hover:ring-2 hover:ring-seasonal-accent/50 transition-all flex flex-col items-start',
-                                cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
+                                cards && 'bg-calendar-surface border border-border shadow-sm',
                               )}
                               style={
                                 cards

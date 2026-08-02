@@ -63,7 +63,7 @@ export function DayOverflowPopover({
                   onEventClick(event);
                   setOpen(false);
                 }}
-                className="w-full text-left px-2 py-1 rounded bg-card hover:bg-accent transition-colors flex items-center gap-2 border border-border dark:border-border/40"
+                className="w-full text-left px-2 py-1 rounded bg-popover hover:bg-accent transition-colors flex items-center gap-2 border border-border"
                 style={{ borderLeft: `3px solid ${event.color}` }}
               >
                 {!event.allDay && (

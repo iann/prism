@@ -20,13 +20,21 @@ function expectOpaqueLightTranslucentDark(element: Element) {
   expect(element.classList.contains('dark:backdrop-blur-sm')).toBe(true);
 }
 
-function expectNoUnscopedAlphaClass(relativePath: string, className: string) {
+function expectSemanticCalendarSurface(element: Element) {
+  expect(element.classList.contains('bg-calendar-surface')).toBe(true);
+  expect(element.classList.contains('bg-card')).toBe(false);
+  expect(element.classList.contains('dark:bg-card/85')).toBe(false);
+  expect(element.classList.contains('border')).toBe(true);
+  expect(element.classList.contains('border-border')).toBe(true);
+  expect(element.classList.contains('dark:border-border/40')).toBe(false);
+}
+
+function expectNoClass(relativePath: string, className: string) {
   const source = readFileSync(join(process.cwd(), relativePath), 'utf8');
   const escapedClassName = className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const unscopedClass = new RegExp(`(^|[\\s'"])${escapedClassName}($|[\\s'"])`, 'm');
 
   expect(source).not.toMatch(unscopedClass);
-  expect(source).toContain(`dark:${className}`);
 }
 
 function findProductionSourceFiles(directory: string): string[] {
@@ -100,16 +108,29 @@ describe('surface class contracts', () => {
 
     const eventCard = screen.getByText(event.title).closest('button');
     expect(eventCard).not.toBeNull();
-    expectOpaqueLightTranslucentDark(eventCard!);
-    expect(eventCard!.classList.contains('border-border')).toBe(true);
-    expect(eventCard!.classList.contains('border-border/40')).toBe(false);
-    expect(eventCard!.classList.contains('dark:border-border/40')).toBe(true);
+    expectSemanticCalendarSurface(eventCard!);
   });
 
-  it('keeps residual calendar alpha utilities dark-scoped', () => {
-    expectNoUnscopedAlphaClass('src/components/calendar/cells/DayColumn.tsx', 'border-border/30');
-    expectNoUnscopedAlphaClass('src/components/calendar/WeekView.tsx', 'bg-card/50');
-    expectNoUnscopedAlphaClass('src/components/calendar/WeekView.tsx', 'border-border/50');
+  it('keeps calendar surfaces and borders semantic across modes', () => {
+    for (const relativePath of [
+      'src/components/calendar/cells/DayColumn.tsx',
+      'src/components/calendar/WeekView.tsx',
+      'src/components/calendar/WeekVerticalView.tsx',
+      'src/components/calendar/DayViewSideBySide.tsx',
+      'src/components/calendar/AgendaView.tsx',
+      'src/components/calendar/MonthView.tsx',
+      'src/components/calendar/cells/WeekItemCard.tsx',
+    ]) {
+      const source = readFileSync(join(process.cwd(), relativePath), 'utf8');
+      expect(source).toContain('bg-calendar-surface');
+      expect(source).toContain('border-border');
+      expect(source).not.toContain('dark:bg-card/');
+      expect(source).not.toContain('dark:border-border/');
+    }
+
+    expectNoClass('src/components/calendar/cells/DayColumn.tsx', 'border-border/30');
+    expectNoClass('src/components/calendar/WeekView.tsx', 'bg-card/50');
+    expectNoClass('src/components/calendar/WeekView.tsx', 'border-border/50');
   });
 
   it('maps Tailwind calendar colors to the named-theme surface tokens', () => {
@@ -215,7 +236,6 @@ describe('surface class contracts', () => {
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
-      'src/components/calendar/CalendarNotesColumn.tsx:border-border/50',
       'src/components/layout/CoordinateEditor.tsx:border-border/50',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
