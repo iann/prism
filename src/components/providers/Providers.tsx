@@ -12,6 +12,7 @@ import dynamic from 'next/dynamic';
 import { ThemeProvider } from './ThemeProvider';
 import { AuthProvider } from './AuthProvider';
 import { FamilyProvider } from './FamilyProvider';
+import { AppVersionChecker } from './AppVersionChecker';
 import { GlobalInputProvider, useGlobalInput } from '@/lib/hooks/useGlobalInput';
 
 // simple-keyboard accesses browser globals at module load — must be client-only
@@ -49,6 +50,7 @@ function OptionalInputUi() {
 export function Providers({ children }: ProvidersProps) {
   return (
     <ThemeProvider defaultTheme="system">
+      <AppVersionChecker />
       <FamilyProvider>
         <AuthProvider>
           <GlobalInputProvider>
