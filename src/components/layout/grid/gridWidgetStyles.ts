@@ -25,14 +25,13 @@ function hasSolidWidgetBackground(
 
 /**
  * Resolve the text color that is actually safe to render on a widget.
- * Explicit colors remain authoritative except when they fail WCAG AA against
- * an opaque solid custom background. A solid background without an explicit
- * text color also receives a deterministic contrast-safe foreground. Partly
- * transparent backgrounds retain the explicit/theme foreground because their
- * composited contrast depends on the unknown surface behind the widget.
+ * Explicit colors are authoritative only when the widget also owns an opaque
+ * solid surface. Text-only, transparent, and frosted overrides defer to the
+ * active theme foreground; persisted white text from an older wallpaper
+ * layout must not turn a light theme into a dark card.
  */
 export function getEffectiveWidgetTextColor(w: WidgetConfig): string | undefined {
-  if (!hasSolidWidgetBackground(w)) return w.textColor;
+  if (!hasSolidWidgetBackground(w)) return undefined;
 
   if (w.textColor && colorContrastRatio(w.textColor, w.backgroundColor) >= MIN_TEXT_CONTRAST) {
     return w.textColor;
@@ -43,7 +42,8 @@ export function getEffectiveWidgetTextColor(w: WidgetConfig): string | undefined
 
 /**
  * Compute inline CSSProperties for a widget's background, outline, and text
- * color. Used by both CssGridDisplay and the editor.
+ * color. Used by both CssGridDisplay and the editor. Text-only overrides are
+ * intentionally omitted so the active theme owns preset/frosted surfaces.
  *
  * NOTE: `textScale` (zoom) is intentionally NOT included here anymore — it
  * lives in `getWidgetContentStyle` so it can be applied on the inner content
@@ -112,7 +112,8 @@ export function getWidgetContentStyle(w: WidgetConfig): CSSProperties | undefine
 
 /**
  * Get a Tailwind text color class based on widget background luminance.
- * Returns empty when the resolved text color is applied inline via context.
+ * Returns empty when the resolved text color is applied inline via context or
+ * when the active theme should supply the foreground.
  */
 export function getTextColorClass(w: WidgetConfig, fallback = ''): string {
   return getEffectiveWidgetTextColor(w) ? '' : fallback;

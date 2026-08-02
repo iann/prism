@@ -136,14 +136,14 @@ export function WeekView({
 
         {/* All-day events */}
         {allDayEvents.length > 0 && (
-          <div className={cn('shrink-0 p-0.5 flex flex-col gap-px', !transparentMode && 'bg-card dark:bg-card/50')}>
+          <div className={cn('shrink-0 p-0.5 flex flex-col gap-px', !transparentMode && 'bg-calendar-surface')}>
             {allDayEvents.map((event, idx) => (
               <button
                 key={event.id}
                 onClick={() => onEventClick(event)}
                 className={cn(
                   'w-full text-left text-xs px-1 py-px rounded truncate hover:opacity-80 transition-all',
-                  cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
+                  cards && 'bg-calendar-surface border border-border shadow-sm',
                 )}
                 style={
                   cards
@@ -165,7 +165,7 @@ export function WeekView({
           {hours.map((hour) => {
             const hourEvents = getHourEvents(date, hour);
             return (
-              <div key={hour} className={cn('relative min-h-0 overflow-visible', bordered && 'border-t border-border dark:border-border/50')} style={cellBgStyle}>
+              <div key={hour} className={cn('relative min-h-0 overflow-visible', bordered && 'border-t border-border')} style={cellBgStyle}>
                 {hourEvents.map((event) => {
                   const pos = dayPositions.get(event.id);
                   if (!pos) return null;
@@ -179,7 +179,7 @@ export function WeekView({
                       onClick={() => onEventClick(event)}
                       className={cn(
                         'absolute text-left text-xs px-0.5 pt-0.5 rounded overflow-hidden hover:opacity-90 hover:ring-1 hover:ring-seasonal-accent/50 transition-all z-10 flex flex-col items-start',
-                        cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
+                        cards && 'bg-calendar-surface border border-border shadow-sm',
                       )}
                       style={
                         cards
@@ -362,14 +362,14 @@ export function WeekView({
                     )}
                   </div>
                   {allDayEvents.length > 0 && (
-                    <div className={cn('px-0.5 pb-0.5 flex flex-col gap-px', !transparentMode && 'bg-card dark:bg-card/50')}>
+                    <div className={cn('px-0.5 pb-0.5 flex flex-col gap-px', !transparentMode && 'bg-calendar-surface')}>
                       {allDayEvents.map((event) => (
                         <button
                           key={event.id}
                           onClick={() => onEventClick(event)}
                           className={cn(
                             'w-full text-left text-[12px] font-medium px-1 py-px rounded truncate hover:opacity-80 transition-all leading-tight',
-                            cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
+                            cards && 'bg-calendar-surface border border-border shadow-sm',
                           )}
                           style={
                             cards
@@ -448,7 +448,7 @@ export function WeekView({
                               onClick={() => onEventClick(event)}
                               className={cn(
                                 'absolute p-0.5 rounded text-left text-xs z-10 overflow-hidden hover:opacity-90 hover:ring-2 hover:ring-seasonal-accent/50 transition-all flex flex-col items-start',
-                                cards && 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm',
+                                cards && 'bg-calendar-surface border border-border shadow-sm',
                               )}
                               style={
                                 cards
@@ -712,7 +712,7 @@ function LandscapeDayBody({
         // For today: 3-sided border (left + right + bottom, no top) so it joins
         // seamlessly with LandscapeDayHeader's 3-sided border to form a single
         // continuous perimeter spanning header + time grid.
-        isToday(date) && cards && 'border-2 border-t-0 border-seasonal-accent/80',
+        isToday(date) && cards && 'border border-t-0 border-seasonal-accent/80',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-inset ring-seasonal-accent shadow-lg',
       )}
     >
@@ -750,10 +750,10 @@ function LandscapeDayHeader({
         'flex-1 min-w-0 border-l border-border',
         !transparentMode && isPast && 'bg-muted/20',
         // For today: 3-sided border (top + left + right, no bottom) using
-        // explicit border-2 so it joins seamlessly with LandscapeDayBody's
+        // the shared one-pixel border so it joins seamlessly with LandscapeDayBody's
         // matching 3-sided border (left + right + bottom). Together the two
         // form a single continuous 4-sided perimeter spanning the full column.
-        isToday(date) && cards && 'border-2 border-b-0 border-seasonal-accent/80',
+        isToday(date) && cards && 'border border-b-0 border-seasonal-accent/80',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-inset ring-seasonal-accent shadow-lg',
       )}
     >

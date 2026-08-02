@@ -33,34 +33,39 @@ describe('grid widget styles', () => {
       ).toBe('fff');
     });
 
-    it('keeps explicit colors for transparent and frosted surfaces', () => {
+    it('defers transparent and frosted surfaces to the active theme', () => {
       expect(
         getEffectiveWidgetTextColor(
           widget({ backgroundColor: 'transparent', textColor: '#FFFFFF' })
         )
-      ).toBe('#FFFFFF');
+      ).toBeUndefined();
       expect(
         getEffectiveWidgetTextColor(widget({ backgroundColor: 'frosted', textColor: '#FFFFFF' }))
-      ).toBe('#FFFFFF');
+      ).toBeUndefined();
     });
 
-    it('does not claim contrast safety for invisible or translucent backgrounds', () => {
+    it('defers invisible or translucent backgrounds to the active theme', () => {
       expect(
         getEffectiveWidgetTextColor(
           widget({ backgroundColor: '#FFFFFF', backgroundOpacity: 0, textColor: '#FFFFFF' })
         )
-      ).toBe('#FFFFFF');
+      ).toBeUndefined();
       expect(
         getEffectiveWidgetTextColor(
           widget({ backgroundColor: '#FFFFFF', backgroundOpacity: 0.5, textColor: '#FFFFFF' })
         )
-      ).toBe('#FFFFFF');
+      ).toBeUndefined();
       expect(
         getEffectiveWidgetTextColor(widget({ backgroundColor: '#FFFFFF', backgroundOpacity: 0.5 }))
       ).toBeUndefined();
       expect(
         getEffectiveWidgetTextColor(widget({ backgroundColor: '#FFF8', textColor: '#FFFFFF' }))
-      ).toBe('#FFFFFF');
+      ).toBeUndefined();
+    });
+
+    it('ignores text-only overrides so preset cards inherit the theme', () => {
+      expect(getEffectiveWidgetTextColor(widget({ textColor: '#FFFFFF' }))).toBeUndefined();
+      expect(getWidgetStyle(widget({ textColor: '#FFFFFF' }))).toBeUndefined();
     });
   });
 

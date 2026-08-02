@@ -172,7 +172,7 @@ function AgendaDaySection({
       data-droppable-day={cards && enableDnd ? droppable.droppableId : undefined}
       className={cn(
         'rounded',
-        cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-sm bg-card dark:bg-card/40 p-1',
+        cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-sm bg-calendar-today p-1',
       )}
     >
       <div className="flex items-center gap-2 mb-2">
@@ -335,7 +335,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
       className={cn(
         'relative w-full text-left flex items-start gap-2 p-1.5 rounded',
         cards
-          ? 'border-border bg-card dark:border-border/40 dark:bg-card/85 dark:backdrop-blur-sm border shadow-sm hover:bg-card text-foreground'
+          ? 'border-border bg-calendar-surface border shadow-sm hover:bg-accent text-foreground'
           : 'hover:opacity-90',
         'transition-colors touch-action-manipulation',
         row.dragId && 'cursor-grab active:cursor-grabbing',
