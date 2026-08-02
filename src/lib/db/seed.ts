@@ -661,12 +661,22 @@ async function seed() {
   const thisWeek = ymd(startOfWeek(NOW));
   const nextWeekStart = ymd(startOfWeek(daysFromNow(7)));
 
+  // Absolute date for each seed meal (weekOf is a Sunday, so date = Sunday +
+  // day index). Mirrors src/lib/utils/mealDate.ts, inlined so the esbuild
+  // bundle (db:bundle) doesn't need @/-alias resolution.
+  const SEED_DAY_NUM: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+  const seedMealDate = (weekOf: string, dayOfWeek: string): string => {
+    const d = new Date(`${weekOf}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + (SEED_DAY_NUM[dayOfWeek] ?? 0));
+    return d.toISOString().split('T')[0]!;
+  };
+
   await db.insert(schema.meals).values([
     // This week
     { name: 'Pancakes',                  dayOfWeek: 'sunday',    mealType: 'breakfast', weekOf: thisWeek, recipeId: recipePancakes.id, createdBy: alex.id },
     { name: 'Cereal & fruit',            dayOfWeek: 'monday',    mealType: 'breakfast', weekOf: thisWeek, createdBy: jordan.id },
     { name: 'Spaghetti and Meatballs',   dayOfWeek: 'monday',    mealType: 'dinner',    weekOf: thisWeek, recipeId: recipeSpag.id,     createdBy: jordan.id },
-    { name: 'Taco Tuesday',              dayOfWeek: 'tuesday',   mealType: 'dinner',    weekOf: thisWeek, recipeId: recipeTacos.id,    createdBy: jordan.id },
+    { name: 'Taco Tuesday',              dayOfWeek: 'tuesday',   mealType: 'dinner',    weekOf: thisWeek, recipeId: recipeTacos.id,    createdBy: jordan.id }, // ↓ .map adds `date`
     { name: 'Leftovers',                 dayOfWeek: 'wednesday', mealType: 'dinner',    weekOf: thisWeek, createdBy: alex.id },
     { name: 'One-Pot Chicken Pasta',     dayOfWeek: 'thursday',  mealType: 'dinner',    weekOf: thisWeek, recipeId: recipePasta.id,    createdBy: alex.id },
     { name: 'Pizza Night',               dayOfWeek: 'friday',    mealType: 'dinner',    weekOf: thisWeek, createdBy: alex.id },
@@ -676,7 +686,7 @@ async function seed() {
     { name: 'Pancakes',                  dayOfWeek: 'sunday',    mealType: 'breakfast', weekOf: nextWeekStart, recipeId: recipePancakes.id, createdBy: alex.id },
     { name: 'Grilled Chicken Salad',     dayOfWeek: 'monday',    mealType: 'dinner',    weekOf: nextWeekStart, createdBy: alex.id },
     { name: 'Taco Tuesday',              dayOfWeek: 'tuesday',   mealType: 'dinner',    weekOf: nextWeekStart, recipeId: recipeTacos.id,    createdBy: jordan.id },
-  ]);
+  ].map((m) => ({ ...m, date: seedMealDate(m.weekOf, m.dayOfWeek) })) as (typeof schema.meals.$inferInsert)[]);
 
   console.log(`  Created 12 meal plans across this + next week`);
 
@@ -877,15 +887,17 @@ async function seed() {
       name: 'Default Dashboard',
       isDefault: true,
       widgets: [
-        { i: 'clock',     x:  0, y:  0, w: 20, h: 12 },
-        { i: 'weather',   x: 20, y:  0, w: 20, h: 12 },
-        { i: 'calendar',  x:  0, y: 12, w: 40, h: 24 },
-        { i: 'tasks',     x:  0, y: 36, w: 20, h: 20 },
-        { i: 'messages',  x: 20, y: 36, w: 20, h: 20 },
-        { i: 'chores',    x:  0, y: 56, w: 20, h: 16 },
-        { i: 'shopping',  x: 20, y: 56, w: 20, h: 16 },
-        { i: 'meals',     x:  0, y: 72, w: 40, h: 16 },
-        { i: 'birthdays', x:  0, y: 88, w: 40, h: 12 },
+        // One-screen, two-column layout: weather fills the full-height left
+        // half, four widgets stack down the right half. Fits without scrolling
+        // on common laptop/desktop viewports. Calendar, Birthdays, Points,
+        // Messages, and Meals are intentionally omitted from the default —
+        // users add them via Settings. Keep in sync with DEFAULT_TEMPLATE in
+        // src/lib/constants/layoutTemplates.ts.
+        { i: 'weather',  x: 0,  y: 0,  w: 24, h: 24 },
+        { i: 'clock',    x: 24, y: 0,  w: 24, h: 6  },
+        { i: 'tasks',    x: 24, y: 6,  w: 24, h: 6  },
+        { i: 'chores',   x: 24, y: 12, w: 24, h: 6  },
+        { i: 'shopping', x: 24, y: 18, w: 24, h: 6  },
       ],
       createdBy: alex.id,
     },

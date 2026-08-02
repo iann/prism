@@ -4,8 +4,53 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+## [1.13.1] – 2026-08-02
+
+### Dashboard
+- **Fixed the bottom row clipping on some kiosks.** On touch displays where the top toolbar renders a little taller, the bottom row of widgets could be clipped while the toolbar was showing. The layout now measures the real toolbar height and fits cleanly whether the toolbar is shown or hidden.
+- **Weather no longer cuts a forecast day in half.** The daily forecast shows only the whole day rows that fit, instead of clipping the last one mid-row.
+
+### Screensaver
+- **Screensaver scales to fit any screen.** It shrinks to fit the display so nothing runs off the bottom edge, on any monitor size.
+
+## [1.13.0] – 2026-08-02
+
+### Dashboard
+- **Your layout now fills any screen.** Design your dashboard once — on your kiosk or in a laptop browser — and it stretches to fit whatever screen it's shown on, edge to edge, without clipping or stopping awkwardly short of the bottom. It re-fits live when you resize the window, go full-screen, or zoom, and when the toolbars auto-hide the layout grows to fill the space they leave. A design whose orientation doesn't match the screen (a portrait layout on a landscape display) is neatly letterboxed rather than stretched out of shape.
+- **Preview shows exactly what the wall will show.** Full-screen preview now renders the real, stretched dashboard, and a new **device gallery** shows how your one design looks on a 27″ display, an iPad, a Fire tablet and a phone — so you can check the fit before you deploy. The old per-resolution "screen zone" controls are retired in favor of this simpler model.
+- **Better starting templates and widget sizes.** The built-in layout templates were rebuilt to fit the screen properly (several used to run off the page), the **weather** panel now has room to breathe, and a freshly-added widget arrives at a sensible size instead of nearly filling the screen.
+- **The weather widget fits its space.** It shows as much as fits — current conditions, an hourly timeline, and up to a 7-day forecast — revealing more as you make it bigger, so it's never cut off.
+
+### Screensaver
+- **Refreshed, legible screensaver templates.** The built-in screensaver layouts were rebuilt to sit fully on-screen (some used to run off the bottom) and kept clean and minimal, and screensaver text is now light and readable over the wallpaper — no more dark-on-dark widgets.
+
+## [1.12.0] – 2026-08-01
+
+### Setup & first-run
+- **A slimmer, keyless setup.** First run is now just **Welcome → Family → Household → Done** — no API keys or accounts required to finish. Location uses a ZIP lookup with automatic time zone; calendars and other integrations connect later from their own pages. You can no longer accidentally finish setup with **no family members** (which used to lock you out of login with no way back), and a brand-new dashboard shows your calendar without anyone needing to sign in.
+
+### Calendar
+- **Assign events to a person with zero integrations.** Every family member automatically gets their own personal calendar (plus a shared **Family** one), so an event you add is assigned to someone and color-coded on the dashboard — no third-party setup. The old anonymous "Local only" bucket is gone; existing installs pick the calendars up automatically. Connected accounts (Google) still layer on top, clearly marked as two-way syncing.
+- **Meals on the calendar are marked with a utensils icon**, so a meal is instantly distinct from an ordinary event.
+- **Calendars refresh on their own after a sync** — no manual page reload after adding a subscription or hitting "Sync Now".
+- **Clearer calendar connect** — the dialog shows exactly where to find a Google Calendar's private iCal link, and rejects a Google *web* link (which used to sync nothing) with a helpful message.
+
+### Meals
+- **Correct weekday labels, and meal plans no longer vanish** when you change "Week starts on." Meals now anchor to their real calendar date, so toggling the setting simply re-windows the week. Ships one automatic, additive database migration; existing meals keep their dates.
+
+## [1.11.0] – 2026-07-31
+
 ### Calendar
 - **Deleting a synced Apple/CalDAV event in Prism now removes it from the source too.** Previously only Google deletes propagated upstream — a CalDAV event you deleted in Prism was tombstoned locally but lingered on iCloud/Nextcloud/etc. Prism now captures each event's server address at sync time and sends the delete back to the source. Single (non-recurring) events only; recurring series still delete locally without touching the source (they need proper recurrence editing first). Ships one additive database migration, applied automatically on start.
+
+### Setup & first-run
+- **A much smoother first run for non-technical users.** The setup wizard now lets you **edit or remove** family members as you go (fix a typo, change a color), **remembers them if you step back or refresh**, and no longer drops you on a **blank screen** when you finish. Setup dialogs fit the screen, member **names must be unique**, "Add member" no longer looks disabled, and Prism now **starts in light mode**.
+
+### Security
+- **Per-member PIN length.** Each family member can pick their own **4- or 6-digit** PIN, and every PIN pad now asks for exactly *that* member's length — so a longer PIN can no longer lock someone out (fixes login for 5/6-digit PINs). The confusing family-wide "default PIN length" setting is gone. Ships one additive, automatic database migration; existing PINs keep working. The admin/settings gate now correctly lists parents only.
+
+### Interface
+- **Leaner one-screen default dashboard** (weather-forward, no off-screen overflow — existing custom layouts are untouched), **consistent empty & loading states** across every page each with a clear "Add your first…" button, list pages that **start ungrouped**, and a **Wishes** view that matches the rest of the app (person filter + group-by). Plus dozens of small first-impression fixes.
 
 ## [1.10.0] – 2026-07-27
 

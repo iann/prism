@@ -37,10 +37,13 @@ import { RecipeSyncModal } from '@/components/sync/RecipeSyncModal';
 import { PageWrapper, SubpageHeader, FilterBar } from '@/components/layout';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageLoader } from '@/components/ui/spinner';
 import { useMealsViewData } from './useMealsViewData';
 import { useRecipes, type Recipe } from '@/lib/hooks/useRecipes';
 import { useAuth } from '@/components/providers';
 import type { Meal } from '@/types';
+import { DAYS_OF_WEEK as ALL_DAYS } from '@/lib/constants/days';
 
 function getMealTypeEmoji(mealType: string): string {
   switch (mealType) {
@@ -52,13 +55,10 @@ function getMealTypeEmoji(mealType: string): string {
   }
 }
 
-import { DAYS_OF_WEEK as ALL_DAYS } from '@/lib/constants/days';
-
 export function MealsView() {
   const { requireAuth } = useAuth();
   const {
-    weekStartsOn,
-    today, currentWeek, weekOfString, loading,
+    weekStartsOn, today, currentWeek, weekOfString, loading,
     showAddModal, setShowAddModal,
     selectedDay, setSelectedDay,
     editingMeal, setEditingMeal,
@@ -159,13 +159,11 @@ export function MealsView() {
 
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
-            </div>
+            <PageLoader />
           ) : (
             <div className="max-w-6xl mx-auto space-y-3">
-              {orderedDays.map((day, index) => {
-                const dayDate = addDays(currentWeek, index);
+              {orderedDays.map((day, offset) => {
+                const dayDate = addDays(currentWeek, offset);
                 const allDayMeals = mealsByDay[day] || [];
                 const dayMeals = filterMealTypes.size > 0 ? allDayMeals.filter(m => filterMealTypes.has(m.mealType)) : allDayMeals;
                 const isDayToday = format(dayDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
@@ -182,14 +180,24 @@ export function MealsView() {
         </div>
 
         {showAddModal && (
-          <MealModal weekOf={weekOfString} defaultDay={selectedDay || orderedDays[0]} dayOptions={orderedDays} recipes={recipes}
+          <MealModal
+            weekOf={weekOfString}
+            defaultDay={selectedDay || orderedDays[0]}
+            dayOptions={orderedDays}
+            recipes={recipes}
             onClose={() => { setShowAddModal(false); setSelectedDay(null); }}
-            onSave={(meal) => { addMeal(meal); setShowAddModal(false); setSelectedDay(null); }} />
+            onSave={(meal) => { addMeal(meal); setShowAddModal(false); setSelectedDay(null); }}
+          />
         )}
         {editingMeal && (
-          <MealModal weekOf={weekOfString} meal={editingMeal} dayOptions={orderedDays} recipes={recipes}
+          <MealModal
+            weekOf={weekOfString}
+            meal={editingMeal}
+            dayOptions={orderedDays}
+            recipes={recipes}
             onClose={() => setEditingMeal(null)}
-            onSave={(updates) => { editMeal(editingMeal.id, updates); setEditingMeal(null); }} />
+            onSave={(updates) => { editMeal(editingMeal.id, updates); setEditingMeal(null); }}
+          />
         )}
         {showSyncModal && (
           <RecipeSyncModal entity="meals" onClose={() => setShowSyncModal(false)} onSynced={refresh} />
@@ -342,12 +350,18 @@ function MealCard({ meal, onMarkCooked, onUnmarkCooked, onEdit, onDelete, onDrop
 
 
 export function MealModal({ weekOf, meal, defaultDay, dayOptions, recipes, onClose, onSave }: {
-  weekOf: string; meal?: Meal; defaultDay?: Meal['dayOfWeek']; dayOptions: readonly Meal['dayOfWeek'][]; recipes: Recipe[];
-  onClose: () => void; onSave: (meal: Record<string, unknown>) => void;
+  weekOf: string;
+  meal?: Meal;
+  defaultDay?: Meal['dayOfWeek'];
+  dayOptions: readonly Meal['dayOfWeek'][];
+  recipes: Recipe[];
+  onClose: () => void;
+  onSave: (meal: Record<string, unknown>) => void;
 }) {
   const [name, setName] = useState(meal?.name || '');
   const [description, setDescription] = useState(meal?.description || '');
-  const [dayOfWeek, setDayOfWeek] = useState<Meal['dayOfWeek']>(meal?.dayOfWeek || defaultDay || dayOptions[0] || 'sunday');
+  const initialDay: Meal['dayOfWeek'] = meal?.dayOfWeek || defaultDay || dayOptions[0] || 'sunday';
+  const [dayOfWeek, setDayOfWeek] = useState<Meal['dayOfWeek']>(initialDay);
   const [mealType, setMealType] = useState<Meal['mealType']>(meal?.mealType || 'dinner');
   const [mealTime, setMealTime] = useState<string>(meal?.mealTime || '');
   const [prepTime, setPrepTime] = useState(meal?.prepTime?.toString() || '');
@@ -421,7 +435,7 @@ export function MealModal({ weekOf, meal, defaultDay, dayOptions, recipes, onClo
                   <ScrollArea className="h-48">
                     <div className="p-1">
                       {filteredRecipes.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">No recipes found</p>
+                        <EmptyState size="sm" title="No recipes found" />
                       ) : (
                         filteredRecipes.map((recipe) => (
                           <button
@@ -477,13 +491,13 @@ export function MealModal({ weekOf, meal, defaultDay, dayOptions, recipes, onClo
           <div><label className="text-sm font-medium">Name</label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Meal name..." autoFocus={recipes.length === 0} /></div>
           <div><label className="text-sm font-medium">Description (optional)</label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Any details..." /></div>
           <div>
-              <label className="text-sm font-medium">Day</label>
-              <div className="grid grid-cols-4 gap-2 mt-1">
-              {dayOptions.map((d) => (
-                <Button key={d} type="button" variant={dayOfWeek === d ? 'default' : 'outline'} size="sm" onClick={() => setDayOfWeek(d)} className="capitalize text-xs">{d.slice(0, 3)}</Button>
+            <label className="text-sm font-medium">Day</label>
+            <div className="grid grid-cols-4 gap-2 mt-1">
+              {dayOptions.map((option) => (
+                <Button key={option} type="button" variant={dayOfWeek === option ? 'default' : 'outline'} size="sm" onClick={() => setDayOfWeek(option)} className="capitalize text-xs">{option.slice(0, 3)}</Button>
               ))}
-              </div>
             </div>
+          </div>
           <div>
             <label className="text-sm font-medium">Meal Type</label>
             <div className="flex gap-2 mt-1 flex-wrap">

@@ -10,6 +10,8 @@ export interface FamilyMember {
   avatarUrl?: string | null;
   role?: 'parent' | 'child' | 'guest';
   hasPin?: boolean;
+  /** Number of digits this member's PIN pad requires (4/5/6). Not sensitive — exposed even unauthenticated. */
+  pinLength?: number;
 }
 
 export interface Task {
@@ -148,6 +150,9 @@ export interface Meal {
   servings?: number | null;
   ingredients?: string | null;
   weekOf: string;
+  /** Absolute calendar date (YYYY-MM-DD). Stable across "week starts on"
+   *  changes; the week views query/filter by this. */
+  date?: string;
   dayOfWeek: DayOfWeek;
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   /** Optional HH:mm time-of-day for time-grid placement; null/undefined → default by mealType. */

@@ -47,11 +47,16 @@ jest.mock('@/lib/cache/cacheKeys', () => ({
 }));
 
 // --- Other mocks ---
-jest.mock('@/lib/services/auditLog', () => ({ logActivity: jest.fn() }));
+const mockLogActivity = jest.fn();
+jest.mock('@/lib/services/auditLog', () => ({ logActivity: (...a: unknown[]) => mockLogActivity(...a) }));
 jest.mock('@/lib/utils/logError', () => ({ logError: jest.fn() }));
 jest.mock('drizzle-orm', () => ({ eq: jest.fn() }));
+jest.mock('@/lib/setup', () => ({ isSetupComplete: jest.fn() }));
 
 import { GET, PATCH } from '../route';
+import { isSetupComplete } from '@/lib/setup';
+
+const mockIsSetupComplete = isSetupComplete as jest.Mock;
 
 const parentAuth = { userId: 'parent-1', role: 'parent' };
 
@@ -156,5 +161,46 @@ describe('PATCH /api/settings', () => {
 
     await PATCH(makePatchRequest({ key: 'location', value: 'London' }));
     expect(mockInvalidateEntity).toHaveBeenCalledWith('weather');
+  });
+
+  describe('unauthenticated setup-bootstrap exception for pinLength', () => {
+    beforeEach(() => {
+      // No session/parent account exists yet — requireAuth() 401s.
+      mockRequireAuth.mockResolvedValue(
+        NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      );
+    });
+
+    it('allows writing pinLength before setup is complete', async () => {
+      // setup not complete -> bootstrap write allowed. The remaining select()
+      // is the "does this setting already exist" lookup (no row -> insert).
+      mockIsSetupComplete.mockResolvedValue(false);
+      mockWhere.mockResolvedValueOnce([]);
+
+      const res = await PATCH(makePatchRequest({ key: 'pinLength', value: '5' }));
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body).toEqual({ key: 'pinLength', value: '5' });
+      expect(mockInsert).toHaveBeenCalled();
+      // No parent session exists yet, so this write must not be attributed to a user.
+      expect(mockLogActivity).not.toHaveBeenCalled();
+    });
+
+    it('rejects writing pinLength once setup is already complete', async () => {
+      // setup is done -> bootstrap no longer applies, unauthenticated write 401s.
+      mockIsSetupComplete.mockResolvedValue(true);
+
+      const res = await PATCH(makePatchRequest({ key: 'pinLength', value: '5' }));
+      expect(res.status).toBe(401);
+      expect(mockInsert).not.toHaveBeenCalled();
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejects unauthenticated writes to every other setting key', async () => {
+      const res = await PATCH(makePatchRequest({ key: 'theme', value: 'light' }));
+      expect(res.status).toBe(401);
+      expect(mockInsert).not.toHaveBeenCalled();
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
   });
 });
