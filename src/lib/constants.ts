@@ -2,6 +2,7 @@ import pkg from '../../package.json';
 
 export const APP_NAME = 'Prism';
 export const APP_VERSION = pkg.version;
+export const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID || 'unknown';
 export const APP_DESCRIPTION = "Your family's digital home";
 
 /** Session duration in seconds, keyed by uppercase role */

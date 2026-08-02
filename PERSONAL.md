@@ -191,6 +191,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
    Commit: 6b37df1
 
+19. **Automatic client updates after server releases**
+
+    Added a cache-proof server build endpoint and a global client checker that
+    compares immutable build identities, refreshes the PWA service worker, and
+    reloads the current page when the running server build changes. CI uses the
+    commit SHA; local and source builds use a deterministic content hash.
+
+    Commits: d276d02, 9e6ad24
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
