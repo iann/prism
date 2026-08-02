@@ -16,7 +16,7 @@ import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useHiddenHours } from '@/lib/hooks/useHiddenHours';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import { calculateEventPositions, positionToCSS } from '@/lib/utils/eventLayout';
-import { hexToRgba } from '@/lib/utils/color';
+import { contrastText, hexToRgba } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { DroppableOverlayCell, useDayDroppable, weatherIcon, getMealTime, getChoreTime, getTaskTime, formatTimeOfDay, type OverlayItemRef } from './cells';
@@ -147,7 +147,7 @@ export function WeekView({
                 style={
                   cards
                     ? { borderLeft: `3px solid ${event.color}` }
-                    : { backgroundColor: event.color, color: '#fff', borderLeft: `2px solid ${event.color}` }
+                    : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
                 }
               >
                 {event.title}
@@ -191,7 +191,7 @@ export function WeekView({
                             }
                           : {
                               backgroundColor: event.color,
-                              color: '#fff',
+                              color: contrastText(event.color),
                               borderLeft: `2px solid ${event.color}`,
                               top: `${(event.startTime.getMinutes() / 60) * 100}%`,
                               height: `${heightPct}%`,
@@ -375,7 +375,7 @@ export function WeekView({
                           style={
                             cards
                               ? { borderLeft: `3px solid ${event.color}` }
-                              : { backgroundColor: event.color, color: '#fff', borderLeft: `2px solid ${event.color}` }
+                              : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
                           }
                         >
                           {event.title}
@@ -462,7 +462,7 @@ export function WeekView({
                                     }
                                   : {
                                       backgroundColor: event.color,
-                                      color: '#fff',
+                                      color: contrastText(event.color),
                                       borderLeft: `2px solid ${event.color}`,
                                       top: `${(event.startTime.getMinutes() / 60) * 100}%`,
                                       height: `${heightPct}%`,

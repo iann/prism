@@ -12,6 +12,7 @@ import { Calendar } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
+import { contrastText } from '@/lib/utils/color';
 import { Badge } from '@/components/ui';
 import type { CalendarEvent } from '@/types/calendar';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
@@ -311,6 +312,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
     zIndex: draggable.isDragging ? 50 : undefined,
     borderLeft: `3px solid ${row.stripeColor}`,
     backgroundColor: cards ? undefined : row.stripeColor,
+    color: cards ? undefined : contrastText(row.stripeColor),
   };
 
   const Tag: 'button' | 'div' = row.onClick ? 'button' : 'div';
@@ -327,7 +329,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
         'relative w-full text-left flex items-start gap-2 p-1.5 rounded',
         cards
           ? 'border-border bg-card dark:border-border/40 dark:bg-card/85 dark:backdrop-blur-sm border shadow-sm hover:bg-card text-foreground'
-          : 'hover:opacity-90 text-white',
+          : 'hover:opacity-90',
         'transition-colors touch-action-manipulation',
         row.dragId && 'cursor-grab active:cursor-grabbing',
         draggable.isDragging && 'opacity-60 ring-2 ring-seasonal-accent shadow-xl',
@@ -345,7 +347,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
         <div className={cn('text-xs', cards ? 'text-muted-foreground' : 'opacity-80')}>
           {row.timeLabel}
         </div>
-        <div className={cn('text-sm font-medium truncate', cards ? 'text-foreground' : 'text-white', row.muted && 'line-through')}>
+        <div className={cn('text-sm font-medium truncate', cards && 'text-foreground', row.muted && 'line-through')}>
           {row.title}
         </div>
         {row.subtitle && (

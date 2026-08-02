@@ -17,7 +17,7 @@ import {
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
-import { hexToRgba } from '@/lib/utils/color';
+import { contrastText, hexToRgba, hslToHex } from '@/lib/utils/color';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import type { CalendarEvent } from '@/types/calendar';
@@ -31,6 +31,12 @@ function getMonthColor(month: Date): string {
   const monthNum = getMonth(month) + 1;
   const palette = seasonalPalettes[monthNum];
   return palette ? `hsl(${palette.light.accent})` : '#3B82F6';
+}
+
+function getMonthTextColor(month: Date): string {
+  const monthNum = getMonth(month) + 1;
+  const palette = seasonalPalettes[monthNum];
+  return contrastText(palette ? hslToHex(palette.light.accent) : '#3B82F6');
 }
 
 export interface MonthViewProps {
@@ -90,8 +96,8 @@ export function MonthView({
           the calendar grid. The toolbar already shows the month name; this
           band is mostly a colored anchor. */}
       <div
-        className="shrink-0 text-center py-1 font-semibold text-sm text-white rounded-t-md mb-1 shadow-sm"
-        style={{ backgroundColor: monthColor }}
+        className="shrink-0 text-center py-1 font-semibold text-sm rounded-t-md mb-1 shadow-sm"
+        style={{ backgroundColor: monthColor, color: getMonthTextColor(currentDate) }}
       >
         {format(currentDate, 'MMMM yyyy')}
       </div>
@@ -241,7 +247,7 @@ function MonthDayCell({
                 event.allDay ? 'py-px' : 'py-0.5'
               )}
               style={event.allDay
-                ? { backgroundColor: event.color, color: '#fff', borderLeft: `2px solid ${event.color}` }
+                ? { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `2px solid ${event.color}` }
                 : { color: event.color }
               }
             >

@@ -15,7 +15,7 @@ export function weatherIcon(cond: WeatherCondition | undefined, size: 'sm' | 'lg
     case 'partly-cloudy':
       return <CloudSun className={cn(cls, 'text-amber-300')} aria-hidden />;
     case 'cloudy':
-      return <Cloud className={cn(cls, 'text-slate-400 dark:text-white/70')} aria-hidden />;
+      return <Cloud className={cn(cls, 'text-slate-500 dark:text-white/70')} aria-hidden />;
     case 'rainy':
       return <CloudRain className={cn(cls, 'text-blue-400')} aria-hidden />;
     case 'snowy':

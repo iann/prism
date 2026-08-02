@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import { NoteEditor } from './NoteEditor';
 import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
-import { hexToRgba } from '@/lib/utils/color';
+import { contrastText, hexToRgba } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import type { CalendarNote } from '@/lib/hooks/useCalendarNotes';
@@ -93,7 +93,7 @@ export function WeekVerticalView({
             <div key={group.id} className="flex-1 min-w-0 px-1 py-1">
               <div
                 className="text-sm font-medium text-center py-1 rounded"
-                style={{ backgroundColor: group.color, color: '#fff' }}
+                style={{ backgroundColor: group.color, color: contrastText(group.color) }}
               >
                 {group.name}
               </div>
@@ -102,8 +102,8 @@ export function WeekVerticalView({
           {showNotes && (
             <div className="w-2/5 min-w-[180px] border-l border-border px-1 py-1">
               <div
-                className="text-sm font-medium text-center py-1 rounded text-white"
-                style={{ backgroundColor: '#6366f1' }}
+                className="text-sm font-medium text-center py-1 rounded"
+                style={{ backgroundColor: '#6366f1', color: contrastText('#6366f1') }}
               >
                 Notes
               </div>
@@ -361,10 +361,10 @@ function DayEventList({
           style={
             cards
               ? { borderLeft: `3px solid ${event.color}` }
-              : { backgroundColor: event.color, borderLeft: `3px solid ${event.color}` }
+              : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `3px solid ${event.color}` }
           }
         >
-          <span className={cn('font-medium', cards ? 'text-foreground' : 'text-white')}>{event.title}</span>
+          <span className={cn('font-medium', cards ? 'text-foreground' : undefined)}>{event.title}</span>
         </button>
       ))}
       {timedEvents.map((event) => {
@@ -377,13 +377,13 @@ function DayEventList({
               'w-full text-left text-xs px-1.5 py-1 rounded hover:opacity-90 transition-opacity truncate block',
               cards
                 ? 'bg-card dark:bg-card/85 dark:backdrop-blur-sm border border-border dark:border-border/40 shadow-sm text-foreground'
-                : 'text-white',
+                : undefined,
               isPastEvent && 'opacity-70',
             )}
             style={
               cards
                 ? { borderLeft: `3px solid ${event.color}` }
-                : { backgroundColor: event.color, borderLeft: `3px solid ${event.color}` }
+                : { backgroundColor: event.color, color: contrastText(event.color), borderLeft: `3px solid ${event.color}` }
             }
           >
             <span className={cn('mr-1', cards ? 'text-muted-foreground' : 'opacity-80')}>{format(new Date(event.startTime), 'h:mm a')}</span>

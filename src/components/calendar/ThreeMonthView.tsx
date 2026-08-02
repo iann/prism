@@ -21,6 +21,7 @@ import { DAYS_SINGLE_ARRAY } from '@/lib/constants/days';
 import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
 import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
+import { contrastText, hslToHex } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
 import { seasonalPalettes } from '@/lib/themes/seasonalThemes';
 
@@ -29,6 +30,12 @@ function getMonthColor(month: Date): string {
   const monthNum = getMonth(month) + 1; // getMonth returns 0-11
   const palette = seasonalPalettes[monthNum];
   return palette ? `hsl(${palette.light.accent})` : '#3B82F6';
+}
+
+function getMonthTextColor(month: Date): string {
+  const monthNum = getMonth(month) + 1;
+  const palette = seasonalPalettes[monthNum];
+  return contrastText(palette ? hslToHex(palette.light.accent) : '#3B82F6');
 }
 
 export interface ThreeMonthViewProps {
@@ -87,8 +94,8 @@ function MiniMonth({
       {/* Month header with themed color — compact band so the three minis
           can use more vertical space for actual day cells. */}
       <div
-        className="text-center py-1 font-semibold text-sm flex-shrink-0 text-white shadow-sm"
-        style={{ backgroundColor: monthColor }}
+        className="text-center py-1 font-semibold text-sm flex-shrink-0 shadow-sm"
+        style={{ backgroundColor: monthColor, color: getMonthTextColor(month) }}
       >
         {format(month, 'MMMM yyyy')}
       </div>
