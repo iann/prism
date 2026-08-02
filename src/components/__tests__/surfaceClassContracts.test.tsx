@@ -264,6 +264,8 @@ describe('surface class contracts', () => {
       // Decorative selected-state check glyphs.
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinForm.tsx:text-[10px]',
+      // Compact labels identify the device frames in the layout gallery.
+      'src/components/layout/DevicePreviewGallery.tsx:text-[9px]',
       // Navigation and modal avatar initials with adjacent names or labels.
       'src/components/layout/MobileFab.tsx:text-[10px]',
       'src/components/layout/MobileNav.tsx:text-[10px]',
