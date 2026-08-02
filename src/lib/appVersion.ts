@@ -39,8 +39,6 @@ function waitForServiceWorkerActivation(worker: ServiceWorker, timeoutMs: number
   }
 
   return new Promise((resolve) => {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-
     const finish = () => {
       if (timeout) clearTimeout(timeout);
       worker.removeEventListener('statechange', handleStateChange);
@@ -52,7 +50,7 @@ function waitForServiceWorkerActivation(worker: ServiceWorker, timeoutMs: number
     };
 
     worker.addEventListener('statechange', handleStateChange);
-    timeout = setTimeout(finish, timeoutMs);
+    const timeout = setTimeout(finish, timeoutMs);
   });
 }
 
