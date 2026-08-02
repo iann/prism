@@ -181,6 +181,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
    Commit: 3c8f15a
 
+18. **Claude-inspired warm dashboard palette**
+
+   Added a selectable Claude-inspired light/dark palette with parchment and
+   charcoal surfaces, restrained terracotta accents, softened widget surfaces,
+   and mode-aware weather colors. Follow-up tuning keeps light info widgets
+   warm and neutral while dark info widgets use warm charcoal instead of cool
+   green-gray.
+
+   Commit: 6b37df1
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
