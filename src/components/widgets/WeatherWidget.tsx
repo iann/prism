@@ -565,7 +565,7 @@ function conditionLabel(condition: WeatherCondition, precipIntensity?: number): 
 }
 
 /** Short labels keep narrow condition bands legible without losing meaning. */
-function conditionBandLabel(condition: WeatherCondition, precipIntensity?: number): string {
+function conditionBandShortLabel(condition: WeatherCondition, precipIntensity?: number): string {
   if (condition === 'partly-cloudy') return 'Partly';
   if (condition === 'stormy') return 'Storms';
   return conditionLabel(condition, precipIntensity);
@@ -581,6 +581,76 @@ function conditionBandClass(condition: WeatherCondition): string {
     'stormy': 'bg-destructive/10',
   };
   return classes[condition];
+}
+
+function ConditionBandLabel({
+  condition,
+  precipIntensity,
+  className,
+  style,
+}: {
+  condition: WeatherCondition;
+  precipIntensity?: number;
+  className: string;
+  style: React.CSSProperties;
+}) {
+  const fullLabel = conditionLabel(condition, precipIntensity);
+  const shortLabel = conditionBandShortLabel(condition, precipIntensity);
+  const bandRef = React.useRef<HTMLDivElement>(null);
+  const fullLabelRef = React.useRef<HTMLSpanElement>(null);
+  const [showFullLabel, setShowFullLabel] = React.useState(fullLabel === shortLabel);
+
+  React.useEffect(() => {
+    if (fullLabel === shortLabel) {
+      setShowFullLabel(true);
+      return;
+    }
+
+    const band = bandRef.current;
+    const fullLabelElement = fullLabelRef.current;
+    if (!band || !fullLabelElement) return;
+
+    const updateLabel = () => {
+      const computedStyle = window.getComputedStyle(band);
+      const horizontalPadding = parseFloat(computedStyle.paddingLeft || '0')
+        + parseFloat(computedStyle.paddingRight || '0');
+      const availableWidth = band.clientWidth - horizontalPadding;
+      setShowFullLabel(fullLabelElement.getBoundingClientRect().width <= availableWidth);
+    };
+
+    updateLabel();
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(updateLabel);
+    observer.observe(band);
+    return () => observer.disconnect();
+  }, [fullLabel, shortLabel]);
+
+  return (
+    <div
+      ref={bandRef}
+      className={className}
+      style={style}
+      data-condition-band={condition}
+    >
+      {fullLabel !== shortLabel && (
+        <span
+          ref={fullLabelRef}
+          className="pointer-events-none absolute invisible w-max whitespace-nowrap text-[14px] font-medium"
+          aria-hidden="true"
+          data-condition-measure="true"
+        >
+          {fullLabel}
+        </span>
+      )}
+      <span
+        className="truncate text-[14px] font-medium text-foreground"
+        data-condition-label={condition}
+      >
+        {showFullLabel ? fullLabel : shortLabel}
+      </span>
+    </div>
+  );
 }
 
 
@@ -645,18 +715,16 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
       >
         <div className="flex min-h-6 border-b border-border/60" aria-label="Hourly conditions">
           {conditionBands.map((band, index) => (
-            <div
+            <ConditionBandLabel
               key={`${band.condition}-${index}`}
               className={cn(
-                'flex min-w-0 items-center justify-center border-r border-border/60 px-1 py-1 last:border-r-0',
+                'relative flex min-w-0 items-center justify-center border-r border-border/60 px-1 py-1 last:border-r-0',
                 conditionBandClass(band.condition)
               )}
               style={{ flex: band.hours }}
-            >
-              <span className="truncate text-[14px] font-medium text-foreground">
-                {conditionBandLabel(band.condition, band.precipIntensity)}
-              </span>
-            </div>
+              condition={band.condition}
+              precipIntensity={band.precipIntensity}
+            />
           ))}
         </div>
 
