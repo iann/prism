@@ -49,6 +49,7 @@ jest.mock('@/lib/db/schema', () => ({
   calendarSources: { id: 'id', provider: 'provider', enabled: 'enabled' },
   events: { calendarSourceId: 'calendarSourceId', externalEventId: 'externalEventId', startTime: 'startTime', id: 'id', pendingDeletion: 'pendingDeletion' },
   dismissedEvents: { calendarSourceId: 'calendarSourceId', externalEventId: 'externalEventId' },
+  settings: { key: 'key', value: 'value' },
 }));
 
 const mockFetchCalendarEvents = jest.fn();
@@ -277,6 +278,32 @@ describe('syncGoogleCalendarSource', () => {
     // Deletes-only review: prism-2 is FLAGGED pending, not hard-deleted.
     expect(mockDelete).not.toHaveBeenCalled();
     expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ pendingDeletion: expect.any(Date) }),
+    );
+  });
+
+  it('automatically deletes events no longer in Google when enabled', async () => {
+    mockFindFirst.mockResolvedValue(makeSource());
+    mockFetchCalendarEvents.mockResolvedValue([]);
+    mockFindMany.mockResolvedValue([
+      { id: 'prism-1', externalEventId: 'event-1', title: 'Deleted from Google' },
+    ]);
+
+    // The sync first loads local tombstones, then reads the deletion setting.
+    mockSelect
+      .mockReturnValueOnce({
+        from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([]) }),
+      })
+      .mockReturnValueOnce({
+        from: jest.fn().mockReturnValue({ where: jest.fn().mockResolvedValue([{ value: true }]) }),
+      });
+
+    const result = await syncGoogleCalendarSource('source-1');
+
+    expect(result.removed).toBe(1);
+    expect(result.autoDeleted).toBe(1);
+    expect(mockDeleteWhere).toHaveBeenCalled();
+    expect(mockUpdateSet).not.toHaveBeenCalledWith(
       expect.objectContaining({ pendingDeletion: expect.any(Date) }),
     );
   });

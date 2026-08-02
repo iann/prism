@@ -30,6 +30,8 @@ export const MAX_PIN_LENGTH = 6;
 export const DEFAULT_PIN_LENGTH = 4;
 /** Settings key holding the family-wide PIN length (uniform for all members). */
 export const PIN_LENGTH_SETTING_KEY = 'pinLength';
+/** Settings key controlling how source-calendar deletions are handled. */
+export const AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY = 'calendar.autoDeleteRemovedEvents';
 export const MAX_LOGIN_ATTEMPTS = 5;
 export const LOCKOUT_DURATION = 5 * 60; // kept for backward compat — use LOCKOUT_TIERS for new code
 /** Progressive lockout durations in seconds: 5 min → 15 min → 1 hr → 4 hr */

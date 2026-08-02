@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       added: number;
       updated: number;
       removed: number;
+      autoDeleted: number;
       errors: string[];
     };
 
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
         added: syncResult.added,
         updated: syncResult.updated,
         removed: syncResult.removed,
+        autoDeleted: syncResult.autoDeleted,
         errors: syncResult.errors,
       };
     } else {
@@ -107,6 +109,7 @@ export async function POST(request: NextRequest) {
         added: google.added + ical.added + caldav.added,
         updated: google.updated + ical.updated + caldav.updated,
         removed: google.removed + ical.removed + caldav.removed,
+        autoDeleted: google.autoDeleted + ical.autoDeleted + caldav.autoDeleted,
         errors: [...google.errors, ...ical.errors, ...caldav.errors],
       };
     }
@@ -129,11 +132,13 @@ export async function POST(request: NextRequest) {
     await invalidateEntity('events');
 
     // Report NET changes (added / updated / removed), not total re-pulled.
-    // Removals aren't applied silently anymore — they're flagged for review.
+    // Removals are either applied immediately or flagged according to the
+    // calendar deletion preference.
     const changeParts: string[] = [];
     if (result.added) changeParts.push(`${result.added} added`);
     if (result.updated) changeParts.push(`${result.updated} updated`);
-    if (result.removed) changeParts.push(`${result.removed} flagged for review`);
+    if (result.autoDeleted) changeParts.push(`${result.autoDeleted} removed automatically`);
+    else if (result.removed) changeParts.push(`${result.removed} flagged for review`);
     const changeSummary = changeParts.length ? changeParts.join(', ') : 'no changes';
 
     return NextResponse.json({
@@ -142,6 +147,7 @@ export async function POST(request: NextRequest) {
       added: result.added,
       updated: result.updated,
       removed: result.removed,
+      autoDeleted: result.autoDeleted,
       synced: result.synced ?? result.total,
       errors: result.errors.length > 0 ? result.errors : undefined,
     });

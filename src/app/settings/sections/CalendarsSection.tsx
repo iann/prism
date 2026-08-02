@@ -15,6 +15,7 @@ import { useCalendarSources } from '@/lib/hooks';
 import { useFamily } from '@/components/providers';
 import { CalendarColorPicker } from '../components/CalendarColorPicker';
 import { useHiddenHours } from '@/lib/hooks/useHiddenHours';
+import { AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY } from '@/lib/constants';
 
 export function CalendarsSection({ onSynced }: { onSynced?: () => void } = {}) {
   const { confirm, dialogProps: confirmDialogProps } = useConfirmDialog();
@@ -175,8 +176,8 @@ export function CalendarsSection({ onSynced }: { onSynced?: () => void } = {}) {
         const parts: string[] = [];
         if (data.added) parts.push(`${data.added} added`);
         if (data.updated) parts.push(`${data.updated} updated`);
-        // Removals are held for review, not applied — reflect that in the toast.
-        if (data.removed) parts.push(`${data.removed} flagged for review`);
+        if (data.autoDeleted) parts.push(`${data.autoDeleted} removed automatically`);
+        else if (data.removed) parts.push(`${data.removed} flagged for review`);
         let message = parts.length
           ? `Sync complete: ${parts.join(', ')}`
           : 'Sync complete — already up to date';
@@ -652,8 +653,82 @@ export function CalendarsSection({ onSynced }: { onSynced?: () => void } = {}) {
         <div className="flex-1 h-px bg-border" />
       </div>
 
+      <CalendarDeletionBehaviorCard />
       <CalendarHoursCard />
     </div>
+  );
+}
+
+function CalendarDeletionBehaviorCard() {
+  const [autoDelete, setAutoDelete] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/settings')
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!active) return;
+        setAutoDelete(data?.settings?.[AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY] === true);
+      })
+      .catch(() => { /* Keep the safe review default. */ })
+      .finally(() => {
+        if (active) setLoaded(true);
+      });
+
+    return () => { active = false; };
+  }, []);
+
+  const updatePreference = async (next: boolean) => {
+    const previous = autoDelete;
+    setAutoDelete(next);
+    setSaving(true);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY, value: next }),
+      });
+      if (!response.ok) throw new Error('Failed to save calendar deletion preference');
+    } catch {
+      setAutoDelete(previous);
+      toast({ title: 'Failed to save calendar deletion preference', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Removed event handling</CardTitle>
+        <CardDescription>
+          Choose what Prism does when a synced event disappears from its source calendar.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-medium">Automatically remove deleted source events</div>
+            <p className="text-xs text-muted-foreground">
+              {autoDelete
+                ? 'Events removed from Google, iCal, or CalDAV are removed from Prism on the next sync.'
+                : 'Events are held for review so you can delete them or keep them as local events.'}
+            </p>
+          </div>
+          <Switch
+            checked={autoDelete}
+            onCheckedChange={updatePreference}
+            disabled={saving}
+            className="data-[state=checked]:bg-blue-500"
+            aria-label="Automatically remove deleted source events"
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
