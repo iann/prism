@@ -165,6 +165,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
     Commits: 95cb6b3, c2baf32, abdf0de, b3650c0, f84024c,
     5c8b189, a05cd1c, 8b13d96, ae06430, aeefabb, 4c3a709
 
+16. **Theme-aware widget colors and borders**
+
+   Fixed light-mode calendar and widget contrast across preset and custom
+   surfaces, added readable event tints, standardized widget shell borders,
+   and audited the six app themes for consistent light/dark presentation.
+
+   Commit: 3c60369
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
