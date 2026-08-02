@@ -91,6 +91,37 @@ const DEFAULT_UNITS = {
   precipitation: 'in' as const,
 };
 
+function mockConditionBandLayout(bandWidth: number, fullLabelWidth: number) {
+  const clientWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+  const rectDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'getBoundingClientRect');
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get() {
+      return this.hasAttribute('data-condition-band') ? bandWidth : 0;
+    },
+  });
+  Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value: function (this: HTMLElement) {
+      const rect = originalGetBoundingClientRect.call(this);
+      return this.hasAttribute('data-condition-measure')
+        ? { ...rect, width: fullLabelWidth }
+        : rect;
+    },
+  });
+
+  return () => {
+    if (clientWidthDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', clientWidthDescriptor);
+    }
+    if (rectDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', rectDescriptor);
+    }
+  };
+}
+
 /** Build a full WeatherData object. */
 function makeWeatherData(overrides: Partial<WeatherData> = {}): WeatherData {
   const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -144,6 +175,41 @@ describe('hourly timeline', () => {
     render(<WeatherWidget data={makeWeatherData({ hourly: makeHourlyForecast('rainy', 68) })} />);
     expect(screen.queryByLabelText('Hourly conditions')).not.toBeNull();
     expect(screen.queryAllByText('Rain').length).toBeGreaterThan(0);
+  });
+
+  it('shows the full condition label when the band has room', () => {
+    const restoreLayout = mockConditionBandLayout(120, 90);
+    try {
+      const data = makeWeatherData({
+        hourly: makeHourlyForecast([
+          'partly-cloudy', 'partly-cloudy', 'partly-cloudy',
+          'sunny', 'sunny', 'sunny', 'sunny', 'sunny', 'sunny',
+        ]),
+      });
+      const { container } = render(<WeatherWidget data={data} />);
+
+      expect(container.querySelector('[data-condition-label="partly-cloudy"]')?.textContent)
+        .toBe('Partly Cloudy');
+    } finally {
+      restoreLayout();
+    }
+  });
+
+  it('keeps the compact condition label when the band is too narrow', () => {
+    const restoreLayout = mockConditionBandLayout(80, 90);
+    try {
+      const data = makeWeatherData({
+        hourly: makeHourlyForecast([
+          'partly-cloudy', ...Array(23).fill('sunny') as WeatherCondition[],
+        ]),
+      });
+      const { container } = render(<WeatherWidget data={data} />);
+
+      expect(container.querySelector('[data-condition-label="partly-cloudy"]')?.textContent)
+        .toBe('Partly');
+    } finally {
+      restoreLayout();
+    }
   });
 
   it('renders the hourly temperature in each card', () => {
