@@ -5,12 +5,21 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ThemeProvider, useTheme } from '../ThemeProvider';
 import { applyAppTheme } from '@/lib/themes/appThemes';
+import { useWeather } from '@/lib/hooks/useWeather';
 
 jest.mock('@/lib/hooks/useSeasonalTheme', () => ({
   useSeasonalTheme: jest.fn(),
 }));
 jest.mock('@/lib/hooks/usePerformanceMode', () => ({
   usePerformanceMode: jest.fn(),
+}));
+jest.mock('@/lib/hooks/useWeather', () => ({
+  useWeather: jest.fn(() => ({
+    data: null,
+    loading: false,
+    error: null,
+    refresh: jest.fn(),
+  })),
 }));
 jest.mock('@/lib/themes/appThemes', () => {
   const actual = jest.requireActual('@/lib/themes/appThemes');
@@ -21,11 +30,16 @@ jest.mock('@/lib/themes/appThemes', () => {
 });
 
 const mockApplyAppTheme = applyAppTheme as jest.MockedFunction<typeof applyAppTheme>;
+const mockUseWeather = useWeather as jest.MockedFunction<typeof useWeather>;
+const mockStartViewTransition = jest.fn((callback: () => void) => {
+  callback();
+  return {};
+});
 const mediaQueryListeners = new Set<(event: MediaQueryListEvent) => void>();
 let prefersDark = false;
 
 function ThemeProbe() {
-  const { theme, resolvedTheme, colorTheme, setColorTheme } = useTheme();
+  const { theme, resolvedTheme, colorTheme, setColorTheme, setTheme } = useTheme();
 
   return (
     <>
@@ -37,6 +51,9 @@ function ThemeProbe() {
       </button>
       <button type="button" onClick={() => setColorTheme('kitchen-calm')}>
         Use Kitchen Calm
+      </button>
+      <button type="button" onClick={() => setTheme('sunset')}>
+        Use Sunset
       </button>
     </>
   );
@@ -64,6 +81,13 @@ describe('ThemeProvider LCARS behavior', () => {
     mediaQueryListeners.clear();
     prefersDark = false;
     mockApplyAppTheme.mockClear();
+    mockStartViewTransition.mockClear();
+    mockUseWeather.mockReturnValue({
+      data: null,
+      loading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
 
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
@@ -84,6 +108,10 @@ describe('ThemeProvider LCARS behavior', () => {
         dispatchEvent: jest.fn(),
       })),
     });
+    Object.defineProperty(document, 'startViewTransition', {
+      configurable: true,
+      value: mockStartViewTransition,
+    });
   });
 
   it('forces dark utilities and the dark variant without changing a saved light preference', async () => {
@@ -98,6 +126,7 @@ describe('ThemeProvider LCARS behavior', () => {
       expect(document.documentElement.classList.contains('dark')).toBe(true);
       expect(mockApplyAppTheme).toHaveBeenLastCalledWith('lcars', 'dark');
     });
+    expect(mockStartViewTransition).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem('prism-theme')).toBe('light');
 
     fireEvent.click(screen.getByRole('button', { name: 'Use Kitchen Calm' }));
@@ -137,5 +166,33 @@ describe('ThemeProvider LCARS behavior', () => {
     });
     expect(screen.getByTestId('theme').textContent).toBe('system');
     expect(localStorage.getItem('prism-theme')).toBe('system');
+  });
+
+  it('uses the weather location to resolve sunset mode', async () => {
+    mockUseWeather.mockReturnValue({
+      data: {
+        lat: 42.46,
+        lon: -71.06,
+        sunset: new Date('2026-07-18T01:30:00.000Z'),
+      } as never,
+      loading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
+
+    jest.useFakeTimers({ now: new Date('2026-07-17T16:00:00.000Z') });
+    try {
+      renderProvider();
+      fireEvent.click(screen.getByRole('button', { name: 'Use Sunset' }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('theme').textContent).toBe('sunset');
+        expect(screen.getByTestId('resolved-theme').textContent).toBe('light');
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
+      });
+      expect(localStorage.getItem('prism-theme')).toBe('sunset');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
