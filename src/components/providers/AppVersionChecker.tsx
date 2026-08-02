@@ -4,12 +4,12 @@ import * as React from 'react';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import {
   APP_VERSION_CHECK_INTERVAL,
-  fetchServerAppVersion,
-  isNewerAppVersion,
+  fetchServerBuildId,
+  isDifferentBuild,
   reloadForAppUpdate,
 } from '@/lib/appVersion';
 
-const CLIENT_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
+const CLIENT_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID;
 
 /**
  * Keeps an already-open dashboard in sync with the version currently running
@@ -23,8 +23,8 @@ export function AppVersionChecker() {
     if (document.hidden || reloadStartedRef.current) return;
 
     try {
-      const serverVersion = await fetchServerAppVersion();
-      if (!isNewerAppVersion(CLIENT_VERSION, serverVersion)) return;
+      const serverBuildId = await fetchServerBuildId();
+      if (!isDifferentBuild(CLIENT_BUILD_ID, serverBuildId)) return;
 
       reloadStartedRef.current = true;
       await reloadForAppUpdate();

@@ -12,6 +12,9 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
+ARG PRISM_BUILD_ID
+ENV PRISM_BUILD_ID=$PRISM_BUILD_ID
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 

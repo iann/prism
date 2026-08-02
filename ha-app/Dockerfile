@@ -18,6 +18,7 @@ FROM node:24-alpine
 # fresh `Update` from the HA UI grabs the latest. The release pipeline
 # overrides this to the version tag (`v1.8.5`) for reproducible builds.
 ARG PRISM_REF=master
+ARG PRISM_BUILD_ID=
 
 # Single-layer install of everything the build + runtime needs:
 #   - bash         (run.sh shebang; alpine ships ash by default)
@@ -61,6 +62,7 @@ RUN git clone --depth 1 --branch ${PRISM_REF} https://github.com/sandydargoport/
 
 WORKDIR /src
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PRISM_BUILD_ID=$PRISM_BUILD_ID
 RUN npm ci && \
     npm run build && \
     npm run db:bundle

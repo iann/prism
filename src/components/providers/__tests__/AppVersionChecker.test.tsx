@@ -7,8 +7,8 @@ import { AppVersionChecker } from '../AppVersionChecker';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import {
   APP_VERSION_CHECK_INTERVAL,
-  fetchServerAppVersion,
-  isNewerAppVersion,
+  fetchServerBuildId,
+  isDifferentBuild,
   reloadForAppUpdate,
 } from '@/lib/appVersion';
 
@@ -18,15 +18,13 @@ jest.mock('@/lib/hooks/useVisibilityPolling', () => ({
 
 jest.mock('@/lib/appVersion', () => ({
   APP_VERSION_CHECK_INTERVAL: 60 * 1000,
-  fetchServerAppVersion: jest.fn(),
-  isNewerAppVersion: jest.fn(),
+  fetchServerBuildId: jest.fn(),
+  isDifferentBuild: jest.fn(),
   reloadForAppUpdate: jest.fn(),
 }));
 
-const mockFetchServerAppVersion = fetchServerAppVersion as jest.MockedFunction<
-  typeof fetchServerAppVersion
->;
-const mockIsNewerAppVersion = isNewerAppVersion as jest.MockedFunction<typeof isNewerAppVersion>;
+const mockFetchServerBuildId = fetchServerBuildId as jest.MockedFunction<typeof fetchServerBuildId>;
+const mockIsDifferentBuild = isDifferentBuild as jest.MockedFunction<typeof isDifferentBuild>;
 const mockReloadForAppUpdate = reloadForAppUpdate as jest.MockedFunction<typeof reloadForAppUpdate>;
 const mockUseVisibilityPolling = useVisibilityPolling as jest.MockedFunction<
   typeof useVisibilityPolling
@@ -35,29 +33,29 @@ const mockUseVisibilityPolling = useVisibilityPolling as jest.MockedFunction<
 describe('AppVersionChecker', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetchServerAppVersion.mockResolvedValue('1.10.1');
-    mockIsNewerAppVersion.mockReturnValue(true);
+    mockFetchServerBuildId.mockResolvedValue('build-b');
+    mockIsDifferentBuild.mockReturnValue(true);
     mockReloadForAppUpdate.mockResolvedValue();
   });
 
-  it('checks on mount and reloads when the server has a new version', async () => {
+  it('checks on mount and reloads when the server has a different build', async () => {
     render(<AppVersionChecker />);
 
     await waitFor(() => expect(mockReloadForAppUpdate).toHaveBeenCalledTimes(1));
-    expect(mockFetchServerAppVersion).toHaveBeenCalledTimes(1);
-    expect(mockIsNewerAppVersion.mock.calls[0]?.[1]).toBe('1.10.1');
+    expect(mockFetchServerBuildId).toHaveBeenCalledTimes(1);
+    expect(mockIsDifferentBuild.mock.calls[0]?.[1]).toBe('build-b');
     expect(mockUseVisibilityPolling).toHaveBeenCalledWith(
       expect.any(Function),
       APP_VERSION_CHECK_INTERVAL
     );
   });
 
-  it('does not reload when the server version is unchanged', async () => {
-    mockIsNewerAppVersion.mockReturnValue(false);
+  it('does not reload when the server build is unchanged', async () => {
+    mockIsDifferentBuild.mockReturnValue(false);
 
     render(<AppVersionChecker />);
 
-    await waitFor(() => expect(mockFetchServerAppVersion).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockFetchServerBuildId).toHaveBeenCalledTimes(1));
     expect(mockReloadForAppUpdate).not.toHaveBeenCalled();
   });
 });

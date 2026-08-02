@@ -1,4 +1,4 @@
-import { APP_VERSION } from '@/lib/constants';
+import { APP_BUILD_ID, APP_VERSION } from '@/lib/constants';
 import { GET } from '../route';
 
 describe('GET /api/version', () => {
@@ -6,7 +6,7 @@ describe('GET /api/version', () => {
     const response = await GET();
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ version: APP_VERSION });
+    expect(await response.json()).toEqual({ version: APP_VERSION, buildId: APP_BUILD_ID });
     expect(response.headers.get('cache-control')).toBe(
       'no-store, no-cache, must-revalidate, proxy-revalidate'
     );

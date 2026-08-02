@@ -1,36 +1,36 @@
-import { fetchServerAppVersion, isNewerAppVersion } from '../appVersion';
+import { fetchServerBuildId, isDifferentBuild } from '../appVersion';
 
-describe('app version checks', () => {
+describe('app build checks', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  it('recognizes a different server version as an update', () => {
-    expect(isNewerAppVersion('1.10.0', '1.10.1')).toBe(true);
-    expect(isNewerAppVersion('1.10.0', '1.10.0')).toBe(false);
-    expect(isNewerAppVersion(undefined, '1.10.1')).toBe(false);
-    expect(isNewerAppVersion('1.10.0', null)).toBe(false);
+  it('recognizes a different server build as an update', () => {
+    expect(isDifferentBuild('build-a', 'build-b')).toBe(true);
+    expect(isDifferentBuild('build-a', 'build-a')).toBe(false);
+    expect(isDifferentBuild(undefined, 'build-b')).toBe(false);
+    expect(isDifferentBuild('build-a', null)).toBe(false);
   });
 
-  it('fetches the server version with cache protection', async () => {
+  it('fetches the server build ID with cache protection', async () => {
     const fetchMock = jest
       .spyOn(global, 'fetch')
-      .mockResolvedValue(new Response(JSON.stringify({ version: '1.10.1' }), { status: 200 }));
+      .mockResolvedValue(new Response(JSON.stringify({ buildId: 'build-b' }), { status: 200 }));
 
-    await expect(fetchServerAppVersion()).resolves.toBe('1.10.1');
+    await expect(fetchServerBuildId()).resolves.toBe('build-b');
     expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/version\?check=\d+$/), {
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache' },
     });
   });
 
-  it('ignores failed or malformed version responses', async () => {
+  it('ignores failed or malformed build responses', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(new Response(null, { status: 503 }));
-    await expect(fetchServerAppVersion()).resolves.toBeNull();
+    await expect(fetchServerBuildId()).resolves.toBeNull();
 
     jest
       .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({ version: 42 }), { status: 200 }));
-    await expect(fetchServerAppVersion()).resolves.toBeNull();
+      .mockResolvedValueOnce(new Response(JSON.stringify({ buildId: 42 }), { status: 200 }));
+    await expect(fetchServerBuildId()).resolves.toBeNull();
   });
 });

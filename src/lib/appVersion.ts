@@ -1,11 +1,15 @@
 export const APP_VERSION_CHECK_INTERVAL = 60 * 1000;
 
+interface BuildResponse {
+  buildId: unknown;
+}
+
 /**
- * Fetch the version from the running server. The cache-busting query string
+ * Fetch the build ID from the running server. The cache-busting query string
  * covers browsers and older service workers that do not fully honor the
  * no-store request option.
  */
-export async function fetchServerAppVersion(): Promise<string | null> {
+export async function fetchServerBuildId(): Promise<string | null> {
   const response = await fetch(`/api/version?check=${Date.now()}`, {
     cache: 'no-store',
     headers: { 'Cache-Control': 'no-cache' },
@@ -14,19 +18,19 @@ export async function fetchServerAppVersion(): Promise<string | null> {
   if (!response.ok) return null;
 
   const data: unknown = await response.json();
-  if (!data || typeof data !== 'object' || !('version' in data)) {
+  if (!data || typeof data !== 'object' || !('buildId' in data)) {
     return null;
   }
 
-  const version: unknown = data.version;
-  return typeof version === 'string' && version.length > 0 ? version : null;
+  const buildId: unknown = (data as BuildResponse).buildId;
+  return typeof buildId === 'string' && buildId.length > 0 ? buildId : null;
 }
 
-export function isNewerAppVersion(
-  clientVersion: string | undefined,
-  serverVersion: string | null
+export function isDifferentBuild(
+  clientBuildId: string | undefined,
+  serverBuildId: string | null
 ): boolean {
-  return Boolean(clientVersion && serverVersion && clientVersion !== serverVersion);
+  return Boolean(clientBuildId && serverBuildId && clientBuildId !== serverBuildId);
 }
 
 function waitForServiceWorkerActivation(worker: ServiceWorker, timeoutMs: number): Promise<void> {
