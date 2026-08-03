@@ -240,6 +240,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: b4a5636
 
+25. **Theme-native precipitation chart header**
+
+    Kept the Dark Sky-inspired chart treatment while returning its header to
+    the widget’s compact theme hierarchy and removing redundant location and
+    temperature details.
+
+    Commit: 315ed86
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
