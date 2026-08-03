@@ -272,6 +272,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 37e8626
 
+29. **Smoothed animated precipitation waves**
+
+    Smoothed short-lived forecast spikes before plotting the spline and added
+    synchronized low-amplitude wave motion to the area edge and highlight.
+
+    Commit: b52d998
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
