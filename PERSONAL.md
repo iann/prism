@@ -200,6 +200,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: d276d02, 9e6ad24
 
+20. **Sunset dark-mode offset**
+
+    Added a persisted Appearance setting that starts dark mode before or after
+    sunset by a configurable number of minutes, while keeping the sunrise
+    transition unchanged.
+
+    Commit: 7df2fda
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

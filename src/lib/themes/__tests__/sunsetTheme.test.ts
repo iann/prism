@@ -1,4 +1,8 @@
-import { getNextSolarTransition, resolveSunsetTheme } from '../sunsetTheme';
+import {
+  getNextSolarTransition,
+  normalizeSunsetOffsetMinutes,
+  resolveSunsetTheme,
+} from '../sunsetTheme';
 
 const BOSTON = { lat: 42.46, lon: -71.06 };
 
@@ -14,6 +18,36 @@ describe('sunset theme timing', () => {
 
     expect(next).toBeInstanceOf(Date);
     expect(next!.getTime()).toBeGreaterThan(now.getTime());
+  });
+
+  it('shifts the sunset transition without shifting sunrise', () => {
+    const now = new Date('2026-07-17T16:00:00.000Z');
+    const sunset = getNextSolarTransition(now, BOSTON);
+    const delayedSunset = getNextSolarTransition(now, BOSTON, 30);
+
+    expect(sunset).toBeInstanceOf(Date);
+    expect(delayedSunset).toBeInstanceOf(Date);
+    expect(delayedSunset!.getTime() - sunset!.getTime()).toBe(30 * 60 * 1000);
+
+    expect(
+      resolveSunsetTheme(new Date(sunset!.getTime() + 15 * 60 * 1000), BOSTON, undefined, 30)
+    ).toBe('light');
+    expect(
+      resolveSunsetTheme(new Date(sunset!.getTime() + 45 * 60 * 1000), BOSTON, undefined, 30)
+    ).toBe('dark');
+
+    const earlierSunset = getNextSolarTransition(now, BOSTON, -30);
+    expect(sunset!.getTime() - earlierSunset!.getTime()).toBe(30 * 60 * 1000);
+    expect(
+      resolveSunsetTheme(new Date(sunset!.getTime() - 15 * 60 * 1000), BOSTON, undefined, -30)
+    ).toBe('dark');
+  });
+
+  it('normalizes offsets to whole minutes within the supported range', () => {
+    expect(normalizeSunsetOffsetMinutes(12.6)).toBe(13);
+    expect(normalizeSunsetOffsetMinutes(-999)).toBe(-180);
+    expect(normalizeSunsetOffsetMinutes(999)).toBe(180);
+    expect(normalizeSunsetOffsetMinutes(Number.NaN)).toBe(0);
   });
 
   it('falls back to a supplied sunset when coordinates are unavailable', () => {
