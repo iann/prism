@@ -239,7 +239,7 @@ describe('hourly timeline', () => {
 });
 
 describe('precipitation notice', () => {
-  it('renders the reference-style next-hour header and timing message', () => {
+  it('renders a compact themed next-hour header and timing message', () => {
     const minutely = Array.from({ length: 61 }, (_, index) => ({
       time: index * 60,
       precipIntensity: 0.2,
@@ -247,11 +247,12 @@ describe('precipitation notice', () => {
     }));
     const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
 
-    const heading = screen.getByText('Next Hour');
-    expect(heading.classList.contains('text-foreground')).toBe(true);
-    expect(screen.queryAllByText('Chicago').length).toBeGreaterThan(0);
-    expect(screen.getByText('68°').textContent).toBe('68°');
-    expect(screen.getByText('Raining through the hour').classList.contains('sr-only')).toBe(true);
+    const header = container.querySelector('[data-precipitation-header]');
+    expect(header?.textContent).toContain('Next hour');
+    expect(header?.textContent).not.toContain('68°');
+    expect(screen.getByText('Raining through the hour').classList.contains('text-primary')).toBe(
+      true
+    );
     expect(container.querySelector('.text-blue-400')).toBeNull();
   });
 

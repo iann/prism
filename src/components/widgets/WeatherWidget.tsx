@@ -439,8 +439,6 @@ export const WeatherWidget = React.memo(function WeatherWidget({
                 <PrecipitationChart
                   minutely={weatherData.minutely!}
                   units={units}
-                  location={weatherData.location}
-                  currentTemperature={weatherData.current.temperature}
                 />
               </div>
             )}
@@ -800,13 +798,9 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
 function PrecipitationChart({
   minutely,
   units,
-  location,
-  currentTemperature,
 }: {
   minutely: MinutelyData[];
   units: WeatherUnits;
-  location: string;
-  currentTemperature: number;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(220);
@@ -887,20 +881,17 @@ function PrecipitationChart({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-[22px] font-semibold leading-none tracking-tight text-foreground">
-            Next Hour
-          </div>
-          <div className="mt-1 text-[15px] leading-tight text-muted-foreground truncate">
-            {formatLocation(location)}
-          </div>
-        </div>
-        <div className="shrink-0 text-[24px] font-bold leading-none tabular-nums text-foreground">
-          {Math.round(currentTemperature)}°
-        </div>
+      <div
+        className="flex items-center justify-between gap-4"
+        data-precipitation-header
+      >
+        <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Next hour
+        </span>
+        <span className="shrink-0 text-right text-[12px] font-medium text-primary">
+          {rainMessage}
+        </span>
       </div>
-      <span className="sr-only">{rainMessage}</span>
       <div ref={containerRef} className="w-full">
         <svg
           width={width}
