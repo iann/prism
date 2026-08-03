@@ -456,6 +456,15 @@
     to { stroke-dashoffset: -30; }
   }
 
+  @keyframes precipitation-wave-sway {
+    0%, 100% {
+      transform: translateY(0) scaleY(1);
+    }
+    50% {
+      transform: translateY(-0.6px) scaleY(1.018);
+    }
+  }
+
   @keyframes precipitation-wave-variation {
     0%, 100% {
       opacity: 0.2;
@@ -484,7 +493,11 @@
   .precipitation-wave-line {
     stroke-dasharray: 1000;
     stroke-dashoffset: 1000;
-    animation: precipitation-wave-draw 1.6s ease-out forwards;
+    animation:
+      precipitation-wave-draw 1.6s ease-out forwards,
+      precipitation-wave-sway 4s ease-in-out 1.6s infinite;
+    transform-box: fill-box;
+    transform-origin: center bottom;
   }
 
   .precipitation-wave-variation {
@@ -497,7 +510,11 @@
   }
 
   .precipitation-wave-highlight {
-    animation: precipitation-wave-flow 2.4s linear infinite;
+    animation:
+      precipitation-wave-flow 2.4s linear infinite,
+      precipitation-wave-sway 4s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center bottom;
   }
 
   @media (prefers-reduced-motion: reduce) {

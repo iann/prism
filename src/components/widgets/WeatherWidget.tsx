@@ -845,18 +845,21 @@ function PrecipitationChart({
   const MED_LABEL_Y   = MED_LINE_Y + 8;
   const LIGHT_LABEL_Y = LIGHT_LINE_Y + 8;
 
-  // Convert the provider values to points in the calibrated mm/hr scale.
+  // Convert the provider values to points in the calibrated mm/hr scale, then
+  // smooth short-lived spikes before the spline is generated. This keeps the
+  // curve responsive to real changes without drawing every noisy sample.
   const n = minutely.length;
   const points = minutely.map((m, i) => ({
     x: PAD_LEFT + (i / Math.max(n - 1, 1)) * chartW,
     y: intensityToY(m.precipIntensity),
   }));
-  const linePath = precipitationWavePath(points);
+  const smoothedPoints = smoothPrecipitationPoints(points);
+  const linePath = precipitationWavePath(smoothedPoints);
   // Keep the provider's forecast as the primary signal, then add a stable,
   // low-amplitude companion trace. It gives the wall display the organic
   // Dark Sky feel while honestly suggesting that minute-by-minute rain timing
   // is an estimate rather than a perfectly certain line.
-  const variationPoints = points.map((point, i) => {
+  const variationPoints = smoothedPoints.map((point, i) => {
     const variation = Math.sin(i * 0.67 + 0.8) * 0.9 + Math.sin(i * 0.21) * 0.55;
     return {
       ...point,
@@ -1007,6 +1010,26 @@ function PrecipitationChart({
       </div>
     </div>
   );
+}
+
+/** Apply a short weighted moving average without moving the endpoints. */
+function smoothPrecipitationPoints(
+  points: { x: number; y: number }[],
+  passes = 2
+): { x: number; y: number }[] {
+  let smoothed = points;
+  for (let pass = 0; pass < passes; pass++) {
+    smoothed = smoothed.map((point, index) => {
+      if (index === 0 || index === smoothed.length - 1) return point;
+      const previous = smoothed[index - 1]!;
+      const next = smoothed[index + 1]!;
+      return {
+        x: point.x,
+        y: (previous.y + point.y * 2 + next.y) / 4,
+      };
+    });
+  }
+  return smoothed;
 }
 
 /** Catmull-Rom spline → cubic Bézier path for a smooth, data-faithful wave. */
