@@ -19,7 +19,12 @@ import { useSeasonalTheme } from '@/lib/hooks/useSeasonalTheme';
 import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
 import { useWeather } from '@/lib/hooks/useWeather';
 import { applyAppTheme, isAppThemeId, type AppThemeId } from '@/lib/themes/appThemes';
-import { getNextSolarTransition, resolveSunsetTheme } from '@/lib/themes/sunsetTheme';
+import {
+  applySunsetOffset,
+  getNextSolarTransition,
+  normalizeSunsetOffsetMinutes,
+  resolveSunsetTheme,
+} from '@/lib/themes/sunsetTheme';
 
 /**
  * Theme modes
@@ -36,6 +41,10 @@ interface ThemeContextValue {
   resolvedTheme: 'light' | 'dark';
   /** Update the theme */
   setTheme: (theme: ThemeMode) => void;
+  /** Minutes to shift sunset mode's transition. Positive values delay dark mode. */
+  sunsetOffsetMinutes: number;
+  /** Update the sunset mode transition offset. */
+  setSunsetOffsetMinutes: (minutes: number) => void;
   /** Named color palette applied to all semantic surfaces and widgets. */
   colorTheme: AppThemeId;
   /** Update the named color palette. */
@@ -48,6 +57,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
  * Storage key for persisting theme preference
  */
 const STORAGE_KEY = 'prism-theme';
+const SUNSET_OFFSET_STORAGE_KEY = 'prism-sunset-offset';
 const COLOR_THEME_STORAGE_KEY = 'prism-color-theme';
 const DEFAULT_COLOR_THEME: AppThemeId = 'kitchen-calm';
 
@@ -83,12 +93,16 @@ interface ThemeProviderProps {
  */
 export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>(defaultTheme);
+  const [sunsetOffsetMinutes, setSunsetOffsetState] = useState(0);
   const [colorTheme, setColorThemeState] = useState<AppThemeId>(DEFAULT_COLOR_THEME);
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
   const [solarTick, setSolarTick] = useState(0);
   const hasAppliedThemeRef = useRef(false);
-  const previousAppliedThemeRef = useRef<{ resolvedTheme: 'light' | 'dark'; colorTheme: AppThemeId } | null>(null);
+  const previousAppliedThemeRef = useRef<{
+    resolvedTheme: 'light' | 'dark';
+    colorTheme: AppThemeId;
+  } | null>(null);
 
   // Sunset mode only needs weather data when it is selected. The weather
   // response carries the resolved location coordinates used for solar timing.
@@ -102,6 +116,10 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
     const stored = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
     if (stored && ['light', 'dark', 'system', 'sunset'].includes(stored)) {
       setThemeState(stored);
+    }
+    const storedSunsetOffset = Number(localStorage.getItem(SUNSET_OFFSET_STORAGE_KEY));
+    if (Number.isFinite(storedSunsetOffset)) {
+      setSunsetOffsetState(normalizeSunsetOffsetMinutes(storedSunsetOffset));
     }
     const storedColorTheme = localStorage.getItem(COLOR_THEME_STORAGE_KEY);
     if (isAppThemeId(storedColorTheme)) setColorThemeState(storedColorTheme);
@@ -127,7 +145,8 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
           sunsetWeather?.lat !== undefined && sunsetWeather.lon !== undefined
             ? { lat: sunsetWeather.lat, lon: sunsetWeather.lon }
             : undefined,
-          sunsetWeather?.sunset
+          sunsetWeather?.sunset,
+          sunsetOffsetMinutes
         ) ?? getSystemTheme();
     } else {
       actualTheme = theme;
@@ -171,7 +190,7 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
 
     hasAppliedThemeRef.current = true;
     previousAppliedThemeRef.current = { resolvedTheme: actualTheme, colorTheme };
-  }, [theme, colorTheme, mounted, sunsetWeather, solarTick]);
+  }, [theme, colorTheme, mounted, sunsetWeather, sunsetOffsetMinutes, solarTick]);
 
   // Schedule the exact next sunrise/sunset transition. Weather polling is
   // still useful as a fallback when a provider does not return coordinates.
@@ -183,18 +202,19 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
       sunsetWeather?.lat !== undefined && sunsetWeather.lon !== undefined
         ? { lat: sunsetWeather.lat, lon: sunsetWeather.lon }
         : undefined;
+    const fallbackSunset = sunsetWeather?.sunset
+      ? applySunsetOffset(sunsetWeather.sunset, sunsetOffsetMinutes)
+      : null;
     const nextTransition =
-      getNextSolarTransition(now, coordinates) ??
-      (sunsetWeather?.sunset && sunsetWeather.sunset.getTime() > now.getTime()
-        ? sunsetWeather.sunset
-        : null);
+      getNextSolarTransition(now, coordinates, sunsetOffsetMinutes) ??
+      (fallbackSunset && fallbackSunset.getTime() > now.getTime() ? fallbackSunset : null);
 
     if (!nextTransition) return;
 
     const delay = Math.max(0, nextTransition.getTime() - now.getTime()) + 50;
     const timer = window.setTimeout(() => setSolarTick((tick) => tick + 1), delay);
     return () => window.clearTimeout(timer);
-  }, [mounted, theme, sunsetWeather, solarTick]);
+  }, [mounted, theme, sunsetOffsetMinutes, sunsetWeather, solarTick]);
 
   // Listen for system theme changes when in "system" mode
   useEffect(() => {
@@ -225,6 +245,12 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
     localStorage.setItem(STORAGE_KEY, newTheme);
   };
 
+  const setSunsetOffsetMinutes = (minutes: number) => {
+    const normalizedMinutes = normalizeSunsetOffsetMinutes(minutes);
+    setSunsetOffsetState(normalizedMinutes);
+    localStorage.setItem(SUNSET_OFFSET_STORAGE_KEY, String(normalizedMinutes));
+  };
+
   const setColorTheme = (newTheme: AppThemeId) => {
     setColorThemeState(newTheme);
     localStorage.setItem(COLOR_THEME_STORAGE_KEY, newTheme);
@@ -240,7 +266,15 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
   if (!mounted) {
     return (
       <ThemeContext.Provider
-        value={{ theme: defaultTheme, resolvedTheme: 'light', setTheme, colorTheme, setColorTheme }}
+        value={{
+          theme: defaultTheme,
+          resolvedTheme: 'light',
+          setTheme,
+          sunsetOffsetMinutes,
+          setSunsetOffsetMinutes,
+          colorTheme,
+          setColorTheme,
+        }}
       >
         {children}
       </ThemeContext.Provider>
@@ -248,7 +282,17 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, colorTheme, setColorTheme }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        resolvedTheme,
+        setTheme,
+        sunsetOffsetMinutes,
+        setSunsetOffsetMinutes,
+        colorTheme,
+        setColorTheme,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
