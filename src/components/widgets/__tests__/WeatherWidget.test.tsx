@@ -239,7 +239,7 @@ describe('hourly timeline', () => {
 });
 
 describe('precipitation notice', () => {
-  it('uses the semantic primary color for the rain icon and message', () => {
+  it('renders a compact themed next-hour header and timing message', () => {
     const minutely = Array.from({ length: 61 }, (_, index) => ({
       time: index * 60,
       precipIntensity: 0.2,
@@ -247,12 +247,68 @@ describe('precipitation notice', () => {
     }));
     const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
 
-    const heading = screen.getByText('Rain next hour');
-    expect(heading.querySelector('svg')?.classList.contains('text-primary')).toBe(true);
+    const header = container.querySelector('[data-precipitation-header]');
+    expect(header?.textContent).toContain('Next hour');
+    expect(header?.textContent).not.toContain('68°');
+    expect(
+      screen.getByText('Raining through the hour').classList.contains('precipitation-wave-message')
+    ).toBe(true);
     expect(screen.getByText('Raining through the hour').classList.contains('text-primary')).toBe(
-      true
+      false
     );
     expect(container.querySelector('.text-blue-400')).toBeNull();
+  });
+
+  it('normalizes imperial rain and calibrates the current point to about 40%', () => {
+    const minutely = [
+      { time: 0, precipIntensity: 0.0583, precipProbability: 0.7 },
+      { time: 60, precipIntensity: 0.08, precipProbability: 0.7 },
+    ];
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    const chart = container.querySelector('[data-precipitation-scale]');
+    const line = container.querySelector('[data-precipitation-line]');
+    expect(chart?.getAttribute('data-precipitation-scale')).toBe('7.62');
+    // 0.0583 in/hr = 1.48 mm/hr, which is ~44% after the square-root curve.
+    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 37\.[0-9]/);
+  });
+
+  it('leaves headroom for a moderate shower instead of clipping it at full scale', () => {
+    const minutely = Array.from({ length: 61 }, (_, index) => ({
+      time: index * 60,
+      precipIntensity: index === 0 ? 0.1343 : 0.12,
+      precipProbability: 0.9,
+    }));
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    const chart = container.querySelector('[data-precipitation-scale]');
+    const line = container.querySelector('[data-precipitation-line]');
+    expect(chart?.getAttribute('data-precipitation-scale')).toBe('7.62');
+    // 0.1343 in/hr = 3.41 mm/hr, which lands around 67% of the height.
+    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 23\.[0-9]/);
+  });
+
+  it('renders the precipitation forecast as a smooth animated wave', () => {
+    const minutely = Array.from({ length: 5 }, (_, index) => ({
+      time: index * 60,
+      precipIntensity: 0.2,
+      precipProbability: 1,
+    }));
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    expect(container.querySelector('[data-precipitation-area]')).not.toBeNull();
+    expect(container.querySelector('[data-precipitation-variation]')).not.toBeNull();
+    expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
+    expect(container.querySelector('stop')?.getAttribute('stop-color')).toBe(
+      'hsl(var(--weather-precipitation))'
+    );
+    expect(container.querySelector('[data-precipitation-line]')?.getAttribute('stroke')).toBe(
+      'hsl(var(--weather-precipitation))'
+    );
+    expect(container.querySelector('[data-precipitation-variation]')?.getAttribute('d')).not.toBe(
+      container.querySelector('[data-precipitation-line]')?.getAttribute('d')
+    );
+    expect(container.querySelectorAll('rect')).toHaveLength(0);
   });
 });
 
@@ -483,12 +539,12 @@ describe('demo data fallback', () => {
 
   it('uses demo location when no location or data is provided', () => {
     render(<WeatherWidget />);
-    expect(screen.queryByText('Melrose')).not.toBeNull();
+    expect(screen.queryAllByText('Melrose').length).toBeGreaterThan(0);
   });
 
   it('shows the passed location in demo mode', () => {
     render(<WeatherWidget location="Austin, TX" />);
-    expect(screen.queryByText('Austin')).not.toBeNull();
+    expect(screen.queryAllByText('Austin').length).toBeGreaterThan(0);
   });
 
   it('renders the hourly timeline with demo data', () => {

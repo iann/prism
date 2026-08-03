@@ -216,6 +216,55 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: afd2f33
 
+22. **Calibrated animated rain chart**
+
+    Calibrated the precipitation scale against the Melrose rain reading,
+    normalized Pirate Weather's imperial precipitation values, and replaced
+    the compact bars with a smooth Dark Sky-inspired animated wave.
+
+    Commit: 45635c6
+
+23. **Dark Sky-style precipitation chart presentation**
+
+    Refined the rain chart around the supplied reference with a next-hour
+    header, location and temperature context, upper intensity guides,
+    turquoise fill, and a stronger wavy outline.
+
+    Commit: cf33b96
+
+24. **Nonlinear precipitation intensity scale**
+
+    Added a square-root rain-rate mapping with a 7.62 mm/hr heavy-rain
+    ceiling, preserving headroom for moderate showers while keeping light
+    rain visible.
+
+    Commit: b4a5636
+
+25. **Theme-native precipitation chart header**
+
+    Kept the Dark Sky-inspired chart treatment while returning its header to
+    the widget’s compact theme hierarchy and removing redundant location and
+    temperature details.
+
+    Commit: 315ed86
+
+26. **Theme-aware precipitation wave colors**
+
+    Audited the rain chart across every light and dark preset, then tied its
+    wave, fill, and highlight colors to the active theme tokens for better
+    integration with Prism, Claude, Kitchen Calm, Herb Garden, Warm Clay,
+    Soft Slate, and LCARS.
+
+    Commit: bb689f6
+
+27. **Blue forecast variation for precipitation**
+
+    Added a softly animated companion trace to communicate forecast
+    uncertainty, and introduced theme-specific blue precipitation tokens for
+    the wave, fill, and timing message across all light and dark presets.
+
+    Commit: 2dd6b11
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
