@@ -443,7 +443,7 @@
     }
     50% {
       opacity: 1;
-      transform: scaleY(1.025);
+      transform: scaleY(1.045);
     }
   }
 
@@ -452,18 +452,18 @@
       transform: translateY(0) scaleY(1);
     }
     50% {
-      transform: translateY(-0.6px) scaleY(1.018);
+      transform: translateY(-1.5px) scaleY(1.035);
     }
   }
 
   @keyframes precipitation-wave-variation {
     0%, 100% {
-      opacity: 0.2;
+      opacity: 0.28;
       transform: translateY(0);
     }
     50% {
-      opacity: 0.42;
-      transform: translateY(-0.6px);
+      opacity: 0.56;
+      transform: translateY(-1.4px);
     }
   }
 

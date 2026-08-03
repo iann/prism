@@ -326,6 +326,7 @@ describe('precipitation notice', () => {
       'hsl(var(--weather-precipitation))'
     );
     const chart = container.querySelector('[data-precipitation-scale]');
+    expect(chart?.getAttribute('data-precipitation-undulation-px')).toBe('4');
     const linePathNumbers = container
       .querySelector('[data-precipitation-line]')
       ?.getAttribute('d')
