@@ -294,6 +294,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 6afa2d1
 
+32. **Softer rain-wave undulation**
+
+    Replaced the dense local wobble with a few broad, low-amplitude rises and
+    falls so the main precipitation edge reads as a smooth undulating line.
+
+    Commit: 621f9db
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
