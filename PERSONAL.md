@@ -216,6 +216,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: afd2f33
 
+22. **Calibrated animated rain chart**
+
+    Calibrated the precipitation scale against the Melrose rain reading,
+    normalized Pirate Weather's imperial precipitation values, and replaced
+    the compact bars with a smooth Dark Sky-inspired animated wave.
+
+    Commit: 45635c6
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
