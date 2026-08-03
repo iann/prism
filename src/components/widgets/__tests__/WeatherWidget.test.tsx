@@ -254,6 +254,33 @@ describe('precipitation notice', () => {
     );
     expect(container.querySelector('.text-blue-400')).toBeNull();
   });
+
+  it('normalizes imperial rain and calibrates the current point to about 40%', () => {
+    const minutely = [
+      { time: 0, precipIntensity: 0.0583, precipProbability: 0.7 },
+      { time: 60, precipIntensity: 0.08, precipProbability: 0.7 },
+    ];
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    const chart = container.querySelector('[data-precipitation-scale]');
+    const line = container.querySelector('[data-precipitation-line]');
+    expect(chart?.getAttribute('data-precipitation-scale')).toBe('3.75');
+    // 0.0583 in/hr = 1.48 mm/hr, which is ~40% of the 3.75 mm/hr scale.
+    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 37\.[0-9]/);
+  });
+
+  it('renders the precipitation forecast as a smooth animated wave', () => {
+    const minutely = Array.from({ length: 5 }, (_, index) => ({
+      time: index * 60,
+      precipIntensity: 0.2,
+      precipProbability: 1,
+    }));
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    expect(container.querySelector('[data-precipitation-area]')).not.toBeNull();
+    expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
+    expect(container.querySelectorAll('rect')).toHaveLength(0);
+  });
 });
 
 // ===========================================================================

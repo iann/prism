@@ -429,6 +429,53 @@
     transition: none !important;
   }
 
+  /* Dark Sky-inspired precipitation wave. The data path stays static so the
+   * wall display does not spend a JS frame on every minute; CSS handles the
+   * subtle breathing and moving highlight on the compositor instead. */
+  @keyframes precipitation-wave-breathe {
+    0%, 100% {
+      opacity: 0.92;
+      transform: scaleY(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scaleY(1.025);
+    }
+  }
+
+  @keyframes precipitation-wave-draw {
+    from { stroke-dashoffset: 1000; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  @keyframes precipitation-wave-flow {
+    to { stroke-dashoffset: -30; }
+  }
+
+  .precipitation-wave-area {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    animation: precipitation-wave-breathe 4s ease-in-out infinite;
+  }
+
+  .precipitation-wave-line {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: precipitation-wave-draw 1.6s ease-out forwards;
+  }
+
+  .precipitation-wave-highlight {
+    animation: precipitation-wave-flow 2.4s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .precipitation-wave-area,
+    .precipitation-wave-line,
+    .precipitation-wave-highlight {
+      animation: none;
+    }
+  }
+
   /* Performance mode: minimum-viable stylesheet. The only CSS effect
    * we are confident gives a meaningful perf win on weak GPUs is
    * disabling backdrop-filter, and only on elements that actually
