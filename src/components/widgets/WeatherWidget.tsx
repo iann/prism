@@ -903,8 +903,8 @@ function PrecipitationChart({
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#169BB4" stopOpacity="0.94" />
-              <stop offset="100%" stopColor="#5BC6D3" stopOpacity="0.88" />
+              <stop offset="0%"   stopColor="hsl(var(--chart-2))" stopOpacity="0.92" />
+              <stop offset="100%" stopColor="hsl(var(--chart-2))" stopOpacity="0.58" />
             </linearGradient>
           </defs>
 
@@ -938,7 +938,7 @@ function PrecipitationChart({
               <path
                 d={linePath}
                 fill="none"
-                stroke="#118FA8"
+                stroke="hsl(var(--chart-2))"
                 strokeWidth={2.25}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -948,8 +948,8 @@ function PrecipitationChart({
               <path
                 d={linePath}
                 fill="none"
-                stroke="#D5F5F7"
-                strokeOpacity={0.38}
+                stroke="hsl(var(--foreground))"
+                strokeOpacity={0.3}
                 strokeWidth={1.1}
                 strokeLinecap="round"
                 strokeDasharray="1 14"

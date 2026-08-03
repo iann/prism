@@ -295,6 +295,12 @@ describe('precipitation notice', () => {
 
     expect(container.querySelector('[data-precipitation-area]')).not.toBeNull();
     expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
+    expect(container.querySelector('stop')?.getAttribute('stop-color')).toBe(
+      'hsl(var(--chart-2))'
+    );
+    expect(container.querySelector('[data-precipitation-line]')?.getAttribute('stroke')).toBe(
+      'hsl(var(--chart-2))'
+    );
     expect(container.querySelectorAll('rect')).toHaveLength(0);
   });
 });
