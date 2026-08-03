@@ -257,6 +257,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: bb689f6
 
+27. **Blue forecast variation for precipitation**
+
+    Added a softly animated companion trace to communicate forecast
+    uncertainty, and introduced theme-specific blue precipitation tokens for
+    the wave, fill, and timing message across all light and dark presets.
+
+    Commit: 2dd6b11
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
