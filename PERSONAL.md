@@ -352,6 +352,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: ceb3995
 
+40. **Faster precipitation refresh cadence**
+
+    Polls weather data on the client every 2.5 minutes, including Performance
+    Mode, while refreshing Pirate Weather’s provider cache every 5 minutes.
+
+    Commit: 24381bb
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
