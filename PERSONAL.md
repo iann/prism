@@ -279,6 +279,57 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: b52d998
 
+30. **Locally morphing precipitation wave**
+
+    Added deterministic local jitter and smooth SVG path morphing so the rain
+    wave moves up and down across its shape instead of only translating as a
+    single block.
+
+    Commit: f6b6b3c
+
+31. **Symmetric five-percent precipitation variation**
+
+    Tuned the forecast-uncertainty trace to vary smoothly on both sides of the
+    primary signal by approximately ±5% of the chart height.
+
+    Commit: 6afa2d1
+
+32. **Softer rain-wave undulation**
+
+    Replaced the dense local wobble with a few broad, low-amplitude rises and
+    falls so the main precipitation edge reads as a smooth undulating line.
+
+    Commit: 621f9db
+
+33. **Visible but restrained wave motion**
+
+    Kept the lower-frequency contour while increasing its controlled amplitude
+    enough for the smooth up-and-down movement to remain legible on the chart.
+
+    Commit: b7b95ae
+
+34. **Removed precipitation ripple sweep**
+
+    Removed the right-to-left moving highlight and dash sweep, leaving the
+    chart’s smooth undulation and static forecast-variation trace unobstructed.
+
+    Commit: 37bbd20
+
+35. **Removed remaining rain dash motion**
+
+    Removed the primary line’s initial dash-offset draw and the uncertainty
+    trace’s dashed styling so no precipitation layer sweeps horizontally.
+
+    Commit: 8a60b62
+
+36. **More frequent bounded rain undulations**
+
+    Increased the number of smooth rises and falls while clamping both sample
+    and Bézier control points to the chart band so the wave cannot cross below
+    the precipitation baseline.
+
+    Commit: a64f801
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

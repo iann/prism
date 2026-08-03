@@ -305,12 +305,30 @@ describe('precipitation notice', () => {
     expect(heavyToMedium).toBeCloseTo(mediumToLight);
     expect(container.querySelector('[data-precipitation-area]')).not.toBeNull();
     expect(container.querySelector('[data-precipitation-variation]')).not.toBeNull();
+    expect(
+      container
+        .querySelector('[data-precipitation-variation]')
+        ?.getAttribute('data-precipitation-variation-percent')
+    ).toBe('5');
     expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
+    expect(container.querySelectorAll('[data-precipitation-jitter-morph]')).toHaveLength(2);
+    expect(container.querySelector('[data-precipitation-line]')?.getAttribute('d')).toContain('C ');
+    expect(container.querySelector('.precipitation-wave-highlight')).toBeNull();
     expect(container.querySelector('stop')?.getAttribute('stop-color')).toBe(
       'hsl(var(--weather-precipitation))'
     );
     expect(container.querySelector('[data-precipitation-line]')?.getAttribute('stroke')).toBe(
       'hsl(var(--weather-precipitation))'
+    );
+    const chart = container.querySelector('[data-precipitation-scale]');
+    const linePathNumbers = container
+      .querySelector('[data-precipitation-line]')
+      ?.getAttribute('d')
+      ?.match(/-?\d+(?:\.\d+)?/g)
+      ?.map(Number) ?? [];
+    const lineYValues = linePathNumbers.filter((_, index) => index % 2 === 1);
+    expect(Math.max(...lineYValues)).toBeLessThanOrEqual(
+      Number(chart?.getAttribute('data-precipitation-baseline'))
     );
     expect(container.querySelector('[data-precipitation-variation]')?.getAttribute('d')).not.toBe(
       container.querySelector('[data-precipitation-line]')?.getAttribute('d')
