@@ -279,6 +279,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: b52d998
 
+30. **Locally morphing precipitation wave**
+
+    Added deterministic local jitter and smooth SVG path morphing so the rain
+    wave moves up and down across its shape instead of only translating as a
+    single block.
+
+    Commit: f6b6b3c
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
