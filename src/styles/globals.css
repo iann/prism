@@ -452,10 +452,6 @@
     to { stroke-dashoffset: 0; }
   }
 
-  @keyframes precipitation-wave-flow {
-    to { stroke-dashoffset: -30; }
-  }
-
   @keyframes precipitation-wave-sway {
     0%, 100% {
       transform: translateY(0) scaleY(1);
@@ -474,10 +470,6 @@
       opacity: 0.42;
       transform: translateY(-0.6px);
     }
-  }
-
-  @keyframes precipitation-wave-variation-flow {
-    to { stroke-dashoffset: -32; }
   }
 
   .precipitation-wave-area {
@@ -502,19 +494,9 @@
 
   .precipitation-wave-variation {
     stroke-dasharray: 3 9;
-    animation:
-      precipitation-wave-variation 3.8s ease-in-out infinite,
-      precipitation-wave-variation-flow 5s linear infinite;
+    animation: precipitation-wave-variation 3.8s ease-in-out infinite;
     transform-box: fill-box;
     transform-origin: center;
-  }
-
-  .precipitation-wave-highlight {
-    animation:
-      precipitation-wave-flow 2.4s linear infinite,
-      precipitation-wave-sway 4s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: center bottom;
   }
 
   .precipitation-wave-jitter-morph {
@@ -525,7 +507,6 @@
   @media (prefers-reduced-motion: reduce) {
     .precipitation-wave-area,
     .precipitation-wave-line,
-    .precipitation-wave-highlight,
     .precipitation-wave-variation,
     .precipitation-wave-jitter-morph {
       animation: none;

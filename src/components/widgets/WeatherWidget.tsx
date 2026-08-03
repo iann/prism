@@ -1008,7 +1008,7 @@ function PrecipitationChart({
             />
           )}
 
-          {/* Top edge — a smooth, gently morphing line with a moving highlight. */}
+          {/* Top edge — a smooth, gently morphing line. */}
           {linePath && (
             <>
               <path
@@ -1035,17 +1035,6 @@ function PrecipitationChart({
                   />
                 )}
               </path>
-              <path
-                d={linePath}
-                fill="none"
-                stroke="hsl(var(--foreground))"
-                strokeOpacity={0.3}
-                strokeWidth={1.1}
-                strokeLinecap="round"
-                strokeDasharray="1 14"
-                className="precipitation-wave-highlight"
-                aria-hidden="true"
-              />
             </>
           )}
 
