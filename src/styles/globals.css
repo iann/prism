@@ -443,7 +443,7 @@
     }
     50% {
       opacity: 1;
-      transform: scaleY(1.025);
+      transform: scaleY(1.045);
     }
   }
 
@@ -452,18 +452,18 @@
       transform: translateY(0) scaleY(1);
     }
     50% {
-      transform: translateY(-0.6px) scaleY(1.018);
+      transform: translateY(-1.5px) scaleY(1.035);
     }
   }
 
   @keyframes precipitation-wave-variation {
     0%, 100% {
-      opacity: 0.2;
+      opacity: 0.28;
       transform: translateY(0);
     }
     50% {
-      opacity: 0.42;
-      transform: translateY(-0.6px);
+      opacity: 0.56;
+      transform: translateY(-1.4px);
     }
   }
 
@@ -538,6 +538,19 @@
     transition-duration: 0ms !important;
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Keep the precipitation wave readable on the wall display. This is the
+   * one intentionally retained animation in performance mode; the
+   * accessibility-level reduced-motion rule above still takes precedence
+   * whenever the OS requests less motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    html.performance-mode .precipitation-wave-area,
+    html.performance-mode .precipitation-wave-line,
+    html.performance-mode .precipitation-wave-variation {
+      animation-duration: 3.2s !important;
+      animation-iteration-count: infinite !important;
+    }
   }
 
   html.performance-mode .shadow-sm,

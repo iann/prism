@@ -52,7 +52,7 @@ const MILLIMETERS_PER_INCH = 25.4;
 // a strong shower look maxed out too early.
 const PRECIPITATION_FULL_SCALE_MM_PER_HOUR = 7.62;
 const PRECIPITATION_VARIATION_FRACTION = 0.05;
-const PRECIPITATION_WAVE_UNDULATION_PX = 2.25;
+const PRECIPITATION_WAVE_UNDULATION_PX = 4;
 const PRECIPITATION_WAVE_PRIMARY_FREQUENCY = 0.36;
 const PRECIPITATION_WAVE_SECONDARY_FREQUENCY = 0.14;
 const RAIN_THRESHOLD_MM_PER_HOUR = 0.1;
@@ -945,6 +945,7 @@ function PrecipitationChart({
           aria-label="Rain intensity forecast for the next hour"
           data-precipitation-scale={MAX_MM}
           data-precipitation-baseline={baseY}
+          data-precipitation-undulation-px={PRECIPITATION_WAVE_UNDULATION_PX}
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -1002,8 +1003,8 @@ function PrecipitationChart({
               d={variationPath}
               fill="none"
               stroke="hsl(var(--weather-precipitation))"
-              strokeOpacity={0.36}
-              strokeWidth={1.15}
+              strokeOpacity={0.46}
+              strokeWidth={1.5}
               strokeLinecap="round"
               strokeLinejoin="round"
               className="precipitation-wave-variation"
