@@ -337,6 +337,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 56bd9e3
 
+38. **Rain animation retained in performance mode**
+
+    Keeps the precipitation wave visibly undulating in performance mode while
+    continuing to respect the operating system’s reduced-motion preference.
+
+    Commit: 89fc295
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
