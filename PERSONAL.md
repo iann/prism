@@ -224,6 +224,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 45635c6
 
+23. **Dark Sky-style precipitation chart presentation**
+
+    Refined the rain chart around the supplied reference with a next-hour
+    header, location and temperature context, upper intensity guides,
+    turquoise fill, and a stronger wavy outline.
+
+    Commit: cf33b96
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
