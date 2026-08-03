@@ -12,6 +12,8 @@ interface UseFetchOptions<T> {
   refreshInterval?: number;
   refreshOffsetMs?: number;
   label?: string;
+  /** Keep the requested polling cadence even when Performance Mode is on. */
+  respectPerformanceMode?: boolean;
   /** When false, skip initial fetch and polling. Fetch triggers when enabled transitions to true. */
   enabled?: boolean;
 }
@@ -25,7 +27,16 @@ interface UseFetchResult<T> {
 }
 
 export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
-  const { url, initialData, transform, refreshInterval = 0, refreshOffsetMs = 0, label = 'data', enabled = true } = options;
+  const {
+    url,
+    initialData,
+    transform,
+    refreshInterval = 0,
+    refreshOffsetMs = 0,
+    label = 'data',
+    respectPerformanceMode = true,
+    enabled = true,
+  } = options;
 
   const transformRef = useRef(transform);
   transformRef.current = transform;
@@ -91,7 +102,12 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
     if (enabled) fetchData();
   }, [fetchData, enabled]);
 
-  useVisibilityPolling(fetchData, enabled ? refreshInterval : 0, refreshOffsetMs);
+  useVisibilityPolling(
+    fetchData,
+    enabled ? refreshInterval : 0,
+    refreshOffsetMs,
+    respectPerformanceMode,
+  );
 
   return { data, setData, loading, error, refresh: fetchData };
 }
