@@ -53,6 +53,8 @@ const MILLIMETERS_PER_INCH = 25.4;
 const PRECIPITATION_FULL_SCALE_MM_PER_HOUR = 7.62;
 const PRECIPITATION_VARIATION_FRACTION = 0.05;
 const PRECIPITATION_WAVE_UNDULATION_PX = 2.25;
+const PRECIPITATION_WAVE_PRIMARY_FREQUENCY = 0.36;
+const PRECIPITATION_WAVE_SECONDARY_FREQUENCY = 0.14;
 const RAIN_THRESHOLD_MM_PER_HOUR = 0.1;
 
 function localDayStartMs(nowMs = Date.now()): number {
@@ -870,15 +872,16 @@ function PrecipitationChart({
     PAD_TOP,
     baseY
   );
-  const linePath = precipitationWavePath(undulationPoints);
-  const alternateLinePath = precipitationWavePath(alternateUndulationPoints);
+  const linePath = precipitationWavePath(undulationPoints, PAD_TOP, baseY);
+  const alternateLinePath = precipitationWavePath(alternateUndulationPoints, PAD_TOP, baseY);
   // Keep the provider's forecast as the primary signal, then add a stable,
   // symmetric ±5% companion trace. It gives the wall display the organic
   // Dark Sky feel while honestly suggesting that minute-by-minute rain timing
   // is an estimate rather than a perfectly certain line.
   const variationPoints = smoothedPoints.map((point, i) => {
     const variation =
-      (Math.sin(i * 0.24 + 0.8) * 0.7 + Math.sin(i * 0.1) * 0.3) *
+      (Math.sin(i * PRECIPITATION_WAVE_PRIMARY_FREQUENCY + 0.8) * 0.7 +
+        Math.sin(i * PRECIPITATION_WAVE_SECONDARY_FREQUENCY) * 0.3) *
       CHART_H *
       PRECIPITATION_VARIATION_FRACTION;
     return {
@@ -886,7 +889,7 @@ function PrecipitationChart({
       y: Math.max(PAD_TOP, Math.min(baseY, point.y + variation)),
     };
   });
-  const variationPath = precipitationWavePath(variationPoints);
+  const variationPath = precipitationWavePath(variationPoints, PAD_TOP, baseY);
   const areaPath = linePath
     ? `${linePath} L ${(PAD_LEFT + chartW).toFixed(1)} ${baseY} L ${PAD_LEFT.toFixed(1)} ${baseY} Z`
     : '';
@@ -941,6 +944,7 @@ function PrecipitationChart({
           role="img"
           aria-label="Rain intensity forecast for the next hour"
           data-precipitation-scale={MAX_MM}
+          data-precipitation-baseline={baseY}
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -1077,18 +1081,23 @@ function smoothPrecipitationPoints(
 function precipitationUndulationPoints(
   points: { x: number; y: number }[],
   phase: number,
-  amplitude = 1.15,
+  amplitude = PRECIPITATION_WAVE_UNDULATION_PX,
   minY = 4,
   maxY = 64
 ): { x: number; y: number }[] {
   const lastIndex = Math.max(points.length - 1, 1);
   return points.map((point, index) => {
-    if (index === 0 || index === points.length - 1) return point;
+    if (index === 0 || index === points.length - 1) {
+      return {
+        ...point,
+        y: Math.max(minY, Math.min(maxY, point.y)),
+      };
+    }
 
     const edgeWeight = Math.sin((index / lastIndex) * Math.PI);
     const undulation =
-      (Math.sin(index * 0.24 + phase) * 0.7 +
-        Math.sin(index * 0.1 + phase * 0.9) * 0.3) *
+      (Math.sin(index * PRECIPITATION_WAVE_PRIMARY_FREQUENCY + phase) * 0.7 +
+        Math.sin(index * PRECIPITATION_WAVE_SECONDARY_FREQUENCY + phase * 0.9) * 0.3) *
       amplitude *
       edgeWeight;
     return {
@@ -1099,11 +1108,16 @@ function precipitationUndulationPoints(
 }
 
 /** Catmull-Rom spline → cubic Bézier path for a smooth, data-faithful wave. */
-function precipitationWavePath(points: { x: number; y: number }[]): string {
+function precipitationWavePath(
+  points: { x: number; y: number }[],
+  minY = 0,
+  maxY = Number.POSITIVE_INFINITY
+): string {
+  const clampY = (y: number) => Math.max(minY, Math.min(maxY, y));
   if (points.length === 0) return '';
-  if (points.length === 1) return `M ${points[0]!.x.toFixed(1)} ${points[0]!.y.toFixed(1)}`;
+  if (points.length === 1) return `M ${points[0]!.x.toFixed(1)} ${clampY(points[0]!.y).toFixed(1)}`;
 
-  const path = [`M ${points[0]!.x.toFixed(1)} ${points[0]!.y.toFixed(1)}`];
+  const path = [`M ${points[0]!.x.toFixed(1)} ${clampY(points[0]!.y).toFixed(1)}`];
   for (let i = 0; i < points.length - 1; i++) {
     const p0 = points[Math.max(0, i - 1)]!;
     const p1 = points[i]!;
@@ -1111,11 +1125,11 @@ function precipitationWavePath(points: { x: number; y: number }[]): string {
     const p3 = points[Math.min(points.length - 1, i + 2)]!;
 
     const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp1y = clampY(p1.y + (p2.y - p0.y) / 6);
     const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    const cp2y = clampY(p2.y - (p3.y - p1.y) / 6);
     path.push(
-      `C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+      `C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${clampY(p2.y).toFixed(1)}`
     );
   }
   return path.join(' ');
