@@ -208,6 +208,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 7df2fda
 
+21. **Readable inline agenda event colors**
+
+    Fixed inline agenda event titles inheriting the calendar color's
+    contrast-aware text instead of forcing white text onto light event colors
+    such as orange.
+
+    Commit: afd2f33
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

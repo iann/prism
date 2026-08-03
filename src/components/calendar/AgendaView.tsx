@@ -354,7 +354,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
         <div className={cn('text-xs', cards ? 'text-muted-foreground' : 'opacity-80')}>
           {row.timeLabel}
         </div>
-        <div className={cn('flex items-center gap-1 text-sm font-medium', cards ? 'text-foreground' : 'text-white', row.muted && 'line-through')}>
+        <div className={cn('flex items-center gap-1 text-sm font-medium', cards ? 'text-foreground' : 'text-inherit', row.muted && 'line-through')}>
           {row.dragId?.startsWith('meal:') && (
             <UtensilsCrossed aria-hidden className="h-3 w-3 shrink-0" style={cards ? { color: row.stripeColor } : undefined} />
           )}
