@@ -344,6 +344,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 89fc295
 
+39. **More visible wall-distance rain variation**
+
+    Increased the smooth wave amplitude and strengthened the companion
+    forecast trace so precipitation movement registers more clearly on the
+    wall-mounted dashboard without changing the ±5% uncertainty model.
+
+    Commit: ceb3995
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
