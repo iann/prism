@@ -52,6 +52,7 @@ const MILLIMETERS_PER_INCH = 25.4;
 // a strong shower look maxed out too early.
 const PRECIPITATION_FULL_SCALE_MM_PER_HOUR = 7.62;
 const PRECIPITATION_VARIATION_FRACTION = 0.05;
+const PRECIPITATION_WAVE_UNDULATION_PX = 2.25;
 const RAIN_THRESHOLD_MM_PER_HOUR = 0.1;
 
 function localDayStartMs(nowMs = Date.now()): number {
@@ -855,11 +856,17 @@ function PrecipitationChart({
     y: intensityToY(m.precipIntensity),
   }));
   const smoothedPoints = smoothPrecipitationPoints(points);
-  const undulationPoints = precipitationUndulationPoints(smoothedPoints, 0.35, 1.35, PAD_TOP, baseY);
+  const undulationPoints = precipitationUndulationPoints(
+    smoothedPoints,
+    0.35,
+    PRECIPITATION_WAVE_UNDULATION_PX,
+    PAD_TOP,
+    baseY
+  );
   const alternateUndulationPoints = precipitationUndulationPoints(
     smoothedPoints,
     2.45,
-    1.35,
+    PRECIPITATION_WAVE_UNDULATION_PX,
     PAD_TOP,
     baseY
   );
