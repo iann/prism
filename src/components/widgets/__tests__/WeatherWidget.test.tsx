@@ -312,6 +312,7 @@ describe('precipitation notice', () => {
     ).toBe('5');
     expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
     expect(container.querySelectorAll('[data-precipitation-jitter-morph]')).toHaveLength(2);
+    expect(container.querySelector('[data-precipitation-line]')?.getAttribute('d')).toContain('C ');
     expect(container.querySelector('stop')?.getAttribute('stop-color')).toBe(
       'hsl(var(--weather-precipitation))'
     );

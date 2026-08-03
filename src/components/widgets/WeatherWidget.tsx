@@ -855,23 +855,23 @@ function PrecipitationChart({
     y: intensityToY(m.precipIntensity),
   }));
   const smoothedPoints = smoothPrecipitationPoints(points);
-  const jitterPoints = precipitationJitterPoints(smoothedPoints, 0.35, 1.15, PAD_TOP, baseY);
-  const alternateJitterPoints = precipitationJitterPoints(
+  const undulationPoints = precipitationUndulationPoints(smoothedPoints, 0.35, 1.35, PAD_TOP, baseY);
+  const alternateUndulationPoints = precipitationUndulationPoints(
     smoothedPoints,
-    3.2,
-    1.15,
+    2.45,
+    1.35,
     PAD_TOP,
     baseY
   );
-  const linePath = precipitationWavePath(jitterPoints);
-  const alternateLinePath = precipitationWavePath(alternateJitterPoints);
+  const linePath = precipitationWavePath(undulationPoints);
+  const alternateLinePath = precipitationWavePath(alternateUndulationPoints);
   // Keep the provider's forecast as the primary signal, then add a stable,
   // symmetric ±5% companion trace. It gives the wall display the organic
   // Dark Sky feel while honestly suggesting that minute-by-minute rain timing
   // is an estimate rather than a perfectly certain line.
   const variationPoints = smoothedPoints.map((point, i) => {
     const variation =
-      (Math.sin(i * 0.67 + 0.8) * 0.7 + Math.sin(i * 0.21) * 0.3) *
+      (Math.sin(i * 0.24 + 0.8) * 0.7 + Math.sin(i * 0.1) * 0.3) *
       CHART_H *
       PRECIPITATION_VARIATION_FRACTION;
     return {
@@ -1077,8 +1077,8 @@ function smoothPrecipitationPoints(
   return smoothed;
 }
 
-/** Add a small deterministic local wobble without changing the endpoints. */
-function precipitationJitterPoints(
+/** Add a broad, low-amplitude undulation without changing the endpoints. */
+function precipitationUndulationPoints(
   points: { x: number; y: number }[],
   phase: number,
   amplitude = 1.15,
@@ -1090,14 +1090,14 @@ function precipitationJitterPoints(
     if (index === 0 || index === points.length - 1) return point;
 
     const edgeWeight = Math.sin((index / lastIndex) * Math.PI);
-    const jitter =
-      (Math.sin(index * 0.62 + phase) * 0.72 +
-        Math.sin(index * 0.23 + phase * 1.4) * 0.44) *
+    const undulation =
+      (Math.sin(index * 0.24 + phase) * 0.7 +
+        Math.sin(index * 0.1 + phase * 0.9) * 0.3) *
       amplitude *
       edgeWeight;
     return {
       ...point,
-      y: Math.max(minY, Math.min(maxY, point.y + jitter)),
+      y: Math.max(minY, Math.min(maxY, point.y + undulation)),
     };
   });
 }
