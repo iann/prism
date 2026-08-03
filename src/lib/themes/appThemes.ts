@@ -36,6 +36,7 @@ const prismWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '28 95% 48%',
   '--weather-temp-hot': '9 90% 48%',
   '--weather-temp-very-hot': '348 78% 48%',
+  '--weather-precipitation': '205 80% 48%',
 };
 
 const prismWeatherDark: ThemeTokens = {
@@ -47,6 +48,7 @@ const prismWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '28 96% 63%',
   '--weather-temp-hot': '9 92% 64%',
   '--weather-temp-very-hot': '348 86% 68%',
+  '--weather-precipitation': '205 86% 66%',
 };
 
 const kitchenWeatherLight: ThemeTokens = {
@@ -58,6 +60,7 @@ const kitchenWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '28 78% 49%',
   '--weather-temp-hot': '12 74% 51%',
   '--weather-temp-very-hot': '350 65% 48%',
+  '--weather-precipitation': '198 70% 46%',
 };
 
 const kitchenWeatherDark: ThemeTokens = {
@@ -69,6 +72,7 @@ const kitchenWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '28 84% 64%',
   '--weather-temp-hot': '12 80% 65%',
   '--weather-temp-very-hot': '350 76% 68%',
+  '--weather-precipitation': '198 78% 65%',
 };
 
 const herbWeatherLight: ThemeTokens = {
@@ -80,6 +84,7 @@ const herbWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '31 83% 48%',
   '--weather-temp-hot': '16 78% 50%',
   '--weather-temp-very-hot': '5 70% 48%',
+  '--weather-precipitation': '202 68% 46%',
 };
 
 const herbWeatherDark: ThemeTokens = {
@@ -91,6 +96,7 @@ const herbWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '31 89% 65%',
   '--weather-temp-hot': '16 86% 66%',
   '--weather-temp-very-hot': '5 78% 68%',
+  '--weather-precipitation': '202 78% 65%',
 };
 
 const warmClayWeatherLight: ThemeTokens = {
@@ -102,6 +108,7 @@ const warmClayWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '31 88% 49%',
   '--weather-temp-hot': '14 82% 50%',
   '--weather-temp-very-hot': '350 70% 49%',
+  '--weather-precipitation': '205 68% 47%',
 };
 
 const warmClayWeatherDark: ThemeTokens = {
@@ -113,6 +120,7 @@ const warmClayWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '31 94% 64%',
   '--weather-temp-hot': '14 90% 65%',
   '--weather-temp-very-hot': '350 80% 68%',
+  '--weather-precipitation': '205 78% 65%',
 };
 
 const softSlateWeatherLight: ThemeTokens = {
@@ -124,6 +132,7 @@ const softSlateWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '29 94% 48%',
   '--weather-temp-hot': '10 89% 49%',
   '--weather-temp-very-hot': '348 78% 48%',
+  '--weather-precipitation': '199 78% 45%',
 };
 
 const softSlateWeatherDark: ThemeTokens = {
@@ -135,6 +144,7 @@ const softSlateWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '29 96% 64%',
   '--weather-temp-hot': '10 92% 65%',
   '--weather-temp-very-hot': '348 86% 68%',
+  '--weather-precipitation': '199 84% 66%',
 };
 
 const prismLight: ThemeTokens = {
@@ -214,6 +224,7 @@ const claudeWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '26 84% 47%',
   '--weather-temp-hot': '8 80% 47%',
   '--weather-temp-very-hot': '348 70% 48%',
+  '--weather-precipitation': '203 68% 47%',
 };
 
 const claudeWeatherDark: ThemeTokens = {
@@ -225,6 +236,7 @@ const claudeWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '26 91% 65%',
   '--weather-temp-hot': '8 88% 66%',
   '--weather-temp-very-hot': '348 80% 70%',
+  '--weather-precipitation': '203 78% 66%',
 };
 
 /**
@@ -316,6 +328,7 @@ const lcars: ThemeTokens = {
   '--weather-temp-warm': '26 95% 65%',
   '--weather-temp-hot': '6 90% 66%',
   '--weather-temp-very-hot': '335 85% 68%',
+  '--weather-precipitation': '218 62% 66%',
   '--background': '240 11% 3%',
   '--foreground': '42 38% 94%',
   '--card': '252 16% 8%',

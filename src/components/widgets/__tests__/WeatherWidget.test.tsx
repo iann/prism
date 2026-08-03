@@ -250,8 +250,11 @@ describe('precipitation notice', () => {
     const header = container.querySelector('[data-precipitation-header]');
     expect(header?.textContent).toContain('Next hour');
     expect(header?.textContent).not.toContain('68°');
+    expect(
+      screen.getByText('Raining through the hour').classList.contains('precipitation-wave-message')
+    ).toBe(true);
     expect(screen.getByText('Raining through the hour').classList.contains('text-primary')).toBe(
-      true
+      false
     );
     expect(container.querySelector('.text-blue-400')).toBeNull();
   });
@@ -294,12 +297,16 @@ describe('precipitation notice', () => {
     const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
 
     expect(container.querySelector('[data-precipitation-area]')).not.toBeNull();
+    expect(container.querySelector('[data-precipitation-variation]')).not.toBeNull();
     expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
     expect(container.querySelector('stop')?.getAttribute('stop-color')).toBe(
-      'hsl(var(--chart-2))'
+      'hsl(var(--weather-precipitation))'
     );
     expect(container.querySelector('[data-precipitation-line]')?.getAttribute('stroke')).toBe(
-      'hsl(var(--chart-2))'
+      'hsl(var(--weather-precipitation))'
+    );
+    expect(container.querySelector('[data-precipitation-variation]')?.getAttribute('d')).not.toBe(
+      container.querySelector('[data-precipitation-line]')?.getAttribute('d')
     );
     expect(container.querySelectorAll('rect')).toHaveLength(0);
   });

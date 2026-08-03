@@ -849,6 +849,18 @@ function PrecipitationChart({
     y: intensityToY(m.precipIntensity),
   }));
   const linePath = precipitationWavePath(points);
+  // Keep the provider's forecast as the primary signal, then add a stable,
+  // low-amplitude companion trace. It gives the wall display the organic
+  // Dark Sky feel while honestly suggesting that minute-by-minute rain timing
+  // is an estimate rather than a perfectly certain line.
+  const variationPoints = points.map((point, i) => {
+    const variation = Math.sin(i * 0.67 + 0.8) * 0.9 + Math.sin(i * 0.21) * 0.55;
+    return {
+      ...point,
+      y: Math.max(PAD_TOP, Math.min(baseY, point.y + variation)),
+    };
+  });
+  const variationPath = precipitationWavePath(variationPoints);
   const areaPath = linePath
     ? `${linePath} L ${(PAD_LEFT + chartW).toFixed(1)} ${baseY} L ${PAD_LEFT.toFixed(1)} ${baseY} Z`
     : '';
@@ -888,7 +900,7 @@ function PrecipitationChart({
         <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
           Next hour
         </span>
-        <span className="shrink-0 text-right text-[12px] font-medium text-primary">
+        <span className="precipitation-wave-message shrink-0 text-right text-[12px] font-medium">
           {rainMessage}
         </span>
       </div>
@@ -903,8 +915,8 @@ function PrecipitationChart({
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="hsl(var(--chart-2))" stopOpacity="0.92" />
-              <stop offset="100%" stopColor="hsl(var(--chart-2))" stopOpacity="0.58" />
+              <stop offset="0%"   stopColor="hsl(var(--weather-precipitation))" stopOpacity="0.92" />
+              <stop offset="100%" stopColor="hsl(var(--weather-precipitation))" stopOpacity="0.58" />
             </linearGradient>
           </defs>
 
@@ -932,13 +944,28 @@ function PrecipitationChart({
             />
           )}
 
+          {/* A restrained companion trace communicates forecast uncertainty. */}
+          {variationPath && (
+            <path
+              d={variationPath}
+              fill="none"
+              stroke="hsl(var(--weather-precipitation))"
+              strokeOpacity={0.36}
+              strokeWidth={1.15}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="precipitation-wave-variation"
+              data-precipitation-variation
+            />
+          )}
+
           {/* Top edge — smooth, gently breathing line with a moving highlight. */}
           {linePath && (
             <>
               <path
                 d={linePath}
                 fill="none"
-                stroke="hsl(var(--chart-2))"
+                stroke="hsl(var(--weather-precipitation))"
                 strokeWidth={2.25}
                 strokeLinecap="round"
                 strokeLinejoin="round"
