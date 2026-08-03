@@ -287,6 +287,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: f6b6b3c
 
+31. **Symmetric five-percent precipitation variation**
+
+    Tuned the forecast-uncertainty trace to vary smoothly on both sides of the
+    primary signal by approximately ±5% of the chart height.
+
+    Commit: 6afa2d1
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
