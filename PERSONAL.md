@@ -248,6 +248,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 315ed86
 
+26. **Theme-aware precipitation wave colors**
+
+    Audited the rain chart across every light and dark preset, then tied its
+    wave, fill, and highlight colors to the active theme tokens for better
+    integration with Prism, Claude, Kitchen Calm, Herb Garden, Warm Clay,
+    Soft Slate, and LCARS.
+
+    Commit: bb689f6
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
