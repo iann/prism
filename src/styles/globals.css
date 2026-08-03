@@ -470,7 +470,7 @@
   .precipitation-wave-area {
     transform-box: fill-box;
     transform-origin: center bottom;
-    animation: precipitation-wave-breathe 4s ease-in-out infinite;
+    animation: precipitation-wave-breathe 3.2s ease-in-out infinite;
   }
 
   .precipitation-wave-message {
@@ -478,13 +478,13 @@
   }
 
   .precipitation-wave-line {
-    animation: precipitation-wave-sway 4s ease-in-out infinite;
+    animation: precipitation-wave-sway 3.2s ease-in-out infinite;
     transform-box: fill-box;
     transform-origin: center bottom;
   }
 
   .precipitation-wave-variation {
-    animation: precipitation-wave-variation 3.8s ease-in-out infinite;
+    animation: precipitation-wave-variation 3.2s ease-in-out infinite;
     transform-box: fill-box;
     transform-origin: center;
   }

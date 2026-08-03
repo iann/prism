@@ -312,6 +312,11 @@ describe('precipitation notice', () => {
     ).toBe('5');
     expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
     expect(container.querySelectorAll('[data-precipitation-jitter-morph]')).toHaveLength(2);
+    expect(
+      Array.from(container.querySelectorAll('[data-precipitation-jitter-morph]')).map((animation) =>
+        animation.getAttribute('dur')
+      )
+    ).toEqual(['3.2s', '3.2s']);
     expect(container.querySelector('[data-precipitation-line]')?.getAttribute('d')).toContain('C ');
     expect(container.querySelector('.precipitation-wave-highlight')).toBeNull();
     expect(container.querySelector('stop')?.getAttribute('stop-color')).toBe(

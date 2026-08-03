@@ -984,7 +984,7 @@ function PrecipitationChart({
                 <animate
                   attributeName="d"
                   values={`${areaPath};${alternateAreaPath};${areaPath}`}
-                  dur="4.8s"
+                  dur="3.2s"
                   repeatCount="indefinite"
                   calcMode="spline"
                   keyTimes="0;0.5;1"
@@ -1029,7 +1029,7 @@ function PrecipitationChart({
                   <animate
                     attributeName="d"
                     values={`${linePath};${alternateLinePath};${linePath}`}
-                    dur="4.8s"
+                    dur="3.2s"
                     repeatCount="indefinite"
                     calcMode="spline"
                     keyTimes="0;0.5;1"
