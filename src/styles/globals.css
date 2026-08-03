@@ -447,11 +447,6 @@
     }
   }
 
-  @keyframes precipitation-wave-draw {
-    from { stroke-dashoffset: 1000; }
-    to { stroke-dashoffset: 0; }
-  }
-
   @keyframes precipitation-wave-sway {
     0%, 100% {
       transform: translateY(0) scaleY(1);
@@ -483,17 +478,12 @@
   }
 
   .precipitation-wave-line {
-    stroke-dasharray: 1000;
-    stroke-dashoffset: 1000;
-    animation:
-      precipitation-wave-draw 1.6s ease-out forwards,
-      precipitation-wave-sway 4s ease-in-out 1.6s infinite;
+    animation: precipitation-wave-sway 4s ease-in-out infinite;
     transform-box: fill-box;
     transform-origin: center bottom;
   }
 
   .precipitation-wave-variation {
-    stroke-dasharray: 3 9;
     animation: precipitation-wave-variation 3.8s ease-in-out infinite;
     transform-box: fill-box;
     transform-origin: center;
