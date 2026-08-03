@@ -300,7 +300,9 @@ describe('precipitation notice', () => {
       Number(container.querySelector(`[data-precipitation-guide="${level}"]`)?.getAttribute('y1'))
     );
     expect(guideYs).toHaveLength(3);
-    expect(guideYs[1] - guideYs[0]).toBeCloseTo(guideYs[2] - guideYs[1]);
+    const heavyToMedium = guideYs[1]! - guideYs[0]!;
+    const mediumToLight = guideYs[2]! - guideYs[1]!;
+    expect(heavyToMedium).toBeCloseTo(mediumToLight);
     expect(container.querySelector('[data-precipitation-area]')).not.toBeNull();
     expect(container.querySelector('[data-precipitation-variation]')).not.toBeNull();
     expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
