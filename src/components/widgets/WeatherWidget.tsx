@@ -834,26 +834,32 @@ function PrecipitationChart({
     return baseY - Math.sqrt(normalized) * CHART_H;
   };
 
-  // Dark Sky's compact reference chart keeps the guide lines in the upper
-  // half, leaving the filled wave room to read as light rain below them.
+  // The guides are a visual intensity grid, independent of the nonlinear
+  // rain-rate mapping. Keeping the three rows evenly spaced makes the chart
+  // easy to scan even though the data-to-height curve is not linear.
+  const GUIDE_STEP    = CHART_H / 3;
   const HEAVY_LINE_Y  = PAD_TOP;
-  const MED_LINE_Y    = PAD_TOP + CHART_H / 3;
-  const HEAVY_LABEL_Y = PAD_TOP + CHART_H * 0.18;
-  const MED_LABEL_Y   = PAD_TOP + CHART_H * 0.5;
-  const LIGHT_LABEL_Y = PAD_TOP + CHART_H * 0.86;
+  const MED_LINE_Y    = PAD_TOP + GUIDE_STEP;
+  const LIGHT_LINE_Y  = PAD_TOP + GUIDE_STEP * 2;
+  const HEAVY_LABEL_Y = HEAVY_LINE_Y + 8;
+  const MED_LABEL_Y   = MED_LINE_Y + 8;
+  const LIGHT_LABEL_Y = LIGHT_LINE_Y + 8;
 
-  // Convert the provider values to points in the calibrated mm/hr scale.
+  // Convert the provider values to points in the calibrated mm/hr scale, then
+  // smooth short-lived spikes before the spline is generated. This keeps the
+  // curve responsive to real changes without drawing every noisy sample.
   const n = minutely.length;
   const points = minutely.map((m, i) => ({
     x: PAD_LEFT + (i / Math.max(n - 1, 1)) * chartW,
     y: intensityToY(m.precipIntensity),
   }));
-  const linePath = precipitationWavePath(points);
+  const smoothedPoints = smoothPrecipitationPoints(points);
+  const linePath = precipitationWavePath(smoothedPoints);
   // Keep the provider's forecast as the primary signal, then add a stable,
   // low-amplitude companion trace. It gives the wall display the organic
   // Dark Sky feel while honestly suggesting that minute-by-minute rain timing
   // is an estimate rather than a perfectly certain line.
-  const variationPoints = points.map((point, i) => {
+  const variationPoints = smoothedPoints.map((point, i) => {
     const variation = Math.sin(i * 0.67 + 0.8) * 0.9 + Math.sin(i * 0.21) * 0.55;
     return {
       ...point,
@@ -920,11 +926,16 @@ function PrecipitationChart({
             </linearGradient>
           </defs>
 
-          {/* Zone boundary lines */}
+          {/* Evenly spaced visual intensity guides. */}
           <line x1={PAD_LEFT} y1={HEAVY_LINE_Y} x2={PAD_LEFT + chartW} y2={HEAVY_LINE_Y}
-            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3"
+            data-precipitation-guide="heavy" />
           <line x1={PAD_LEFT} y1={MED_LINE_Y} x2={PAD_LEFT + chartW} y2={MED_LINE_Y}
-            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3"
+            data-precipitation-guide="medium" />
+          <line x1={PAD_LEFT} y1={LIGHT_LINE_Y} x2={PAD_LEFT + chartW} y2={LIGHT_LINE_Y}
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3"
+            data-precipitation-guide="light" />
 
           {/* Zone labels */}
           <text x={PAD_LEFT + 8} y={HEAVY_LABEL_Y} textAnchor="start" fontSize={9}
@@ -999,6 +1010,26 @@ function PrecipitationChart({
       </div>
     </div>
   );
+}
+
+/** Apply a short weighted moving average without moving the endpoints. */
+function smoothPrecipitationPoints(
+  points: { x: number; y: number }[],
+  passes = 2
+): { x: number; y: number }[] {
+  let smoothed = points;
+  for (let pass = 0; pass < passes; pass++) {
+    smoothed = smoothed.map((point, index) => {
+      if (index === 0 || index === smoothed.length - 1) return point;
+      const previous = smoothed[index - 1]!;
+      const next = smoothed[index + 1]!;
+      return {
+        x: point.x,
+        y: (previous.y + point.y * 2 + next.y) / 4,
+      };
+    });
+  }
+  return smoothed;
 }
 
 /** Catmull-Rom spline → cubic Bézier path for a smooth, data-faithful wave. */

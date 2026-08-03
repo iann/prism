@@ -296,6 +296,11 @@ describe('precipitation notice', () => {
     }));
     const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
 
+    const guideYs = ['heavy', 'medium', 'light'].map((level) =>
+      Number(container.querySelector(`[data-precipitation-guide="${level}"]`)?.getAttribute('y1'))
+    );
+    expect(guideYs).toHaveLength(3);
+    expect(guideYs[1] - guideYs[0]).toBeCloseTo(guideYs[2] - guideYs[1]);
     expect(container.querySelector('[data-precipitation-area]')).not.toBeNull();
     expect(container.querySelector('[data-precipitation-variation]')).not.toBeNull();
     expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
