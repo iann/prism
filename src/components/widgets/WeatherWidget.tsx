@@ -433,7 +433,12 @@ export const WeatherWidget = React.memo(function WeatherWidget({
             {/* Precipitation chart — replaces sunrise/sunset arc when rain is coming in the next hour */}
             {showPrecipChart && (
               <div className="flex flex-col gap-1">
-                <PrecipitationChart minutely={weatherData.minutely!} units={units} />
+                <PrecipitationChart
+                  minutely={weatherData.minutely!}
+                  units={units}
+                  location={weatherData.location}
+                  currentTemperature={weatherData.current.temperature}
+                />
               </div>
             )}
 
@@ -792,9 +797,13 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
 function PrecipitationChart({
   minutely,
   units,
+  location,
+  currentTemperature,
 }: {
   minutely: MinutelyData[];
   units: WeatherUnits;
+  location: string;
+  currentTemperature: number;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(220);
@@ -813,8 +822,8 @@ function PrecipitationChart({
   const PAD_LEFT  = 4;
   const PAD_RIGHT = 4;
   const PAD_TOP   = 4;
-  const CHART_H   = 56;
-  const AXIS_H    = 14;
+  const CHART_H   = 60;
+  const AXIS_H    = 22;
   const totalH    = PAD_TOP + CHART_H + AXIS_H;
   const chartW    = Math.max(1, width - PAD_LEFT - PAD_RIGHT);
   const baseY     = PAD_TOP + CHART_H;
@@ -825,13 +834,13 @@ function PrecipitationChart({
   const intensityToY = (intensity: number) =>
     baseY - (Math.min(precipitationToMillimeters(intensity, units), MAX_MM) / MAX_MM) * CHART_H;
 
-  // Three equal intensity zones
-  const ZONE_H        = CHART_H / 3;
-  const HEAVY_LINE_Y  = PAD_TOP + ZONE_H;
-  const MED_LINE_Y    = PAD_TOP + ZONE_H * 2;
-  const HEAVY_LABEL_Y = PAD_TOP + ZONE_H * 0.5;
-  const MED_LABEL_Y   = PAD_TOP + ZONE_H * 1.5;
-  const LIGHT_LABEL_Y = PAD_TOP + ZONE_H * 2.5;
+  // Dark Sky's compact reference chart keeps the guide lines in the upper
+  // half, leaving the filled wave room to read as light rain below them.
+  const HEAVY_LINE_Y  = PAD_TOP;
+  const MED_LINE_Y    = PAD_TOP + CHART_H / 3;
+  const HEAVY_LABEL_Y = PAD_TOP + CHART_H * 0.18;
+  const MED_LABEL_Y   = PAD_TOP + CHART_H * 0.5;
+  const LIGHT_LABEL_Y = PAD_TOP + CHART_H * 0.86;
 
   // Convert the provider values to points in the calibrated mm/hr scale.
   const n = minutely.length;
@@ -871,14 +880,21 @@ function PrecipitationChart({
   })();
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-          <CloudRain className="h-3 w-3 text-primary" />
-          Rain next hour
-        </span>
-        <span className="text-[14px] text-primary font-medium">{rainMessage}</span>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-[22px] font-semibold leading-none tracking-tight text-foreground">
+            Next Hour
+          </div>
+          <div className="mt-1 text-[15px] leading-tight text-muted-foreground truncate">
+            {formatLocation(location)}
+          </div>
+        </div>
+        <div className="shrink-0 text-[24px] font-bold leading-none tabular-nums text-foreground">
+          {Math.round(currentTemperature)}°
+        </div>
       </div>
+      <span className="sr-only">{rainMessage}</span>
       <div ref={containerRef} className="w-full">
         <svg
           width={width}
@@ -890,8 +906,8 @@ function PrecipitationChart({
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#60A5FA" stopOpacity="0.58" />
-              <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.08" />
+              <stop offset="0%"   stopColor="#169BB4" stopOpacity="0.94" />
+              <stop offset="100%" stopColor="#5BC6D3" stopOpacity="0.88" />
             </linearGradient>
           </defs>
 
@@ -902,12 +918,12 @@ function PrecipitationChart({
             stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
 
           {/* Zone labels */}
-          <text x={PAD_LEFT + 4} y={HEAVY_LABEL_Y} textAnchor="start" fontSize={7.5}
-            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">HEAVY</text>
-          <text x={PAD_LEFT + 4} y={MED_LABEL_Y} textAnchor="start" fontSize={7.5}
-            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">MED</text>
-          <text x={PAD_LEFT + 4} y={LIGHT_LABEL_Y} textAnchor="start" fontSize={7.5}
-            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">LIGHT</text>
+          <text x={PAD_LEFT + 8} y={HEAVY_LABEL_Y} textAnchor="start" fontSize={9}
+            fill="currentColor" fillOpacity={0.62} dominantBaseline="middle">Heavy</text>
+          <text x={PAD_LEFT + 8} y={MED_LABEL_Y} textAnchor="start" fontSize={9}
+            fill="currentColor" fillOpacity={0.62} dominantBaseline="middle">Med</text>
+          <text x={PAD_LEFT + 8} y={LIGHT_LABEL_Y} textAnchor="start" fontSize={9}
+            fill="currentColor" fillOpacity={0.62} dominantBaseline="middle">Light</text>
 
           {/* Filled wave — the soft area is the primary Dark Sky-style signal. */}
           {areaPath && (
@@ -925,8 +941,8 @@ function PrecipitationChart({
               <path
                 d={linePath}
                 fill="none"
-                stroke="#60A5FA"
-                strokeWidth={1.75}
+                stroke="#118FA8"
+                strokeWidth={2.25}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 className="precipitation-wave-line"
@@ -935,9 +951,9 @@ function PrecipitationChart({
               <path
                 d={linePath}
                 fill="none"
-                stroke="#BFDBFE"
-                strokeOpacity={0.55}
-                strokeWidth={1}
+                stroke="#D5F5F7"
+                strokeOpacity={0.38}
+                strokeWidth={1.1}
                 strokeLinecap="round"
                 strokeDasharray="1 14"
                 className="precipitation-wave-highlight"
