@@ -232,6 +232,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: cf33b96
 
+24. **Nonlinear precipitation intensity scale**
+
+    Added a square-root rain-rate mapping with a 7.62 mm/hr heavy-rain
+    ceiling, preserving headroom for moderate showers while keeping light
+    rain visible.
+
+    Commit: b4a5636
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
