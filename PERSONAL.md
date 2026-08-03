@@ -330,6 +330,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: a64f801
 
+37. **Faster rain-wave cycle**
+
+    Shortened the synchronized undulation, fill breathing, and forecast-
+    variation cycle from 4.8 seconds to 3.2 seconds.
+
+    Commit: 56bd9e3
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
