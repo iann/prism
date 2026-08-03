@@ -315,6 +315,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 37bbd20
 
+35. **Removed remaining rain dash motion**
+
+    Removed the primary line’s initial dash-offset draw and the uncertainty
+    trace’s dashed styling so no precipitation layer sweeps horizontally.
+
+    Commit: 8a60b62
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
