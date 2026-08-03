@@ -308,6 +308,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: b7b95ae
 
+34. **Removed precipitation ripple sweep**
+
+    Removed the right-to-left moving highlight and dash sweep, leaving the
+    chart’s smooth undulation and static forecast-variation trace unobstructed.
+
+    Commit: 37bbd20
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
