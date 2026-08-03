@@ -540,6 +540,19 @@
     scroll-behavior: auto !important;
   }
 
+  /* Keep the precipitation wave readable on the wall display. This is the
+   * one intentionally retained animation in performance mode; the
+   * accessibility-level reduced-motion rule above still takes precedence
+   * whenever the OS requests less motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    html.performance-mode .precipitation-wave-area,
+    html.performance-mode .precipitation-wave-line,
+    html.performance-mode .precipitation-wave-variation {
+      animation-duration: 3.2s !important;
+      animation-iteration-count: infinite !important;
+    }
+  }
+
   html.performance-mode .shadow-sm,
   html.performance-mode .shadow,
   html.performance-mode .shadow-md,
