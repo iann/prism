@@ -265,6 +265,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 2dd6b11
 
+28. **Evenly spaced precipitation intensity guides**
+
+    Kept the nonlinear rain-rate scale while giving the heavy, medium, and
+    light visual guides equal spacing for a more predictable chart grid.
+
+    Commit: 37e8626
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
