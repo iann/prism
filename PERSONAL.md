@@ -322,6 +322,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 8a60b62
 
+36. **More frequent bounded rain undulations**
+
+    Increased the number of smooth rises and falls while clamping both sample
+    and Bézier control points to the chart band so the wave cannot cross below
+    the precipitation baseline.
+
+    Commit: a64f801
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
