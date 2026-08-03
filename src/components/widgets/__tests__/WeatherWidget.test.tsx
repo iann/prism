@@ -306,6 +306,7 @@ describe('precipitation notice', () => {
     expect(container.querySelector('[data-precipitation-area]')).not.toBeNull();
     expect(container.querySelector('[data-precipitation-variation]')).not.toBeNull();
     expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
+    expect(container.querySelectorAll('[data-precipitation-jitter-morph]')).toHaveLength(2);
     expect(container.querySelector('stop')?.getAttribute('stop-color')).toBe(
       'hsl(var(--weather-precipitation))'
     );

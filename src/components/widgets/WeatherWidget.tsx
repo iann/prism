@@ -854,7 +854,16 @@ function PrecipitationChart({
     y: intensityToY(m.precipIntensity),
   }));
   const smoothedPoints = smoothPrecipitationPoints(points);
-  const linePath = precipitationWavePath(smoothedPoints);
+  const jitterPoints = precipitationJitterPoints(smoothedPoints, 0.35, 1.15, PAD_TOP, baseY);
+  const alternateJitterPoints = precipitationJitterPoints(
+    smoothedPoints,
+    3.2,
+    1.15,
+    PAD_TOP,
+    baseY
+  );
+  const linePath = precipitationWavePath(jitterPoints);
+  const alternateLinePath = precipitationWavePath(alternateJitterPoints);
   // Keep the provider's forecast as the primary signal, then add a stable,
   // low-amplitude companion trace. It gives the wall display the organic
   // Dark Sky feel while honestly suggesting that minute-by-minute rain timing
@@ -869,6 +878,9 @@ function PrecipitationChart({
   const variationPath = precipitationWavePath(variationPoints);
   const areaPath = linePath
     ? `${linePath} L ${(PAD_LEFT + chartW).toFixed(1)} ${baseY} L ${PAD_LEFT.toFixed(1)} ${baseY} Z`
+    : '';
+  const alternateAreaPath = alternateLinePath
+    ? `${alternateLinePath} L ${(PAD_LEFT + chartW).toFixed(1)} ${baseY} L ${PAD_LEFT.toFixed(1)} ${baseY} Z`
     : '';
 
   const xTicks = [10, 20, 30, 40, 50].map((min) => ({
@@ -952,7 +964,21 @@ function PrecipitationChart({
               fill={`url(#${gradientId})`}
               className="precipitation-wave-area"
               data-precipitation-area
-            />
+            >
+              {alternateAreaPath && (
+                <animate
+                  attributeName="d"
+                  values={`${areaPath};${alternateAreaPath};${areaPath}`}
+                  dur="4.8s"
+                  repeatCount="indefinite"
+                  calcMode="spline"
+                  keyTimes="0;0.5;1"
+                  keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+                  className="precipitation-wave-jitter-morph"
+                  data-precipitation-jitter-morph
+                />
+              )}
+            </path>
           )}
 
           {/* A restrained companion trace communicates forecast uncertainty. */}
@@ -970,7 +996,7 @@ function PrecipitationChart({
             />
           )}
 
-          {/* Top edge — smooth, gently breathing line with a moving highlight. */}
+          {/* Top edge — a smooth, gently morphing line with a moving highlight. */}
           {linePath && (
             <>
               <path
@@ -982,7 +1008,21 @@ function PrecipitationChart({
                 strokeLinejoin="round"
                 className="precipitation-wave-line"
                 data-precipitation-line
-              />
+              >
+                {alternateLinePath && (
+                  <animate
+                    attributeName="d"
+                    values={`${linePath};${alternateLinePath};${linePath}`}
+                    dur="4.8s"
+                    repeatCount="indefinite"
+                    calcMode="spline"
+                    keyTimes="0;0.5;1"
+                    keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+                    className="precipitation-wave-jitter-morph"
+                    data-precipitation-jitter-morph
+                  />
+                )}
+              </path>
               <path
                 d={linePath}
                 fill="none"
@@ -1030,6 +1070,31 @@ function smoothPrecipitationPoints(
     });
   }
   return smoothed;
+}
+
+/** Add a small deterministic local wobble without changing the endpoints. */
+function precipitationJitterPoints(
+  points: { x: number; y: number }[],
+  phase: number,
+  amplitude = 1.15,
+  minY = 4,
+  maxY = 64
+): { x: number; y: number }[] {
+  const lastIndex = Math.max(points.length - 1, 1);
+  return points.map((point, index) => {
+    if (index === 0 || index === points.length - 1) return point;
+
+    const edgeWeight = Math.sin((index / lastIndex) * Math.PI);
+    const jitter =
+      (Math.sin(index * 0.62 + phase) * 0.72 +
+        Math.sin(index * 0.23 + phase * 1.4) * 0.44) *
+      amplitude *
+      edgeWeight;
+    return {
+      ...point,
+      y: Math.max(minY, Math.min(maxY, point.y + jitter)),
+    };
+  });
 }
 
 /** Catmull-Rom spline → cubic Bézier path for a smooth, data-faithful wave. */

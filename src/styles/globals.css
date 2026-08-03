@@ -517,12 +517,22 @@
     transform-origin: center bottom;
   }
 
+  .precipitation-wave-jitter-morph {
+    /* The SVG path itself morphs between two softly jittered traces. */
+    will-change: d;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .precipitation-wave-area,
     .precipitation-wave-line,
     .precipitation-wave-highlight,
-    .precipitation-wave-variation {
+    .precipitation-wave-variation,
+    .precipitation-wave-jitter-morph {
       animation: none;
+    }
+
+    .precipitation-wave-jitter-morph {
+      display: none;
     }
   }
 
