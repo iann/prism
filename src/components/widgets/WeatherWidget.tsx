@@ -51,6 +51,7 @@ const MILLIMETERS_PER_INCH = 25.4;
 // square-root curve so light and moderate rain remain legible without making
 // a strong shower look maxed out too early.
 const PRECIPITATION_FULL_SCALE_MM_PER_HOUR = 7.62;
+const PRECIPITATION_VARIATION_FRACTION = 0.05;
 const RAIN_THRESHOLD_MM_PER_HOUR = 0.1;
 
 function localDayStartMs(nowMs = Date.now()): number {
@@ -865,11 +866,14 @@ function PrecipitationChart({
   const linePath = precipitationWavePath(jitterPoints);
   const alternateLinePath = precipitationWavePath(alternateJitterPoints);
   // Keep the provider's forecast as the primary signal, then add a stable,
-  // low-amplitude companion trace. It gives the wall display the organic
+  // symmetric ±5% companion trace. It gives the wall display the organic
   // Dark Sky feel while honestly suggesting that minute-by-minute rain timing
   // is an estimate rather than a perfectly certain line.
   const variationPoints = smoothedPoints.map((point, i) => {
-    const variation = Math.sin(i * 0.67 + 0.8) * 0.9 + Math.sin(i * 0.21) * 0.55;
+    const variation =
+      (Math.sin(i * 0.67 + 0.8) * 0.7 + Math.sin(i * 0.21) * 0.3) *
+      CHART_H *
+      PRECIPITATION_VARIATION_FRACTION;
     return {
       ...point,
       y: Math.max(PAD_TOP, Math.min(baseY, point.y + variation)),
@@ -993,6 +997,7 @@ function PrecipitationChart({
               strokeLinejoin="round"
               className="precipitation-wave-variation"
               data-precipitation-variation
+              data-precipitation-variation-percent={PRECIPITATION_VARIATION_FRACTION * 100}
             />
           )}
 
