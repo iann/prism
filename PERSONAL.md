@@ -301,6 +301,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 621f9db
 
+33. **Visible but restrained wave motion**
+
+    Kept the lower-frequency contour while increasing its controlled amplitude
+    enough for the smooth up-and-down movement to remain legible on the chart.
+
+    Commit: b7b95ae
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
