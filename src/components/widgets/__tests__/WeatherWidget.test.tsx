@@ -264,9 +264,24 @@ describe('precipitation notice', () => {
 
     const chart = container.querySelector('[data-precipitation-scale]');
     const line = container.querySelector('[data-precipitation-line]');
-    expect(chart?.getAttribute('data-precipitation-scale')).toBe('3.75');
-    // 0.0583 in/hr = 1.48 mm/hr, which is ~40% of the 3.75 mm/hr scale.
-    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 40\.[0-9]/);
+    expect(chart?.getAttribute('data-precipitation-scale')).toBe('7.62');
+    // 0.0583 in/hr = 1.48 mm/hr, which is ~44% after the square-root curve.
+    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 37\.[0-9]/);
+  });
+
+  it('leaves headroom for a moderate shower instead of clipping it at full scale', () => {
+    const minutely = Array.from({ length: 61 }, (_, index) => ({
+      time: index * 60,
+      precipIntensity: index === 0 ? 0.1343 : 0.12,
+      precipProbability: 0.9,
+    }));
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    const chart = container.querySelector('[data-precipitation-scale]');
+    const line = container.querySelector('[data-precipitation-line]');
+    expect(chart?.getAttribute('data-precipitation-scale')).toBe('7.62');
+    // 0.1343 in/hr = 3.41 mm/hr, which lands around 67% of the height.
+    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 23\.[0-9]/);
   });
 
   it('renders the precipitation forecast as a smooth animated wave', () => {

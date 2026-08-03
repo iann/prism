@@ -47,7 +47,10 @@ import { DayHeader } from './WeatherForecastBar';
 const SUN_PATH_SAMPLES = 48;
 const MIDNIGHT_ROLLOVER_BUFFER_MS = 50;
 const MILLIMETERS_PER_INCH = 25.4;
-const PRECIPITATION_FULL_SCALE_MM_PER_HOUR = 3.75;
+// Use the NWS heavy-rain boundary as the visual ceiling, then apply a
+// square-root curve so light and moderate rain remain legible without making
+// a strong shower look maxed out too early.
+const PRECIPITATION_FULL_SCALE_MM_PER_HOUR = 7.62;
 const RAIN_THRESHOLD_MM_PER_HOUR = 0.1;
 
 function localDayStartMs(nowMs = Date.now()): number {
@@ -828,11 +831,14 @@ function PrecipitationChart({
   const chartW    = Math.max(1, width - PAD_LEFT - PAD_RIGHT);
   const baseY     = PAD_TOP + CHART_H;
 
-  // Calibrated against the live Melrose point: 0.0583 in/hr ≈ 1.48 mm/hr,
-  // which should sit at about 40% of the chart height.
+  // The provider gives a physical rate, not a display percentage. A
+  // square-root mapping keeps the low end readable while reserving headroom
+  // for genuinely heavy rain: 0.0583 in/hr ≈ 44% and 0.1343 in/hr ≈ 67%.
   const MAX_MM = PRECIPITATION_FULL_SCALE_MM_PER_HOUR;
-  const intensityToY = (intensity: number) =>
-    baseY - (Math.min(precipitationToMillimeters(intensity, units), MAX_MM) / MAX_MM) * CHART_H;
+  const intensityToY = (intensity: number) => {
+    const normalized = Math.min(precipitationToMillimeters(intensity, units), MAX_MM) / MAX_MM;
+    return baseY - Math.sqrt(normalized) * CHART_H;
+  };
 
   // Dark Sky's compact reference chart keeps the guide lines in the upper
   // half, leaving the filled wave room to read as light rain below them.
