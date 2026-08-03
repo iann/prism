@@ -834,13 +834,16 @@ function PrecipitationChart({
     return baseY - Math.sqrt(normalized) * CHART_H;
   };
 
-  // Dark Sky's compact reference chart keeps the guide lines in the upper
-  // half, leaving the filled wave room to read as light rain below them.
+  // The guides are a visual intensity grid, independent of the nonlinear
+  // rain-rate mapping. Keeping the three rows evenly spaced makes the chart
+  // easy to scan even though the data-to-height curve is not linear.
+  const GUIDE_STEP    = CHART_H / 3;
   const HEAVY_LINE_Y  = PAD_TOP;
-  const MED_LINE_Y    = PAD_TOP + CHART_H / 3;
-  const HEAVY_LABEL_Y = PAD_TOP + CHART_H * 0.18;
-  const MED_LABEL_Y   = PAD_TOP + CHART_H * 0.5;
-  const LIGHT_LABEL_Y = PAD_TOP + CHART_H * 0.86;
+  const MED_LINE_Y    = PAD_TOP + GUIDE_STEP;
+  const LIGHT_LINE_Y  = PAD_TOP + GUIDE_STEP * 2;
+  const HEAVY_LABEL_Y = HEAVY_LINE_Y + 8;
+  const MED_LABEL_Y   = MED_LINE_Y + 8;
+  const LIGHT_LABEL_Y = LIGHT_LINE_Y + 8;
 
   // Convert the provider values to points in the calibrated mm/hr scale.
   const n = minutely.length;
@@ -920,11 +923,16 @@ function PrecipitationChart({
             </linearGradient>
           </defs>
 
-          {/* Zone boundary lines */}
+          {/* Evenly spaced visual intensity guides. */}
           <line x1={PAD_LEFT} y1={HEAVY_LINE_Y} x2={PAD_LEFT + chartW} y2={HEAVY_LINE_Y}
-            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3"
+            data-precipitation-guide="heavy" />
           <line x1={PAD_LEFT} y1={MED_LINE_Y} x2={PAD_LEFT + chartW} y2={MED_LINE_Y}
-            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3"
+            data-precipitation-guide="medium" />
+          <line x1={PAD_LEFT} y1={LIGHT_LINE_Y} x2={PAD_LEFT + chartW} y2={LIGHT_LINE_Y}
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3"
+            data-precipitation-guide="light" />
 
           {/* Zone labels */}
           <text x={PAD_LEFT + 8} y={HEAVY_LABEL_Y} textAnchor="start" fontSize={9}
