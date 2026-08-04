@@ -229,7 +229,7 @@ export function PinList({
                               <span className="font-medium text-sm truncate">{pin.name}</span>
                               {pin.isBucketList && <Star className="h-3 w-3 fill-amber-500 text-amber-500 shrink-0" />}
                               {(photoCounts[pin.id] ?? 0) > 0 && (
-                                <span className="text-[10px] text-muted-foreground shrink-0"><Emoji e="📷" /> {photoCounts[pin.id]}</span>
+                                <span className="text-xs text-muted-foreground shrink-0"><Emoji e="📷" /> {photoCounts[pin.id]}</span>
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">

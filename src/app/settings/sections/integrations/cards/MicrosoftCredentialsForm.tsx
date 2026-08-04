@@ -84,7 +84,7 @@ export function MicrosoftCredentialsForm({ onSaved }: { onSaved?: () => void }) 
           autoComplete="off"
           spellCheck={false}
         />
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           The app&apos;s <span className="font-medium">Application (client) ID</span> from its
           Overview page.
         </span>
@@ -101,7 +101,7 @@ export function MicrosoftCredentialsForm({ onSaved }: { onSaved?: () => void }) 
           autoComplete="off"
           spellCheck={false}
         />
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           Copy the secret&apos;s <span className="font-medium">Value</span> column — not the{' '}
           <span className="font-medium">Secret ID</span>. Azure hides the Value once you
           leave the page.
