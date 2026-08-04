@@ -21,6 +21,7 @@
  */
 
 'use client';
+import { Emoji } from '@/components/ui/Emoji';
 
 import * as React from 'react';
 import Image from 'next/image';
@@ -214,7 +215,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                   style={{ backgroundColor: user.color || '#6B7280', color: contrastText(user.color || '#6B7280') }}
                 >
                   {user.avatarUrl?.startsWith('emoji:') ? (
-                    <span className="text-lg">{user.avatarUrl.slice(6)}</span>
+                    <span className="text-lg"><Emoji e={user.avatarUrl.slice(6)} /></span>
                   ) : user.avatarUrl ? (
                     <Image
                       src={user.avatarUrl}

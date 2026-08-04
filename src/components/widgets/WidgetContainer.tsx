@@ -34,6 +34,7 @@
 'use client';
 
 import * as React from 'react';
+import { Emoji } from '@/components/ui/Emoji';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
@@ -487,8 +488,8 @@ function WidgetLoading() {
  */
 function WidgetError({ message }: { message: string }) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
-      <div className="mb-2 text-4xl text-destructive">⚠️</div>
+    <div className="flex h-full w-full flex-col items-center justify-center text-center p-4">
+      <div className="text-destructive text-4xl mb-2"><Emoji e="⚠️" /></div>
       <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );

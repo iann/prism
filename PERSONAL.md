@@ -359,6 +359,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 24381bb
 
+41. **Readable synced form and travel labels**
+
+    Kept Microsoft credential help text and travel park/photo labels at the
+    shared 12px minimum so meaningful small text remains legible on wall
+    displays and satisfies the surface readability contract.
+
+    Commit: 01c9389
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
