@@ -111,6 +111,33 @@ describe('surface class contracts', () => {
     expectSemanticCalendarSurface(eventCard!);
   });
 
+  it('inherits contrast ink for light-colored inline agenda events', () => {
+    const startTime = new Date();
+    startTime.setHours(0, 0, 0, 0);
+    const event: CalendarEvent = {
+      id: 'inline-orange-event',
+      title: 'Inline orange event',
+      startTime,
+      endTime: new Date(startTime.getTime() + 24 * 60 * 60_000),
+      allDay: true,
+      color: '#f59e0b',
+      calendarName: 'Family',
+      calendarId: 'family',
+    };
+
+    render(
+      <DndContext>
+        <AgendaView events={[event]} displayMode="inline" onEventClick={() => undefined} />
+      </DndContext>
+    );
+
+    const title = screen.getByText(event.title);
+    const eventRow = title.closest('button');
+    expect(eventRow).not.toBeNull();
+    expect(title.classList.contains('text-white')).toBe(false);
+    expect(eventRow!.style.color).toBe('rgb(0, 0, 0)');
+  });
+
   it('keeps calendar surfaces and borders semantic across modes', () => {
     for (const relativePath of [
       'src/components/calendar/cells/DayColumn.tsx',
@@ -264,6 +291,8 @@ describe('surface class contracts', () => {
       // Decorative selected-state check glyphs.
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinForm.tsx:text-[10px]',
+      // Compact labels identify the device frames in the layout gallery.
+      'src/components/layout/DevicePreviewGallery.tsx:text-[9px]',
       // Navigation and modal avatar initials with adjacent names or labels.
       'src/components/layout/MobileFab.tsx:text-[10px]',
       'src/components/layout/MobileNav.tsx:text-[10px]',

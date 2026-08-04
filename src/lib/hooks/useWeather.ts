@@ -40,7 +40,7 @@ function transformWeather(json: unknown): WeatherData {
 }
 
 export function useWeather(options: UseWeatherOptions = {}) {
-  const { location, refreshInterval = 5 * 60 * 1000, refreshOffsetMs, enabled } = options;
+  const { location, refreshInterval = 2.5 * 60 * 1000, refreshOffsetMs, enabled } = options;
 
   const url = location
     ? `/api/weather?location=${encodeURIComponent(location)}`
@@ -53,6 +53,9 @@ export function useWeather(options: UseWeatherOptions = {}) {
     refreshInterval,
     refreshOffsetMs,
     label: 'weather',
+    // Weather stays on its five-minute cadence even in Performance Mode so
+    // short-lived precipitation forecasts do not become stale on the wall.
+    respectPerformanceMode: false,
     enabled,
   });
 

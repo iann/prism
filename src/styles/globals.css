@@ -59,6 +59,7 @@
     --weather-temp-warm: 28 95% 48%;
     --weather-temp-hot: 9 90% 48%;
     --weather-temp-very-hot: 348 78% 48%;
+    --weather-precipitation: 205 80% 48%;
 
     --seasonal-accent: 222 47% 31%;
     --seasonal-accent-foreground: 210 40% 98%;
@@ -109,6 +110,7 @@
     --weather-temp-warm: 28 96% 63%;
     --weather-temp-hot: 9 92% 64%;
     --weather-temp-very-hot: 348 86% 68%;
+    --weather-precipitation: 205 86% 66%;
 
     --seasonal-accent: 210 40% 98%;
     --seasonal-accent-foreground: 222 47% 11%;
@@ -152,6 +154,7 @@
     --weather-temp-warm: 28 78% 49%;
     --weather-temp-hot: 12 74% 51%;
     --weather-temp-very-hot: 350 65% 48%;
+    --weather-precipitation: 198 70% 46%;
     --calendar-surface: 48 26% 96%;
     --calendar-today: 91 23% 83%;
     --widget-calendar: 48 28% 96%;
@@ -193,6 +196,7 @@
     --weather-temp-warm: 28 84% 64%;
     --weather-temp-hot: 12 80% 65%;
     --weather-temp-very-hot: 350 76% 68%;
+    --weather-precipitation: 198 78% 65%;
     --calendar-surface: 153 12% 18%;
     --calendar-today: 104 12% 25%;
     --widget-calendar: 153 12% 19%;
@@ -429,6 +433,80 @@
     transition: none !important;
   }
 
+  /* Dark Sky-inspired precipitation wave. The data path stays static so the
+   * wall display does not spend a JS frame on every minute; CSS handles the
+   * subtle breathing and moving highlight on the compositor instead. */
+  @keyframes precipitation-wave-breathe {
+    0%, 100% {
+      opacity: 0.92;
+      transform: scaleY(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scaleY(1.045);
+    }
+  }
+
+  @keyframes precipitation-wave-sway {
+    0%, 100% {
+      transform: translateY(0) scaleY(1);
+    }
+    50% {
+      transform: translateY(-1.5px) scaleY(1.035);
+    }
+  }
+
+  @keyframes precipitation-wave-variation {
+    0%, 100% {
+      opacity: 0.28;
+      transform: translateY(0);
+    }
+    50% {
+      opacity: 0.56;
+      transform: translateY(-1.4px);
+    }
+  }
+
+  .precipitation-wave-area {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    animation: precipitation-wave-breathe 3.2s ease-in-out infinite;
+  }
+
+  .precipitation-wave-message {
+    color: hsl(var(--weather-precipitation));
+  }
+
+  .precipitation-wave-line {
+    animation: precipitation-wave-sway 3.2s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center bottom;
+  }
+
+  .precipitation-wave-variation {
+    animation: precipitation-wave-variation 3.2s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .precipitation-wave-jitter-morph {
+    /* The SVG path itself morphs between two softly jittered traces. */
+    will-change: d;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .precipitation-wave-area,
+    .precipitation-wave-line,
+    .precipitation-wave-variation,
+    .precipitation-wave-jitter-morph {
+      animation: none;
+    }
+
+    .precipitation-wave-jitter-morph {
+      display: none;
+    }
+  }
+
   /* Performance mode: minimum-viable stylesheet. The only CSS effect
    * we are confident gives a meaningful perf win on weak GPUs is
    * disabling backdrop-filter, and only on elements that actually
@@ -460,6 +538,19 @@
     transition-duration: 0ms !important;
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Keep the precipitation wave readable on the wall display. This is the
+   * one intentionally retained animation in performance mode; the
+   * accessibility-level reduced-motion rule above still takes precedence
+   * whenever the OS requests less motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    html.performance-mode .precipitation-wave-area,
+    html.performance-mode .precipitation-wave-line,
+    html.performance-mode .precipitation-wave-variation {
+      animation-duration: 3.2s !important;
+      animation-iteration-count: infinite !important;
+    }
   }
 
   html.performance-mode .shadow-sm,

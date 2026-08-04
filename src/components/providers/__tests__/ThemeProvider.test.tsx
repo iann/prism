@@ -39,12 +39,21 @@ const mediaQueryListeners = new Set<(event: MediaQueryListEvent) => void>();
 let prefersDark = false;
 
 function ThemeProbe() {
-  const { theme, resolvedTheme, colorTheme, setColorTheme, setTheme } = useTheme();
+  const {
+    theme,
+    resolvedTheme,
+    sunsetOffsetMinutes,
+    colorTheme,
+    setColorTheme,
+    setSunsetOffsetMinutes,
+    setTheme,
+  } = useTheme();
 
   return (
     <>
       <output data-testid="theme">{theme}</output>
       <output data-testid="resolved-theme">{resolvedTheme}</output>
+      <output data-testid="sunset-offset">{sunsetOffsetMinutes}</output>
       <output data-testid="color-theme">{colorTheme}</output>
       <button type="button" onClick={() => setColorTheme('lcars')}>
         Use LCARS
@@ -54,6 +63,9 @@ function ThemeProbe() {
       </button>
       <button type="button" onClick={() => setTheme('sunset')}>
         Use Sunset
+      </button>
+      <button type="button" onClick={() => setSunsetOffsetMinutes(45)}>
+        Set Sunset Offset
       </button>
     </>
   );
@@ -194,5 +206,17 @@ describe('ThemeProvider LCARS behavior', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('loads and persists the sunset offset', async () => {
+    localStorage.setItem('prism-sunset-offset', '15');
+    renderProvider();
+
+    await waitFor(() => expect(screen.getByTestId('sunset-offset').textContent).toBe('15'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set Sunset Offset' }));
+
+    expect(screen.getByTestId('sunset-offset').textContent).toBe('45');
+    expect(localStorage.getItem('prism-sunset-offset')).toBe('45');
   });
 });

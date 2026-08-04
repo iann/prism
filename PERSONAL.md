@@ -200,7 +200,166 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: d276d02, 9e6ad24
 
-20. **Readable synced form and travel labels**
+20. **Sunset dark-mode offset**
+
+    Added a persisted Appearance setting that starts dark mode before or after
+    sunset by a configurable number of minutes, while keeping the sunrise
+    transition unchanged.
+
+    Commit: 7df2fda
+
+21. **Readable inline agenda event colors**
+
+    Fixed inline agenda event titles inheriting the calendar color's
+    contrast-aware text instead of forcing white text onto light event colors
+    such as orange.
+
+    Commit: afd2f33
+
+22. **Calibrated animated rain chart**
+
+    Calibrated the precipitation scale against the Melrose rain reading,
+    normalized Pirate Weather's imperial precipitation values, and replaced
+    the compact bars with a smooth Dark Sky-inspired animated wave.
+
+    Commit: 45635c6
+
+23. **Dark Sky-style precipitation chart presentation**
+
+    Refined the rain chart around the supplied reference with a next-hour
+    header, location and temperature context, upper intensity guides,
+    turquoise fill, and a stronger wavy outline.
+
+    Commit: cf33b96
+
+24. **Nonlinear precipitation intensity scale**
+
+    Added a square-root rain-rate mapping with a 7.62 mm/hr heavy-rain
+    ceiling, preserving headroom for moderate showers while keeping light
+    rain visible.
+
+    Commit: b4a5636
+
+25. **Theme-native precipitation chart header**
+
+    Kept the Dark Sky-inspired chart treatment while returning its header to
+    the widget’s compact theme hierarchy and removing redundant location and
+    temperature details.
+
+    Commit: 315ed86
+
+26. **Theme-aware precipitation wave colors**
+
+    Audited the rain chart across every light and dark preset, then tied its
+    wave, fill, and highlight colors to the active theme tokens for better
+    integration with Prism, Claude, Kitchen Calm, Herb Garden, Warm Clay,
+    Soft Slate, and LCARS.
+
+    Commit: bb689f6
+
+27. **Blue forecast variation for precipitation**
+
+    Added a softly animated companion trace to communicate forecast
+    uncertainty, and introduced theme-specific blue precipitation tokens for
+    the wave, fill, and timing message across all light and dark presets.
+
+    Commit: 2dd6b11
+
+28. **Evenly spaced precipitation intensity guides**
+
+    Kept the nonlinear rain-rate scale while giving the heavy, medium, and
+    light visual guides equal spacing for a more predictable chart grid.
+
+    Commit: 37e8626
+
+29. **Smoothed animated precipitation waves**
+
+    Smoothed short-lived forecast spikes before plotting the spline and added
+    synchronized low-amplitude wave motion to the area edge and highlight.
+
+    Commit: b52d998
+
+30. **Locally morphing precipitation wave**
+
+    Added deterministic local jitter and smooth SVG path morphing so the rain
+    wave moves up and down across its shape instead of only translating as a
+    single block.
+
+    Commit: f6b6b3c
+
+31. **Symmetric five-percent precipitation variation**
+
+    Tuned the forecast-uncertainty trace to vary smoothly on both sides of the
+    primary signal by approximately ±5% of the chart height.
+
+    Commit: 6afa2d1
+
+32. **Softer rain-wave undulation**
+
+    Replaced the dense local wobble with a few broad, low-amplitude rises and
+    falls so the main precipitation edge reads as a smooth undulating line.
+
+    Commit: 621f9db
+
+33. **Visible but restrained wave motion**
+
+    Kept the lower-frequency contour while increasing its controlled amplitude
+    enough for the smooth up-and-down movement to remain legible on the chart.
+
+    Commit: b7b95ae
+
+34. **Removed precipitation ripple sweep**
+
+    Removed the right-to-left moving highlight and dash sweep, leaving the
+    chart’s smooth undulation and static forecast-variation trace unobstructed.
+
+    Commit: 37bbd20
+
+35. **Removed remaining rain dash motion**
+
+    Removed the primary line’s initial dash-offset draw and the uncertainty
+    trace’s dashed styling so no precipitation layer sweeps horizontally.
+
+    Commit: 8a60b62
+
+36. **More frequent bounded rain undulations**
+
+    Increased the number of smooth rises and falls while clamping both sample
+    and Bézier control points to the chart band so the wave cannot cross below
+    the precipitation baseline.
+
+    Commit: a64f801
+
+37. **Faster rain-wave cycle**
+
+    Shortened the synchronized undulation, fill breathing, and forecast-
+    variation cycle from 4.8 seconds to 3.2 seconds.
+
+    Commit: 56bd9e3
+
+38. **Rain animation retained in performance mode**
+
+    Keeps the precipitation wave visibly undulating in performance mode while
+    continuing to respect the operating system’s reduced-motion preference.
+
+    Commit: 89fc295
+
+39. **More visible wall-distance rain variation**
+
+    Increased the smooth wave amplitude and strengthened the companion
+    forecast trace so precipitation movement registers more clearly on the
+    wall-mounted dashboard without changing the ±5% uncertainty model.
+
+    Commit: ceb3995
+
+40. **Faster precipitation refresh cadence**
+
+    Polls weather data on the client every 2.5 minutes, including Performance
+    Mode, while refreshing Pirate Weather’s provider cache every 5 minutes.
+
+    Commit: 24381bb
+
+41. **Readable synced form and travel labels**
 
     Kept Microsoft credential help text and travel park/photo labels at the
     shared 12px minimum so meaningful small text remains legible on wall
