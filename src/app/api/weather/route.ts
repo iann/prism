@@ -20,8 +20,11 @@ import { eq } from 'drizzle-orm';
 import { logError } from '@/lib/utils/logError';
 import type { WeatherUnits } from '@/components/widgets/WeatherWidget';
 
-// Cache weather data for 30 minutes
+// Keep non-Pirate providers at the existing cadence. Pirate Weather's free
+// tier supports a five-minute dashboard cadence for a single location while
+// staying below its monthly quota.
 const WEATHER_CACHE_TTL = 30 * 60;
+const PIRATE_WEATHER_CACHE_TTL = 5 * 60;
 
 /**
  * Resolve location: query param > DB setting (lat/lon preferred, legacy string fallback) > env var > default
@@ -75,7 +78,8 @@ async function resolveUnits(): Promise<WeatherUnits> {
 
 /**
  * GET /api/weather
- * Fetches weather data for a location (cached for 30 minutes)
+ * Fetches weather data for a location (Pirate cached for 5 minutes;
+ * other providers cached for 30 minutes)
  */
 export async function GET(request: NextRequest) {
   // Weather is available to everyone - no auth required for read-only
@@ -93,12 +97,13 @@ export async function GET(request: NextRequest) {
       ? location.toLowerCase().replace(/\s+/g, '-')
       : `${location.lat.toFixed(2)},${location.lon.toFixed(2)}`;
     const cacheKey = `weather:${provider}:${units.temperature}:${locationKey}`;
+    const cacheTtl = provider === 'pirate' ? PIRATE_WEATHER_CACHE_TTL : WEATHER_CACHE_TTL;
 
     // Get from cache or fetch fresh
     const weatherData = await getCached(
       cacheKey,
       () => fetchWeatherData(location, { units }),
-      WEATHER_CACHE_TTL
+      cacheTtl
     );
 
     return NextResponse.json(weatherData);

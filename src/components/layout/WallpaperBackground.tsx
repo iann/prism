@@ -147,7 +147,6 @@ export function WallpaperBackground() {
     sort: 'random',
     limit: performanceMode ? 1 : 40,
     usage: 'wallpaper',
-    orientation: autoOrientation ? effectiveOrientation : undefined,
     enabled: enabled && performanceModeReady,
   });
   const orientedPhotos = autoOrientation

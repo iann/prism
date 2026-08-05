@@ -137,6 +137,8 @@ function mapIcon(icon: string): WeatherCondition {
 // Main fetch function
 // ---------------------------------------------------------------------------
 
+const PIRATE_WEATHER_REVALIDATE_SECONDS = 5 * 60;
+
 /**
  * Fetch complete weather data from Pirate Weather.
  *
@@ -163,7 +165,7 @@ export async function fetchWeatherData(
 
   let response: Response;
   try {
-    response = await fetch(url, { next: { revalidate: 1800 } }); // cache 30 min
+    response = await fetch(url, { next: { revalidate: PIRATE_WEATHER_REVALIDATE_SECONDS } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`Pirate Weather network error: ${msg}`);

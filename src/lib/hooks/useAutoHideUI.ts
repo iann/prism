@@ -76,7 +76,6 @@ export function useAutoHideUI() {
       resetTimer();
     };
     window.addEventListener('mousemove', moveHandler, { passive: true });
-
     // Start the timer immediately
     resetTimer();
 

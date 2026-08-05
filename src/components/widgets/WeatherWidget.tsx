@@ -46,6 +46,16 @@ import { DayHeader } from './WeatherForecastBar';
 
 const SUN_PATH_SAMPLES = 48;
 const MIDNIGHT_ROLLOVER_BUFFER_MS = 50;
+const MILLIMETERS_PER_INCH = 25.4;
+// Use the NWS heavy-rain boundary as the visual ceiling, then apply a
+// square-root curve so light and moderate rain remain legible without making
+// a strong shower look maxed out too early.
+const PRECIPITATION_FULL_SCALE_MM_PER_HOUR = 7.62;
+const PRECIPITATION_VARIATION_FRACTION = 0.05;
+const PRECIPITATION_WAVE_UNDULATION_PX = 4;
+const PRECIPITATION_WAVE_PRIMARY_FREQUENCY = 0.36;
+const PRECIPITATION_WAVE_SECONDARY_FREQUENCY = 0.14;
+const RAIN_THRESHOLD_MM_PER_HOUR = 0.1;
 
 function localDayStartMs(nowMs = Date.now()): number {
   const start = new Date(nowMs);
@@ -117,7 +127,7 @@ export interface HourlyForecast {
   condition: WeatherCondition;
   temp: number; // °F
   precipProbability?: number; // 0–100
-  precipIntensity?: number;   // mm/hr
+  precipIntensity?: number;   // in/hr or mm/hr, according to WeatherUnits
 }
 
 export interface ForecastPeriod {
@@ -129,7 +139,7 @@ export interface ForecastPeriod {
 /** One minute of precipitation data from the minutely forecast. */
 export interface MinutelyData {
   time: number;           // unix timestamp
-  precipIntensity: number;  // mm/hr
+  precipIntensity: number;  // in/hr or mm/hr, according to WeatherUnits
   precipProbability: number; // 0–1
 }
 
@@ -147,6 +157,10 @@ export interface WeatherUnits {
   windSpeed: 'mph' | 'km/h';
   /** 'in' (default) or 'mm'. Affects current.precipitation, hourly.precipIntensity, minutely.precipIntensity. */
   precipitation: 'in' | 'mm';
+}
+
+function precipitationToMillimeters(value: number, units: WeatherUnits): number {
+  return units.precipitation === 'in' ? value * MILLIMETERS_PER_INCH : value;
 }
 
 export interface WeatherData {
@@ -400,8 +414,11 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
   const hasDays = weatherData.forecast.length > 0;
 
-  // Show precipitation chart only for real rain (≥ 0.1 mm/hr); 0.01 caught drizzle/trace amounts
-  const hasImminentRain = (weatherData.minutely ?? []).some((m) => m.precipIntensity >= 0.1);
+  // Show precipitation chart only for real rain (≥ 0.1 mm/hr); convert first
+  // because Pirate Weather returns inches/hour for imperial installs.
+  const hasImminentRain = (weatherData.minutely ?? []).some((m) =>
+    precipitationToMillimeters(m.precipIntensity, units) >= RAIN_THRESHOLD_MM_PER_HOUR
+  );
   const showPrecipChart = hasImminentRain && !!weatherData.minutely?.length;
   // The sun/moon arc is a nice-to-have; only show it when the widget is tall
   // enough that it doesn't squeeze the actual forecast. Below that, favor the
@@ -473,7 +490,10 @@ export const WeatherWidget = React.memo(function WeatherWidget({
             {/* Precipitation chart — replaces sunrise/sunset arc when rain is coming in the next hour */}
             {showPrecipChart && (
               <div className="flex-shrink-0 flex flex-col gap-1">
-                <PrecipitationChart minutely={weatherData.minutely!} />
+                <PrecipitationChart
+                  minutely={weatherData.minutely!}
+                  units={units}
+                />
               </div>
             )}
 
@@ -823,14 +843,22 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
 
 /**
  * PRECIPITATION CHART
- * Smooth SVG area chart showing minute-by-minute precipitation intensity over
- * the next 60 minutes.  Y-axis shows HEAVY / MED / LIGHT intensity bands with
- * dotted reference lines; x-axis shows 10-minute interval labels.
- * Auto-shown when any minute has precipIntensity > 0.01 mm/hr.
+ * Dark Sky-inspired smooth SVG area chart showing minute-by-minute
+ * precipitation intensity over the next 60 minutes. Y-axis shows HEAVY / MED
+ * / LIGHT intensity bands with dotted reference lines; x-axis shows 10-minute
+ * interval labels. The curve is intentionally smooth and gently animated so
+ * it reads as a living rain wave rather than a stack of bars.
  */
-function PrecipitationChart({ minutely }: { minutely: MinutelyData[] }) {
+function PrecipitationChart({
+  minutely,
+  units,
+}: {
+  minutely: MinutelyData[];
+  units: WeatherUnits;
+}) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [width, setWidth] = React.useState(220);
+  const gradientId = `precip-gradient-${React.useId().replace(/:/g, '')}`;
 
   React.useEffect(() => {
     const el = containerRef.current;
@@ -845,42 +873,99 @@ function PrecipitationChart({ minutely }: { minutely: MinutelyData[] }) {
   const PAD_LEFT  = 4;
   const PAD_RIGHT = 4;
   const PAD_TOP   = 4;
-  const CHART_H   = 56;
-  const AXIS_H    = 14;
+  const CHART_H   = 60;
+  const AXIS_H    = 22;
   const totalH    = PAD_TOP + CHART_H + AXIS_H;
   const chartW    = Math.max(1, width - PAD_LEFT - PAD_RIGHT);
   const baseY     = PAD_TOP + CHART_H;
 
-  // 5 mm/hr = top of chart; heavy rain clips, common events fill lower zones
-  const MAX_MM = 5;
+  // The provider gives a physical rate, not a display percentage. A
+  // square-root mapping keeps the low end readable while reserving headroom
+  // for genuinely heavy rain: 0.0583 in/hr ≈ 44% and 0.1343 in/hr ≈ 67%.
+  const MAX_MM = PRECIPITATION_FULL_SCALE_MM_PER_HOUR;
+  const intensityToY = (intensity: number) => {
+    const normalized = Math.min(precipitationToMillimeters(intensity, units), MAX_MM) / MAX_MM;
+    return baseY - Math.sqrt(normalized) * CHART_H;
+  };
 
-  // Three equal intensity zones
-  const ZONE_H        = CHART_H / 3;
-  const HEAVY_LINE_Y  = PAD_TOP + ZONE_H;
-  const MED_LINE_Y    = PAD_TOP + ZONE_H * 2;
-  const HEAVY_LABEL_Y = PAD_TOP + ZONE_H * 0.5;
-  const MED_LABEL_Y   = PAD_TOP + ZONE_H * 1.5;
-  const LIGHT_LABEL_Y = PAD_TOP + ZONE_H * 2.5;
+  // The guides are a visual intensity grid, independent of the nonlinear
+  // rain-rate mapping. Keeping the three rows evenly spaced makes the chart
+  // easy to scan even though the data-to-height curve is not linear.
+  const GUIDE_STEP    = CHART_H / 3;
+  const HEAVY_LINE_Y  = PAD_TOP;
+  const MED_LINE_Y    = PAD_TOP + GUIDE_STEP;
+  const LIGHT_LINE_Y  = PAD_TOP + GUIDE_STEP * 2;
+  const HEAVY_LABEL_Y = HEAVY_LINE_Y + 8;
+  const MED_LABEL_Y   = MED_LINE_Y + 8;
+  const LIGHT_LABEL_Y = LIGHT_LINE_Y + 8;
 
-  // One bar per minute — tight packing with a 0.5 px gap
+  // Convert the provider values to points in the calibrated mm/hr scale, then
+  // smooth short-lived spikes before the spline is generated. This keeps the
+  // curve responsive to real changes without drawing every noisy sample.
   const n = minutely.length;
-  const slotW = chartW / Math.max(n, 60);
-  const barW  = Math.max(slotW - 0.5, 0.5);
+  const points = minutely.map((m, i) => ({
+    x: PAD_LEFT + (i / Math.max(n - 1, 1)) * chartW,
+    y: intensityToY(m.precipIntensity),
+  }));
+  const smoothedPoints = smoothPrecipitationPoints(points);
+  const undulationPoints = precipitationUndulationPoints(
+    smoothedPoints,
+    0.35,
+    PRECIPITATION_WAVE_UNDULATION_PX,
+    PAD_TOP,
+    baseY
+  );
+  const alternateUndulationPoints = precipitationUndulationPoints(
+    smoothedPoints,
+    2.45,
+    PRECIPITATION_WAVE_UNDULATION_PX,
+    PAD_TOP,
+    baseY
+  );
+  const linePath = precipitationWavePath(undulationPoints, PAD_TOP, baseY);
+  const alternateLinePath = precipitationWavePath(alternateUndulationPoints, PAD_TOP, baseY);
+  // Keep the provider's forecast as the primary signal, then add a stable,
+  // symmetric ±5% companion trace. It gives the wall display the organic
+  // Dark Sky feel while honestly suggesting that minute-by-minute rain timing
+  // is an estimate rather than a perfectly certain line.
+  const variationPoints = smoothedPoints.map((point, i) => {
+    const variation =
+      (Math.sin(i * PRECIPITATION_WAVE_PRIMARY_FREQUENCY + 0.8) * 0.7 +
+        Math.sin(i * PRECIPITATION_WAVE_SECONDARY_FREQUENCY) * 0.3) *
+      CHART_H *
+      PRECIPITATION_VARIATION_FRACTION;
+    return {
+      ...point,
+      y: Math.max(PAD_TOP, Math.min(baseY, point.y + variation)),
+    };
+  });
+  const variationPath = precipitationWavePath(variationPoints, PAD_TOP, baseY);
+  const areaPath = linePath
+    ? `${linePath} L ${(PAD_LEFT + chartW).toFixed(1)} ${baseY} L ${PAD_LEFT.toFixed(1)} ${baseY} Z`
+    : '';
+  const alternateAreaPath = alternateLinePath
+    ? `${alternateLinePath} L ${(PAD_LEFT + chartW).toFixed(1)} ${baseY} L ${PAD_LEFT.toFixed(1)} ${baseY} Z`
+    : '';
 
   const xTicks = [10, 20, 30, 40, 50].map((min) => ({
     min,
     x: PAD_LEFT + (min / 60) * chartW,
   }));
 
-  const RAIN_THRESHOLD = 0.1;
-  const firstRainMinute = minutely.findIndex((m) => m.precipIntensity >= RAIN_THRESHOLD);
+  const firstRainMinute = minutely.findIndex((m) =>
+    precipitationToMillimeters(m.precipIntensity, units) >= RAIN_THRESHOLD_MM_PER_HOUR
+  );
   const currentlyRaining = firstRainMinute === 0;
 
   const rainMessage = (() => {
     if (currentlyRaining) {
-      const stopMinute = minutely.findIndex((m, i) => i > 0 && m.precipIntensity < RAIN_THRESHOLD);
+      const stopMinute = minutely.findIndex((m, i) =>
+        i > 0 && precipitationToMillimeters(m.precipIntensity, units) < RAIN_THRESHOLD_MM_PER_HOUR
+      );
       if (stopMinute === -1) return 'Raining through the hour';
-      const resumeMinute = minutely.findIndex((m, i) => i > stopMinute && m.precipIntensity >= RAIN_THRESHOLD);
+      const resumeMinute = minutely.findIndex((m, i) =>
+        i > stopMinute && precipitationToMillimeters(m.precipIntensity, units) >= RAIN_THRESHOLD_MM_PER_HOUR
+      );
       return resumeMinute === -1
         ? `Stops in ${stopMinute} min`
         : `Stops in ${stopMinute} min · returns in ${resumeMinute} min`;
@@ -889,55 +974,124 @@ function PrecipitationChart({ minutely }: { minutely: MinutelyData[] }) {
   })();
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-          <CloudRain className="h-3 w-3 text-primary" />
-          Rain next hour
+    <div className="flex flex-col gap-2">
+      <div
+        className="flex items-center justify-between gap-4"
+        data-precipitation-header
+      >
+        <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Next hour
         </span>
-        <span className="text-[14px] text-primary font-medium">{rainMessage}</span>
+        <span className="precipitation-wave-message shrink-0 text-right text-[12px] font-medium">
+          {rainMessage}
+        </span>
       </div>
       <div ref={containerRef} className="w-full">
-        <svg width={width} height={totalH} style={{ display: 'block' }}>
+        <svg
+          width={width}
+          height={totalH}
+          style={{ display: 'block' }}
+          role="img"
+          aria-label="Rain intensity forecast for the next hour"
+          data-precipitation-scale={MAX_MM}
+          data-precipitation-baseline={baseY}
+          data-precipitation-undulation-px={PRECIPITATION_WAVE_UNDULATION_PX}
+        >
           <defs>
-            <linearGradient id="precip-bar-gradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#3B82F6" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#93C5FD" stopOpacity="0.55" />
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="hsl(var(--weather-precipitation))" stopOpacity="0.92" />
+              <stop offset="100%" stopColor="hsl(var(--weather-precipitation))" stopOpacity="0.58" />
             </linearGradient>
           </defs>
 
-          {/* Zone boundary lines */}
+          {/* Evenly spaced visual intensity guides. */}
           <line x1={PAD_LEFT} y1={HEAVY_LINE_Y} x2={PAD_LEFT + chartW} y2={HEAVY_LINE_Y}
-            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3"
+            data-precipitation-guide="heavy" />
           <line x1={PAD_LEFT} y1={MED_LINE_Y} x2={PAD_LEFT + chartW} y2={MED_LINE_Y}
-            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3" />
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3"
+            data-precipitation-guide="medium" />
+          <line x1={PAD_LEFT} y1={LIGHT_LINE_Y} x2={PAD_LEFT + chartW} y2={LIGHT_LINE_Y}
+            stroke="currentColor" strokeOpacity={0.25} strokeWidth={0.75} strokeDasharray="3 3"
+            data-precipitation-guide="light" />
 
           {/* Zone labels */}
-          <text x={PAD_LEFT + 4} y={HEAVY_LABEL_Y} textAnchor="start" fontSize={7.5}
-            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">HEAVY</text>
-          <text x={PAD_LEFT + 4} y={MED_LABEL_Y} textAnchor="start" fontSize={7.5}
-            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">MED</text>
-          <text x={PAD_LEFT + 4} y={LIGHT_LABEL_Y} textAnchor="start" fontSize={7.5}
-            fill="currentColor" fillOpacity={0.5} dominantBaseline="middle">LIGHT</text>
+          <text x={PAD_LEFT + 8} y={HEAVY_LABEL_Y} textAnchor="start" fontSize={9}
+            fill="currentColor" fillOpacity={0.62} dominantBaseline="middle">Heavy</text>
+          <text x={PAD_LEFT + 8} y={MED_LABEL_Y} textAnchor="start" fontSize={9}
+            fill="currentColor" fillOpacity={0.62} dominantBaseline="middle">Med</text>
+          <text x={PAD_LEFT + 8} y={LIGHT_LABEL_Y} textAnchor="start" fontSize={9}
+            fill="currentColor" fillOpacity={0.62} dominantBaseline="middle">Light</text>
 
-          {/* Bars — one per minute, skip trace amounts */}
-          {minutely.map((m, i) => {
-            const intensity = Math.min(m.precipIntensity, MAX_MM);
-            if (intensity <= 0) return null;
-            const barH = (intensity / MAX_MM) * CHART_H;
-            const barX = PAD_LEFT + i * slotW;
-            return (
-              <rect
-                key={i}
-                x={barX}
-                y={baseY - barH}
-                width={barW}
-                height={barH}
-                fill="url(#precip-bar-gradient)"
-                rx={barW > 2 ? 1 : 0}
-              />
-            );
-          })}
+          {/* Filled wave — the soft area is the primary Dark Sky-style signal. */}
+          {areaPath && (
+            <path
+              d={areaPath}
+              fill={`url(#${gradientId})`}
+              className="precipitation-wave-area"
+              data-precipitation-area
+            >
+              {alternateAreaPath && (
+                <animate
+                  attributeName="d"
+                  values={`${areaPath};${alternateAreaPath};${areaPath}`}
+                  dur="3.2s"
+                  repeatCount="indefinite"
+                  calcMode="spline"
+                  keyTimes="0;0.5;1"
+                  keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+                  className="precipitation-wave-jitter-morph"
+                  data-precipitation-jitter-morph
+                />
+              )}
+            </path>
+          )}
+
+          {/* A restrained companion trace communicates forecast uncertainty. */}
+          {variationPath && (
+            <path
+              d={variationPath}
+              fill="none"
+              stroke="hsl(var(--weather-precipitation))"
+              strokeOpacity={0.46}
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="precipitation-wave-variation"
+              data-precipitation-variation
+              data-precipitation-variation-percent={PRECIPITATION_VARIATION_FRACTION * 100}
+            />
+          )}
+
+          {/* Top edge — a smooth, gently morphing line. */}
+          {linePath && (
+            <>
+              <path
+                d={linePath}
+                fill="none"
+                stroke="hsl(var(--weather-precipitation))"
+                strokeWidth={2.25}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="precipitation-wave-line"
+                data-precipitation-line
+              >
+                {alternateLinePath && (
+                  <animate
+                    attributeName="d"
+                    values={`${linePath};${alternateLinePath};${linePath}`}
+                    dur="3.2s"
+                    repeatCount="indefinite"
+                    calcMode="spline"
+                    keyTimes="0;0.5;1"
+                    keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+                    className="precipitation-wave-jitter-morph"
+                    data-precipitation-jitter-morph
+                  />
+                )}
+              </path>
+            </>
+          )}
 
           {/* Baseline */}
           <line x1={PAD_LEFT} y1={baseY} x2={PAD_LEFT + chartW} y2={baseY}
@@ -952,6 +1106,84 @@ function PrecipitationChart({ minutely }: { minutely: MinutelyData[] }) {
       </div>
     </div>
   );
+}
+
+/** Apply a short weighted moving average without moving the endpoints. */
+function smoothPrecipitationPoints(
+  points: { x: number; y: number }[],
+  passes = 2
+): { x: number; y: number }[] {
+  let smoothed = points;
+  for (let pass = 0; pass < passes; pass++) {
+    smoothed = smoothed.map((point, index) => {
+      if (index === 0 || index === smoothed.length - 1) return point;
+      const previous = smoothed[index - 1]!;
+      const next = smoothed[index + 1]!;
+      return {
+        x: point.x,
+        y: (previous.y + point.y * 2 + next.y) / 4,
+      };
+    });
+  }
+  return smoothed;
+}
+
+/** Add a broad, low-amplitude undulation without changing the endpoints. */
+function precipitationUndulationPoints(
+  points: { x: number; y: number }[],
+  phase: number,
+  amplitude = PRECIPITATION_WAVE_UNDULATION_PX,
+  minY = 4,
+  maxY = 64
+): { x: number; y: number }[] {
+  const lastIndex = Math.max(points.length - 1, 1);
+  return points.map((point, index) => {
+    if (index === 0 || index === points.length - 1) {
+      return {
+        ...point,
+        y: Math.max(minY, Math.min(maxY, point.y)),
+      };
+    }
+
+    const edgeWeight = Math.sin((index / lastIndex) * Math.PI);
+    const undulation =
+      (Math.sin(index * PRECIPITATION_WAVE_PRIMARY_FREQUENCY + phase) * 0.7 +
+        Math.sin(index * PRECIPITATION_WAVE_SECONDARY_FREQUENCY + phase * 0.9) * 0.3) *
+      amplitude *
+      edgeWeight;
+    return {
+      ...point,
+      y: Math.max(minY, Math.min(maxY, point.y + undulation)),
+    };
+  });
+}
+
+/** Catmull-Rom spline → cubic Bézier path for a smooth, data-faithful wave. */
+function precipitationWavePath(
+  points: { x: number; y: number }[],
+  minY = 0,
+  maxY = Number.POSITIVE_INFINITY
+): string {
+  const clampY = (y: number) => Math.max(minY, Math.min(maxY, y));
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0]!.x.toFixed(1)} ${clampY(points[0]!.y).toFixed(1)}`;
+
+  const path = [`M ${points[0]!.x.toFixed(1)} ${clampY(points[0]!.y).toFixed(1)}`];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)]!;
+    const p1 = points[i]!;
+    const p2 = points[i + 1]!;
+    const p3 = points[Math.min(points.length - 1, i + 2)]!;
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = clampY(p1.y + (p2.y - p0.y) / 6);
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = clampY(p2.y - (p3.y - p1.y) / 6);
+    path.push(
+      `C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${clampY(p2.y).toFixed(1)}`
+    );
+  }
+  return path.join(' ');
 }
 
 
@@ -1406,7 +1638,9 @@ function getDemoWeatherData(location: string): WeatherData {
     }
     return {
       time: nowSec + i * 60,
-      precipIntensity: parseFloat(intensity.toFixed(3)),
+      // The demo curve is authored in mm/hr; keep the demo's imperial units
+      // contract by converting it to inches before it enters WeatherData.
+      precipIntensity: parseFloat((intensity / MILLIMETERS_PER_INCH).toFixed(4)),
       precipProbability: intensity > 0 ? 0.8 : 0,
     };
   });
