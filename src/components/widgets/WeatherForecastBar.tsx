@@ -128,7 +128,7 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
         const dayPhase = SunCalc.getMoonIllumination(dayNoon).phase;
 
         return (
-          <div key={i} className="flex items-center gap-2 py-1">
+          <div key={i} data-day-row className="flex items-center gap-2 py-1">
 
             {/* Day label + precip % + weather icon + moon phase glyph */}
             <div className="flex items-center gap-1.5 w-28 flex-shrink-0">

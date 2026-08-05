@@ -336,8 +336,53 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
   const isVertical = gridH > gridW;
 
-  // Clamp forecast days: default 7, max 7, min 1
-  const resolvedDays = forecastDays ?? Math.min(7, Math.max(1, weatherData.forecast.length));
+  // Auto-fit the content to the widget's height so it never overflows/clips in a
+  // short cell: reveal sections densest-first (current conditions → hourly
+  // timeline → N-day forecast) as more rows are available. An explicit
+  // forecastDays prop (a user setting) overrides the automatic day count, and
+  // the thresholds are deliberately conservative so it fits even on shorter
+  // (laptop-height) rows. Give it more rows in the editor to see more days.
+  const autoDays =
+    gridH >= 20 ? 7 :
+    gridH >= 16 ? 5 :
+    gridH >= 13 ? 4 :
+    gridH >= 10 ? 3 :
+    gridH >= 8 ? 2 : 0;
+  const resolvedDays = Math.max(0, forecastDays ?? autoDays);
+  // Hourly is an extra that eats the forecast's space; only show it when the
+  // widget is tall enough (matches the sun/moon arc). Below that, favor the
+  // daily forecast so it isn't squeezed to a single clipped row.
+  const showHourly = showForecast && gridH >= 12;
+
+  // The daily forecast is a vertical list of fixed-height rows. Measure the space
+  // it actually has and render only WHOLE rows, so a day is never cut in half at
+  // the bottom (which looks broken on a kiosk). Falls back to showing all days
+  // when unmeasured (SSR/tests, where clientHeight is 0).
+  const dayListRef = React.useRef<HTMLDivElement>(null);
+  const [maxDayRows, setMaxDayRows] = React.useState(7);
+  React.useEffect(() => {
+    const el = dayListRef.current;
+    if (!el) return;
+    const measure = () => {
+      // Measure the REAL row height instead of a hardcoded 44 — the row is a
+      // hair taller than that, and the widget's height differs between the
+      // editor's square cells and the display's stretched 1fr rows, so a fixed
+      // estimate over-counts and half-clips the last row in view mode only.
+      // getBoundingClientRect keeps container + row in one coordinate space so
+      // any dashboard transform-scale cancels. -6 absorbs the list's small top
+      // margin + sub-pixel rounding so we round DOWN to whole rows.
+      const h = el.getBoundingClientRect().height;
+      if (h <= 0) return;
+      const row = el.querySelector('[data-day-row]');
+      const rowH = row ? row.getBoundingClientRect().height : 44;
+      if (rowH <= 0) return;
+      setMaxDayRows(Math.max(1, Math.floor((h - 6) / rowH)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showForecast, resolvedDays, gridH]);
 
   // Pre-filter to today-or-future so the label count matches what renders.
   // Provider stores forecast.date as UTC-midnight of the location's calendar
@@ -350,13 +395,18 @@ export const WeatherWidget = React.memo(function WeatherWidget({
     const s = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
     return s >= todayLocalStr;
   });
+  // Only the days that fit as whole rows (see maxDayRows above).
+  const shownForecast = visibleForecast.slice(0, maxDayRows);
 
   const hasDays = weatherData.forecast.length > 0;
 
   // Show precipitation chart only for real rain (≥ 0.1 mm/hr); 0.01 caught drizzle/trace amounts
   const hasImminentRain = (weatherData.minutely ?? []).some((m) => m.precipIntensity >= 0.1);
   const showPrecipChart = hasImminentRain && !!weatherData.minutely?.length;
-  const showSunArc = !!weatherData.sunrise && !!weatherData.sunset && !showPrecipChart;
+  // The sun/moon arc is a nice-to-have; only show it when the widget is tall
+  // enough that it doesn't squeeze the actual forecast. Below that, favor the
+  // forecast (e.g. the small weather tile on School Mornings).
+  const showSunArc = !!weatherData.sunrise && !!weatherData.sunset && !showPrecipChart && gridH >= 12;
 
   return (
     <WidgetContainer
@@ -367,7 +417,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
       error={error}
       className={className}
     >
-      <div className={cn('flex flex-col gap-3 h-full overflow-auto', isVertical ? 'pb-2' : '')}>
+      <div className={cn('flex flex-col gap-3 h-full overflow-hidden', isVertical ? 'pb-2' : '')}>
 
         {/* CURRENT CONDITIONS */}
         <CurrentConditions
@@ -381,25 +431,25 @@ export const WeatherWidget = React.memo(function WeatherWidget({
         />
 
         {/* HOURLY FORECAST */}
-        {showForecast && weatherData.hourly && weatherData.hourly.length > 0 && (
+        {showHourly && weatherData.hourly && weatherData.hourly.length > 0 && (
           <div className="border-t border-border pt-3">
             <HourlyTimeline hourly={weatherData.hourly} units={units} />
           </div>
         )}
 
         {/* FORECAST SECTION */}
-        {showForecast && hasDays && (
+        {showForecast && hasDays && resolvedDays > 0 && (
           <div className="border-t border-border pt-3 flex-1 min-h-0 flex flex-col gap-3">
 
-            {/* Multi-day summary */}
-            <div>
-              <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {visibleForecast.length}-Day Forecast
+            {/* Multi-day summary — the day list fills the remaining space and
+                clips to WHOLE rows (maxDayRows) so a day is never half-cut. */}
+            <div className="flex-1 min-h-0 flex flex-col">
+              <span className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {shownForecast.length}-Day Forecast
               </span>
-              <DayHeader
-                days={visibleForecast}
-                units={units}
-              />
+              <div ref={dayListRef} className="flex-1 min-h-0 overflow-hidden">
+                <DayHeader days={shownForecast} units={units} />
+              </div>
             </div>
 
             {/* Sun + moon arc — replaced by precip chart when rain is imminent.
@@ -407,7 +457,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
                 row (CurrentConditions), so the arc renders without a
                 duplicate label strip. */}
             {showSunArc && (
-              <div className="flex flex-col gap-1">
+              <div className="flex-shrink-0 flex flex-col gap-1">
                 <SunriseSunsetArc
                   sunrise={weatherData.sunrise!}
                   sunset={weatherData.sunset!}
@@ -422,7 +472,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
             {/* Precipitation chart — replaces sunrise/sunset arc when rain is coming in the next hour */}
             {showPrecipChart && (
-              <div className="flex flex-col gap-1">
+              <div className="flex-shrink-0 flex flex-col gap-1">
                 <PrecipitationChart minutely={weatherData.minutely!} />
               </div>
             )}
@@ -1236,34 +1286,37 @@ function SunriseSunsetArc({
         />
       </svg>
 
-      {/* Sunrise / duration / sunset label strip — sunrise on the left at its
-          X, duration in the middle (amber to match the arc), sunset on the
-          right. The header row above duplicates the rise/set times, which is
-          deliberate: this row anchors them to the arc itself. */}
-      <div className="relative text-[12px] text-muted-foreground select-none" style={{ height: 14 }}>
-        <div className="relative h-5">
-          {inWindow(sunRiseFrac) && (
-            <span className="absolute -translate-x-1/2 whitespace-nowrap tabular-nums" style={{ left: xOf(sunRiseFrac) }}>
-              {fmtTime(sunrise)}
-            </span>
-          )}
+      {/* Sun / moon times — keep the sun pair together on the left and the moon
+          pair on the right, with daylight duration retained between the sun times. */}
+      <div className="flex items-center justify-between gap-3 text-[11px] tabular-nums pt-0.5 whitespace-nowrap">
+        <span className="flex items-center gap-3">
+          <span className="flex items-center gap-1" style={{ color: SUN_COLOR }} title="Sunrise">
+            <Sunrise className="h-3 w-3" />{fmtTime(sunrise)}
+          </span>
           {inWindow(sunRiseFrac) && inWindow(sunSetFrac) && (() => {
             const dayMsSpan = sunset.getTime() - sunrise.getTime();
             const h = Math.floor(dayMsSpan / 3_600_000);
             const m = Math.round((dayMsSpan % 3_600_000) / 60_000);
-            return (
-              <span className="absolute -translate-x-1/2 whitespace-nowrap font-medium"
-                style={{ left: (xOf(sunRiseFrac) + xOf(sunSetFrac)) / 2, color: SUN_COLOR, opacity: 0.85 }}>
-                {h}h {m}m
-              </span>
-            );
+            return <span className="font-medium opacity-80" style={{ color: SUN_COLOR }}>{h}h {m}m</span>;
           })()}
-          {inWindow(sunSetFrac) && (
-            <span className="absolute -translate-x-1/2 whitespace-nowrap tabular-nums" style={{ left: xOf(sunSetFrac) }}>
-              {fmtTime(sunset)}
-            </span>
-          )}
-        </div>
+          <span className="flex items-center gap-1" style={{ color: SUN_COLOR }} title="Sunset">
+            <Sunset className="h-3 w-3" />{fmtTime(sunset)}
+          </span>
+        </span>
+        {(moonrise || moonset) && (
+          <span className="flex items-center gap-3" style={{ color: MOON_COLOR }}>
+            {moonrise && (
+              <span className="flex items-center gap-1" title="Moonrise">
+                <MoonGlyph phase={moonPhase ?? 0} size={11} /><span className="opacity-70">↑</span>{fmtTime(moonrise)}
+              </span>
+            )}
+            {moonset && (
+              <span className="flex items-center gap-1" title="Moonset">
+                {!moonrise && <MoonGlyph phase={moonPhase ?? 0} size={11} />}<span className="opacity-70">↓</span>{fmtTime(moonset)}
+              </span>
+            )}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -3,20 +3,60 @@
   "version": 2,
   "mode": "dashboard",
   "name": "Command Center",
-  "description": "Everything visible at a glance",
+  "description": "Everything at a glance — calendar hero plus weather, clock, and your task, chore, and message lists.",
   "author": "Prism",
-  "tags": ["comprehensive", "overview"],
-  "screenSizes": ["2560x1440", "3840x2160"],
+  "tags": [
+    "dense",
+    "everything"
+  ],
+  "screenSizes": [
+    "1920x1080",
+    "2560x1440",
+    "3840x2160"
+  ],
   "orientation": "landscape",
   "widgets": [
-    { "i": "clock", "x": 0, "y": 0, "w": 4, "h": 4 },
-    { "i": "weather", "x": 4, "y": 0, "w": 4, "h": 4 },
-    { "i": "birthdays", "x": 8, "y": 0, "w": 4, "h": 4 },
-    { "i": "calendar", "x": 0, "y": 4, "w": 6, "h": 8 },
-    { "i": "tasks", "x": 6, "y": 4, "w": 6, "h": 8 },
-    { "i": "chores", "x": 0, "y": 12, "w": 4, "h": 6 },
-    { "i": "shopping", "x": 4, "y": 12, "w": 4, "h": 6 },
-    { "i": "messages", "x": 8, "y": 12, "w": 4, "h": 6 },
-    { "i": "meals", "x": 0, "y": 18, "w": 12, "h": 4 }
+    {
+      "i": "calendar",
+      "x": 0,
+      "y": 0,
+      "w": 30,
+      "h": 18
+    },
+    {
+      "i": "clock",
+      "x": 30,
+      "y": 0,
+      "w": 18,
+      "h": 5
+    },
+    {
+      "i": "weather",
+      "x": 30,
+      "y": 5,
+      "w": 18,
+      "h": 13
+    },
+    {
+      "i": "messages",
+      "x": 30,
+      "y": 18,
+      "w": 18,
+      "h": 9
+    },
+    {
+      "i": "tasks",
+      "x": 0,
+      "y": 18,
+      "w": 15,
+      "h": 9
+    },
+    {
+      "i": "chores",
+      "x": 15,
+      "y": 18,
+      "w": 15,
+      "h": 9
+    }
   ]
 }

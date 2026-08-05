@@ -3,15 +3,39 @@
   "version": 2,
   "mode": "screensaver",
   "name": "Info Panel",
-  "description": "Calendar on the left, clock + weather + messages on the right",
+  "description": "A big upcoming-calendar hero, with a small clock + weather accent column.",
   "author": "Prism",
-  "tags": ["informational", "calendar"],
-  "screenSizes": ["1920x1080", "2560x1440", "3840x2160"],
+  "tags": [
+    "info",
+    "calendar"
+  ],
+  "screenSizes": [
+    "1920x1080",
+    "2560x1440",
+    "3840x2160"
+  ],
   "orientation": "landscape",
   "widgets": [
-    { "i": "calendar", "x": 0, "y": 0, "w": 5, "h": 9 },
-    { "i": "weather", "x": 8, "y": 0, "w": 4, "h": 2 },
-    { "i": "messages", "x": 8, "y": 2, "w": 4, "h": 4 },
-    { "i": "clock", "x": 8, "y": 6, "w": 4, "h": 3 }
+    {
+      "i": "calendar",
+      "x": 2,
+      "y": 3,
+      "w": 30,
+      "h": 21
+    },
+    {
+      "i": "clock",
+      "x": 34,
+      "y": 3,
+      "w": 12,
+      "h": 6
+    },
+    {
+      "i": "weather",
+      "x": 34,
+      "y": 10,
+      "w": 12,
+      "h": 6
+    }
   ]
 }

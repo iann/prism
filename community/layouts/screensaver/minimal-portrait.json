@@ -1,0 +1,33 @@
+{
+  "type": "prism-layout",
+  "version": 2,
+  "mode": "screensaver",
+  "name": "Minimal",
+  "description": "A small clock + weather accent; the photo owns the screen.",
+  "author": "Prism",
+  "tags": [
+    "minimal",
+    "ambient"
+  ],
+  "screenSizes": [
+    "1080x1920",
+    "1440x2560"
+  ],
+  "orientation": "portrait",
+  "widgets": [
+    {
+      "i": "clock",
+      "x": 4,
+      "y": 28,
+      "w": 18,
+      "h": 7
+    },
+    {
+      "i": "weather",
+      "x": 4,
+      "y": 36,
+      "w": 18,
+      "h": 6
+    }
+  ]
+}

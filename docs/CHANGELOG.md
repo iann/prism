@@ -4,6 +4,26 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+### Dashboard
+- **The built-in templates were rebuilt around real composition principles.** Each board now leads with one hero (usually the calendar), sizes every widget to its natural shape — birthdays runs tall rather than wide, the clock stays small, weather gets room for its sun/moon detail — and arranges them into a couple of balanced zones instead of an even grid packed with too many panels. The new lineup is **Family Central, Calendar Focus, Command Center, Meal Planner, School Mornings**, and a photo-forward **Ambient** whose glassy clock and weather float over your wallpaper.
+
+### Screensaver
+- **Refreshed screensaver templates.** The calendar (or tonight's meals) is the hero; the clock, weather and messages are small, aligned accents floating over one clean photo region — calmer and less cluttered, with everything sitting fully on-screen.
+
+### Weather
+- **Sunrise, sunset, moonrise and moonset now show their times** along the sun/moon arc. The arc and the hourly timeline appear only when the widget is tall enough to draw them cleanly, so a short widget no longer clips them.
+
+### Community layouts
+- **Redesigned the community-layouts gallery.** The preview boards now float on a wallpaper-style field with cleaner cards, a header with a live count, calmer search and size filters, and a clear **Apply layout** button — so browsing and applying a shared layout is easier to scan. The bundled community layouts were also regenerated to the current grid so they apply correctly.
+
+### Layout editor
+- **"Save As" confirmations are no longer trapped** behind the editor overlay — when a dashboard name already exists you can now see and act on the confirm/cancel prompt.
+
+### Photos
+- **Bulk photo management on desktop.** Select several photos at once — or **Select all** across your whole library — then act on the selection in one go: **remove them from Prism** (this only drops them from Prism, it does not delete the originals in OneDrive/Immich), or flip their **Wallpaper / Gallery / Screensaver** usage toggles together.
+- **Below-HD filter and resolution indicators.** Each thumbnail carries a small resolution dot, and a **Below-HD** filter surfaces low-resolution images so you can keep them out of wallpaper and screensaver rotation.
+- **Sturdier wallpaper handling and OneDrive recovery.** Wallpaper selection is more robust, and a OneDrive photo source that stopped syncing can be recovered without losing already-imported photos.
+
 ## [1.13.1] – 2026-08-02
 
 ### Dashboard
@@ -309,7 +329,8 @@ Security-hardening release from a full codebase audit. It closes a cluster of ac
 - **Voice API foundation (`/api/v1/voice/*`)**: New versioned, token-authenticated API surface for voice and home-automation integrations. First endpoint: `GET /api/v1/voice/calendar/today` returns today's events with a pre-formatted natural-language `spoken` field (`"Today you have Soccer Practice at 4 PM."`) so callers don't need their own templating. Reuses the existing `apiTokens` Bearer-token system; per-token rate-limited at 60 req/min. Documented in `docs/voice-api.md`. Phase 1 of the Alexa + HA distribution plan — additional intents (shopping/add, chore/complete, calendar/upcoming, etc.) coming in follow-ups.
 - **Voice token scope (`voice`)**: `withAuth` now supports a `tokenScope` option that rejects session-cookie callers and requires an API token whose scopes include either the named scope or `*`. The Voice API uses `tokenScope: 'voice'` so a leaked browser session cannot reach it, and Voice tokens issued with `scopes: ['voice']` are confined to `/api/v1/voice/*` (vs. the legacy `['*']` default which grants full account access). Token-creation validator now restricts scopes to the known set `['*', 'voice']`.
 - **Voice API endpoints**: Six new endpoints filling out the `/api/v1/voice/*` surface — `GET /family`, `GET /calendar/upcoming`, `GET /tasks/today`, `POST /shopping/add`, `POST /chore/complete`, `POST /message/post`. Each returns the shared `{ ok, spoken, data }` shape. `chore/complete` enforces the documented security rules: completions inherit the chore's `assignedTo`, voice cannot bypass `requiresApproval` (pending completions stay pending until a parent approves in-app), and ambiguous chore names (e.g. both children have "Feed the dog") return an `ok:false` disambiguation prompt with `data.candidates` for the caller to resend with `assignee`. Phrase-builder tests grew from 7 to 18 cases covering the new spoken templates.
-- **API token scope picker in Settings**: The Security section's token issuer now shows a scope dropdown ("Voice API only" / "Full access (legacy)") and the issued-token list shows each token's scopes as a colored badge (Voice = blue, `*` = amber). Voice is the default — picking the smallest scope that works means a leaked token can't reach data outside its surface.
+- **Six more voice endpoints (Alexa Phase 2)**: A further round rounds out the read surface — `GET /weather/today`, `GET /bus/status`, `GET /birthdays/upcoming`, `GET /meals/today`, `GET /chores/today`, and `GET /message/recent` — each returning the same `{ ok, spoken, data }` shape with a pre-formatted `spoken` line. All are documented in `docs/voice-api.md`.
+- **API token scope picker in Settings**: The Security section's token issuer now shows a scope dropdown ("Voice API only (recommended)" / "Full access (legacy)") and the issued-token list shows each token's scopes as a colored badge (Voice = blue, `*` = amber). Voice is the default — picking the smallest scope that works means a leaked token can't reach data outside its surface.
 
 ### Bug Fixes
 - **Shopping items — rate limit raised 30/min → 120/min**: Recipe imports add ingredients one-by-one in a sequential loop; long lists were hitting the cap with "Failed to add item: too many requests". Proper fix (a batch endpoint) is a follow-up.
