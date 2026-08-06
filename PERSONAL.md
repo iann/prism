@@ -367,6 +367,37 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 01c9389
 
+42. **Cleaner weather location and celestial details**
+
+    Shows weather locations as a city and state abbreviation without postal
+    codes, carries saved location labels through coordinate-based providers,
+    and removes duplicate sunrise, sunset, and moon-phase details from the
+    current-conditions stats.
+
+    Commit: bfa6f2b
+
+43. **Larger, cleaner weather current conditions**
+
+    Removed the weather location label, enlarged the actual and feels-like
+    temperatures, stacked them together, and moved the current condition into
+    the right-side stats column.
+
+    Commit: 4a95bd1
+
+44. **Weather location in the stats footer**
+
+    Restored the ZIP-free city/state location label at the bottom of the
+    weather widget’s right-side stats column.
+
+    Commit: c81f69f
+
+45. **Simplified weather temperature labels**
+
+    Drops the Fahrenheit suffix from imperial widget temperatures while
+    retaining the degree symbol and preserving explicit Celsius labels.
+
+    Commit: 5fe3427
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

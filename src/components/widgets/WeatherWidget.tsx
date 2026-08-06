@@ -307,7 +307,9 @@ function tempToColor(fahrenheit: number): string {
 
 
 function formatTemp(value: number, units: WeatherUnits): string {
-  return `${Math.round(value)}°${units.temperature}`;
+  return units.temperature === 'C'
+    ? `${Math.round(value)}°C`
+    : `${Math.round(value)}°`;
 }
 
 /** Convert a temperature value (in either F or C) to the F scale tempToColor expects. */
@@ -315,11 +317,34 @@ function toFahrenheitForColor(value: number, units: WeatherUnits): number {
   return units.temperature === 'C' ? value * 9 / 5 + 32 : value;
 }
 
-/** Normalize "City,State,Country" → "City, State" regardless of upstream format. */
+const US_STATE_ABBREVIATIONS: Record<string, string> = {
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
+  colorado: 'CO', connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA',
+  hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS',
+  kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD', massachusetts: 'MA',
+  michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT',
+  nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND',
+  ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI',
+  'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT',
+  vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI',
+  wyoming: 'WY',
+};
+
+/** Normalize upstream location labels to "City, ST" and omit postal codes. */
 function formatLocation(location: string): string {
-  const parts = location.split(',').map((s) => s.trim()).filter(Boolean);
-  if (parts.length >= 1) return parts[0]!;
-  return location;
+  const withoutPostalCode = location.trim().replace(/\s+\d{4,10}(?:-\d{4})?\s*$/, '');
+  const parts = withoutPostalCode.split(',').map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0]!;
+
+  const city = parts[0]!;
+  const region = parts[1]!;
+  const normalizedRegion = US_STATE_ABBREVIATIONS[region.toLowerCase()] ?? region;
+  const country = parts[parts.length - 1]!.toLowerCase();
+  const isCountryOnly = parts.length === 2 && (country === 'us' || country === 'usa' || country === 'united states');
+
+  return isCountryOnly ? city : `${city}, ${normalizedRegion}`;
 }
 
 function formatTempDisplay(fahrenheit: number, useCelsius: boolean): string {
@@ -441,10 +466,6 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           weather={weatherData.current}
           location={weatherData.location}
           units={units}
-          sunrise={weatherData.sunrise}
-          sunset={weatherData.sunset}
-          moonPhase={weatherData.moonPhase}
-          moonPhaseName={weatherData.moonPhaseName}
         />
 
         {/* HOURLY FORECAST */}
@@ -469,10 +490,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
               </div>
             </div>
 
-            {/* Sun + moon arc — replaced by precip chart when rain is imminent.
-                Sunrise/sunset times + moon phase now live in the header
-                row (CurrentConditions), so the arc renders without a
-                duplicate label strip. */}
+            {/* Sun + moon arc — replaced by precip chart when rain is imminent. */}
             {showSunArc && (
               <div className="flex-shrink-0 flex flex-col gap-1">
                 <SunriseSunsetArc
@@ -512,47 +530,31 @@ function CurrentConditions({
   weather,
   location,
   units,
-  sunrise,
-  sunset,
-  moonPhase,
-  moonPhaseName,
 }: {
   weather: CurrentWeather;
   location: string;
   units: WeatherUnits;
-  sunrise?: Date;
-  sunset?: Date;
-  moonPhase?: number;
-  moonPhaseName?: string;
 }) {
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
-  const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
     <div className="flex items-start justify-between gap-2">
-      {/* Left: icon + temp + description */}
+      {/* Left: icon + actual temperature + feels-like temperature */}
       <div className="flex items-center gap-3">
         <WeatherIcon
           condition={weather.condition}
           className="h-10 w-10 text-primary flex-shrink-0"
         />
         <div>
-          <div className="text-4xl font-bold leading-none">{temp}</div>
-          <div className="text-sm text-muted-foreground capitalize mt-0.5">
-            {weather.description}
-          </div>
-          {location && (
-            <div className="text-xs text-muted-foreground mt-0.5 truncate max-w-[140px]">
-              {formatLocation(location)}
-            </div>
-          )}
+          <div className="text-5xl font-bold leading-none">{temp}</div>
+          <div className="text-lg text-muted-foreground mt-1">Feels like {feels}</div>
         </div>
       </div>
 
-      {/* Right: stats */}
-      <div className="text-right text-xs text-muted-foreground space-y-1 pt-0.5">
-        <div className="text-sm">Feels like {feels}</div>
+      {/* Right: condition and stats */}
+      <div data-testid="weather-current-stats" className="text-right text-xs text-muted-foreground space-y-1 pt-0.5">
+        <div className="text-sm capitalize">{weather.description}</div>
         <div className="flex items-center justify-end gap-1">
           <Droplets className="h-3 w-3" />
           <span>{weather.humidity}%</span>
@@ -561,26 +563,9 @@ function CurrentConditions({
           <Wind className="h-3 w-3" />
           <span>{weather.windSpeed} {units.windSpeed}</span>
         </div>
-        {moonPhase !== undefined && (
-          <div className="flex items-center justify-end gap-1 pt-0.5">
-            <MoonGlyph phase={moonPhase} size={12} />
-            {moonPhaseName && <span>{moonPhaseName}</span>}
-          </div>
-        )}
-        {(sunrise || sunset) && (
-          <div className="flex items-center justify-end gap-2 tabular-nums">
-            {sunrise && (
-              <span className="flex items-center gap-0.5" title="Sunrise">
-                <Sunrise className="h-3 w-3 text-primary" />
-                {fmtTime(sunrise)}
-              </span>
-            )}
-            {sunset && (
-              <span className="flex items-center gap-0.5" title="Sunset">
-                <Sunset className="h-3 w-3 text-destructive" />
-                {fmtTime(sunset)}
-              </span>
-            )}
+        {location && (
+          <div className="pt-1 text-xs truncate max-w-[140px]">
+            {formatLocation(location)}
           </div>
         )}
       </div>

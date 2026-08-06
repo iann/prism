@@ -101,6 +101,22 @@ describe('openmeteo.fetchWeatherData', () => {
     expect(calledUrl).not.toContain('latitude=41.8781'); // env default not used
   });
 
+  it('preserves a coordinate location display name', async () => {
+    jest.spyOn(global, 'fetch' as never).mockResolvedValue({
+      ok: true,
+      json: async () => buildResponse(),
+    } as never);
+
+    const { fetchWeatherData } = await import('../openmeteo');
+    const result = await fetchWeatherData({
+      lat: 42.46,
+      lon: -71.06,
+      displayName: 'Melrose, Massachusetts, US',
+    });
+
+    expect(result.location).toBe('Melrose, Massachusetts, US');
+  });
+
   it('falls back to env coordinates when no LocationParam is provided', async () => {
     const fetchSpy = jest
       .spyOn(global, 'fetch' as never)

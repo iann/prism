@@ -97,6 +97,7 @@ function getConfig(location?: LocationParam) {
   if (typeof location === 'object' && location !== null && 'lat' in location) {
     lat = location.lat;
     lon = location.lon;
+    locationName = location.displayName || locationName;
   } else if (typeof location === 'string' && location.length > 0) {
     locationName = location;
   }

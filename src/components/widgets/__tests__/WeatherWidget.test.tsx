@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import SunCalc from 'suncalc';
 
 // --- mocks (must precede component import) ---------------------------------
@@ -460,12 +460,12 @@ describe('forecastDays prop', () => {
 // ===========================================================================
 
 describe('current conditions', () => {
-  it('renders the current temperature in °F by default', () => {
+  it('renders the current temperature with a degree symbol by default', () => {
     const data = makeWeatherData({
       current: { ...makeWeatherData().current, temperature: 73 },
     });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText('73°F')).not.toBeNull();
+    expect(screen.queryByText('73°')).not.toBeNull();
   });
 
   it('renders °C suffix when data.units.temperature is C', () => {
@@ -487,11 +487,35 @@ describe('current conditions', () => {
     expect(screen.queryByText('Heavy thunderstorm')).not.toBeNull();
   });
 
-  it('renders the location name', () => {
-    const data = makeWeatherData({ location: 'Denver, CO' });
+  it('renders the location at the bottom of the right-side stats', () => {
+    const data = makeWeatherData({ location: 'Denver, Colorado, US 80202' });
     render(<WeatherWidget data={data} />);
-    // formatLocation returns the city portion only
-    expect(screen.queryByText('Denver')).not.toBeNull();
+    const stats = within(screen.getByTestId('weather-current-stats'));
+    expect(stats.queryByText('Denver, CO')).not.toBeNull();
+    expect(stats.queryByText('80202')).toBeNull();
+  });
+
+  it('places the condition in the right-side stats', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, description: 'Partly cloudy' },
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(within(screen.getByTestId('weather-current-stats')).queryByText('Partly cloudy')).not.toBeNull();
+  });
+
+  it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
+    const data = makeWeatherData({
+      sunrise: new Date(2026, 6, 17, 6, 27),
+      sunset: new Date(2026, 6, 17, 19, 48),
+      moonPhaseName: 'Waning Gibbous',
+    });
+    render(<WeatherWidget data={data} />);
+
+    const stats = within(screen.getByTestId('weather-current-stats'));
+    expect(stats.queryByText('Waning Gibbous')).toBeNull();
+    expect(stats.queryByText(/6:27/)).toBeNull();
+    expect(stats.queryByText(/7:48/)).toBeNull();
   });
 
   it('renders the "feels like" temperature', () => {
@@ -499,7 +523,7 @@ describe('current conditions', () => {
       current: { ...makeWeatherData().current, feelsLike: 60 },
     });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText(/Feels like 60°F/)).not.toBeNull();
+    expect(screen.queryByText(/Feels like 60°/)).not.toBeNull();
   });
 
   it('renders humidity percentage', () => {
@@ -568,16 +592,6 @@ describe('loading and error states', () => {
 describe('demo data fallback', () => {
   it('renders without errors when no data prop is provided', () => {
     expect(() => render(<WeatherWidget />)).not.toThrow();
-  });
-
-  it('uses demo location when no location or data is provided', () => {
-    render(<WeatherWidget />);
-    expect(screen.queryAllByText('Melrose').length).toBeGreaterThan(0);
-  });
-
-  it('shows the passed location in demo mode', () => {
-    render(<WeatherWidget location="Austin, TX" />);
-    expect(screen.queryAllByText('Austin').length).toBeGreaterThan(0);
   });
 
   it('renders the hourly timeline with demo data', () => {

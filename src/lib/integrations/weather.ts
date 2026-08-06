@@ -16,7 +16,12 @@
 
 import type { WeatherData, WeatherUnits } from '@/components/widgets/WeatherWidget';
 
-export type LocationParam = string | { lat: number; lon: number };
+export type LocationParam = string | {
+  lat: number;
+  lon: number;
+  /** Optional human-readable label to show alongside the weather. */
+  displayName?: string;
+};
 
 export interface WeatherOptions {
   units?: WeatherUnits;

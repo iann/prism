@@ -51,15 +51,14 @@ function shortDisplayName(result: NominatimResult): string {
   return [city, state, country].filter(Boolean).join(', ');
 }
 
-/** Like shortDisplayName but appends the postal code, for ZIP lookups. */
+/** Keep ZIP searches focused on the resolved city and region, not the ZIP itself. */
 function postalDisplayName(result: NominatimResult, zip: string): string {
   const a = result.address;
   const city = a?.city ?? a?.town ?? a?.village ?? '';
   const state = a?.state ?? '';
   const country = a?.country_code?.toUpperCase() ?? a?.country ?? '';
   const base = [city, state, country].filter(Boolean).join(', ');
-  const code = a?.postcode ?? zip;
-  return base ? `${base} ${code}` : code;
+  return base || zip;
 }
 
 export async function GET(request: NextRequest) {
@@ -89,7 +88,7 @@ export async function GET(request: NextRequest) {
           if (res.ok) {
             const data: OWMZipResult = await res.json();
             results.push({
-              displayName: `${data.name}, ${data.country} ${zip}`,
+              displayName: `${data.name}, ${data.country}`,
               lat: data.lat,
               lon: data.lon,
               country: data.country,

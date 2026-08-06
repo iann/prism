@@ -42,11 +42,11 @@ async function resolveLocation(queryLocation: string | null): Promise<LocationPa
         zipCode?: string; city?: string; state?: string; country?: string;
       };
       if (val.lat !== undefined && val.lon !== undefined) {
-        return { lat: val.lat, lon: val.lon };
+        return { lat: val.lat, lon: val.lon, displayName: val.displayName };
       }
       // Legacy fallback — still works for existing installs
-      if (val.zipCode) return `${val.zipCode},US`;
       if (val.city) return [val.city, val.state, val.country || 'US'].filter(Boolean).join(',');
+      if (val.zipCode) return `${val.zipCode},US`;
     }
   } catch { /* fall through */ }
 

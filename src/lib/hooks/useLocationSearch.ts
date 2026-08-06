@@ -19,8 +19,7 @@ interface StoredLocation {
 }
 
 function legacyDisplayName(loc: StoredLocation): string {
-  if (loc.zipCode) return loc.zipCode;
-  return [loc.city, loc.state].filter(Boolean).join(', ');
+  return [loc.city, loc.state].filter(Boolean).join(', ') || loc.zipCode || '';
 }
 
 /**
