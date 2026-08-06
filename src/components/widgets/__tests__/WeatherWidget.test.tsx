@@ -487,11 +487,12 @@ describe('current conditions', () => {
     expect(screen.queryByText('Heavy thunderstorm')).not.toBeNull();
   });
 
-  it('does not render the location name', () => {
+  it('renders the location at the bottom of the right-side stats', () => {
     const data = makeWeatherData({ location: 'Denver, Colorado, US 80202' });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText(/Denver/)).toBeNull();
-    expect(screen.queryByText('80202')).toBeNull();
+    const stats = within(screen.getByTestId('weather-current-stats'));
+    expect(stats.queryByText('Denver, CO')).not.toBeNull();
+    expect(stats.queryByText('80202')).toBeNull();
   });
 
   it('places the condition in the right-side stats', () => {
