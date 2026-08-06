@@ -391,6 +391,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: c81f69f
 
+45. **Simplified weather temperature labels**
+
+    Drops the Fahrenheit suffix from imperial widget temperatures while
+    retaining the degree symbol and preserving explicit Celsius labels.
+
+    Commit: 5fe3427
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
