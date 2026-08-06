@@ -140,6 +140,18 @@ describe('fetchCurrentWeather — unit conversions', () => {
     const result = await fetchCurrentWeather();
     expect(result.windSpeed).toBe(0);
   });
+
+  it('preserves a coordinate location display name', async () => {
+    mockFetch(currentResponse());
+    const { fetchCurrentWeather } = await import('../openweather');
+    const result = await fetchCurrentWeather({
+      lat: 42.46,
+      lon: -71.06,
+      displayName: 'Melrose, Massachusetts, US',
+    });
+
+    expect(result.locationName).toBe('Melrose, Massachusetts, US');
+  });
 });
 
 // ---------------------------------------------------------------------------

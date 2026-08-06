@@ -13,7 +13,7 @@ async function resolveLocation(): Promise<LocationParam | undefined> {
     if (row?.value) {
       const val = row.value as { lat?: number; lon?: number; displayName?: string };
       if (val.lat !== undefined && val.lon !== undefined) {
-        return { lat: val.lat, lon: val.lon };
+        return { lat: val.lat, lon: val.lon, displayName: val.displayName };
       }
       if (val.displayName) return val.displayName;
     }

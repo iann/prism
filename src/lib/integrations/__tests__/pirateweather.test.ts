@@ -134,6 +134,18 @@ describe('URL construction', () => {
     expect(url).not.toContain('41.8781');
   });
 
+  it('preserves a coordinate location display name', async () => {
+    mockFetch(buildResponse());
+    const { fetchWeatherData } = await import('../pirateweather');
+    const result = await fetchWeatherData({
+      lat: 42.46,
+      lon: -71.06,
+      displayName: 'Melrose, Massachusetts, US',
+    });
+
+    expect(result.location).toBe('Melrose, Massachusetts, US');
+  });
+
   it('falls back to env coordinates when no LocationParam provided', async () => {
     const spy = mockFetch(buildResponse());
     const { fetchWeatherData } = await import('../pirateweather');

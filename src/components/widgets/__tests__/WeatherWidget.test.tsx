@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import SunCalc from 'suncalc';
 
 // --- mocks (must precede component import) ---------------------------------
@@ -488,10 +488,25 @@ describe('current conditions', () => {
   });
 
   it('renders the location name', () => {
-    const data = makeWeatherData({ location: 'Denver, CO' });
+    const data = makeWeatherData({ location: 'Denver, Colorado, US 80202' });
     render(<WeatherWidget data={data} />);
-    // formatLocation returns the city portion only
-    expect(screen.queryByText('Denver')).not.toBeNull();
+    expect(screen.queryByText('Denver, CO')).not.toBeNull();
+    expect(screen.queryByText('Denver, Colorado, US 80202')).toBeNull();
+    expect(screen.queryByText('80202')).toBeNull();
+  });
+
+  it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
+    const data = makeWeatherData({
+      sunrise: new Date(2026, 6, 17, 6, 27),
+      sunset: new Date(2026, 6, 17, 19, 48),
+      moonPhaseName: 'Waning Gibbous',
+    });
+    render(<WeatherWidget data={data} />);
+
+    const stats = within(screen.getByTestId('weather-current-stats'));
+    expect(stats.queryByText('Waning Gibbous')).toBeNull();
+    expect(stats.queryByText(/6:27/)).toBeNull();
+    expect(stats.queryByText(/7:48/)).toBeNull();
   });
 
   it('renders the "feels like" temperature', () => {
@@ -572,12 +587,12 @@ describe('demo data fallback', () => {
 
   it('uses demo location when no location or data is provided', () => {
     render(<WeatherWidget />);
-    expect(screen.queryAllByText('Melrose').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Melrose, MA')).not.toBeNull();
   });
 
   it('shows the passed location in demo mode', () => {
     render(<WeatherWidget location="Austin, TX" />);
-    expect(screen.queryAllByText('Austin').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Austin, TX')).not.toBeNull();
   });
 
   it('renders the hourly timeline with demo data', () => {

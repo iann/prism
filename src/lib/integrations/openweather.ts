@@ -211,7 +211,10 @@ export async function fetchCurrentWeather(
     humidity: data.main.humidity,
     windSpeed: windFromMps(data.wind.speed, units),
     description: weather.description,
-    locationName: data.name,
+    locationName:
+      (typeof location === 'object' && location.displayName) ||
+      (typeof location === 'string' && location.trim()) ||
+      data.name,
     sunrise: new Date(data.sys.sunrise * 1000),
     sunset: new Date(data.sys.sunset * 1000),
   };
