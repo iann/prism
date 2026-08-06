@@ -367,6 +367,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 01c9389
 
+42. **Cleaner weather location and celestial details**
+
+    Shows weather locations as a city and state abbreviation without postal
+    codes, carries saved location labels through coordinate-based providers,
+    and removes duplicate sunrise, sunset, and moon-phase details from the
+    current-conditions stats.
+
+    Commit: bfa6f2b
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
