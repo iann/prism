@@ -376,6 +376,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: bfa6f2b
 
+43. **Larger, cleaner weather current conditions**
+
+    Removed the weather location label, enlarged the actual and feels-like
+    temperatures, stacked them together, and moved the current condition into
+    the right-side stats column.
+
+    Commit: 4a95bd1
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
