@@ -315,36 +315,6 @@ function toFahrenheitForColor(value: number, units: WeatherUnits): number {
   return units.temperature === 'C' ? value * 9 / 5 + 32 : value;
 }
 
-const US_STATE_ABBREVIATIONS: Record<string, string> = {
-  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
-  colorado: 'CO', connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA',
-  hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS',
-  kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD', massachusetts: 'MA',
-  michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT',
-  nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
-  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND',
-  ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI',
-  'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT',
-  vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI',
-  wyoming: 'WY',
-};
-
-/** Normalize upstream location labels to "City, ST" and omit postal codes. */
-function formatLocation(location: string): string {
-  const withoutPostalCode = location.trim().replace(/\s+\d{4,10}(?:-\d{4})?\s*$/, '');
-  const parts = withoutPostalCode.split(',').map((s) => s.trim()).filter(Boolean);
-  if (parts.length === 0) return '';
-  if (parts.length === 1) return parts[0]!;
-
-  const city = parts[0]!;
-  const region = parts[1]!;
-  const normalizedRegion = US_STATE_ABBREVIATIONS[region.toLowerCase()] ?? region;
-  const country = parts[parts.length - 1]!.toLowerCase();
-  const isCountryOnly = parts.length === 2 && (country === 'us' || country === 'usa' || country === 'united states');
-
-  return isCountryOnly ? city : `${city}, ${normalizedRegion}`;
-}
-
 function formatTempDisplay(fahrenheit: number, useCelsius: boolean): string {
   if (useCelsius) {
     return `${Math.round((fahrenheit - 32) * 5 / 9)}°C`;
@@ -462,7 +432,6 @@ export const WeatherWidget = React.memo(function WeatherWidget({
         {/* CURRENT CONDITIONS */}
         <CurrentConditions
           weather={weatherData.current}
-          location={weatherData.location}
           units={units}
         />
 
@@ -526,11 +495,9 @@ export const WeatherWidget = React.memo(function WeatherWidget({
  */
 function CurrentConditions({
   weather,
-  location,
   units,
 }: {
   weather: CurrentWeather;
-  location: string;
   units: WeatherUnits;
 }) {
   const temp  = formatTemp(weather.temperature, units);
@@ -538,28 +505,21 @@ function CurrentConditions({
 
   return (
     <div className="flex items-start justify-between gap-2">
-      {/* Left: icon + temp + description */}
+      {/* Left: icon + actual temperature + feels-like temperature */}
       <div className="flex items-center gap-3">
         <WeatherIcon
           condition={weather.condition}
           className="h-10 w-10 text-primary flex-shrink-0"
         />
         <div>
-          <div className="text-4xl font-bold leading-none">{temp}</div>
-          <div className="text-sm text-muted-foreground capitalize mt-0.5">
-            {weather.description}
-          </div>
-          {location && (
-            <div className="text-xs text-muted-foreground mt-0.5 truncate max-w-[140px]">
-              {formatLocation(location)}
-            </div>
-          )}
+          <div className="text-5xl font-bold leading-none">{temp}</div>
+          <div className="text-lg text-muted-foreground mt-1">Feels like {feels}</div>
         </div>
       </div>
 
-      {/* Right: stats */}
+      {/* Right: condition and stats */}
       <div data-testid="weather-current-stats" className="text-right text-xs text-muted-foreground space-y-1 pt-0.5">
-        <div className="text-sm">Feels like {feels}</div>
+        <div className="text-sm capitalize">{weather.description}</div>
         <div className="flex items-center justify-end gap-1">
           <Droplets className="h-3 w-3" />
           <span>{weather.humidity}%</span>

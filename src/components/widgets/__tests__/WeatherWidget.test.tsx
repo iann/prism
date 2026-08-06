@@ -487,12 +487,20 @@ describe('current conditions', () => {
     expect(screen.queryByText('Heavy thunderstorm')).not.toBeNull();
   });
 
-  it('renders the location name', () => {
+  it('does not render the location name', () => {
     const data = makeWeatherData({ location: 'Denver, Colorado, US 80202' });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText('Denver, CO')).not.toBeNull();
-    expect(screen.queryByText('Denver, Colorado, US 80202')).toBeNull();
+    expect(screen.queryByText(/Denver/)).toBeNull();
     expect(screen.queryByText('80202')).toBeNull();
+  });
+
+  it('places the condition in the right-side stats', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, description: 'Partly cloudy' },
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(within(screen.getByTestId('weather-current-stats')).queryByText('Partly cloudy')).not.toBeNull();
   });
 
   it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
@@ -583,16 +591,6 @@ describe('loading and error states', () => {
 describe('demo data fallback', () => {
   it('renders without errors when no data prop is provided', () => {
     expect(() => render(<WeatherWidget />)).not.toThrow();
-  });
-
-  it('uses demo location when no location or data is provided', () => {
-    render(<WeatherWidget />);
-    expect(screen.queryByText('Melrose, MA')).not.toBeNull();
-  });
-
-  it('shows the passed location in demo mode', () => {
-    render(<WeatherWidget location="Austin, TX" />);
-    expect(screen.queryByText('Austin, TX')).not.toBeNull();
   });
 
   it('renders the hourly timeline with demo data', () => {
