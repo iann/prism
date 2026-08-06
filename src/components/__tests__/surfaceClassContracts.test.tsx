@@ -263,6 +263,10 @@ describe('surface class contracts', () => {
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
+      // Community gallery preview and hover boundaries are decorative.
+      'src/components/layout/CommunityGallery.tsx:border-border/70',
+      'src/components/layout/CommunityGallery.tsx:border-border/70',
+      'src/components/layout/CommunityGallery.tsx:hover:border-primary/40',
       'src/components/layout/CoordinateEditor.tsx:border-border/50',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
@@ -289,8 +293,13 @@ describe('surface class contracts', () => {
       'src/app/meals/MealsView.tsx:text-[8px]',
       'src/app/tasks/TaskItem.tsx:text-[8px]',
       // Decorative selected-state check glyphs.
+      'src/app/travel/components/InlineChildAdd.tsx:text-[10px]',
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinForm.tsx:text-[10px]',
+      'src/app/travel/components/PinList.tsx:text-[10px]',
+      // Compact metadata and screen-size labels in the community gallery.
+      'src/components/layout/CommunityGallery.tsx:text-[10px]',
+      'src/components/layout/CommunityGallery.tsx:text-[11px]',
       // Compact labels identify the device frames in the layout gallery.
       'src/components/layout/DevicePreviewGallery.tsx:text-[9px]',
       // Navigation and modal avatar initials with adjacent names or labels.
@@ -309,6 +318,9 @@ describe('surface class contracts', () => {
       'src/components/widgets/MealsWidget.tsx:text-[8px]',
       'src/components/widgets/MessagesWidget.tsx:text-[10px]',
       'src/components/widgets/TasksWidget.tsx:text-[8px]',
+      // Compact forecast heading and sun/moon metadata.
+      'src/components/widgets/WeatherWidget.tsx:text-[10px]',
+      'src/components/widgets/WeatherWidget.tsx:text-[11px]',
     ]);
   });
 });
