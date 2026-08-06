@@ -12,7 +12,6 @@ const ORIENTATION_OVERRIDE_KEY = 'prism-orientation-override';
 const PINNED_WALLPAPER_KEY = 'prism-pinned-wallpaper';
 const PINNED_SCREENSAVER_KEY = 'prism-pinned-screensaver';
 const SCREENSAVER_INTERVAL_KEY = 'prism-screensaver-interval';
-const WALLPAPER_POOL_SIZE = 10;
 
 function useOrientationOverride(): 'auto' | 'landscape' | 'portrait' {
   const [override, setOverride] = useState<'auto' | 'landscape' | 'portrait'>(() => {
@@ -146,7 +145,7 @@ export function WallpaperBackground() {
   // orientation has no photos still shows a wallpaper instead of going blank.
   const { photos: allPhotos } = usePhotos({
     sort: 'random',
-    limit: performanceMode ? 1 : WALLPAPER_POOL_SIZE,
+    limit: performanceMode ? 1 : 40,
     usage: 'wallpaper',
     enabled: enabled && performanceModeReady,
   });

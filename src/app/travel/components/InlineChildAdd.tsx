@@ -169,7 +169,7 @@ export function InlineChildAdd({ childType, onAdd }: InlineChildAddProps) {
               className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-accent transition-colors border-b border-border last:border-0 flex items-center gap-1.5"
             >
               <Emoji e="🌲" /> <span className="font-medium">{u.name}</span>
-              <span className="text-muted-foreground text-xs ml-auto">{u.type}</span>
+              <span className="text-muted-foreground text-[10px] ml-auto">{u.type}</span>
             </button>
           )) : (
             <p className="px-2.5 py-2 text-xs text-muted-foreground">No matches</p>

@@ -488,8 +488,8 @@ function WidgetLoading() {
  */
 function WidgetError({ message }: { message: string }) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center text-center p-4">
-      <div className="text-destructive text-4xl mb-2"><Emoji e="⚠️" /></div>
+    <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
+      <div className="mb-2 text-4xl text-destructive"><Emoji e="⚠️" /></div>
       <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
