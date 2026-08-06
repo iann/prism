@@ -460,12 +460,12 @@ describe('forecastDays prop', () => {
 // ===========================================================================
 
 describe('current conditions', () => {
-  it('renders the current temperature in °F by default', () => {
+  it('renders the current temperature with a degree symbol by default', () => {
     const data = makeWeatherData({
       current: { ...makeWeatherData().current, temperature: 73 },
     });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText('73°F')).not.toBeNull();
+    expect(screen.queryByText('73°')).not.toBeNull();
   });
 
   it('renders °C suffix when data.units.temperature is C', () => {
@@ -523,7 +523,7 @@ describe('current conditions', () => {
       current: { ...makeWeatherData().current, feelsLike: 60 },
     });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText(/Feels like 60°F/)).not.toBeNull();
+    expect(screen.queryByText(/Feels like 60°/)).not.toBeNull();
   });
 
   it('renders humidity percentage', () => {

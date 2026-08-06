@@ -307,7 +307,9 @@ function tempToColor(fahrenheit: number): string {
 
 
 function formatTemp(value: number, units: WeatherUnits): string {
-  return `${Math.round(value)}°${units.temperature}`;
+  return units.temperature === 'C'
+    ? `${Math.round(value)}°C`
+    : `${Math.round(value)}°`;
 }
 
 /** Convert a temperature value (in either F or C) to the F scale tempToColor expects. */
