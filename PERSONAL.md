@@ -384,6 +384,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 4a95bd1
 
+44. **Weather location in the stats footer**
+
+    Restored the ZIP-free city/state location label at the bottom of the
+    weather widget’s right-side stats column.
+
+    Commit: c81f69f
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
