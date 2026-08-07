@@ -407,6 +407,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: c4ba702
 
+47. **Minute-by-minute local weather polling**
+
+    Refreshes weather data every minute so the dashboard picks up new
+    AirGradient readings without waiting for the provider cache to expire.
+
+    Commit: f5a1642
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
