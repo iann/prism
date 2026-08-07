@@ -398,6 +398,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 5fe3427
 
+46. **AirGradient-first local weather readings**
+
+    Uses the AirGradient monitor at 10.0.1.55 for current temperature,
+    humidity, and PM2.5 readings, recalculates feels-like from local
+    conditions, and falls back to Pirate Weather with a red source indicator
+    when the monitor cannot be reached.
+
+    Commit: c4ba702
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
