@@ -200,47 +200,47 @@ export function getAirQualityStatus(pm25: number): AirQualityStatus | null {
     return {
       label: 'Good',
       badgeClassName:
-        'border-emerald-500/80 bg-emerald-200 text-emerald-950 dark:border-emerald-300/80 dark:bg-emerald-400/35 dark:text-emerald-50',
-      dotClassName: 'bg-emerald-700 dark:bg-emerald-300',
+        'border-emerald-300 bg-emerald-500 text-white shadow-sm shadow-emerald-500/40 dark:border-emerald-200 dark:bg-emerald-400 dark:text-emerald-950',
+      dotClassName: 'bg-emerald-100 dark:bg-emerald-950',
     };
   }
   if (pm25 <= 35.4) {
     return {
       label: 'Moderate',
       badgeClassName:
-        'border-yellow-500/80 bg-yellow-200 text-yellow-950 dark:border-yellow-300/80 dark:bg-yellow-400/35 dark:text-yellow-50',
-      dotClassName: 'bg-yellow-700 dark:bg-yellow-300',
+        'border-yellow-300 bg-yellow-400 text-yellow-950 shadow-sm shadow-yellow-400/40 dark:border-yellow-100 dark:bg-yellow-300 dark:text-yellow-950',
+      dotClassName: 'bg-yellow-950',
     };
   }
   if (pm25 <= 55.4) {
     return {
       label: 'Unhealthy for Sensitive Groups',
       badgeClassName:
-        'border-orange-500/80 bg-orange-200 text-orange-950 dark:border-orange-300/80 dark:bg-orange-400/35 dark:text-orange-50',
-      dotClassName: 'bg-orange-700 dark:bg-orange-300',
+        'border-orange-300 bg-orange-500 text-white shadow-sm shadow-orange-500/40 dark:border-orange-200 dark:bg-orange-400 dark:text-orange-950',
+      dotClassName: 'bg-orange-100 dark:bg-orange-950',
     };
   }
   if (pm25 <= 125.4) {
     return {
       label: 'Unhealthy',
       badgeClassName:
-        'border-red-500/80 bg-red-200 text-red-950 dark:border-red-300/80 dark:bg-red-400/35 dark:text-red-50',
-      dotClassName: 'bg-red-700 dark:bg-red-300',
+        'border-red-300 bg-red-500 text-white shadow-sm shadow-red-500/40 dark:border-red-200 dark:bg-red-400 dark:text-red-950',
+      dotClassName: 'bg-red-100 dark:bg-red-950',
     };
   }
   if (pm25 <= 225.4) {
     return {
       label: 'Very Unhealthy',
       badgeClassName:
-        'border-purple-500/80 bg-purple-200 text-purple-950 dark:border-purple-300/80 dark:bg-purple-400/35 dark:text-purple-50',
-      dotClassName: 'bg-purple-700 dark:bg-purple-300',
+        'border-purple-300 bg-purple-500 text-white shadow-sm shadow-purple-500/40 dark:border-purple-200 dark:bg-purple-400 dark:text-purple-950',
+      dotClassName: 'bg-purple-100 dark:bg-purple-950',
     };
   }
   return {
     label: 'Hazardous',
     badgeClassName:
-      'border-rose-500/80 bg-rose-200 text-rose-950 dark:border-rose-300/80 dark:bg-rose-400/35 dark:text-rose-50',
-    dotClassName: 'bg-rose-700 dark:bg-rose-300',
+      'border-rose-300 bg-rose-600 text-white shadow-sm shadow-rose-600/40 dark:border-rose-200 dark:bg-rose-500 dark:text-white',
+    dotClassName: 'bg-rose-100 dark:bg-rose-950',
   };
 }
 
