@@ -470,6 +470,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 6eac14a
 
+56. **Synchronized current timeline temperature**
+
+    Forces the timeline's “Now” temperature to match the main reading from
+    either AirGradient or the Pirate Weather fallback, including cached data.
+
+    Commit: 18b4658
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
