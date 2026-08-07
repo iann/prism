@@ -421,6 +421,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 475060b
 
+49. **Air-quality badge placement refinement**
+
+    Moves the PM2.5 status badge directly beneath the feels-like temperature
+    so the current conditions read as one cohesive local-weather stack.
+
+    Commit: c0283b6
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
