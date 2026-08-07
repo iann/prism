@@ -263,6 +263,8 @@ describe('surface class contracts', () => {
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
+      // Calendar planning-group divider is decorative.
+      'src/components/calendar/cells/DayColumn.tsx:border-border/40',
       // Community gallery preview and hover boundaries are decorative.
       'src/components/layout/CommunityGallery.tsx:border-border/70',
       'src/components/layout/CommunityGallery.tsx:border-border/70',
