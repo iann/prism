@@ -567,6 +567,12 @@ describe('current conditions', () => {
     const badge = screen.getByTestId('air-quality-badge');
     expect(badge.textContent).toBe('Air: Moderate');
     expect(badge.getAttribute('aria-label')).toBe('Air quality: Moderate');
+    expect(badge.className).toContain('bg-yellow-100');
+    expect(badge.className).toContain('dark:bg-yellow-500/20');
+    expect(badge.className).toContain('text-yellow-800');
+    expect(badge.className).toContain('dark:text-yellow-200');
+    expect(badge.querySelector('span')?.className).toContain('bg-yellow-600');
+    expect(badge.querySelector('span')?.className).toContain('dark:bg-yellow-400');
     expect(screen.queryByText('27 µg/m³')).not.toBeNull();
     expect(within(screen.getByTestId('weather-current-stats')).queryByTestId('air-quality-badge')).toBeNull();
   });
