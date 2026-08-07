@@ -504,6 +504,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 2289699
 
+61. **Expanded hourly weather tiles**
+
+    Adds each timeline tile's feels-like temperature and precipitation chance,
+    with provider data kept in sync for the current hour.
+
+    Commit: f538ea6
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
