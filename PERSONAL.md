@@ -414,6 +414,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: f5a1642
 
+48. **Readable PM2.5 air-quality status**
+
+    Adds an EPA/AirNow-style, color-coded air-quality badge beside the local
+    PM2.5 value, with familiar Good, Moderate, and unhealthy-level labels.
+
+    Commit: 475060b
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
