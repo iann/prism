@@ -566,7 +566,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
             {/* Multi-day summary — the day list fills the remaining space and
                 clips to WHOLE rows (maxDayRows) so a day is never half-cut. */}
             <div className="flex-1 min-h-0 flex flex-col">
-              <span className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="flex-shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {shownForecast.length}-Day Forecast
               </span>
               <div ref={dayListRef} className="flex-1 min-h-0 overflow-hidden">
@@ -659,14 +659,14 @@ function CurrentConditions({
                 aria-label={`Air quality: ${airQualityStatus.label}`}
                 title={airQualityStatus.label}
                 className={cn(
-                  'inline-flex max-w-[135px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none',
+                  'inline-flex max-w-[135px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-xs font-medium leading-none',
                   airQualityStatus.badgeClassName,
                 )}
               >
                 <span className={cn('h-1.5 w-1.5 rounded-full', airQualityStatus.dotClassName)} />
                 Air: {airQualityStatus.label}
               </span>
-              <span className="text-[10px]">{weather.airQuality.pm25} µg/m³</span>
+              <span className="text-xs">{weather.airQuality.pm25} µg/m³</span>
             </div>
           )}
         </div>

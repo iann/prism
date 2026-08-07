@@ -318,8 +318,7 @@ describe('surface class contracts', () => {
       'src/components/widgets/MealsWidget.tsx:text-[8px]',
       'src/components/widgets/MessagesWidget.tsx:text-[10px]',
       'src/components/widgets/TasksWidget.tsx:text-[8px]',
-      // Compact forecast heading and sun/moon metadata.
-      'src/components/widgets/WeatherWidget.tsx:text-[10px]',
+      // Compact sun/moon metadata.
       'src/components/widgets/WeatherWidget.tsx:text-[11px]',
     ]);
   });
