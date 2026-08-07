@@ -82,6 +82,8 @@ function makeHourlyForecast(
     time: new Date(base.getTime() + i * 60 * 60_000),
     condition: conditions[i] ?? 'sunny',
     temp,
+    feelsLike: temp - 2,
+    precipProbability: 20,
   }));
 }
 
@@ -224,6 +226,15 @@ describe('hourly timeline', () => {
     // The temp appears in hourly cards and possibly current conditions; just
     // check that at least one occurrence is visible.
     expect(screen.queryAllByText(/73°/).length).toBeGreaterThan(0);
+  });
+
+  it('renders hourly feels-like temperatures and precipitation chance', () => {
+    const data = makeWeatherData({ hourly: makeHourlyForecast('sunny', 73) });
+    render(<WeatherWidget data={data} />);
+
+    const firstSample = screen.getAllByTestId('hourly-sample')[0]!;
+    expect(firstSample.textContent).toContain('Feels 71°');
+    expect(firstSample.textContent).toContain('20%');
   });
 
   it('converts hourly temps to °C when useCelsius=true', () => {

@@ -53,6 +53,7 @@ interface PirateWeatherHourly {
   icon: string;
   summary?: string;
   temperature: number;
+  apparentTemperature?: number;
   precipProbability: number;
   precipIntensity: number;
 }
@@ -245,6 +246,7 @@ export async function fetchWeatherData(
       time: new Date(h.time * 1000),
       condition: mapIcon(h.icon),
       temp: Math.round(h.temperature),
+      feelsLike: Math.round(h.apparentTemperature ?? h.temperature),
       precipProbability: Math.round(h.precipProbability * 100),
       precipIntensity: h.precipIntensity,
     }));
@@ -253,7 +255,13 @@ export async function fetchWeatherData(
   // Use currently.precipIntensity for intensity so the label reflects reality.
   const patchedHourly = hourlyData.map((h) =>
     h.time.getTime() <= nowMs
-      ? { ...h, condition: current.condition, temp: current.temperature, precipIntensity: currently.precipIntensity }
+      ? {
+          ...h,
+          condition: current.condition,
+          temp: current.temperature,
+          feelsLike: current.feelsLike,
+          precipIntensity: currently.precipIntensity,
+        }
       : h
   );
 

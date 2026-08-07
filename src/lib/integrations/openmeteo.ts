@@ -67,6 +67,7 @@ interface OpenMeteoCurrent {
 interface OpenMeteoHourly {
   time: string[];
   temperature_2m: number[];
+  apparent_temperature?: number[];
   precipitation_probability?: number[];
   precipitation: number[];
   weather_code: number[];
@@ -216,6 +217,7 @@ export async function fetchWeatherData(
     ].join(','),
     hourly: [
       'temperature_2m',
+      'apparent_temperature',
       'precipitation_probability',
       'precipitation',
       'weather_code',
@@ -328,6 +330,7 @@ export async function fetchWeatherData(
       time: zonedTimeToUtc(t, timezone),
       condition: mapWmoCode(hourly.weather_code[i] ?? 0),
       temp: Math.round(hourly.temperature_2m[i] ?? 0),
+      feelsLike: Math.round(hourly.apparent_temperature?.[i] ?? hourly.temperature_2m[i] ?? 0),
       precipProbability: Math.round(hourly.precipitation_probability?.[i] ?? 0),
       precipIntensity: hourly.precipitation[i] ?? 0,
     }))
@@ -344,6 +347,7 @@ export async function fetchWeatherData(
           ...h,
           condition: currentWeather.condition,
           temp: currentWeather.temperature,
+          feelsLike: currentWeather.feelsLike,
           precipIntensity: current.precipitation,
         }
       : h,

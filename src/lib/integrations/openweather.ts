@@ -70,9 +70,11 @@ interface OpenWeatherForecast {
     dt: number;
     main: {
       temp: number;
+      feels_like?: number;
       temp_min: number;
       temp_max: number;
     };
+    pop?: number;
     weather: Array<{
       id: number;
       main: string;
@@ -349,6 +351,8 @@ async function fetchForecastRaw(
       time: new Date(item.dt * 1000),
       condition: mapCondition(item.weather[0]?.id ?? 800),
       temp: tempFromKelvin(item.main.temp, units),
+      feelsLike: tempFromKelvin(item.main.feels_like ?? item.main.temp, units),
+      precipProbability: item.pop === undefined ? undefined : Math.round(item.pop * 100),
     }));
 
   return {
@@ -432,7 +436,12 @@ export async function fetchWeatherData(
   const nowMs = Date.now();
   const patchedHourly = forecastData.hourly.map((h) =>
     h.time.getTime() <= nowMs
-      ? { ...h, condition: currentData.condition, temp: currentData.temperature }
+      ? {
+          ...h,
+          condition: currentData.condition,
+          temp: currentData.temperature,
+          feelsLike: currentData.feelsLike,
+        }
       : h
   );
 

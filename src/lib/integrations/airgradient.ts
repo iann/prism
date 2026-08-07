@@ -142,7 +142,7 @@ function hourlyTimeMs(time: Date | string): number {
   return time instanceof Date ? time.getTime() : new Date(time).getTime();
 }
 
-/** Keep the timeline's active hour aligned with the current display reading. */
+/** Keep the timeline's active hour aligned with the current display readings. */
 export function syncCurrentHourlyTemperature(weatherData: WeatherData): WeatherData {
   if (!weatherData.hourly || weatherData.hourly.length === 0) return weatherData;
 
@@ -161,7 +161,11 @@ export function syncCurrentHourlyTemperature(weatherData: WeatherData): WeatherD
     ...weatherData,
     hourly: weatherData.hourly.map((hour, index) =>
       index === timelineHourlyIndex
-        ? { ...hour, temp: weatherData.current.temperature }
+        ? {
+            ...hour,
+            temp: weatherData.current.temperature,
+            feelsLike: weatherData.current.feelsLike,
+          }
         : hour
     ),
   };

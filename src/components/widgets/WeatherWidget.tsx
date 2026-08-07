@@ -147,7 +147,8 @@ export interface ForecastDay {
 export interface HourlyForecast {
   time: Date;
   condition: WeatherCondition;
-  temp: number; // °F
+  temp: number; // In WeatherUnits.temperature
+  feelsLike: number; // In WeatherUnits.temperature
   precipProbability?: number; // 0–100
   precipIntensity?: number;   // in/hr or mm/hr, according to WeatherUnits
 }
@@ -875,7 +876,8 @@ function ConditionBandLabel({
  * HOURLY FORECAST
  * Five evenly sampled moments from the next nine hours. A quiet, theme-aware
  * panel reads more naturally on pale widget surfaces than a saturated stripe,
- * while retaining the useful at-a-glance time, condition, and temperature.
+ * while retaining the useful at-a-glance time, condition, temperatures, and
+ * precipitation chance.
  */
 function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: WeatherUnits }) {
   const nowMs = Date.now();
@@ -961,7 +963,7 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
                   index > 0 && 'border-l border-border/60',
                   index === 0 && 'bg-primary/[0.08]'
                 )}
-                aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}, ${label}, ${formatTemperature(hour.temp)} degrees${hour.precipProbability ? `, ${Math.round(hour.precipProbability)} percent chance of rain` : ''}`}
+                aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}, ${label}, ${formatTemperature(hour.temp)} degrees, feels like ${formatTemperature(hour.feelsLike)} degrees${hour.precipProbability !== undefined ? `, ${Math.round(hour.precipProbability)} percent chance of rain` : ''}`}
               >
                 {index === 0 && (
                   <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
@@ -973,6 +975,17 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
                 <span className="text-sm font-semibold leading-none tabular-nums text-foreground">
                   {formatTemperature(hour.temp)}°
                 </span>
+                <span className="text-xs leading-none tabular-nums text-muted-foreground">
+                  Feels {formatTemperature(hour.feelsLike)}°
+                </span>
+                {hour.precipProbability !== undefined && (
+                  <span
+                    className="text-xs leading-none tabular-nums text-muted-foreground"
+                    title="Chance of precipitation"
+                  >
+                    {Math.round(hour.precipProbability)}%
+                  </span>
+                )}
               </div>
             );
           })}
@@ -1763,6 +1776,7 @@ function getDemoWeatherData(location: string): WeatherData {
       time: t,
       condition: hourlyConditions[i] ?? 'cloudy',
       temp: hourlyTemps[i] ?? 50,
+      feelsLike: (hourlyTemps[i] ?? 50) - 2,
       precipProbability: hourlyPrecips[i] ?? 0,
     };
   });
