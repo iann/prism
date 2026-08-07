@@ -724,6 +724,7 @@ function formatAlertEnd(end?: Date): string {
   const time = endDate.toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',
+    hour12: true,
   });
 
   return sameDay
@@ -755,7 +756,7 @@ function WeatherAlerts({ alerts }: { alerts: WeatherAlert[] }) {
               tone.container,
             )}
           >
-            <AlertTriangle className={cn('mt-0.5 h-4 w-4 flex-shrink-0', tone.icon)} aria-hidden="true" />
+            <AlertTriangle className={cn('h-5 w-5 flex-shrink-0 self-center', tone.icon)} aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-baseline justify-between gap-2">
                 <span className="truncate text-xs font-bold uppercase tracking-wide">{alert.title}</span>
