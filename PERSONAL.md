@@ -541,6 +541,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 314bdd8
 
+66. **Active weather advisories and warnings**
+
+    Fetches active National Weather Service alerts for the configured weather
+    coordinates, caches them separately from the forecast, and shows compact
+    severity-colored advisory or warning banners in the weather widget.
+
+    Commit: 4dddcc7
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

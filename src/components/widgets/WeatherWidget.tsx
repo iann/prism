@@ -40,6 +40,7 @@ import {
   Zap,
   Thermometer,
   Eye,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
@@ -132,6 +133,23 @@ export interface CurrentWeather {
 }
 
 export type WeatherCurrentSource = 'airgradient' | 'pirate' | 'provider';
+
+export type WeatherAlertSeverity = 'extreme' | 'severe' | 'moderate' | 'minor' | 'unknown';
+
+export interface WeatherAlert {
+  id: string;
+  /** Short event name, such as "Heat Advisory" or "Tornado Warning". */
+  title: string;
+  /** Issuer-provided headline, when it adds context beyond the event name. */
+  headline?: string;
+  description?: string;
+  instruction?: string;
+  severity: WeatherAlertSeverity;
+  source?: string;
+  start?: Date;
+  end?: Date;
+  url?: string;
+}
 
 export interface ForecastDay {
   date: Date;
@@ -295,6 +313,8 @@ export interface WeatherData {
   location: string;
   current: CurrentWeather;
   forecast: ForecastDay[];
+  /** Currently active watches, warnings, advisories, or similar alerts. */
+  alerts?: WeatherAlert[];
   /** Next 24 hours of hourly forecast data for the timeline. */
   hourly?: HourlyForecast[];
   periods?: ForecastPeriod[];
@@ -610,6 +630,10 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           sunset={weatherData.sunset}
         />
 
+        {weatherData.alerts && weatherData.alerts.length > 0 && (
+          <WeatherAlerts alerts={weatherData.alerts} />
+        )}
+
         {/* HOURLY FORECAST */}
         {showHourly && weatherData.hourly && weatherData.hourly.length > 0 && (
           <div className="border-t border-border pt-3">
@@ -663,6 +687,96 @@ export const WeatherWidget = React.memo(function WeatherWidget({
     </WidgetContainer>
   );
 });
+
+
+function getWeatherAlertTone(severity: WeatherAlertSeverity) {
+  switch (severity) {
+    case 'extreme':
+    case 'severe':
+      return {
+        container: 'border-red-500/80 bg-red-500/15 text-red-950 dark:border-red-300/70 dark:bg-red-500/20 dark:text-red-50',
+        icon: 'text-red-600 dark:text-red-300',
+      };
+    case 'moderate':
+      return {
+        container: 'border-orange-500/80 bg-orange-500/15 text-orange-950 dark:border-orange-300/70 dark:bg-orange-500/20 dark:text-orange-50',
+        icon: 'text-orange-600 dark:text-orange-300',
+      };
+    case 'minor':
+      return {
+        container: 'border-yellow-500/80 bg-yellow-400/20 text-yellow-950 dark:border-yellow-300/70 dark:bg-yellow-400/20 dark:text-yellow-50',
+        icon: 'text-yellow-600 dark:text-yellow-300',
+      };
+    default:
+      return {
+        container: 'border-amber-500/80 bg-amber-400/15 text-amber-950 dark:border-amber-300/70 dark:bg-amber-400/20 dark:text-amber-50',
+        icon: 'text-amber-600 dark:text-amber-300',
+      };
+  }
+}
+
+function formatAlertEnd(end?: Date): string {
+  if (!end || !Number.isFinite(new Date(end).getTime())) return 'Active now';
+
+  const now = new Date();
+  const endDate = new Date(end);
+  const sameDay = now.toDateString() === endDate.toDateString();
+  const time = endDate.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+  return sameDay
+    ? `Until ${time}`
+    : `Through ${endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+}
+
+function WeatherAlerts({ alerts }: { alerts: WeatherAlert[] }) {
+  const visibleAlerts = alerts.slice(0, 2);
+
+  return (
+    <div
+      data-testid="weather-alerts"
+      aria-label={`${alerts.length} active weather alert${alerts.length === 1 ? '' : 's'}`}
+      className="flex flex-col gap-1.5"
+    >
+      {visibleAlerts.map((alert) => {
+        const tone = getWeatherAlertTone(alert.severity);
+        const details = alert.description || alert.instruction || alert.headline;
+
+        return (
+          <div
+            key={alert.id}
+            role="alert"
+            aria-label={`${alert.title} active weather alert`}
+            title={details}
+            className={cn(
+              'flex min-w-0 items-start gap-2 rounded-md border px-2.5 py-1.5',
+              tone.container,
+            )}
+          >
+            <AlertTriangle className={cn('mt-0.5 h-4 w-4 flex-shrink-0', tone.icon)} aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-baseline justify-between gap-2">
+                <span className="truncate text-xs font-bold uppercase tracking-wide">{alert.title}</span>
+                <span className="shrink-0 text-xs font-medium opacity-80">{formatAlertEnd(alert.end)}</span>
+              </div>
+              {alert.headline && (
+                <div className="truncate text-xs leading-4 opacity-90">{alert.headline}</div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {alerts.length > visibleAlerts.length && (
+        <span className="px-1 text-xs font-medium text-muted-foreground">
+          +{alerts.length - visibleAlerts.length} more active alert{alerts.length - visibleAlerts.length === 1 ? '' : 's'}
+        </span>
+      )}
+    </div>
+  );
+}
 
 
 /**

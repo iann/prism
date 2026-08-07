@@ -39,7 +39,13 @@ jest.mock('../WidgetContainer', () => ({
 // ---------------------------------------------------------------------------
 
 import { getAirQualityStatus, getUvIndexStatus, WeatherWidget } from '../WeatherWidget';
-import type { WeatherData, ForecastDay, HourlyForecast, WeatherCondition } from '../WeatherWidget';
+import type {
+  WeatherAlert,
+  WeatherData,
+  ForecastDay,
+  HourlyForecast,
+  WeatherCondition,
+} from '../WeatherWidget';
 
 // ---------------------------------------------------------------------------
 // Test data helpers
@@ -259,6 +265,41 @@ describe('hourly timeline', () => {
   it('hides the hourly section when showForecast=false', () => {
     render(<WeatherWidget data={makeWeatherData()} showForecast={false} />);
     expect(screen.queryByText(/Next .* Hours/)).toBeNull();
+  });
+});
+
+describe('active weather alerts', () => {
+  it('renders the active alert event, headline, and severity styling', () => {
+    const alert: WeatherAlert = {
+      id: 'heat-advisory',
+      title: 'Heat Advisory',
+      headline: 'Heat Advisory remains in effect',
+      description: 'Heat index values may become dangerous.',
+      severity: 'moderate',
+    };
+
+    render(<WeatherWidget data={makeWeatherData({ alerts: [alert] })} />);
+
+    expect(screen.getByTestId('weather-alerts').getAttribute('aria-label')).toBe(
+      '1 active weather alert',
+    );
+    expect(screen.getByRole('alert', { name: 'Heat Advisory active weather alert' }).textContent)
+      .toContain('Heat Advisory');
+    expect(screen.getByText('Heat Advisory remains in effect')).not.toBeNull();
+    expect(screen.getByRole('alert').className).toContain('border-orange-500/80');
+  });
+
+  it('keeps the banner compact when several alerts are active', () => {
+    const alerts: WeatherAlert[] = [
+      { id: 'one', title: 'Tornado Warning', severity: 'extreme' },
+      { id: 'two', title: 'Flood Watch', severity: 'moderate' },
+      { id: 'three', title: 'Wind Advisory', severity: 'minor' },
+    ];
+
+    render(<WeatherWidget data={makeWeatherData({ alerts })} />);
+
+    expect(screen.getAllByRole('alert')).toHaveLength(2);
+    expect(screen.getByText('+1 more active alert')).not.toBeNull();
   });
 });
 describe('precipitation notice', () => {
