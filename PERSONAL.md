@@ -498,6 +498,12 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 3ba976c
 
+60. **Aligned humidity and dew point**
+
+    Places humidity and dew point on the same compact weather-header row.
+
+    Commit: 2289699
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
