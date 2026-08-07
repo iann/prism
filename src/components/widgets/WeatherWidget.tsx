@@ -658,7 +658,7 @@ function CurrentConditions({
                 )}
               >
                 <span className={cn('h-1.5 w-1.5 rounded-full', airQualityStatus.dotClassName)} />
-                {airQualityStatus.label}
+                Air quality: {airQualityStatus.label}
               </span>
               <span className="text-[10px]">{weather.airQuality.pm25} µg/m³</span>
             </div>

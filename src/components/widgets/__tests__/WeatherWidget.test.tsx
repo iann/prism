@@ -565,7 +565,7 @@ describe('current conditions', () => {
     render(<WeatherWidget data={data} />);
 
     const badge = screen.getByTestId('air-quality-badge');
-    expect(badge.textContent).toBe('Moderate');
+    expect(badge.textContent).toBe('Air quality: Moderate');
     expect(badge.getAttribute('aria-label')).toBe('Air quality: Moderate');
     expect(screen.queryByText('27 µg/m³')).not.toBeNull();
     expect(within(screen.getByTestId('weather-current-stats')).queryByTestId('air-quality-badge')).toBeNull();
