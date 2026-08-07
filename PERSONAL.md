@@ -477,6 +477,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 18b4658
 
+57. **Readable compact weather labels**
+
+    Raises compact weather headings, air-quality badges, and PM2.5 metadata
+    to the readable `text-xs` size and updates the surface contract.
+
+    Commit: 19bb010
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
