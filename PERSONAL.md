@@ -533,6 +533,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 9bcc577
 
+65. **Compact daylight UV risk indicator**
+
+    Adds a daylight-only UV line with a warning dot for Moderate and above,
+    a persistent High-and-above pulse in Performance Mode, and compact aligned
+    current-weather header spacing.
+
+    Commit: 314bdd8
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

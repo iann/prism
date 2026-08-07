@@ -413,6 +413,23 @@
     @apply flex flex-row items-center gap-4;
   }
 
+  @keyframes uv-index-dot-pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.55;
+      transform: scale(1.5);
+    }
+  }
+
+  .uv-index-dot--pulse {
+    animation: uv-index-dot-pulse 1.8s ease-in-out infinite;
+    transform-origin: center;
+    will-change: opacity, transform;
+  }
+
   /* Respect the OS-level "reduce motion" accessibility preference. Disables
    * animations and collapses transitions site-wide. Standard accessible
    * pattern — keeps a 0.01ms animation-duration so animations still "fire"
@@ -549,6 +566,14 @@
     html.performance-mode .precipitation-wave-line,
     html.performance-mode .precipitation-wave-variation {
       animation-duration: 3.2s !important;
+      animation-iteration-count: infinite !important;
+    }
+
+    /* The UV warning is intentionally retained in performance mode: it is a
+     * small, meaningful status cue rather than decorative motion. */
+    html.performance-mode .uv-index-dot--pulse {
+      animation-duration: 1.8s !important;
+      animation-delay: 0ms !important;
       animation-iteration-count: infinite !important;
     }
   }

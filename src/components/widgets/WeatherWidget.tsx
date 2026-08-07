@@ -38,7 +38,6 @@ import {
   Wind,
   Droplets,
   Zap,
-  Gauge,
   Thermometer,
   Eye,
 } from 'lucide-react';
@@ -255,6 +254,42 @@ export function getAirQualityStatus(pm25: number): AirQualityStatus | null {
     dotClassName: 'bg-rose-700 dark:bg-rose-300',
   };
 }
+export type UvIndexCategory = 'Low' | 'Moderate' | 'High' | 'Very High' | 'Extreme';
+
+export type UvIndexStatus = {
+  label: UvIndexCategory;
+  dotClassName: string;
+};
+
+/** WHO/EPA UV Index bands, kept in one place so the indicator and its label agree. */
+export function getUvIndexStatus(uvIndex: number): UvIndexStatus | null {
+  if (!Number.isFinite(uvIndex) || uvIndex < 0) return null;
+
+  if (uvIndex <= 2) {
+    return { label: 'Low', dotClassName: 'bg-emerald-500 dark:bg-emerald-300' };
+  }
+  if (uvIndex <= 5) {
+    return { label: 'Moderate', dotClassName: 'bg-yellow-500 dark:bg-yellow-300' };
+  }
+  if (uvIndex <= 7) {
+    return { label: 'High', dotClassName: 'bg-orange-500 dark:bg-orange-300' };
+  }
+  if (uvIndex <= 10) {
+    return { label: 'Very High', dotClassName: 'bg-red-500 dark:bg-red-300' };
+  }
+  return { label: 'Extreme', dotClassName: 'bg-purple-500 dark:bg-purple-300' };
+}
+
+function isSunAboveHorizon(sunrise?: Date, sunset?: Date, nowMs = Date.now()): boolean {
+  if (!sunrise || !sunset) return true;
+
+  const sunriseMs = new Date(sunrise).getTime();
+  const sunsetMs = new Date(sunset).getTime();
+  if (!Number.isFinite(sunriseMs) || !Number.isFinite(sunsetMs)) return true;
+
+  return nowMs >= sunriseMs && nowMs <= sunsetMs;
+}
+
 
 export interface WeatherData {
   location: string;
@@ -571,6 +606,8 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           location={weatherData.location}
           units={units}
           currentSource={weatherData.currentSource}
+          sunrise={weatherData.sunrise}
+          sunset={weatherData.sunset}
         />
 
         {/* HOURLY FORECAST */}
@@ -636,65 +673,79 @@ function CurrentConditions({
   location,
   units,
   currentSource,
+  sunrise,
+  sunset,
 }: {
   weather: CurrentWeather;
   location: string;
   units: WeatherUnits;
   currentSource?: WeatherCurrentSource;
+  sunrise?: Date;
+  sunset?: Date;
 }) {
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
+  const sunIsAboveHorizon = isSunAboveHorizon(sunrise, sunset);
   const airQualityStatus = weather.airQuality?.pm25 !== undefined
     ? getAirQualityStatus(weather.airQuality.pm25)
     : null;
 
   return (
-    <div className="flex items-start justify-between gap-2">
-      {/* Left: icon + actual temperature + feels-like temperature */}
-      <div className="flex items-center gap-3">
-        <WeatherIcon
-          condition={weather.condition}
-          className="h-10 w-10 text-primary flex-shrink-0"
-        />
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="text-5xl font-bold leading-none">{temp}</div>
-            {currentSource === 'pirate' && (
-              <span
-                data-testid="weather-fallback-indicator"
-                role="img"
-                aria-label="Using Pirate Weather fallback data"
-                title="Using Pirate Weather fallback data"
-                className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-red-500"
-              />
-            )}
-          </div>
-          <div className="text-lg text-muted-foreground mt-1">Feels like {feels}</div>
-          {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
-            <div
-              className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"
-              title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
-            >
-              <span
-                data-testid="air-quality-badge"
-                aria-label={`Air quality: ${airQualityStatus.label}`}
-                title={airQualityStatus.label}
-                className={cn(
-                  'inline-flex max-w-[135px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-xs font-medium leading-none',
-                  airQualityStatus.badgeClassName,
-                )}
-              >
-                <span className={cn('h-1.5 w-1.5 rounded-full', airQualityStatus.dotClassName)} />
-                Air: {airQualityStatus.label}
-              </span>
-              <span className="text-xs">{weather.airQuality.pm25} µg/m³</span>
+    <div
+      data-testid="weather-current-header"
+      className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3"
+    >
+      {/* Keep both columns top-aligned, with compact, consistent line spacing
+          inside each stack so the header does not grow around the large temp. */}
+      <div className="min-w-0">
+        <div className="flex items-center gap-3">
+          <WeatherIcon
+            condition={weather.condition}
+            className="h-10 w-10 text-primary flex-shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="text-5xl font-bold leading-none">{temp}</div>
+              {currentSource === 'pirate' && (
+                <span
+                  data-testid="weather-fallback-indicator"
+                  role="img"
+                  aria-label="Using Pirate Weather fallback data"
+                  title="Using Pirate Weather fallback data"
+                  className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-red-500"
+                />
+              )}
             </div>
-          )}
+          </div>
         </div>
+        <div className="text-lg leading-7 text-muted-foreground">Feels like {feels}</div>
+        {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
+          <div
+            className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"
+            title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
+          >
+            <span
+              data-testid="air-quality-badge"
+              aria-label={`Air quality: ${airQualityStatus.label}`}
+              title={airQualityStatus.label}
+              className={cn(
+                'inline-flex max-w-[135px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-xs font-medium leading-none',
+                airQualityStatus.badgeClassName,
+              )}
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full', airQualityStatus.dotClassName)} />
+              Air: {airQualityStatus.label}
+            </span>
+            <span className="text-xs">{weather.airQuality.pm25} µg/m³</span>
+          </div>
+        )}
       </div>
 
       {/* Right: current stats */}
-      <div data-testid="weather-current-stats" className="text-right text-xs text-muted-foreground space-y-1 pt-0.5">
+      <div
+        data-testid="weather-current-stats"
+        className="flex flex-col items-end gap-1 pt-0.5 text-right text-xs leading-4 text-muted-foreground"
+      >
         <div data-testid="weather-humidity-dewpoint" className="flex items-center justify-end gap-2">
           <div className="flex items-center gap-1">
             <Droplets className="h-3 w-3" />
@@ -714,11 +765,8 @@ function CurrentConditions({
             {weather.windGust !== undefined && ` · Gusts ${weather.windGust} ${units.windSpeed}`}
           </span>
         </div>
-        {weather.uvIndex !== undefined && (
-          <div className="flex items-center justify-end gap-1">
-            <Gauge className="h-3 w-3" />
-            <span>UV {formatCompactNumber(weather.uvIndex)}</span>
-          </div>
+        {weather.uvIndex !== undefined && sunIsAboveHorizon && (
+          <UvIndexLine uvIndex={weather.uvIndex} />
         )}
         {weather.visibility !== undefined && (
           <div className="flex items-center justify-end gap-1">
@@ -727,7 +775,7 @@ function CurrentConditions({
           </div>
         )}
         {location && (
-          <div className="pt-1 text-xs truncate max-w-[140px]">
+          <div className="flex max-w-[140px] items-center justify-end truncate">
             {formatLocation(location)}
           </div>
         )}
@@ -736,6 +784,38 @@ function CurrentConditions({
   );
 }
 
+
+/** Keep UV as a single compact stat, with a warning dot for Moderate and above. */
+function UvIndexLine({ uvIndex }: { uvIndex: number }) {
+  const status = getUvIndexStatus(uvIndex);
+  if (!status) return null;
+
+  const displayValue = formatCompactNumber(uvIndex);
+  const showWarningDot = uvIndex > 2;
+  const shouldPulse = uvIndex > 5;
+
+  return (
+    <div
+      data-testid="uv-index-line"
+      className="flex items-center justify-end gap-1"
+      title={`UV index ${displayValue}: ${status.label}`}
+      aria-label={`UV index ${displayValue}, ${status.label}`}
+    >
+      {showWarningDot && (
+        <span
+          data-testid="uv-index-dot"
+          className={cn(
+            'h-1.5 w-1.5 rounded-full',
+            status.dotClassName,
+            shouldPulse && 'uv-index-dot--pulse',
+          )}
+          aria-hidden="true"
+        />
+      )}
+      <span>UV {displayValue}</span>
+    </div>
+  );
+}
 
 /**
  * WEATHER ICON
@@ -1810,6 +1890,7 @@ function getDemoWeatherData(location: string): WeatherData {
       condition:   'partly-cloudy',
       humidity:    62,
       windSpeed:   9,
+      uvIndex:     4.8,
       description: 'Partly cloudy',
     },
     forecast,
