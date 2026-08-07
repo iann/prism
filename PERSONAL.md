@@ -484,6 +484,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 19bb010
 
+58. **Simplified hourly timeline tiles**
+
+    Removes repeated condition text from each timeline tile so the condition
+    ribbon above is the single visual summary.
+
+    Commit: 51d7658
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
