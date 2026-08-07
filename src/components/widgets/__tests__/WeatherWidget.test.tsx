@@ -228,6 +228,13 @@ describe('hourly timeline', () => {
     expect(screen.queryAllByText(/73°/).length).toBeGreaterThan(0);
   });
 
+  it('renders hourly times with an am/pm suffix', () => {
+    render(<WeatherWidget data={makeWeatherData()} />);
+
+    const secondSample = screen.getAllByTestId('hourly-sample')[1]!;
+    expect(secondSample.textContent).toMatch(/\d+(am|pm)/i);
+  });
+
   it('renders hourly feels-like temperatures and precipitation chance', () => {
     const data = makeWeatherData({ hourly: makeHourlyForecast('sunny', 73) });
     render(<WeatherWidget data={data} />);

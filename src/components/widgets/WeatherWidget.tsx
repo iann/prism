@@ -916,7 +916,7 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
   }, []);
 
   const formatHour = (date: Date) => date
-    .toLocaleTimeString([], { hour: 'numeric' })
+    .toLocaleTimeString([], { hour: 'numeric', hour12: true })
     .replace(' ', '')
     .toLowerCase();
   const formatTemperature = (temperature: number) => units.temperature === 'C'
