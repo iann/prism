@@ -456,6 +456,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 236d19c
 
+54. **Aggressive air-quality colors**
+
+    Uses saturated solid badge fills, high-contrast text, and category-colored
+    shadows for an unmistakable air-quality signal.
+
+    Commit: 4702a92
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
