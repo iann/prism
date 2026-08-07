@@ -435,6 +435,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 73dde0d
 
+51. **Compact air-quality label**
+
+    Shortens the status pill to “Air: [category]” while retaining the full
+    accessible label and tooltip.
+
+    Commit: a1ca278
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
