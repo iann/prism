@@ -511,6 +511,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: f538ea6
 
+62. **Compact hourly temperature pairing**
+
+    Places each timeline tile's actual and feels-like temperatures on one line
+    with a pipe separator.
+
+    Commit: 8320d8e
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
