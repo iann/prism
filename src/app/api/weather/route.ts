@@ -22,6 +22,7 @@ import type { WeatherCurrentSource, WeatherUnits } from '@/components/widgets/We
 import {
   applyAirGradientCurrent,
   fetchAirGradientMeasurement,
+  syncCurrentHourlyTemperature,
 } from '@/lib/integrations/airgradient';
 
 // Keep provider responses cached longer than the local sensor. The dashboard
@@ -125,6 +126,10 @@ export async function GET(request: NextRequest) {
       // available when it is offline, but expose the fallback state to UI.
       logError('AirGradient unavailable; using weather provider current data:', error);
     }
+
+    // Whichever source supplied the current reading, make the timeline's
+    // "Now" point use that exact displayed temperature too.
+    weatherData = syncCurrentHourlyTemperature(weatherData);
 
     return NextResponse.json({ ...weatherData, currentSource });
   } catch (error) {

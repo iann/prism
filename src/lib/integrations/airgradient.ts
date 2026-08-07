@@ -138,6 +138,35 @@ function celsiusToDisplay(celsius: number, units: WeatherUnits): number {
   return Math.round(units.temperature === 'C' ? celsius : (celsius * 9) / 5 + 32);
 }
 
+function hourlyTimeMs(time: Date | string): number {
+  return time instanceof Date ? time.getTime() : new Date(time).getTime();
+}
+
+/** Keep the timeline's active hour aligned with the current display reading. */
+export function syncCurrentHourlyTemperature(weatherData: WeatherData): WeatherData {
+  if (!weatherData.hourly || weatherData.hourly.length === 0) return weatherData;
+
+  const nowMs = Date.now();
+  const activeHourlyIndex = weatherData.hourly.findIndex((hour) => {
+    const hourMs = hourlyTimeMs(hour.time);
+    return hourMs <= nowMs && hourMs + 60 * 60_000 > nowMs;
+  });
+  const timelineHourlyIndex = activeHourlyIndex >= 0
+    ? activeHourlyIndex
+    : weatherData.hourly.findIndex((hour) => hourlyTimeMs(hour.time) > nowMs);
+
+  if (timelineHourlyIndex < 0) return weatherData;
+
+  return {
+    ...weatherData,
+    hourly: weatherData.hourly.map((hour, index) =>
+      index === timelineHourlyIndex
+        ? { ...hour, temp: weatherData.current.temperature }
+        : hour
+    ),
+  };
+}
+
 /** Overlay local temperature, humidity, air quality, and derived feels-like data. */
 export function applyAirGradientCurrent(
   weatherData: WeatherData,
@@ -162,7 +191,7 @@ export function applyAirGradientCurrent(
         ? Math.round(((feelsLikeF - 32) * 5) / 9)
         : feelsLikeF;
 
-  return {
+  return syncCurrentHourlyTemperature({
     ...weatherData,
     lastUpdated: new Date(),
     current: {
@@ -172,5 +201,5 @@ export function applyAirGradientCurrent(
       humidity: Math.round(humidity),
       airQuality: measurement.airQuality,
     },
-  };
+  });
 }

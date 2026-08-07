@@ -80,6 +80,7 @@ describe('AirGradient integration', () => {
 
   it('uses the local readings to derive the current display values', async () => {
     const { applyAirGradientCurrent, calculateFeelsLikeF } = await import('../airgradient');
+    const now = Date.now();
     const baseWeather = {
       location: 'Melrose, MA',
       current: {
@@ -91,6 +92,18 @@ describe('AirGradient integration', () => {
         description: 'Overcast',
       },
       forecast: [],
+      hourly: [
+        {
+          time: new Date(now - 30 * 60_000),
+          condition: 'cloudy' as const,
+          temp: 81,
+        },
+        {
+          time: new Date(now + 30 * 60_000),
+          condition: 'cloudy' as const,
+          temp: 88,
+        },
+      ],
       units: { temperature: 'F' as const, windSpeed: 'mph' as const, precipitation: 'in' as const },
       lastUpdated: new Date('2026-08-07T00:00:00Z'),
     };
@@ -110,5 +123,22 @@ describe('AirGradient integration', () => {
     expect(result.current.feelsLike).toBe(calculateFeelsLikeF(78.782, 68.57, 3));
     expect(result.current.airQuality).toEqual({ pm25: 27 });
     expect(result.current.description).toBe('Overcast');
+    expect(result.hourly?.[0]?.temp).toBe(79);
+    expect(result.hourly?.[1]?.temp).toBe(88);
+  });
+
+  it('aligns the active timeline slot when the provider is the current source', async () => {
+    const { syncCurrentHourlyTemperature } = await import('../airgradient');
+    const now = Date.now();
+    const result = syncCurrentHourlyTemperature({
+      current: { temperature: 81 },
+      hourly: [
+        { time: new Date(now - 30 * 60_000).toISOString(), temp: 80 },
+        { time: new Date(now + 30 * 60_000).toISOString(), temp: 88 },
+      ],
+    } as never);
+
+    expect(result.hourly?.[0]?.temp).toBe(81);
+    expect(result.hourly?.[1]?.temp).toBe(88);
   });
 });
