@@ -108,7 +108,7 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
   // response carries the resolved location coordinates used for solar timing.
   const { data: sunsetWeather } = useWeather({
     enabled: mounted && theme === 'sunset',
-    refreshInterval: 5 * 60 * 1000,
+    refreshInterval: 60 * 1000,
   });
 
   // On mount, load saved theme from localStorage

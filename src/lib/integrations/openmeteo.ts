@@ -43,6 +43,12 @@ function defaultImperialUnits(): WeatherUnits {
   return { temperature: 'F', windSpeed: 'mph', precipitation: 'in' };
 }
 
+function visibilityFromMeters(meters: number | undefined, units: WeatherUnits): number | undefined {
+  if (meters === undefined || !Number.isFinite(meters)) return undefined;
+  const value = units.temperature === 'C' ? meters / 1000 : meters / 1609.344;
+  return Math.round(value * 10) / 10;
+}
+
 // ---------------------------------------------------------------------------
 // Open-Meteo response types (subset of the fields we use)
 // ---------------------------------------------------------------------------
@@ -53,6 +59,7 @@ interface OpenMeteoCurrent {
   apparent_temperature: number;
   relative_humidity_2m: number; // 0-100
   wind_speed_10m: number;
+  wind_gusts_10m?: number;
   weather_code: number;
   precipitation: number;
 }
@@ -60,9 +67,13 @@ interface OpenMeteoCurrent {
 interface OpenMeteoHourly {
   time: string[];
   temperature_2m: number[];
+  apparent_temperature?: number[];
   precipitation_probability?: number[];
   precipitation: number[];
   weather_code: number[];
+  uv_index?: number[];
+  dew_point_2m?: number[];
+  visibility?: number[]; // metres
 }
 
 interface OpenMeteoDaily {
@@ -200,14 +211,19 @@ export async function fetchWeatherData(
       'apparent_temperature',
       'relative_humidity_2m',
       'wind_speed_10m',
+      'wind_gusts_10m',
       'weather_code',
       'precipitation',
     ].join(','),
     hourly: [
       'temperature_2m',
+      'apparent_temperature',
       'precipitation_probability',
       'precipitation',
       'weather_code',
+      'uv_index',
+      'dew_point_2m',
+      'visibility',
     ].join(','),
     daily: [
       'temperature_2m_max',
@@ -237,6 +253,14 @@ export async function fetchWeatherData(
   const data: OpenMeteoResponse = await response.json();
   const { current, hourly, daily, timezone } = data;
 
+  const currentHourKey = current.time.slice(0, 13);
+  const currentHourIndex = hourly.time.findIndex((time) => time.slice(0, 13) === currentHourKey);
+  const currentHourlyValue = <T,>(values?: T[]): T | undefined =>
+    currentHourIndex >= 0 ? values?.[currentHourIndex] : undefined;
+  const currentUvIndex = currentHourlyValue(hourly.uv_index);
+  const currentDewPoint = currentHourlyValue(hourly.dew_point_2m);
+  const currentVisibility = currentHourlyValue(hourly.visibility);
+
   // ── Current conditions ────────────────────────────────────────────────────
   const currentWeather: CurrentWeather = {
     temperature: Math.round(current.temperature_2m),
@@ -244,6 +268,10 @@ export async function fetchWeatherData(
     condition: mapWmoCode(current.weather_code),
     humidity: Math.round(current.relative_humidity_2m),
     windSpeed: Math.round(current.wind_speed_10m),
+    windGust: current.wind_gusts_10m === undefined ? undefined : Math.round(current.wind_gusts_10m),
+    uvIndex: currentUvIndex === undefined ? undefined : Math.round(currentUvIndex * 10) / 10,
+    dewPoint: currentDewPoint === undefined ? undefined : Math.round(currentDewPoint),
+    visibility: visibilityFromMeters(currentVisibility, units),
     description: describeWmo(current.weather_code),
   };
 
@@ -302,6 +330,7 @@ export async function fetchWeatherData(
       time: zonedTimeToUtc(t, timezone),
       condition: mapWmoCode(hourly.weather_code[i] ?? 0),
       temp: Math.round(hourly.temperature_2m[i] ?? 0),
+      feelsLike: Math.round(hourly.apparent_temperature?.[i] ?? hourly.temperature_2m[i] ?? 0),
       precipProbability: Math.round(hourly.precipitation_probability?.[i] ?? 0),
       precipIntensity: hourly.precipitation[i] ?? 0,
     }))
@@ -318,6 +347,7 @@ export async function fetchWeatherData(
           ...h,
           condition: currentWeather.condition,
           temp: currentWeather.temperature,
+          feelsLike: currentWeather.feelsLike,
           precipIntensity: current.precipitation,
         }
       : h,

@@ -18,13 +18,19 @@ import { db } from '@/lib/db/client';
 import { settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logError } from '@/lib/utils/logError';
-import type { WeatherUnits } from '@/components/widgets/WeatherWidget';
+import type { WeatherCurrentSource, WeatherUnits } from '@/components/widgets/WeatherWidget';
+import {
+  applyAirGradientCurrent,
+  fetchAirGradientMeasurement,
+  syncCurrentHourlyTemperature,
+} from '@/lib/integrations/airgradient';
 
-// Keep non-Pirate providers at the existing cadence. Pirate Weather's free
-// tier supports a five-minute dashboard cadence for a single location while
-// staying below its monthly quota.
+// Keep provider responses cached longer than the local sensor. The dashboard
+// polls every minute, while Pirate Weather's response can stay cached for
+// five minutes to avoid unnecessary provider quota usage.
 const WEATHER_CACHE_TTL = 30 * 60;
 const PIRATE_WEATHER_CACHE_TTL = 5 * 60;
+const AIRGRADIENT_CACHE_TTL = 60;
 
 /**
  * Resolve location: query param > DB setting (lat/lon preferred, legacy string fallback) > env var > default
@@ -100,13 +106,32 @@ export async function GET(request: NextRequest) {
     const cacheTtl = provider === 'pirate' ? PIRATE_WEATHER_CACHE_TTL : WEATHER_CACHE_TTL;
 
     // Get from cache or fetch fresh
-    const weatherData = await getCached(
+    let weatherData = await getCached(
       cacheKey,
       () => fetchWeatherData(location, { units }),
       cacheTtl
     );
 
-    return NextResponse.json(weatherData);
+    let currentSource: WeatherCurrentSource = provider === 'pirate' ? 'pirate' : 'provider';
+    try {
+      const airGradient = await getCached(
+        'airgradient:10.0.1.55:current',
+        fetchAirGradientMeasurement,
+        AIRGRADIENT_CACHE_TTL,
+      );
+      weatherData = applyAirGradientCurrent(weatherData, airGradient, units);
+      currentSource = 'airgradient';
+    } catch (error) {
+      // The local monitor is deliberately best-effort. Keep provider data
+      // available when it is offline, but expose the fallback state to UI.
+      logError('AirGradient unavailable; using weather provider current data:', error);
+    }
+
+    // Whichever source supplied the current reading, make the timeline's
+    // "Now" point use that exact displayed temperature too.
+    weatherData = syncCurrentHourlyTemperature(weatherData);
+
+    return NextResponse.json({ ...weatherData, currentSource });
   } catch (error) {
     logError('Weather API error:', error);
 

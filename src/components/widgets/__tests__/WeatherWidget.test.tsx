@@ -38,7 +38,7 @@ jest.mock('../WidgetContainer', () => ({
 
 // ---------------------------------------------------------------------------
 
-import { WeatherWidget } from '../WeatherWidget';
+import { getAirQualityStatus, WeatherWidget } from '../WeatherWidget';
 import type { WeatherData, ForecastDay, HourlyForecast, WeatherCondition } from '../WeatherWidget';
 
 // ---------------------------------------------------------------------------
@@ -82,6 +82,8 @@ function makeHourlyForecast(
     time: new Date(base.getTime() + i * 60 * 60_000),
     condition: conditions[i] ?? 'sunny',
     temp,
+    feelsLike: temp - 2,
+    precipProbability: 20,
   }));
 }
 
@@ -177,6 +179,12 @@ describe('hourly timeline', () => {
     expect(screen.queryAllByText('Rain').length).toBeGreaterThan(0);
   });
 
+  it('keeps condition labels in the ribbon instead of repeating them in tiles', () => {
+    render(<WeatherWidget data={makeWeatherData({ hourly: makeHourlyForecast('sunny', 68) })} />);
+    expect(screen.queryByLabelText('Hourly conditions')).not.toBeNull();
+    expect(screen.getAllByTestId('hourly-sample')[0]?.textContent).not.toContain('Clear');
+  });
+
   it('shows the full condition label when the band has room', () => {
     const restoreLayout = mockConditionBandLayout(120, 90);
     try {
@@ -218,6 +226,15 @@ describe('hourly timeline', () => {
     // The temp appears in hourly cards and possibly current conditions; just
     // check that at least one occurrence is visible.
     expect(screen.queryAllByText(/73°/).length).toBeGreaterThan(0);
+  });
+
+  it('renders hourly feels-like temperatures and precipitation chance', () => {
+    const data = makeWeatherData({ hourly: makeHourlyForecast('sunny', 73) });
+    render(<WeatherWidget data={data} />);
+
+    const firstSample = screen.getAllByTestId('hourly-sample')[0]!;
+    expect(firstSample.textContent).toContain('73° | 71°');
+    expect(firstSample.textContent).toContain('20%');
   });
 
   it('converts hourly temps to °C when useCelsius=true', () => {
@@ -468,6 +485,19 @@ describe('current conditions', () => {
     expect(screen.queryByText('73°')).not.toBeNull();
   });
 
+  it('shows a red fallback indicator when Pirate Weather is supplying current data', () => {
+    render(<WeatherWidget data={makeWeatherData({ currentSource: 'pirate' })} />);
+
+    expect(screen.getByTestId('weather-fallback-indicator').getAttribute('aria-label'))
+      .toBe('Using Pirate Weather fallback data');
+  });
+
+  it('does not show the fallback indicator for the local sensor source', () => {
+    render(<WeatherWidget data={makeWeatherData({ currentSource: 'airgradient' })} />);
+
+    expect(screen.queryByTestId('weather-fallback-indicator')).toBeNull();
+  });
+
   it('renders °C suffix when data.units.temperature is C', () => {
     // Server returns 0°C directly — widget renders the value with the unit
     // from data.units, not by client-side conversion.
@@ -479,14 +509,6 @@ describe('current conditions', () => {
     expect(screen.queryByText('0°C')).not.toBeNull();
   });
 
-  it('renders the weather description', () => {
-    const data = makeWeatherData({
-      current: { ...makeWeatherData().current, description: 'Heavy thunderstorm' },
-    });
-    render(<WeatherWidget data={data} />);
-    expect(screen.queryByText('Heavy thunderstorm')).not.toBeNull();
-  });
-
   it('renders the location at the bottom of the right-side stats', () => {
     const data = makeWeatherData({ location: 'Denver, Colorado, US 80202' });
     render(<WeatherWidget data={data} />);
@@ -495,13 +517,13 @@ describe('current conditions', () => {
     expect(stats.queryByText('80202')).toBeNull();
   });
 
-  it('places the condition in the right-side stats', () => {
+  it('does not repeat the current condition in the right-side stats', () => {
     const data = makeWeatherData({
       current: { ...makeWeatherData().current, description: 'Partly cloudy' },
     });
     render(<WeatherWidget data={data} />);
 
-    expect(within(screen.getByTestId('weather-current-stats')).queryByText('Partly cloudy')).not.toBeNull();
+    expect(within(screen.getByTestId('weather-current-stats')).queryByText('Partly cloudy')).toBeNull();
   });
 
   it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
@@ -540,6 +562,58 @@ describe('current conditions', () => {
     });
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText('15 mph')).not.toBeNull();
+  });
+
+  it('renders wind gusts, UV index, dew point, and visibility', () => {
+    const data = makeWeatherData({
+      current: {
+        ...makeWeatherData().current,
+        windSpeed: 15,
+        windGust: 20,
+        uvIndex: 6.5,
+        dewPoint: 62,
+        visibility: 9.5,
+      },
+    });
+    render(<WeatherWidget data={data} />);
+
+    const stats = within(screen.getByTestId('weather-current-stats'));
+    expect(stats.queryByText(/15 mph · Gusts 20 mph/)).not.toBeNull();
+    expect(stats.queryByText('UV 6.5')).not.toBeNull();
+    expect(stats.queryByText('Dew point 62°')).not.toBeNull();
+    expect(stats.queryByText('Visibility 9.5 mi')).not.toBeNull();
+    expect(stats.getByTestId('weather-humidity-dewpoint').textContent).toContain('45%');
+    expect(stats.getByTestId('weather-humidity-dewpoint').textContent).toContain('Dew point 62°');
+  });
+
+  it('renders the EPA-style air quality badge for the local PM2.5 reading', () => {
+    const data = makeWeatherData({
+      current: {
+        ...makeWeatherData().current,
+        airQuality: { pm25: 27 },
+      },
+    });
+    render(<WeatherWidget data={data} />);
+
+    const badge = screen.getByTestId('air-quality-badge');
+    expect(badge.textContent).toBe('Air: Moderate');
+    expect(badge.getAttribute('aria-label')).toBe('Air quality: Moderate');
+    expect(badge.className).toContain('bg-yellow-200');
+    expect(badge.className).toContain('dark:bg-yellow-400/35');
+    expect(badge.className).toContain('text-yellow-950');
+    expect(badge.querySelector('span')?.className).toContain('bg-yellow-700');
+    expect(badge.querySelector('span')?.className).toContain('dark:bg-yellow-300');
+    expect(screen.queryByText('27 µg/m³')).not.toBeNull();
+    expect(within(screen.getByTestId('weather-current-stats')).queryByTestId('air-quality-badge')).toBeNull();
+  });
+
+  it('uses the published PM2.5 category breakpoints', () => {
+    expect(getAirQualityStatus(9)?.label).toBe('Good');
+    expect(getAirQualityStatus(9.1)?.label).toBe('Moderate');
+    expect(getAirQualityStatus(35.5)?.label).toBe('Unhealthy for Sensitive Groups');
+    expect(getAirQualityStatus(55.5)?.label).toBe('Unhealthy');
+    expect(getAirQualityStatus(125.5)?.label).toBe('Very Unhealthy');
+    expect(getAirQualityStatus(225.5)?.label).toBe('Hazardous');
   });
 });
 

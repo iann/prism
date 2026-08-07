@@ -38,6 +38,9 @@ import {
   Wind,
   Droplets,
   Zap,
+  Gauge,
+  Thermometer,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
@@ -103,14 +106,33 @@ export type WeatherCondition =
   | 'snowy'
   | 'stormy';
 
+export interface AirQuality {
+  pm25?: number;
+  pm10?: number;
+  co2?: number;
+  tvocIndex?: number;
+  noxIndex?: number;
+}
+
 export interface CurrentWeather {
   temperature: number;
   feelsLike: number;
   condition: WeatherCondition;
   humidity: number;
   windSpeed: number;
+  /** Optional gust speed in the same units as windSpeed. */
+  windGust?: number;
+  /** Optional UV index for the current hour. */
+  uvIndex?: number;
+  /** Optional dew point in the configured temperature units. */
+  dewPoint?: number;
+  /** Optional visibility in miles (imperial) or kilometers (metric). */
+  visibility?: number;
   description: string;
+  airQuality?: AirQuality;
 }
+
+export type WeatherCurrentSource = 'airgradient' | 'pirate' | 'provider';
 
 export interface ForecastDay {
   date: Date;
@@ -125,7 +147,8 @@ export interface ForecastDay {
 export interface HourlyForecast {
   time: Date;
   condition: WeatherCondition;
-  temp: number; // °F
+  temp: number; // In WeatherUnits.temperature
+  feelsLike: number; // In WeatherUnits.temperature
   precipProbability?: number; // 0–100
   precipIntensity?: number;   // in/hr or mm/hr, according to WeatherUnits
 }
@@ -163,6 +186,76 @@ function precipitationToMillimeters(value: number, units: WeatherUnits): number 
   return units.precipitation === 'in' ? value * MILLIMETERS_PER_INCH : value;
 }
 
+export type AirQualityCategory =
+  | 'Good'
+  | 'Moderate'
+  | 'Unhealthy for Sensitive Groups'
+  | 'Unhealthy'
+  | 'Very Unhealthy'
+  | 'Hazardous';
+
+export type AirQualityStatus = {
+  label: AirQualityCategory;
+  badgeClassName: string;
+  dotClassName: string;
+};
+
+/**
+ * EPA/AirNow PM2.5 concentration breakpoints. These are the familiar AQI
+ * category bands, applied to the current monitor reading for a quick glance;
+ * an official AQI is based on a time-averaged concentration.
+ */
+export function getAirQualityStatus(pm25: number): AirQualityStatus | null {
+  if (!Number.isFinite(pm25) || pm25 < 0) return null;
+
+  if (pm25 <= 9.0) {
+    return {
+      label: 'Good',
+      badgeClassName:
+        'border-emerald-500/80 bg-emerald-200 text-emerald-950 dark:border-emerald-300/80 dark:bg-emerald-400/35 dark:text-emerald-50',
+      dotClassName: 'bg-emerald-700 dark:bg-emerald-300',
+    };
+  }
+  if (pm25 <= 35.4) {
+    return {
+      label: 'Moderate',
+      badgeClassName:
+        'border-yellow-500/80 bg-yellow-200 text-yellow-950 dark:border-yellow-300/80 dark:bg-yellow-400/35 dark:text-yellow-50',
+      dotClassName: 'bg-yellow-700 dark:bg-yellow-300',
+    };
+  }
+  if (pm25 <= 55.4) {
+    return {
+      label: 'Unhealthy for Sensitive Groups',
+      badgeClassName:
+        'border-orange-500/80 bg-orange-200 text-orange-950 dark:border-orange-300/80 dark:bg-orange-400/35 dark:text-orange-50',
+      dotClassName: 'bg-orange-700 dark:bg-orange-300',
+    };
+  }
+  if (pm25 <= 125.4) {
+    return {
+      label: 'Unhealthy',
+      badgeClassName:
+        'border-red-500/80 bg-red-200 text-red-950 dark:border-red-300/80 dark:bg-red-400/35 dark:text-red-50',
+      dotClassName: 'bg-red-700 dark:bg-red-300',
+    };
+  }
+  if (pm25 <= 225.4) {
+    return {
+      label: 'Very Unhealthy',
+      badgeClassName:
+        'border-purple-500/80 bg-purple-200 text-purple-950 dark:border-purple-300/80 dark:bg-purple-400/35 dark:text-purple-50',
+      dotClassName: 'bg-purple-700 dark:bg-purple-300',
+    };
+  }
+  return {
+    label: 'Hazardous',
+    badgeClassName:
+      'border-rose-500/80 bg-rose-200 text-rose-950 dark:border-rose-300/80 dark:bg-rose-400/35 dark:text-rose-50',
+    dotClassName: 'bg-rose-700 dark:bg-rose-300',
+  };
+}
+
 export interface WeatherData {
   location: string;
   current: CurrentWeather;
@@ -191,6 +284,8 @@ export interface WeatherData {
   lon?: number;
   /** Units that the temperature/wind/precip fields are reported in. */
   units: WeatherUnits;
+  /** Source of current readings; Pirate means the local sensor fallback is active. */
+  currentSource?: WeatherCurrentSource;
   lastUpdated: Date;
 }
 
@@ -310,6 +405,15 @@ function formatTemp(value: number, units: WeatherUnits): string {
   return units.temperature === 'C'
     ? `${Math.round(value)}°C`
     : `${Math.round(value)}°`;
+}
+
+function formatCompactNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatVisibility(value: number, units: WeatherUnits): string {
+  const unit = units.temperature === 'C' ? 'km' : 'mi';
+  return `${formatCompactNumber(value)} ${unit}`;
 }
 
 /** Convert a temperature value (in either F or C) to the F scale tempToColor expects. */
@@ -466,6 +570,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           weather={weatherData.current}
           location={weatherData.location}
           units={units}
+          currentSource={weatherData.currentSource}
         />
 
         {/* HOURLY FORECAST */}
@@ -482,7 +587,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
             {/* Multi-day summary — the day list fills the remaining space and
                 clips to WHOLE rows (maxDayRows) so a day is never half-cut. */}
             <div className="flex-1 min-h-0 flex flex-col">
-              <span className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="flex-shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {shownForecast.length}-Day Forecast
               </span>
               <div ref={dayListRef} className="flex-1 min-h-0 overflow-hidden">
@@ -530,13 +635,18 @@ function CurrentConditions({
   weather,
   location,
   units,
+  currentSource,
 }: {
   weather: CurrentWeather;
   location: string;
   units: WeatherUnits;
+  currentSource?: WeatherCurrentSource;
 }) {
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
+  const airQualityStatus = weather.airQuality?.pm25 !== undefined
+    ? getAirQualityStatus(weather.airQuality.pm25)
+    : null;
 
   return (
     <div className="flex items-start justify-between gap-2">
@@ -547,22 +657,75 @@ function CurrentConditions({
           className="h-10 w-10 text-primary flex-shrink-0"
         />
         <div>
-          <div className="text-5xl font-bold leading-none">{temp}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-5xl font-bold leading-none">{temp}</div>
+            {currentSource === 'pirate' && (
+              <span
+                data-testid="weather-fallback-indicator"
+                role="img"
+                aria-label="Using Pirate Weather fallback data"
+                title="Using Pirate Weather fallback data"
+                className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-red-500"
+              />
+            )}
+          </div>
           <div className="text-lg text-muted-foreground mt-1">Feels like {feels}</div>
+          {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
+            <div
+              className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"
+              title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
+            >
+              <span
+                data-testid="air-quality-badge"
+                aria-label={`Air quality: ${airQualityStatus.label}`}
+                title={airQualityStatus.label}
+                className={cn(
+                  'inline-flex max-w-[135px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-xs font-medium leading-none',
+                  airQualityStatus.badgeClassName,
+                )}
+              >
+                <span className={cn('h-1.5 w-1.5 rounded-full', airQualityStatus.dotClassName)} />
+                Air: {airQualityStatus.label}
+              </span>
+              <span className="text-xs">{weather.airQuality.pm25} µg/m³</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Right: condition and stats */}
+      {/* Right: current stats */}
       <div data-testid="weather-current-stats" className="text-right text-xs text-muted-foreground space-y-1 pt-0.5">
-        <div className="text-sm capitalize">{weather.description}</div>
-        <div className="flex items-center justify-end gap-1">
-          <Droplets className="h-3 w-3" />
-          <span>{weather.humidity}%</span>
+        <div data-testid="weather-humidity-dewpoint" className="flex items-center justify-end gap-2">
+          <div className="flex items-center gap-1">
+            <Droplets className="h-3 w-3" />
+            <span>{weather.humidity}%</span>
+          </div>
+          {weather.dewPoint !== undefined && (
+            <div className="flex items-center gap-1">
+              <Thermometer className="h-3 w-3" />
+              <span>Dew point {formatTemp(weather.dewPoint, units)}</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-1">
           <Wind className="h-3 w-3" />
-          <span>{weather.windSpeed} {units.windSpeed}</span>
+          <span>
+            {weather.windSpeed} {units.windSpeed}
+            {weather.windGust !== undefined && ` · Gusts ${weather.windGust} ${units.windSpeed}`}
+          </span>
         </div>
+        {weather.uvIndex !== undefined && (
+          <div className="flex items-center justify-end gap-1">
+            <Gauge className="h-3 w-3" />
+            <span>UV {formatCompactNumber(weather.uvIndex)}</span>
+          </div>
+        )}
+        {weather.visibility !== undefined && (
+          <div className="flex items-center justify-end gap-1">
+            <Eye className="h-3 w-3" />
+            <span>Visibility {formatVisibility(weather.visibility, units)}</span>
+          </div>
+        )}
         {location && (
           <div className="pt-1 text-xs truncate max-w-[140px]">
             {formatLocation(location)}
@@ -713,7 +876,8 @@ function ConditionBandLabel({
  * HOURLY FORECAST
  * Five evenly sampled moments from the next nine hours. A quiet, theme-aware
  * panel reads more naturally on pale widget surfaces than a saturated stripe,
- * while retaining the useful at-a-glance time, condition, and temperature.
+ * while retaining the useful at-a-glance time, condition, temperatures, and
+ * precipitation chance.
  */
 function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: WeatherUnits }) {
   const nowMs = Date.now();
@@ -789,19 +953,17 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
         >
           {samples.map((hour, index) => {
             const label = conditionLabel(hour.condition, hour.precipIntensity);
-            const detail = hour.precipProbability && hour.precipProbability >= 10
-              ? `${Math.round(hour.precipProbability)}% rain`
-              : label;
 
             return (
               <div
                 key={hour.time.getTime()}
+                data-testid="hourly-sample"
                 className={cn(
-                  'relative flex min-w-0 flex-col items-center gap-0.5 px-1 py-2 text-center',
+                  'relative flex min-w-0 flex-col items-center gap-1 px-1 py-2 text-center',
                   index > 0 && 'border-l border-border/60',
                   index === 0 && 'bg-primary/[0.08]'
                 )}
-                aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}, ${label}, ${formatTemperature(hour.temp)} degrees${hour.precipProbability ? `, ${Math.round(hour.precipProbability)} percent chance of rain` : ''}`}
+                aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}, ${label}, ${formatTemperature(hour.temp)} degrees, feels like ${formatTemperature(hour.feelsLike)} degrees${hour.precipProbability !== undefined ? `, ${Math.round(hour.precipProbability)} percent chance of rain` : ''}`}
               >
                 {index === 0 && (
                   <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
@@ -810,12 +972,20 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
                   {index === 0 ? 'Now' : formatHour(hour.time)}
                 </span>
                 <WeatherIcon condition={hour.condition} className="my-0.5 h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold leading-none tabular-nums text-foreground">
-                  {formatTemperature(hour.temp)}°
+                <span
+                  className="text-sm font-semibold leading-none tabular-nums text-foreground"
+                  title="Actual temperature | feels-like temperature"
+                >
+                  {formatTemperature(hour.temp)}° <span className="text-muted-foreground/70" aria-hidden>|</span> {formatTemperature(hour.feelsLike)}°
                 </span>
-                <span className="max-w-full truncate text-[14px] leading-tight text-muted-foreground">
-                  {detail}
-                </span>
+                {hour.precipProbability !== undefined && (
+                  <span
+                    className="pt-0.5 text-xs leading-none tabular-nums text-muted-foreground"
+                    title="Chance of precipitation"
+                  >
+                    {Math.round(hour.precipProbability)}%
+                  </span>
+                )}
               </div>
             );
           })}
@@ -1606,6 +1776,7 @@ function getDemoWeatherData(location: string): WeatherData {
       time: t,
       condition: hourlyConditions[i] ?? 'cloudy',
       temp: hourlyTemps[i] ?? 50,
+      feelsLike: (hourlyTemps[i] ?? 50) - 2,
       precipProbability: hourlyPrecips[i] ?? 0,
     };
   });

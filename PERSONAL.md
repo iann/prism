@@ -398,6 +398,133 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 5fe3427
 
+46. **AirGradient-first local weather readings**
+
+    Uses the AirGradient monitor at 10.0.1.55 for current temperature,
+    humidity, and PM2.5 readings, recalculates feels-like from local
+    conditions, and falls back to Pirate Weather with a red source indicator
+    when the monitor cannot be reached.
+
+    Commit: c4ba702
+
+47. **Minute-by-minute local weather polling**
+
+    Refreshes weather data every minute so the dashboard picks up new
+    AirGradient readings without waiting for the provider cache to expire.
+
+    Commit: f5a1642
+
+48. **Readable PM2.5 air-quality status**
+
+    Adds an EPA/AirNow-style, color-coded air-quality badge beside the local
+    PM2.5 value, with familiar Good, Moderate, and unhealthy-level labels.
+
+    Commit: 475060b
+
+49. **Air-quality badge placement refinement**
+
+    Moves the PM2.5 status badge directly beneath the feels-like temperature
+    so the current conditions read as one cohesive local-weather stack.
+
+    Commit: c0283b6
+
+50. **Self-labeled air-quality badge**
+
+    Labels the status pill “Air quality: [category]” so its meaning is clear
+    without relying on the surrounding PM2.5 number.
+
+    Commit: 73dde0d
+
+51. **Compact air-quality label**
+
+    Shortens the status pill to “Air: [category]” while retaining the full
+    accessible label and tooltip.
+
+    Commit: a1ca278
+
+52. **Theme-aware air-quality colors**
+
+    Gives every air-quality category contrast-tuned light and dark badge
+    colors so the status remains legible across the dashboard themes.
+
+    Commit: de74194
+
+53. **Vibrant air-quality badges**
+
+    Increases the badge fills, outlines, and status-dot intensity so current
+    air-quality categories pop more clearly at a glance.
+
+    Commit: 236d19c
+
+54. **Aggressive air-quality colors**
+
+    Uses saturated solid badge fills, high-contrast text, and category-colored
+    shadows for an unmistakable air-quality signal.
+
+    Commit: 4702a92
+
+55. **Balanced vibrant air-quality colors**
+
+    Softens the aggressive treatment back to vivid translucent fills with
+    strong outlines and bright status dots.
+
+    Commit: 6eac14a
+
+56. **Synchronized current timeline temperature**
+
+    Forces the timeline's “Now” temperature to match the main reading from
+    either AirGradient or the Pirate Weather fallback, including cached data.
+
+    Commit: 18b4658
+
+57. **Readable compact weather labels**
+
+    Raises compact weather headings, air-quality badges, and PM2.5 metadata
+    to the readable `text-xs` size and updates the surface contract.
+
+    Commit: 19bb010
+
+58. **Simplified hourly timeline tiles**
+
+    Removes repeated condition text from each timeline tile so the condition
+    ribbon above is the single visual summary.
+
+    Commit: 51d7658
+
+59. **Expanded weather header metrics**
+
+    Removes the redundant current-condition label and adds wind gusts, UV
+    index, dew point, and visibility to the weather header.
+
+    Commit: 3ba976c
+
+60. **Aligned humidity and dew point**
+
+    Places humidity and dew point on the same compact weather-header row.
+
+    Commit: 2289699
+
+61. **Expanded hourly weather tiles**
+
+    Adds each timeline tile's feels-like temperature and precipitation chance,
+    with provider data kept in sync for the current hour.
+
+    Commit: f538ea6
+
+62. **Compact hourly temperature pairing**
+
+    Places each timeline tile's actual and feels-like temperatures on one line
+    with a pipe separator.
+
+    Commit: 8320d8e
+
+63. **Roomier hourly timeline spacing**
+
+    Adds a little more vertical breathing room between the timeline tile
+    lines for easier reading at a glance.
+
+    Commit: a25ea66
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
