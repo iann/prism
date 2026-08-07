@@ -40,6 +40,10 @@ interface PirateWeatherCurrently {
   apparentTemperature: number;
   humidity: number; // 0–1
   windSpeed: number; // mph (units=us)
+  windGust?: number;
+  uvIndex?: number;
+  dewPoint?: number;
+  visibility?: number;
   precipIntensity: number;
   precipProbability: number;
 }
@@ -187,6 +191,10 @@ export async function fetchWeatherData(
     condition: mapIcon(currently.icon),
     humidity: Math.round(currently.humidity * 100),
     windSpeed: Math.round(currently.windSpeed),
+    windGust: currently.windGust === undefined ? undefined : Math.round(currently.windGust),
+    uvIndex: currently.uvIndex === undefined ? undefined : Math.round(currently.uvIndex * 10) / 10,
+    dewPoint: currently.dewPoint === undefined ? undefined : Math.round(currently.dewPoint),
+    visibility: currently.visibility === undefined ? undefined : Math.round(currently.visibility * 10) / 10,
     description: currently.summary ?? currently.icon.replace(/-/g, ' '),
   };
 

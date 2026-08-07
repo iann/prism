@@ -38,6 +38,9 @@ import {
   Wind,
   Droplets,
   Zap,
+  Gauge,
+  Thermometer,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
@@ -117,6 +120,14 @@ export interface CurrentWeather {
   condition: WeatherCondition;
   humidity: number;
   windSpeed: number;
+  /** Optional gust speed in the same units as windSpeed. */
+  windGust?: number;
+  /** Optional UV index for the current hour. */
+  uvIndex?: number;
+  /** Optional dew point in the configured temperature units. */
+  dewPoint?: number;
+  /** Optional visibility in miles (imperial) or kilometers (metric). */
+  visibility?: number;
   description: string;
   airQuality?: AirQuality;
 }
@@ -393,6 +404,15 @@ function formatTemp(value: number, units: WeatherUnits): string {
   return units.temperature === 'C'
     ? `${Math.round(value)}°C`
     : `${Math.round(value)}°`;
+}
+
+function formatCompactNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatVisibility(value: number, units: WeatherUnits): string {
+  const unit = units.temperature === 'C' ? 'km' : 'mi';
+  return `${formatCompactNumber(value)} ${unit}`;
 }
 
 /** Convert a temperature value (in either F or C) to the F scale tempToColor expects. */
@@ -672,17 +692,37 @@ function CurrentConditions({
         </div>
       </div>
 
-      {/* Right: condition and stats */}
+      {/* Right: current stats */}
       <div data-testid="weather-current-stats" className="text-right text-xs text-muted-foreground space-y-1 pt-0.5">
-        <div className="text-sm capitalize">{weather.description}</div>
         <div className="flex items-center justify-end gap-1">
           <Droplets className="h-3 w-3" />
           <span>{weather.humidity}%</span>
         </div>
         <div className="flex items-center justify-end gap-1">
           <Wind className="h-3 w-3" />
-          <span>{weather.windSpeed} {units.windSpeed}</span>
+          <span>
+            {weather.windSpeed} {units.windSpeed}
+            {weather.windGust !== undefined && ` · Gusts ${weather.windGust} ${units.windSpeed}`}
+          </span>
         </div>
+        {weather.uvIndex !== undefined && (
+          <div className="flex items-center justify-end gap-1">
+            <Gauge className="h-3 w-3" />
+            <span>UV {formatCompactNumber(weather.uvIndex)}</span>
+          </div>
+        )}
+        {weather.dewPoint !== undefined && (
+          <div className="flex items-center justify-end gap-1">
+            <Thermometer className="h-3 w-3" />
+            <span>Dew point {formatTemp(weather.dewPoint, units)}</span>
+          </div>
+        )}
+        {weather.visibility !== undefined && (
+          <div className="flex items-center justify-end gap-1">
+            <Eye className="h-3 w-3" />
+            <span>Visibility {formatVisibility(weather.visibility, units)}</span>
+          </div>
+        )}
         {location && (
           <div className="pt-1 text-xs truncate max-w-[140px]">
             {formatLocation(location)}

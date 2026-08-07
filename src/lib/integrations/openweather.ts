@@ -49,7 +49,9 @@ interface OpenWeatherCurrent {
   };
   wind: {
     speed: number;
+    gust?: number;
   };
+  visibility?: number; // metres
   weather: Array<{
     id: number;
     main: string;
@@ -166,6 +168,12 @@ function windFromMps(mps: number, units: WeatherUnits): number {
   return units.windSpeed === 'km/h' ? mpsToKmh(mps) : mpsToMph(mps);
 }
 
+function visibilityFromMeters(meters: number | undefined, units: WeatherUnits): number | undefined {
+  if (meters === undefined || !Number.isFinite(meters)) return undefined;
+  const value = units.temperature === 'C' ? meters / 1000 : meters / 1609.344;
+  return Math.round(value * 10) / 10;
+}
+
 /**
  * Build a location query string for the OWM API.
  * Prefers lat/lon (unambiguous) over the legacy string query.
@@ -210,6 +218,8 @@ export async function fetchCurrentWeather(
     condition: mapCondition(weather.id),
     humidity: data.main.humidity,
     windSpeed: windFromMps(data.wind.speed, units),
+    windGust: data.wind.gust === undefined ? undefined : windFromMps(data.wind.gust, units),
+    visibility: visibilityFromMeters(data.visibility, units),
     description: weather.description,
     locationName:
       (typeof location === 'object' && location.displayName) ||
@@ -438,6 +448,10 @@ export async function fetchWeatherData(
       condition: currentData.condition,
       humidity: currentData.humidity,
       windSpeed: currentData.windSpeed,
+      windGust: currentData.windGust,
+      uvIndex: currentData.uvIndex,
+      dewPoint: currentData.dewPoint,
+      visibility: currentData.visibility,
       description: currentData.description,
     },
     forecast: forecastData.forecast,

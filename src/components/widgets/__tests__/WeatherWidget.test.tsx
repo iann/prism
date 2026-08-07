@@ -498,14 +498,6 @@ describe('current conditions', () => {
     expect(screen.queryByText('0°C')).not.toBeNull();
   });
 
-  it('renders the weather description', () => {
-    const data = makeWeatherData({
-      current: { ...makeWeatherData().current, description: 'Heavy thunderstorm' },
-    });
-    render(<WeatherWidget data={data} />);
-    expect(screen.queryByText('Heavy thunderstorm')).not.toBeNull();
-  });
-
   it('renders the location at the bottom of the right-side stats', () => {
     const data = makeWeatherData({ location: 'Denver, Colorado, US 80202' });
     render(<WeatherWidget data={data} />);
@@ -514,13 +506,13 @@ describe('current conditions', () => {
     expect(stats.queryByText('80202')).toBeNull();
   });
 
-  it('places the condition in the right-side stats', () => {
+  it('does not repeat the current condition in the right-side stats', () => {
     const data = makeWeatherData({
       current: { ...makeWeatherData().current, description: 'Partly cloudy' },
     });
     render(<WeatherWidget data={data} />);
 
-    expect(within(screen.getByTestId('weather-current-stats')).queryByText('Partly cloudy')).not.toBeNull();
+    expect(within(screen.getByTestId('weather-current-stats')).queryByText('Partly cloudy')).toBeNull();
   });
 
   it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
@@ -559,6 +551,26 @@ describe('current conditions', () => {
     });
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText('15 mph')).not.toBeNull();
+  });
+
+  it('renders wind gusts, UV index, dew point, and visibility', () => {
+    const data = makeWeatherData({
+      current: {
+        ...makeWeatherData().current,
+        windSpeed: 15,
+        windGust: 20,
+        uvIndex: 6.5,
+        dewPoint: 62,
+        visibility: 9.5,
+      },
+    });
+    render(<WeatherWidget data={data} />);
+
+    const stats = within(screen.getByTestId('weather-current-stats'));
+    expect(stats.queryByText(/15 mph · Gusts 20 mph/)).not.toBeNull();
+    expect(stats.queryByText('UV 6.5')).not.toBeNull();
+    expect(stats.queryByText('Dew point 62°')).not.toBeNull();
+    expect(stats.queryByText('Visibility 9.5 mi')).not.toBeNull();
   });
 
   it('renders the EPA-style air quality badge for the local PM2.5 reading', () => {
