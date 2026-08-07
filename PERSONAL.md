@@ -518,6 +518,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 8320d8e
 
+63. **Roomier hourly timeline spacing**
+
+    Adds a little more vertical breathing room between the timeline tile
+    lines for easier reading at a glance.
+
+    Commit: a25ea66
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
