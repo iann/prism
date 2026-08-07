@@ -694,9 +694,17 @@ function CurrentConditions({
 
       {/* Right: current stats */}
       <div data-testid="weather-current-stats" className="text-right text-xs text-muted-foreground space-y-1 pt-0.5">
-        <div className="flex items-center justify-end gap-1">
-          <Droplets className="h-3 w-3" />
-          <span>{weather.humidity}%</span>
+        <div data-testid="weather-humidity-dewpoint" className="flex items-center justify-end gap-2">
+          <div className="flex items-center gap-1">
+            <Droplets className="h-3 w-3" />
+            <span>{weather.humidity}%</span>
+          </div>
+          {weather.dewPoint !== undefined && (
+            <div className="flex items-center gap-1">
+              <Thermometer className="h-3 w-3" />
+              <span>Dew point {formatTemp(weather.dewPoint, units)}</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-1">
           <Wind className="h-3 w-3" />
@@ -709,12 +717,6 @@ function CurrentConditions({
           <div className="flex items-center justify-end gap-1">
             <Gauge className="h-3 w-3" />
             <span>UV {formatCompactNumber(weather.uvIndex)}</span>
-          </div>
-        )}
-        {weather.dewPoint !== undefined && (
-          <div className="flex items-center justify-end gap-1">
-            <Thermometer className="h-3 w-3" />
-            <span>Dew point {formatTemp(weather.dewPoint, units)}</span>
           </div>
         )}
         {weather.visibility !== undefined && (

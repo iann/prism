@@ -571,6 +571,8 @@ describe('current conditions', () => {
     expect(stats.queryByText('UV 6.5')).not.toBeNull();
     expect(stats.queryByText('Dew point 62°')).not.toBeNull();
     expect(stats.queryByText('Visibility 9.5 mi')).not.toBeNull();
+    expect(stats.getByTestId('weather-humidity-dewpoint').textContent).toContain('45%');
+    expect(stats.getByTestId('weather-humidity-dewpoint').textContent).toContain('Dew point 62°');
   });
 
   it('renders the EPA-style air quality badge for the local PM2.5 reading', () => {
