@@ -276,6 +276,11 @@ describe('active weather alerts', () => {
       headline: 'Heat Advisory remains in effect',
       description: 'Heat index values may become dangerous.',
       severity: 'moderate',
+      end: (() => {
+        const end = new Date();
+        end.setHours(20, 5, 0, 0);
+        return end;
+      })(),
     };
 
     render(<WeatherWidget data={makeWeatherData({ alerts: [alert] })} />);
@@ -287,6 +292,7 @@ describe('active weather alerts', () => {
       .toContain('Heat Advisory');
     expect(screen.getByText('Heat Advisory remains in effect')).not.toBeNull();
     expect(screen.getByRole('alert').className).toContain('border-orange-500/80');
+    expect(screen.getByRole('alert').textContent).toMatch(/Until 8:05 PM/);
   });
 
   it('keeps the banner compact when several alerts are active', () => {
