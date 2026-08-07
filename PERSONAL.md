@@ -525,6 +525,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: a25ea66
 
+64. **AM/PM hourly weather labels**
+
+    Forces the weather timeline tile times to use compact 12-hour labels such
+    as `11am` and `3pm` instead of inheriting a browser locale's 24-hour
+    format.
+
+    Commit: 9bcc577
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
