@@ -449,6 +449,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: de74194
 
+53. **Vibrant air-quality badges**
+
+    Increases the badge fills, outlines, and status-dot intensity so current
+    air-quality categories pop more clearly at a glance.
+
+    Commit: 236d19c
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
