@@ -468,6 +468,19 @@ describe('current conditions', () => {
     expect(screen.queryByText('73°')).not.toBeNull();
   });
 
+  it('shows a red fallback indicator when Pirate Weather is supplying current data', () => {
+    render(<WeatherWidget data={makeWeatherData({ currentSource: 'pirate' })} />);
+
+    expect(screen.getByTestId('weather-fallback-indicator').getAttribute('aria-label'))
+      .toBe('Using Pirate Weather fallback data');
+  });
+
+  it('does not show the fallback indicator for the local sensor source', () => {
+    render(<WeatherWidget data={makeWeatherData({ currentSource: 'airgradient' })} />);
+
+    expect(screen.queryByTestId('weather-fallback-indicator')).toBeNull();
+  });
+
   it('renders °C suffix when data.units.temperature is C', () => {
     // Server returns 0°C directly — widget renders the value with the unit
     // from data.units, not by client-side conversion.

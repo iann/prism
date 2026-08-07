@@ -103,6 +103,14 @@ export type WeatherCondition =
   | 'snowy'
   | 'stormy';
 
+export interface AirQuality {
+  pm25?: number;
+  pm10?: number;
+  co2?: number;
+  tvocIndex?: number;
+  noxIndex?: number;
+}
+
 export interface CurrentWeather {
   temperature: number;
   feelsLike: number;
@@ -110,7 +118,10 @@ export interface CurrentWeather {
   humidity: number;
   windSpeed: number;
   description: string;
+  airQuality?: AirQuality;
 }
+
+export type WeatherCurrentSource = 'airgradient' | 'pirate' | 'provider';
 
 export interface ForecastDay {
   date: Date;
@@ -191,6 +202,8 @@ export interface WeatherData {
   lon?: number;
   /** Units that the temperature/wind/precip fields are reported in. */
   units: WeatherUnits;
+  /** Source of current readings; Pirate means the local sensor fallback is active. */
+  currentSource?: WeatherCurrentSource;
   lastUpdated: Date;
 }
 
@@ -466,6 +479,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           weather={weatherData.current}
           location={weatherData.location}
           units={units}
+          currentSource={weatherData.currentSource}
         />
 
         {/* HOURLY FORECAST */}
@@ -530,10 +544,12 @@ function CurrentConditions({
   weather,
   location,
   units,
+  currentSource,
 }: {
   weather: CurrentWeather;
   location: string;
   units: WeatherUnits;
+  currentSource?: WeatherCurrentSource;
 }) {
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
@@ -547,7 +563,18 @@ function CurrentConditions({
           className="h-10 w-10 text-primary flex-shrink-0"
         />
         <div>
-          <div className="text-5xl font-bold leading-none">{temp}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-5xl font-bold leading-none">{temp}</div>
+            {currentSource === 'pirate' && (
+              <span
+                data-testid="weather-fallback-indicator"
+                role="img"
+                aria-label="Using Pirate Weather fallback data"
+                title="Using Pirate Weather fallback data"
+                className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-red-500"
+              />
+            )}
+          </div>
           <div className="text-lg text-muted-foreground mt-1">Feels like {feels}</div>
         </div>
       </div>
@@ -563,6 +590,9 @@ function CurrentConditions({
           <Wind className="h-3 w-3" />
           <span>{weather.windSpeed} {units.windSpeed}</span>
         </div>
+        {weather.airQuality?.pm25 !== undefined && (
+          <div className="text-xs">PM2.5 {weather.airQuality.pm25} µg/m³</div>
+        )}
         {location && (
           <div className="pt-1 text-xs truncate max-w-[140px]">
             {formatLocation(location)}
