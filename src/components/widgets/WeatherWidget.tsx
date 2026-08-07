@@ -909,13 +909,11 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
         >
           {samples.map((hour, index) => {
             const label = conditionLabel(hour.condition, hour.precipIntensity);
-            const detail = hour.precipProbability && hour.precipProbability >= 10
-              ? `${Math.round(hour.precipProbability)}% rain`
-              : label;
 
             return (
               <div
                 key={hour.time.getTime()}
+                data-testid="hourly-sample"
                 className={cn(
                   'relative flex min-w-0 flex-col items-center gap-0.5 px-1 py-2 text-center',
                   index > 0 && 'border-l border-border/60',
@@ -932,9 +930,6 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
                 <WeatherIcon condition={hour.condition} className="my-0.5 h-4 w-4 text-primary" />
                 <span className="text-sm font-semibold leading-none tabular-nums text-foreground">
                   {formatTemperature(hour.temp)}°
-                </span>
-                <span className="max-w-full truncate text-[14px] leading-tight text-muted-foreground">
-                  {detail}
                 </span>
               </div>
             );

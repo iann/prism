@@ -177,6 +177,12 @@ describe('hourly timeline', () => {
     expect(screen.queryAllByText('Rain').length).toBeGreaterThan(0);
   });
 
+  it('keeps condition labels in the ribbon instead of repeating them in tiles', () => {
+    render(<WeatherWidget data={makeWeatherData({ hourly: makeHourlyForecast('sunny', 68) })} />);
+    expect(screen.queryByLabelText('Hourly conditions')).not.toBeNull();
+    expect(screen.getAllByTestId('hourly-sample')[0]?.textContent).not.toContain('Clear');
+  });
+
   it('shows the full condition label when the band has room', () => {
     const restoreLayout = mockConditionBandLayout(120, 90);
     try {
