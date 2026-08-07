@@ -463,6 +463,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 4702a92
 
+55. **Balanced vibrant air-quality colors**
+
+    Softens the aggressive treatment back to vivid translucent fills with
+    strong outlines and bright status dots.
+
+    Commit: 6eac14a
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
