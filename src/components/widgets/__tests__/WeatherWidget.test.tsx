@@ -568,6 +568,7 @@ describe('current conditions', () => {
     expect(badge.textContent).toBe('Moderate');
     expect(badge.getAttribute('aria-label')).toBe('Air quality: Moderate');
     expect(screen.queryByText('27 µg/m³')).not.toBeNull();
+    expect(within(screen.getByTestId('weather-current-stats')).queryByTestId('air-quality-badge')).toBeNull();
   });
 
   it('uses the published PM2.5 category breakpoints', () => {

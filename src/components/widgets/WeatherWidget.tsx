@@ -643,6 +643,26 @@ function CurrentConditions({
             )}
           </div>
           <div className="text-lg text-muted-foreground mt-1">Feels like {feels}</div>
+          {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
+            <div
+              className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"
+              title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
+            >
+              <span
+                data-testid="air-quality-badge"
+                aria-label={`Air quality: ${airQualityStatus.label}`}
+                title={airQualityStatus.label}
+                className={cn(
+                  'inline-flex max-w-[135px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none',
+                  airQualityStatus.badgeClassName,
+                )}
+              >
+                <span className={cn('h-1.5 w-1.5 rounded-full', airQualityStatus.dotClassName)} />
+                {airQualityStatus.label}
+              </span>
+              <span className="text-[10px]">{weather.airQuality.pm25} µg/m³</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -657,26 +677,6 @@ function CurrentConditions({
           <Wind className="h-3 w-3" />
           <span>{weather.windSpeed} {units.windSpeed}</span>
         </div>
-        {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
-          <div
-            className="flex items-center justify-end gap-1"
-            title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
-          >
-            <span
-              data-testid="air-quality-badge"
-              aria-label={`Air quality: ${airQualityStatus.label}`}
-              title={airQualityStatus.label}
-              className={cn(
-                'inline-flex max-w-[135px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none',
-                airQualityStatus.badgeClassName,
-              )}
-            >
-              <span className={cn('h-1.5 w-1.5 rounded-full', airQualityStatus.dotClassName)} />
-              {airQualityStatus.label}
-            </span>
-            <span className="text-[10px]">{weather.airQuality.pm25} µg/m³</span>
-          </div>
-        )}
         {location && (
           <div className="pt-1 text-xs truncate max-w-[140px]">
             {formatLocation(location)}
