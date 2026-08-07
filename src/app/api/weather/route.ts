@@ -24,9 +24,9 @@ import {
   fetchAirGradientMeasurement,
 } from '@/lib/integrations/airgradient';
 
-// Keep non-Pirate providers at the existing cadence. Pirate Weather's free
-// tier supports a five-minute dashboard cadence for a single location while
-// staying below its monthly quota.
+// Keep provider responses cached longer than the local sensor. The dashboard
+// polls every minute, while Pirate Weather's response can stay cached for
+// five minutes to avoid unnecessary provider quota usage.
 const WEATHER_CACHE_TTL = 30 * 60;
 const PIRATE_WEATHER_CACHE_TTL = 5 * 60;
 const AIRGRADIENT_CACHE_TTL = 60;
