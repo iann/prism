@@ -959,7 +959,7 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
                 key={hour.time.getTime()}
                 data-testid="hourly-sample"
                 className={cn(
-                  'relative flex min-w-0 flex-col items-center gap-0.5 px-1 py-2 text-center',
+                  'relative flex min-w-0 flex-col items-center gap-1 px-1 py-2 text-center',
                   index > 0 && 'border-l border-border/60',
                   index === 0 && 'bg-primary/[0.08]'
                 )}
@@ -980,7 +980,7 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
                 </span>
                 {hour.precipProbability !== undefined && (
                   <span
-                    className="text-xs leading-none tabular-nums text-muted-foreground"
+                    className="pt-0.5 text-xs leading-none tabular-nums text-muted-foreground"
                     title="Chance of precipitation"
                   >
                     {Math.round(hour.precipProbability)}%
