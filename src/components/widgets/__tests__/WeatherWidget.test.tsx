@@ -38,7 +38,7 @@ jest.mock('../WidgetContainer', () => ({
 
 // ---------------------------------------------------------------------------
 
-import { getAirQualityStatus, WeatherWidget } from '../WeatherWidget';
+import { getAirQualityStatus, getUvIndexStatus, WeatherWidget } from '../WeatherWidget';
 import type { WeatherData, ForecastDay, HourlyForecast, WeatherCondition } from '../WeatherWidget';
 
 // ---------------------------------------------------------------------------
@@ -261,7 +261,6 @@ describe('hourly timeline', () => {
     expect(screen.queryByText(/Next .* Hours/)).toBeNull();
   });
 });
-
 describe('precipitation notice', () => {
   it('renders a compact themed next-hour header and timing message', () => {
     const minutely = Array.from({ length: 61 }, (_, index) => ({
@@ -591,6 +590,70 @@ describe('current conditions', () => {
     expect(stats.queryByText('Visibility 9.5 mi')).not.toBeNull();
     expect(stats.getByTestId('weather-humidity-dewpoint').textContent).toContain('45%');
     expect(stats.getByTestId('weather-humidity-dewpoint').textContent).toContain('Dew point 62°');
+
+    const uvLine = screen.getByTestId('uv-index-line');
+    expect(uvLine.textContent).toBe('UV 6.5');
+    expect(uvLine.getAttribute('title')).toBe('UV index 6.5: High');
+    expect(uvLine.getAttribute('aria-label')).toBe('UV index 6.5, High');
+    expect(screen.getByTestId('uv-index-dot').className).toContain('bg-orange-500');
+    expect(screen.getByTestId('uv-index-dot').className).toContain('uv-index-dot--pulse');
+    expect(uvLine.querySelector('svg')).toBeNull();
+  });
+
+  it('shows the warning dot at yellow and above, but not for low UV', () => {
+    const { queryByTestId, rerender } = render(
+      <WeatherWidget data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 2 } })} />
+    );
+    expect(queryByTestId('uv-index-line')).not.toBeNull();
+    expect(queryByTestId('uv-index-dot')).toBeNull();
+
+    rerender(
+      <WeatherWidget data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 2.1 } })} />
+    );
+    expect(screen.getByTestId('uv-index-dot').className).toContain('bg-yellow-500');
+  });
+
+  it('removes the UV line when the sun is below the horizon', () => {
+    const now = Date.now();
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, uvIndex: 6.5 },
+      sunrise: new Date(now - 2 * 60 * 60 * 1000),
+      sunset: new Date(now - 60 * 60 * 1000),
+    });
+
+    render(<WeatherWidget data={data} />);
+    expect(screen.queryByTestId('uv-index-line')).toBeNull();
+  });
+
+  it('maps UV index values to the visual risk bands', () => {
+    expect(getUvIndexStatus(2)?.label).toBe('Low');
+    expect(getUvIndexStatus(2.1)?.label).toBe('Moderate');
+    expect(getUvIndexStatus(5.1)?.label).toBe('High');
+    expect(getUvIndexStatus(7.1)?.label).toBe('Very High');
+    expect(getUvIndexStatus(10.1)?.label).toBe('Extreme');
+    expect(getUvIndexStatus(-1)).toBeNull();
+    expect(getUvIndexStatus(Number.NaN)).toBeNull();
+
+    const { getByTestId } = render(
+      <WeatherWidget
+        data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 14 } })}
+      />
+    );
+    expect(getByTestId('uv-index-line').textContent).toBe('UV 14');
+    expect(getByTestId('uv-index-dot').className).toContain('bg-purple-500');
+    expect(getByTestId('uv-index-dot').className).toContain('uv-index-dot--pulse');
+  });
+
+  it('pulses the warning dot at the high and red UV thresholds', () => {
+    render(
+      <WeatherWidget
+        data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 8 } })}
+      />
+    );
+
+    const dot = screen.getByTestId('uv-index-dot');
+    expect(dot.className).toContain('bg-red-500');
+    expect(dot.className).toContain('uv-index-dot--pulse');
   });
 
   it('renders the EPA-style air quality badge for the local PM2.5 reading', () => {
