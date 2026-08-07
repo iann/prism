@@ -233,7 +233,7 @@ describe('hourly timeline', () => {
     render(<WeatherWidget data={data} />);
 
     const firstSample = screen.getAllByTestId('hourly-sample')[0]!;
-    expect(firstSample.textContent).toContain('Feels 71°');
+    expect(firstSample.textContent).toContain('73° | 71°');
     expect(firstSample.textContent).toContain('20%');
   });
 

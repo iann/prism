@@ -972,11 +972,11 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
                   {index === 0 ? 'Now' : formatHour(hour.time)}
                 </span>
                 <WeatherIcon condition={hour.condition} className="my-0.5 h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold leading-none tabular-nums text-foreground">
-                  {formatTemperature(hour.temp)}°
-                </span>
-                <span className="text-xs leading-none tabular-nums text-muted-foreground">
-                  Feels {formatTemperature(hour.feelsLike)}°
+                <span
+                  className="text-sm font-semibold leading-none tabular-nums text-foreground"
+                  title="Actual temperature | feels-like temperature"
+                >
+                  {formatTemperature(hour.temp)}° <span className="text-muted-foreground/70" aria-hidden>|</span> {formatTemperature(hour.feelsLike)}°
                 </span>
                 {hour.precipProbability !== undefined && (
                   <span
