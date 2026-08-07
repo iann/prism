@@ -442,6 +442,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: a1ca278
 
+52. **Theme-aware air-quality colors**
+
+    Gives every air-quality category contrast-tuned light and dark badge
+    colors so the status remains legible across the dashboard themes.
+
+    Commit: de74194
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
