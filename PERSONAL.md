@@ -491,6 +491,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 51d7658
 
+59. **Expanded weather header metrics**
+
+    Removes the redundant current-condition label and adds wind gusts, UV
+    index, dew point, and visibility to the weather header.
+
+    Commit: 3ba976c
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
