@@ -428,6 +428,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: c0283b6
 
+50. **Self-labeled air-quality badge**
+
+    Labels the status pill “Air quality: [category]” so its meaning is clear
+    without relying on the surrounding PM2.5 number.
+
+    Commit: 73dde0d
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
