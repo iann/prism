@@ -174,6 +174,70 @@ function precipitationToMillimeters(value: number, units: WeatherUnits): number 
   return units.precipitation === 'in' ? value * MILLIMETERS_PER_INCH : value;
 }
 
+export type AirQualityCategory =
+  | 'Good'
+  | 'Moderate'
+  | 'Unhealthy for Sensitive Groups'
+  | 'Unhealthy'
+  | 'Very Unhealthy'
+  | 'Hazardous';
+
+export type AirQualityStatus = {
+  label: AirQualityCategory;
+  badgeClassName: string;
+  dotClassName: string;
+};
+
+/**
+ * EPA/AirNow PM2.5 concentration breakpoints. These are the familiar AQI
+ * category bands, applied to the current monitor reading for a quick glance;
+ * an official AQI is based on a time-averaged concentration.
+ */
+export function getAirQualityStatus(pm25: number): AirQualityStatus | null {
+  if (!Number.isFinite(pm25) || pm25 < 0) return null;
+
+  if (pm25 <= 9.0) {
+    return {
+      label: 'Good',
+      badgeClassName: 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200',
+      dotClassName: 'bg-emerald-400',
+    };
+  }
+  if (pm25 <= 35.4) {
+    return {
+      label: 'Moderate',
+      badgeClassName: 'border-yellow-500/40 bg-yellow-500/20 text-yellow-200',
+      dotClassName: 'bg-yellow-400',
+    };
+  }
+  if (pm25 <= 55.4) {
+    return {
+      label: 'Unhealthy for Sensitive Groups',
+      badgeClassName: 'border-orange-500/40 bg-orange-500/20 text-orange-200',
+      dotClassName: 'bg-orange-400',
+    };
+  }
+  if (pm25 <= 125.4) {
+    return {
+      label: 'Unhealthy',
+      badgeClassName: 'border-red-500/40 bg-red-500/20 text-red-200',
+      dotClassName: 'bg-red-400',
+    };
+  }
+  if (pm25 <= 225.4) {
+    return {
+      label: 'Very Unhealthy',
+      badgeClassName: 'border-purple-500/40 bg-purple-500/20 text-purple-200',
+      dotClassName: 'bg-purple-400',
+    };
+  }
+  return {
+    label: 'Hazardous',
+    badgeClassName: 'border-rose-800/60 bg-rose-950/70 text-rose-200',
+    dotClassName: 'bg-rose-400',
+  };
+}
+
 export interface WeatherData {
   location: string;
   current: CurrentWeather;
@@ -553,6 +617,9 @@ function CurrentConditions({
 }) {
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
+  const airQualityStatus = weather.airQuality?.pm25 !== undefined
+    ? getAirQualityStatus(weather.airQuality.pm25)
+    : null;
 
   return (
     <div className="flex items-start justify-between gap-2">
@@ -590,8 +657,25 @@ function CurrentConditions({
           <Wind className="h-3 w-3" />
           <span>{weather.windSpeed} {units.windSpeed}</span>
         </div>
-        {weather.airQuality?.pm25 !== undefined && (
-          <div className="text-xs">PM2.5 {weather.airQuality.pm25} µg/m³</div>
+        {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
+          <div
+            className="flex items-center justify-end gap-1"
+            title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
+          >
+            <span
+              data-testid="air-quality-badge"
+              aria-label={`Air quality: ${airQualityStatus.label}`}
+              title={airQualityStatus.label}
+              className={cn(
+                'inline-flex max-w-[135px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none',
+                airQualityStatus.badgeClassName,
+              )}
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full', airQualityStatus.dotClassName)} />
+              {airQualityStatus.label}
+            </span>
+            <span className="text-[10px]">{weather.airQuality.pm25} µg/m³</span>
+          </div>
         )}
         {location && (
           <div className="pt-1 text-xs truncate max-w-[140px]">

@@ -38,7 +38,7 @@ jest.mock('../WidgetContainer', () => ({
 
 // ---------------------------------------------------------------------------
 
-import { WeatherWidget } from '../WeatherWidget';
+import { getAirQualityStatus, WeatherWidget } from '../WeatherWidget';
 import type { WeatherData, ForecastDay, HourlyForecast, WeatherCondition } from '../WeatherWidget';
 
 // ---------------------------------------------------------------------------
@@ -553,6 +553,30 @@ describe('current conditions', () => {
     });
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText('15 mph')).not.toBeNull();
+  });
+
+  it('renders the EPA-style air quality badge for the local PM2.5 reading', () => {
+    const data = makeWeatherData({
+      current: {
+        ...makeWeatherData().current,
+        airQuality: { pm25: 27 },
+      },
+    });
+    render(<WeatherWidget data={data} />);
+
+    const badge = screen.getByTestId('air-quality-badge');
+    expect(badge.textContent).toBe('Moderate');
+    expect(badge.getAttribute('aria-label')).toBe('Air quality: Moderate');
+    expect(screen.queryByText('27 µg/m³')).not.toBeNull();
+  });
+
+  it('uses the published PM2.5 category breakpoints', () => {
+    expect(getAirQualityStatus(9)?.label).toBe('Good');
+    expect(getAirQualityStatus(9.1)?.label).toBe('Moderate');
+    expect(getAirQualityStatus(35.5)?.label).toBe('Unhealthy for Sensitive Groups');
+    expect(getAirQualityStatus(55.5)?.label).toBe('Unhealthy');
+    expect(getAirQualityStatus(125.5)?.label).toBe('Very Unhealthy');
+    expect(getAirQualityStatus(225.5)?.label).toBe('Hazardous');
   });
 });
 
