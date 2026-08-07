@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { optionalAuth } from '@/lib/auth';
 import { fetchWeatherData, type LocationParam } from '@/lib/integrations/weather';
+import { fetchActiveWeatherAlerts } from '@/lib/integrations/weatherAlerts';
 import { getCached } from '@/lib/cache/redis';
 import { db } from '@/lib/db/client';
 import { settings } from '@/lib/db/schema';
@@ -30,6 +31,7 @@ import {
 // five minutes to avoid unnecessary provider quota usage.
 const WEATHER_CACHE_TTL = 30 * 60;
 const PIRATE_WEATHER_CACHE_TTL = 5 * 60;
+const WEATHER_ALERT_CACHE_TTL = 5 * 60;
 const AIRGRADIENT_CACHE_TTL = 60;
 
 /**
@@ -111,6 +113,25 @@ export async function GET(request: NextRequest) {
       () => fetchWeatherData(location, { units }),
       cacheTtl
     );
+
+    if (weatherData.lat !== undefined && weatherData.lon !== undefined) {
+      const alertCacheKey = `weather-alerts:${weatherData.lat.toFixed(2)},${weatherData.lon.toFixed(2)}`;
+      try {
+        const alerts = await getCached(
+          alertCacheKey,
+          () => fetchActiveWeatherAlerts({ lat: weatherData.lat!, lon: weatherData.lon! }),
+          WEATHER_ALERT_CACHE_TTL,
+        );
+        weatherData = { ...weatherData, alerts };
+      } catch (error) {
+        // Alerts are an enhancement to the forecast. A provider outage or a
+        // location outside NWS coverage must never make weather unavailable.
+        logError('Weather alerts unavailable; continuing without alerts:', error);
+        weatherData = { ...weatherData, alerts: [] };
+      }
+    } else {
+      weatherData = { ...weatherData, alerts: [] };
+    }
 
     let currentSource: WeatherCurrentSource = provider === 'pirate' ? 'pirate' : 'provider';
     try {

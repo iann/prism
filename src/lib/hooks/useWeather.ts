@@ -23,6 +23,7 @@ function transformWeather(json: unknown): WeatherData {
       condition: string;
     }>;
     hourly?: Array<{ time: string; condition: string; temp: number }>;
+    alerts?: Array<{ start?: string; end?: string }>;
     sunrise?: string;
     sunset?: string;
     moonrise?: string;
@@ -39,6 +40,11 @@ function transformWeather(json: unknown): WeatherData {
     hourly: raw.hourly?.map((h) => ({
       ...h,
       time: new Date(h.time),
+    })),
+    alerts: raw.alerts?.map((alert) => ({
+      ...alert,
+      start: alert.start ? new Date(alert.start) : undefined,
+      end: alert.end ? new Date(alert.end) : undefined,
     })),
     sunrise: raw.sunrise ? new Date(raw.sunrise) : undefined,
     sunset: raw.sunset ? new Date(raw.sunset) : undefined,
