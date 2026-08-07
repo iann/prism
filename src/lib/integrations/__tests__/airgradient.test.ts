@@ -97,11 +97,13 @@ describe('AirGradient integration', () => {
           time: new Date(now - 30 * 60_000),
           condition: 'cloudy' as const,
           temp: 81,
+          feelsLike: 81,
         },
         {
           time: new Date(now + 30 * 60_000),
           condition: 'cloudy' as const,
           temp: 88,
+          feelsLike: 88,
         },
       ],
       units: { temperature: 'F' as const, windSpeed: 'mph' as const, precipitation: 'in' as const },
