@@ -549,6 +549,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 4dddcc7
 
+67. **Skylight-inspired wall-display design system**
+
+    Unifies the dashboard, calendar, navigation, widgets, forms, dialogs,
+    states, and light/dark themes around a warm, touch-first family display
+    language, including shared wall primitives, portrait-display tuning, and
+    the restored segmented weather timeline.
+
+    Commit: 14ad7c4
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
