@@ -62,8 +62,9 @@ export function getWidgetStyle(w: WidgetConfig): CSSProperties | undefined {
   const style: CSSProperties = {};
 
   if (hasCustomShell) {
-    // Match the shared Card's rounded-xl, one-pixel semantic boundary. The
-    // grid wrapper owns this chrome while WidgetContainer strips its duplicate.
+    // Keep custom surfaces on the shared wall-display geometry. The grid
+    // wrapper owns the rounded, borderless chrome while WidgetContainer strips
+    // its duplicate surface treatment.
     style.borderRadius = '1.5rem';
     style.borderWidth = '0px';
     style.borderStyle = 'solid';

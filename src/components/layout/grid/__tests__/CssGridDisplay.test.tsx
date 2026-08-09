@@ -165,12 +165,13 @@ describe('CssGridDisplay', () => {
 
     const shell = container.querySelector<HTMLElement>('.widget-cell');
     expect(shell).not.toBeNull();
-    expect(shell?.classList.contains('rounded-xl')).toBe(true);
-    expect(shell?.classList.contains('border')).toBe(true);
-    expect(shell?.classList.contains('border-border')).toBe(true);
-    expect(shell?.classList.contains('shadow-sm')).toBe(true);
-    expect(shell?.style.borderRadius).toBe('0.75rem');
-    expect(shell?.style.borderWidth).toBe('1px');
+    expect(shell?.classList.contains('rounded-[1.5rem]')).toBe(true);
+    expect(shell?.classList.contains('border-0')).toBe(true);
+    expect(shell?.classList.contains('shadow-none')).toBe(true);
+    expect(shell?.classList.contains('border')).toBe(false);
+    expect(shell?.classList.contains('border-border')).toBe(false);
+    expect(shell?.style.borderRadius).toBe('1.5rem');
+    expect(shell?.style.borderWidth).toBe('0px');
     expect(shell?.style.color).toBe('rgb(0, 0, 0)');
     expect(screen.getByTestId('override-probe').getAttribute('data-text')).toBe('#000000');
     expect(screen.getByTestId('override-probe').getAttribute('data-background')).toBe('#F7F3E8');
