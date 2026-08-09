@@ -33,11 +33,11 @@ export const metadata = {
  */
 export default function ChoresPage() {
   return (
-    <main className="min-h-screen bg-background">
+    <div className="wall-display min-h-screen bg-background">
       <Suspense fallback={<ChoresSkeleton />}>
         <ChoresView />
       </Suspense>
-    </main>
+    </div>
   );
 }
 

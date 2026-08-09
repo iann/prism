@@ -65,6 +65,21 @@
     --seasonal-accent-foreground: 210 40% 98%;
     --seasonal-highlight: 210 40% 96%;
     --seasonal-subtle: 210 40% 98%;
+
+    /* Cross-theme semantic status roles. Hearth overrides these with its
+     * softer kitchen-specific hues below. */
+    --status-success: 151 51% 36%;
+    --status-warning: 32 78% 36%;
+    --status-error: 0 60% 44%;
+    --status-info: 201 64% 38%;
+    --disabled: 214 12% 78%;
+    --disabled-foreground: 215 10% 46%;
+    --shadow-color: 220 18% 20%;
+    --shadow-card:
+      0 8px 24px hsl(var(--shadow-color) / 0.1), 0 1px 2px hsl(var(--shadow-color) / 0.14);
+    --shadow-card-hover:
+      0 14px 30px hsl(var(--shadow-color) / 0.16), 0 2px 4px hsl(var(--shadow-color) / 0.16);
+    --display-scrim: 220 18% 20%;
   }
 
   .dark {
@@ -116,93 +131,267 @@
     --seasonal-accent-foreground: 222 47% 11%;
     --seasonal-highlight: 217 33% 17%;
     --seasonal-subtle: 217 33% 17%;
+
+    --status-success: 151 50% 62%;
+    --status-warning: 35 80% 66%;
+    --status-error: 4 62% 68%;
+    --status-info: 202 75% 66%;
+    --disabled: 217 15% 28%;
+    --disabled-foreground: 215 15% 65%;
+    --shadow-color: 0 0% 0%;
+    --shadow-card:
+      0 10px 28px hsl(var(--shadow-color) / 0.28), 0 1px 3px hsl(var(--shadow-color) / 0.34);
+    --shadow-card-hover:
+      0 16px 36px hsl(var(--shadow-color) / 0.34), 0 2px 5px hsl(var(--shadow-color) / 0.38);
+    --display-scrim: 222 47% 11%;
   }
 
-  /* Kitchen Calm first paint before ThemeProvider restores a saved preset.
-   * Keep this duplicate in sync with appThemes['kitchen-calm'] to avoid a
+  /* Daybook first paint before ThemeProvider restores a saved preset.
+   * Keep this duplicate in sync with appThemes.daybook to avoid a
    * visible surface and border flash during hydration. */
   :root:not([data-color-theme]) {
-    --background: 42 24% 83%;
-    --foreground: 155 15% 19%;
-    --card: 45 25% 96%;
-    --card-foreground: 155 15% 19%;
-    --popover: 45 30% 96%;
-    --popover-foreground: 155 15% 19%;
-    --primary: 164 24% 32%;
-    --primary-foreground: 45 30% 97%;
-    --secondary: 94 16% 84%;
-    --secondary-foreground: 151 17% 23%;
-    --muted: 41 18% 84%;
-    --muted-foreground: 151 10% 29%;
-    --accent: 96 18% 82%;
-    --accent-foreground: 154 20% 22%;
-    --destructive: 5 50% 42%;
-    --destructive-foreground: 45 30% 97%;
-    --border: 105 12% 49%;
-    --input: 105 12% 40%;
-    --ring: 164 24% 34%;
-    --chart-1: 164 30% 39%;
-    --chart-2: 92 24% 44%;
-    --chart-3: 32 40% 52%;
-    --chart-4: 52 30% 48%;
-    --chart-5: 349 28% 55%;
-    --weather-temp-very-cold: 204 78% 50%;
-    --weather-temp-freezing: 190 79% 47%;
-    --weather-temp-cold: 174 65% 43%;
-    --weather-temp-cool: 143 52% 39%;
-    --weather-temp-mild: 47 76% 45%;
-    --weather-temp-warm: 28 78% 49%;
-    --weather-temp-hot: 12 74% 51%;
-    --weather-temp-very-hot: 350 65% 48%;
-    --weather-precipitation: 198 70% 46%;
-    --calendar-surface: 48 26% 96%;
-    --calendar-today: 91 23% 83%;
-    --widget-calendar: 48 28% 96%;
-    --widget-planning: 91 22% 92%;
-    --widget-family: 27 27% 93%;
-    --widget-info: 78 14% 92%;
+    --background: 210 24% 82%;
+    --foreground: 222 20% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 20% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 20% 16%;
+    --primary: 199 65% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 204 28% 90%;
+    --secondary-foreground: 222 20% 16%;
+    --muted: 214 24% 92%;
+    --muted-foreground: 218 16% 30%;
+    --accent: 42 88% 75%;
+    --accent-foreground: 222 20% 16%;
+    --destructive: 6 70% 30%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 18% 40%;
+    --input: 214 20% 40%;
+    --ring: 199 65% 32%;
+    --chart-1: 10 70% 53%;
+    --chart-2: 198 65% 46%;
+    --chart-3: 145 45% 42%;
+    --chart-4: 42 78% 46%;
+    --chart-5: 279 35% 50%;
+    --weather-temp-very-cold: 211 70% 45%;
+    --weather-temp-freezing: 198 68% 43%;
+    --weather-temp-cold: 184 58% 40%;
+    --weather-temp-cool: 151 52% 38%;
+    --weather-temp-mild: 45 78% 43%;
+    --weather-temp-warm: 28 80% 45%;
+    --weather-temp-hot: 10 72% 48%;
+    --weather-temp-very-hot: 350 58% 48%;
+    --weather-precipitation: 202 68% 43%;
+    --calendar-surface: 0 0% 100%;
+    --calendar-today: 43 80% 86%;
+    --widget-calendar: 210 24% 82%;
+    --widget-planning: 210 24% 82%;
+    --widget-family: 210 24% 82%;
+    --widget-info: 210 24% 82%;
   }
 
   :root.dark:not([data-color-theme]) {
-    --background: 155 13% 14%;
-    --foreground: 47 23% 89%;
-    --card: 153 12% 18%;
-    --card-foreground: 47 23% 89%;
-    --popover: 153 12% 17%;
-    --popover-foreground: 47 23% 89%;
-    --primary: 143 22% 68%;
-    --primary-foreground: 155 18% 14%;
-    --secondary: 151 11% 23%;
-    --secondary-foreground: 47 23% 89%;
-    --muted: 151 10% 22%;
-    --muted-foreground: 55 10% 67%;
-    --accent: 102 13% 27%;
-    --accent-foreground: 47 23% 89%;
-    --destructive: 5 62% 69%;
-    --destructive-foreground: 5 30% 12%;
-    --border: 142 10% 48%;
-    --input: 142 10% 50%;
-    --ring: 143 22% 63%;
-    --chart-1: 151 27% 62%;
-    --chart-2: 91 22% 58%;
-    --chart-3: 34 37% 62%;
-    --chart-4: 52 28% 61%;
-    --chart-5: 350 30% 65%;
-    --weather-temp-very-cold: 204 80% 65%;
-    --weather-temp-freezing: 190 78% 64%;
-    --weather-temp-cold: 174 63% 58%;
-    --weather-temp-cool: 143 55% 58%;
-    --weather-temp-mild: 47 85% 65%;
-    --weather-temp-warm: 28 84% 64%;
-    --weather-temp-hot: 12 80% 65%;
-    --weather-temp-very-hot: 350 76% 68%;
-    --weather-precipitation: 198 78% 65%;
-    --calendar-surface: 153 12% 18%;
-    --calendar-today: 104 12% 25%;
-    --widget-calendar: 153 12% 19%;
-    --widget-planning: 118 10% 20%;
-    --widget-family: 25 12% 20%;
-    --widget-info: 80 9% 20%;
+    --background: 220 22% 13%;
+    --foreground: 38 45% 94%;
+    --card: 220 18% 20%;
+    --card-foreground: 38 45% 94%;
+    --popover: 220 18% 24%;
+    --popover-foreground: 38 45% 94%;
+    --primary: 198 65% 68%;
+    --primary-foreground: 220 22% 13%;
+    --secondary: 215 17% 28%;
+    --secondary-foreground: 38 45% 94%;
+    --muted: 218 15% 24%;
+    --muted-foreground: 36 26% 84%;
+    --accent: 42 65% 30%;
+    --accent-foreground: 38 45% 94%;
+    --destructive: 6 76% 75%;
+    --destructive-foreground: 6 40% 15%;
+    --border: 215 15% 58%;
+    --input: 214 18% 60%;
+    --ring: 198 65% 74%;
+    --chart-1: 10 76% 72%;
+    --chart-2: 198 75% 72%;
+    --chart-3: 145 55% 67%;
+    --chart-4: 42 88% 72%;
+    --chart-5: 279 55% 76%;
+    --weather-temp-very-cold: 211 76% 71%;
+    --weather-temp-freezing: 198 76% 69%;
+    --weather-temp-cold: 184 66% 65%;
+    --weather-temp-cool: 151 60% 63%;
+    --weather-temp-mild: 45 86% 70%;
+    --weather-temp-warm: 28 88% 69%;
+    --weather-temp-hot: 10 80% 71%;
+    --weather-temp-very-hot: 350 68% 73%;
+    --weather-precipitation: 202 76% 70%;
+    --calendar-surface: 220 17% 22%;
+    --calendar-today: 42 62% 28%;
+    --widget-calendar: 220 22% 13%;
+    --widget-planning: 220 22% 13%;
+    --widget-family: 220 22% 13%;
+    --widget-info: 220 22% 13%;
+  }
+
+  /* Default utility roles before ThemeProvider applies the selected kitchen
+   * preset. They intentionally live outside the named theme token contract. */
+  :root:not([data-color-theme]) {
+    --status-success: 146 52% 34%;
+    --status-warning: 30 75% 38%;
+    --status-error: 6 66% 43%;
+    --status-info: 198 60% 38%;
+    --disabled: 214 15% 86%;
+    --disabled-foreground: 218 10% 44%;
+    --shadow-color: 222 20% 16%;
+    --display-scrim: 222 20% 16%;
+    --seasonal-accent: 42 79% 53%;
+    --seasonal-accent-foreground: 222 20% 16%;
+    --seasonal-highlight: 42 87% 88%;
+    --seasonal-subtle: 197 60% 95%;
+  }
+
+  :root.dark:not([data-color-theme]) {
+    --status-success: 145 60% 65%;
+    --status-warning: 37 86% 68%;
+    --status-error: 6 78% 72%;
+    --status-info: 198 68% 73%;
+    --disabled: 218 13% 32%;
+    --disabled-foreground: 38 20% 68%;
+    --shadow-color: 220 22% 6%;
+    --display-scrim: 220 22% 13%;
+    --seasonal-accent: 42 80% 68%;
+    --seasonal-accent-foreground: 222 20% 12%;
+    --seasonal-highlight: 42 50% 28%;
+    --seasonal-subtle: 215 17% 24%;
+  }
+
+  :root[data-color-theme='hearth'] {
+    --status-success: 153 30% 35%;
+    --status-warning: 32 62% 35%;
+    --status-error: 9 46% 38%;
+    --status-info: 194 30% 35%;
+    --disabled: 45 13% 82%;
+    --disabled-foreground: 111 3% 49%;
+    --shadow-color: 156 16% 18%;
+    --shadow-card:
+      0 10px 24px hsl(var(--shadow-color) / 0.1), 0 1px 2px hsl(var(--shadow-color) / 0.16);
+    --shadow-card-hover:
+      0 14px 30px hsl(var(--shadow-color) / 0.15), 0 2px 4px hsl(var(--shadow-color) / 0.16);
+    --display-scrim: 156 16% 18%;
+  }
+
+  :root[data-color-theme='cedar'] {
+    --status-success: 145 24% 38%;
+    --status-warning: 32 56% 37%;
+    --status-error: 8 48% 39%;
+    --status-info: 195 24% 37%;
+    --disabled: 32 13% 82%;
+    --disabled-foreground: 28 6% 49%;
+    --shadow-color: 23 28% 16%;
+    --shadow-card:
+      0 10px 24px hsl(var(--shadow-color) / 0.1), 0 1px 2px hsl(var(--shadow-color) / 0.16);
+    --shadow-card-hover:
+      0 14px 30px hsl(var(--shadow-color) / 0.15), 0 2px 4px hsl(var(--shadow-color) / 0.16);
+    --display-scrim: 23 28% 16%;
+    --seasonal-accent: 24 40% 42%;
+    --seasonal-accent-foreground: 36 49% 95%;
+    --seasonal-highlight: 29 35% 87%;
+    --seasonal-subtle: 31 35% 92%;
+  }
+
+  :root.dark[data-color-theme='cedar'] {
+    --status-success: 142 30% 68%;
+    --status-warning: 36 62% 68%;
+    --status-error: 9 58% 72%;
+    --status-info: 195 36% 70%;
+    --disabled: 27 12% 34%;
+    --disabled-foreground: 34 12% 64%;
+    --shadow-color: 24 17% 6%;
+    --shadow-card:
+      0 10px 28px hsl(var(--shadow-color) / 0.34), 0 1px 3px hsl(var(--shadow-color) / 0.4);
+    --shadow-card-hover:
+      0 16px 36px hsl(var(--shadow-color) / 0.4), 0 2px 5px hsl(var(--shadow-color) / 0.44);
+    --display-scrim: 24 17% 10%;
+    --seasonal-accent: 34 39% 62%;
+    --seasonal-accent-foreground: 26 28% 15%;
+    --seasonal-highlight: 32 24% 26%;
+    --seasonal-subtle: 29 22% 22%;
+  }
+
+  :root[data-color-theme='mosaic'] {
+    --status-success: 153 54% 32%;
+    --status-warning: 29 78% 36%;
+    --status-error: 5 65% 43%;
+    --status-info: 197 55% 37%;
+    --disabled: 35 25% 83%;
+    --disabled-foreground: 204 10% 45%;
+    --shadow-color: 201 32% 17%;
+    --shadow-card:
+      0 10px 24px hsl(var(--shadow-color) / 0.12), 0 1px 2px hsl(var(--shadow-color) / 0.18);
+    --shadow-card-hover:
+      0 14px 30px hsl(var(--shadow-color) / 0.18), 0 2px 4px hsl(var(--shadow-color) / 0.18);
+    --display-scrim: 201 32% 17%;
+    --seasonal-accent: 41 70% 50%;
+    --seasonal-accent-foreground: 205 32% 18%;
+    --seasonal-highlight: 41 78% 88%;
+    --seasonal-subtle: 35 70% 93%;
+  }
+
+  :root.dark[data-color-theme='mosaic'] {
+    --status-success: 151 55% 63%;
+    --status-warning: 38 82% 68%;
+    --status-error: 6 78% 70%;
+    --status-info: 195 65% 70%;
+    --disabled: 185 13% 30%;
+    --disabled-foreground: 39 20% 65%;
+    --shadow-color: 190 34% 6%;
+    --shadow-card:
+      0 10px 28px hsl(var(--shadow-color) / 0.38), 0 1px 3px hsl(var(--shadow-color) / 0.44);
+    --shadow-card-hover:
+      0 16px 36px hsl(var(--shadow-color) / 0.46), 0 2px 5px hsl(var(--shadow-color) / 0.5);
+    --display-scrim: 190 34% 10%;
+    --seasonal-accent: 41 83% 66%;
+    --seasonal-accent-foreground: 205 32% 12%;
+    --seasonal-highlight: 41 50% 28%;
+    --seasonal-subtle: 190 24% 23%;
+  }
+
+  :root[data-color-theme='daybook'] {
+    --status-success: 146 52% 34%;
+    --status-warning: 30 75% 38%;
+    --status-error: 6 66% 43%;
+    --status-info: 198 60% 38%;
+    --disabled: 214 15% 86%;
+    --disabled-foreground: 218 10% 44%;
+    --shadow-color: 222 20% 16%;
+    --shadow-card:
+      0 8px 22px hsl(var(--shadow-color) / 0.1), 0 1px 2px hsl(var(--shadow-color) / 0.16);
+    --shadow-card-hover:
+      0 12px 28px hsl(var(--shadow-color) / 0.16), 0 2px 4px hsl(var(--shadow-color) / 0.18);
+    --display-scrim: 222 20% 16%;
+    --seasonal-accent: 42 79% 53%;
+    --seasonal-accent-foreground: 222 20% 16%;
+    --seasonal-highlight: 42 87% 88%;
+    --seasonal-subtle: 197 60% 95%;
+  }
+
+  :root.dark[data-color-theme='daybook'] {
+    --status-success: 145 60% 65%;
+    --status-warning: 37 86% 68%;
+    --status-error: 6 78% 72%;
+    --status-info: 198 68% 73%;
+    --disabled: 218 13% 32%;
+    --disabled-foreground: 38 20% 68%;
+    --shadow-color: 220 22% 6%;
+    --shadow-card:
+      0 10px 28px hsl(var(--shadow-color) / 0.38), 0 1px 3px hsl(var(--shadow-color) / 0.44);
+    --shadow-card-hover:
+      0 16px 36px hsl(var(--shadow-color) / 0.46), 0 2px 5px hsl(var(--shadow-color) / 0.5);
+    --display-scrim: 220 22% 13%;
+    --seasonal-accent: 42 80% 68%;
+    --seasonal-accent-foreground: 222 20% 12%;
+    --seasonal-highlight: 42 50% 28%;
+    --seasonal-subtle: 215 17% 24%;
   }
 }
 
@@ -240,6 +429,13 @@
     }
   }
 
+  /* The household shell must not become smaller just because a kiosk browser
+     reports a mouse-like pointer. Touch geometry is a product requirement,
+     not a device-capability enhancement. */
+  html:has(.wall-display) {
+    font-size: 16px;
+  }
+
   body {
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
@@ -247,59 +443,91 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* Presets tint related widget families; manual layout-editor colors bypass
-   * these selectors through data-theme-surface="custom". */
-  [data-theme-widget] > [data-widget][data-theme-surface="preset"] {
-    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+  /* Wallpaper is a supporting material, not the dashboard's primary canvas.
+   * The scrim follows the active theme so daylight stays warm and evening
+   * mode stays low-luminance without introducing a pure-black rectangle. */
+  .wallpaper-scrim {
+    background: hsl(var(--display-scrim) / 0.58);
   }
 
-  [data-theme-widget="calendar"] > [data-widget][data-theme-surface="preset"] {
+  .dark .wallpaper-scrim {
+    background: hsl(var(--display-scrim) / 0.72);
+  }
+
+  /* Keep the shared card shadow ambient and chromatic in the kitchen presets.
+   * The utility class remains shadow-sm so existing component contracts and
+   * performance-mode overrides continue to work. */
+  :root[data-color-theme='hearth'] .shadow-sm,
+  :root[data-color-theme='cedar'] .shadow-sm,
+  :root[data-color-theme='mosaic'] .shadow-sm,
+  :root[data-color-theme='daybook'] .shadow-sm {
+    box-shadow: var(--shadow-card);
+  }
+
+  :root[data-color-theme='hearth'] .hover\:shadow-md:hover,
+  :root[data-color-theme='cedar'] .hover\:shadow-md:hover,
+  :root[data-color-theme='mosaic'] .hover\:shadow-md:hover,
+  :root[data-color-theme='daybook'] .hover\:shadow-md:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Presets can tint related widget families; Daybook maps them to the canvas.
+   * Manual layout-editor colors bypass these selectors through
+   * data-theme-surface="custom". */
+  [data-theme-widget] > [data-widget][data-theme-surface='preset'] {
+    transition:
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease;
+  }
+
+  [data-theme-widget='calendar'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-calendar));
   }
 
-  .dark [data-theme-widget="calendar"] > [data-widget][data-theme-surface="preset"] {
+  .dark [data-theme-widget='calendar'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-calendar) / 0.9);
   }
 
-  [data-theme-widget="tasks"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="shopping"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="meals"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="chores"] > [data-widget][data-theme-surface="preset"] {
+  [data-theme-widget='tasks'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='shopping'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='meals'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='chores'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-planning));
   }
 
-  .dark [data-theme-widget="tasks"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="shopping"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="meals"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="chores"] > [data-widget][data-theme-surface="preset"] {
+  .dark [data-theme-widget='tasks'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='shopping'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='meals'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='chores'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-planning) / 0.9);
   }
 
-  [data-theme-widget="messages"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="birthdays"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="points"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="wishes"] > [data-widget][data-theme-surface="preset"] {
+  [data-theme-widget='messages'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='birthdays'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='points'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='wishes'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-family));
   }
 
-  .dark [data-theme-widget="messages"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="birthdays"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="points"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="wishes"] > [data-widget][data-theme-surface="preset"] {
+  .dark [data-theme-widget='messages'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='birthdays'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='points'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='wishes'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-family) / 0.9);
   }
 
-  [data-theme-widget="clock"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="weather"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="busTracking"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="travel"] > [data-widget][data-theme-surface="preset"] {
+  [data-theme-widget='clock'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='weather'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='busTracking'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='travel'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-info));
   }
 
-  .dark [data-theme-widget="clock"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="weather"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="busTracking"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="travel"] > [data-widget][data-theme-surface="preset"] {
+  .dark [data-theme-widget='clock'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='weather'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='busTracking'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='travel'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-info) / 0.9);
   }
 
@@ -312,7 +540,7 @@
   }
 
   ::-webkit-scrollbar {
-    @apply w-2 h-2;
+    @apply h-2 w-2;
   }
 
   ::-webkit-scrollbar-track {
@@ -320,7 +548,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full;
+    @apply rounded-full bg-muted-foreground/30;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -333,16 +561,16 @@
   }
 
   button,
-  [role="button"],
-  [role="tab"],
-  [role="switch"] {
+  [role='button'],
+  [role='tab'],
+  [role='switch'] {
     -webkit-user-select: none;
     user-select: none;
   }
 
   a,
   button,
-  [role="button"] {
+  [role='button'] {
     touch-action: manipulation;
   }
 
@@ -352,31 +580,18 @@
 }
 
 @layer utilities {
-  /* Touch targets: Apple HIG 44px minimum — only enforced on touch devices */
+  /* Touch targets are pointer-independent because Prism is a wall appliance
+     even when Chromium reports a fine pointer. */
   .touch-target {
-    @apply min-h-[32px] min-w-[32px];
-  }
-
-  .touch-target-lg {
-    @apply min-h-[36px] min-w-[36px];
-  }
-
-  .touch-target-xl {
     @apply min-h-[44px] min-w-[44px];
   }
 
-  @media (pointer: coarse) {
-    .touch-target {
-      @apply min-h-[44px] min-w-[44px];
-    }
+  .touch-target-lg {
+    @apply min-h-[48px] min-w-[48px];
+  }
 
-    .touch-target-lg {
-      @apply min-h-[48px] min-w-[48px];
-    }
-
-    .touch-target-xl {
-      @apply min-h-[60px] min-w-[60px];
-    }
+  .touch-target-xl {
+    @apply min-h-[60px] min-w-[60px];
   }
 
   .text-truncate {
@@ -414,7 +629,8 @@
   }
 
   @keyframes uv-index-dot-pulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 1;
       transform: scale(1);
     }
@@ -454,7 +670,8 @@
    * wall display does not spend a JS frame on every minute; CSS handles the
    * subtle breathing and moving highlight on the compositor instead. */
   @keyframes precipitation-wave-breathe {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.92;
       transform: scaleY(1);
     }
@@ -465,7 +682,8 @@
   }
 
   @keyframes precipitation-wave-sway {
-    0%, 100% {
+    0%,
+    100% {
       transform: translateY(0) scaleY(1);
     }
     50% {
@@ -474,7 +692,8 @@
   }
 
   @keyframes precipitation-wave-variation {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.28;
       transform: translateY(0);
     }
@@ -686,18 +905,32 @@
 }
 
 @keyframes spin-fast {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes rope-wave {
-  0%, 100% { d: path("M0 10 Q10 5 20 10 Q30 15 40 10"); }
-  50% { d: path("M0 10 Q10 15 20 10 Q30 5 40 10"); }
+  0%,
+  100% {
+    d: path('M0 10 Q10 5 20 10 Q30 15 40 10');
+  }
+  50% {
+    d: path('M0 10 Q10 15 20 10 Q30 5 40 10');
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .animate-plane-fly {
@@ -717,8 +950,13 @@
 }
 
 @keyframes wiggle {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
 }
 
 .animate-wiggle {
@@ -754,16 +992,64 @@
 }
 
 /* Edge handles - 44px for touch targets */
-.react-resizable-handle-n { top: -22px; left: 24px; right: 24px; height: 44px; cursor: n-resize; }
-.react-resizable-handle-s { bottom: -22px; left: 24px; right: 24px; height: 44px; cursor: s-resize; }
-.react-resizable-handle-e { right: -22px; top: 24px; bottom: 24px; width: 44px; cursor: e-resize; }
-.react-resizable-handle-w { left: -22px; top: 24px; bottom: 24px; width: 44px; cursor: w-resize; }
+.react-resizable-handle-n {
+  top: -22px;
+  left: 24px;
+  right: 24px;
+  height: 44px;
+  cursor: n-resize;
+}
+.react-resizable-handle-s {
+  bottom: -22px;
+  left: 24px;
+  right: 24px;
+  height: 44px;
+  cursor: s-resize;
+}
+.react-resizable-handle-e {
+  right: -22px;
+  top: 24px;
+  bottom: 24px;
+  width: 44px;
+  cursor: e-resize;
+}
+.react-resizable-handle-w {
+  left: -22px;
+  top: 24px;
+  bottom: 24px;
+  width: 44px;
+  cursor: w-resize;
+}
 
 /* Corner handles - 48x48 */
-.react-resizable-handle-ne { top: -20px; right: -20px; width: 48px; height: 48px; cursor: ne-resize; }
-.react-resizable-handle-nw { top: -20px; left: -20px; width: 48px; height: 48px; cursor: nw-resize; }
-.react-resizable-handle-se { bottom: -20px; right: -20px; width: 48px; height: 48px; cursor: se-resize; }
-.react-resizable-handle-sw { bottom: -20px; left: -20px; width: 48px; height: 48px; cursor: sw-resize; }
+.react-resizable-handle-ne {
+  top: -20px;
+  right: -20px;
+  width: 48px;
+  height: 48px;
+  cursor: ne-resize;
+}
+.react-resizable-handle-nw {
+  top: -20px;
+  left: -20px;
+  width: 48px;
+  height: 48px;
+  cursor: nw-resize;
+}
+.react-resizable-handle-se {
+  bottom: -20px;
+  right: -20px;
+  width: 48px;
+  height: 48px;
+  cursor: se-resize;
+}
+.react-resizable-handle-sw {
+  bottom: -20px;
+  left: -20px;
+  width: 48px;
+  height: 48px;
+  cursor: sw-resize;
+}
 
 .react-resizable-handle::after {
   content: '';
@@ -832,27 +1118,50 @@
 
 /* Keyboard slide animations */
 @keyframes keyboard-in {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 @keyframes keyboard-out {
-  from { transform: translateY(0); }
-  to   { transform: translateY(100%); }
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
 }
-.animate-keyboard-in  { animation: keyboard-in  200ms ease-out forwards; }
-.animate-keyboard-out { animation: keyboard-out 200ms ease-in  forwards; }
+.animate-keyboard-in {
+  animation: keyboard-in 200ms ease-out forwards;
+}
+.animate-keyboard-out {
+  animation: keyboard-out 200ms ease-in forwards;
+}
 
 /* Scan highlight flash on shopping items */
 @keyframes scan-highlight {
-  0%   { background-color: hsl(var(--primary) / 0.25); }
-  100% { background-color: transparent; }
+  0% {
+    background-color: hsl(var(--primary) / 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
-.scan-highlight { animation: scan-highlight 1.5s ease-out forwards; }
+.scan-highlight {
+  animation: scan-highlight 1.5s ease-out forwards;
+}
 
 /* Mic pulse when listening */
 @keyframes mic-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 [data-virtual-keyboard].is-listening .key-mic {
   animation: mic-pulse 1s infinite;
@@ -894,4 +1203,1793 @@
 [data-virtual-keyboard] .hg-button.key-dismiss {
   flex-grow: 1;
   font-size: 20px;
+}
+
+/* =========================================================
+   Wall-display design system
+   =========================================================
+
+   Prism still supports its named color presets. The wall-display layer is a
+   presentation boundary applied by AppShell: it gives the always-on family
+   appliance a calm, warm surface and leaves all data/integration behavior
+   untouched. LCARS intentionally opts out of this layer.
+*/
+
+@layer base {
+  .wall-display {
+    --wall-canvas: 39 34% 91%;
+    --wall-surface: 42 48% 98%;
+    --wall-surface-raised: 42 54% 99%;
+    --wall-surface-muted: 39 31% 87%;
+    --wall-ink: 153 19% 20%;
+    --wall-muted: 151 11% 34%;
+    --wall-line: 39 19% 79%;
+    --wall-coral: 11 68% 48%;
+    --wall-mustard: 41 78% 54%;
+    --wall-sage: 137 28% 48%;
+    --wall-sky: 199 57% 58%;
+    --wall-lavender: 263 39% 67%;
+    --wall-pink: 342 57% 71%;
+    --wall-teal: 177 38% 42%;
+    /* Weather stays semantic and recognizable across every dashboard preset.
+       These values intentionally override the active theme's decorative ramp. */
+    --weather-temp-very-cold: 219 92% 55%;
+    --weather-temp-freezing: 202 92% 50%;
+    --weather-temp-cold: 188 82% 43%;
+    --weather-temp-cool: 153 62% 41%;
+    --weather-temp-mild: 48 96% 47%;
+    --weather-temp-warm: 30 96% 51%;
+    --weather-temp-hot: 12 92% 53%;
+    --weather-temp-very-hot: 348 82% 54%;
+    --weather-precipitation: 203 92% 50%;
+    --weather-condition-sunny: 43 98% 52%;
+    --weather-condition-partly-cloudy: 201 92% 54%;
+    --weather-condition-cloudy: 215 24% 53%;
+    --weather-condition-rainy: 207 92% 55%;
+    --weather-condition-snowy: 187 74% 50%;
+    --weather-condition-stormy: 266 76% 59%;
+    --weather-condition-surface-sunny: 43 90% 86%;
+    --weather-condition-surface-partly-cloudy: 201 78% 86%;
+    --weather-condition-surface-cloudy: 215 24% 87%;
+    --weather-condition-surface-rainy: 207 78% 86%;
+    --weather-condition-surface-snowy: 187 60% 88%;
+    --weather-condition-surface-stormy: 266 62% 88%;
+    --weather-timeline-now: 11 88% 58%;
+    --status-success: 137 36% 31%;
+    --status-warning: 36 76% 29%;
+    --status-error: 8 60% 42%;
+    --status-info: 199 65% 31%;
+    --wall-font-family: 'DM Sans', 'Avenir Next', Avenir, 'Segoe UI', system-ui, sans-serif;
+    --wall-type-xs: clamp(14px, 0.95vw, 18px);
+    --wall-type-sm: clamp(15px, 1.05vw, 20px);
+    --wall-type-base: clamp(16px, 1.2vw, 22px);
+    --wall-type-lg: clamp(18px, 1.35vw, 26px);
+    /* Keep preset widget shells quiet on the wall. Family and event colors
+       should carry the visual color, not a theme-specific blue-gray card. */
+    --widget-calendar: var(--wall-surface);
+    --widget-planning: var(--wall-surface);
+    --widget-family: var(--wall-surface);
+    --widget-info: var(--wall-surface);
+    --wall-radius-sm: 0.8rem;
+    --wall-radius-md: 1.15rem;
+    --wall-radius-lg: 1.5rem;
+    --wall-radius-pill: 999px;
+    --wall-control-sm: 44px;
+    --wall-control-md: 52px;
+    --wall-control-lg: 60px;
+    --wall-shadow-soft: 0 8px 22px hsl(151 19% 20% / 0.07);
+
+    --background: var(--wall-canvas);
+    --foreground: var(--wall-ink);
+    --card: var(--wall-surface);
+    --card-foreground: var(--wall-ink);
+    --popover: var(--wall-surface-raised);
+    --popover-foreground: var(--wall-ink);
+    --primary: var(--wall-coral);
+    --primary-foreground: 42 54% 99%;
+    --secondary: var(--wall-surface-muted);
+    --secondary-foreground: var(--wall-ink);
+    --muted: var(--wall-surface-muted);
+    --muted-foreground: var(--wall-muted);
+    --accent: 42 77% 84%;
+    --accent-foreground: var(--wall-ink);
+    --destructive: var(--wall-coral);
+    --destructive-foreground: 42 54% 99%;
+    --border: var(--wall-line);
+    --input: 39 18% 68%;
+    --ring: var(--wall-coral);
+    --calendar-surface: var(--wall-surface);
+    --calendar-today: 43 82% 86%;
+    --seasonal-accent: var(--wall-coral);
+    --seasonal-accent-foreground: 42 54% 99%;
+    --seasonal-highlight: 43 82% 86%;
+    --seasonal-subtle: 42 77% 95%;
+    --radius: var(--wall-radius-md);
+    --shadow-card: var(--wall-shadow-soft);
+    --shadow-card-hover: 0 12px 28px hsl(151 19% 20% / 0.1);
+  }
+
+  .dark .wall-display {
+    --wall-canvas: 153 18% 15%;
+    --wall-surface: 153 16% 21%;
+    --wall-surface-raised: 153 15% 25%;
+    --wall-surface-muted: 153 13% 26%;
+    --wall-ink: 42 34% 93%;
+    --wall-muted: 40 18% 72%;
+    --wall-line: 153 10% 38%;
+    --wall-coral: 11 68% 65%;
+    --wall-mustard: 41 78% 66%;
+    --wall-sage: 137 31% 61%;
+    --wall-sky: 199 62% 68%;
+    --wall-lavender: 263 45% 75%;
+    --wall-pink: 342 62% 78%;
+    --wall-teal: 177 42% 59%;
+    --weather-temp-very-cold: 219 96% 70%;
+    --weather-temp-freezing: 202 94% 68%;
+    --weather-temp-cold: 188 86% 65%;
+    --weather-temp-cool: 153 68% 64%;
+    --weather-temp-mild: 48 98% 67%;
+    --weather-temp-warm: 30 98% 66%;
+    --weather-temp-hot: 12 94% 67%;
+    --weather-temp-very-hot: 348 88% 70%;
+    --weather-precipitation: 203 96% 68%;
+    --weather-condition-sunny: 43 98% 66%;
+    --weather-condition-partly-cloudy: 201 96% 69%;
+    --weather-condition-cloudy: 215 28% 72%;
+    --weather-condition-rainy: 207 96% 68%;
+    --weather-condition-snowy: 187 82% 74%;
+    --weather-condition-stormy: 266 82% 74%;
+    --weather-condition-surface-sunny: 43 52% 38%;
+    --weather-condition-surface-partly-cloudy: 201 48% 39%;
+    --weather-condition-surface-cloudy: 215 20% 42%;
+    --weather-condition-surface-rainy: 207 52% 37%;
+    --weather-condition-surface-snowy: 187 44% 42%;
+    --weather-condition-surface-stormy: 266 46% 43%;
+    --weather-timeline-now: 11 92% 68%;
+    --status-success: var(--wall-sage);
+    --status-warning: var(--wall-mustard);
+    --status-error: 11 75% 72%;
+    --status-info: var(--wall-sky);
+    --wall-font-family: 'DM Sans', 'Avenir Next', Avenir, 'Segoe UI', system-ui, sans-serif;
+    --wall-type-xs: clamp(14px, 0.95vw, 18px);
+    --wall-type-sm: clamp(15px, 1.05vw, 20px);
+    --wall-type-base: clamp(16px, 1.2vw, 22px);
+    --wall-type-lg: clamp(18px, 1.35vw, 26px);
+    --widget-calendar: var(--wall-surface);
+    --widget-planning: var(--wall-surface);
+    --widget-family: var(--wall-surface);
+    --widget-info: var(--wall-surface);
+    --wall-shadow-soft: 0 10px 25px hsl(0 0% 0% / 0.18);
+
+    --background: var(--wall-canvas);
+    --foreground: var(--wall-ink);
+    --card: var(--wall-surface);
+    --card-foreground: var(--wall-ink);
+    --popover: var(--wall-surface-raised);
+    --popover-foreground: var(--wall-ink);
+    --primary: var(--wall-coral);
+    --primary-foreground: 153 18% 15%;
+    --secondary: var(--wall-surface-muted);
+    --secondary-foreground: var(--wall-ink);
+    --muted: var(--wall-surface-muted);
+    --muted-foreground: var(--wall-muted);
+    --accent: 42 45% 32%;
+    --accent-foreground: var(--wall-ink);
+    --destructive: var(--wall-coral);
+    --destructive-foreground: 153 18% 15%;
+    --border: var(--wall-line);
+    --input: 153 10% 48%;
+    --ring: var(--wall-coral);
+    --calendar-surface: var(--wall-surface);
+    --calendar-today: 42 45% 31%;
+    --seasonal-accent: var(--wall-coral);
+    --seasonal-accent-foreground: 153 18% 15%;
+    --seasonal-highlight: 42 45% 31%;
+    --seasonal-subtle: 153 14% 24%;
+    --shadow-card: var(--wall-shadow-soft);
+    --shadow-card-hover: 0 14px 30px hsl(0 0% 0% / 0.25);
+  }
+}
+
+@layer components {
+  .wall-display {
+    min-height: 100vh;
+    background: hsl(var(--wall-canvas));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-main {
+    min-height: 100vh;
+  }
+
+  .wall-skip-link {
+    position: fixed;
+    top: 0.75rem;
+    left: 50%;
+    z-index: 10010;
+    min-height: 44px;
+    transform: translate(-50%, -160%);
+    border-radius: var(--wall-radius-pill);
+    background: hsl(var(--wall-ink));
+    color: hsl(var(--wall-surface-raised));
+    padding: 0.75rem 1.25rem;
+    font-weight: 700;
+    transition: transform 140ms ease;
+  }
+
+  .wall-skip-link:focus {
+    transform: translate(-50%, 0);
+  }
+
+  .wall-surface {
+    background: hsl(var(--wall-surface));
+    color: hsl(var(--wall-ink));
+    border-radius: var(--wall-radius-lg);
+  }
+
+  .wall-button,
+  .wall-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: var(--wall-radius-pill);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: normal;
+    touch-action: manipulation;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease,
+      transform 160ms ease,
+      box-shadow 160ms ease,
+      opacity 160ms ease;
+  }
+
+  .wall-button:hover,
+  .wall-icon-button:hover {
+    transform: translateY(-1px);
+  }
+
+  .wall-button:active,
+  .wall-icon-button:active {
+    transform: translateY(1px) scale(0.98);
+  }
+
+  .wall-button:focus-visible,
+  .wall-icon-button:focus-visible,
+  .wall-nav-item:focus-visible {
+    outline: 3px solid hsl(var(--wall-coral) / 0.38);
+    outline-offset: 3px;
+  }
+
+  .wall-button:disabled,
+  .wall-icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+    transform: none;
+  }
+
+  .wall-button-sm {
+    min-height: var(--wall-control-sm);
+    padding: 0 1rem;
+    font-size: 0.9rem;
+  }
+
+  .wall-button-md {
+    min-height: var(--wall-control-md);
+    padding: 0 1.3rem;
+  }
+
+  .wall-button-lg {
+    min-height: var(--wall-control-lg);
+    padding: 0 1.55rem;
+    font-size: 1.05rem;
+  }
+
+  .wall-icon-button.wall-button-sm {
+    width: 44px;
+    padding: 0;
+  }
+
+  .wall-icon-button.wall-button-md {
+    width: 52px;
+    padding: 0;
+  }
+
+  .wall-icon-button.wall-button-lg {
+    width: 60px;
+    padding: 0;
+  }
+
+  .wall-button-primary {
+    background: hsl(var(--wall-coral));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 5px 13px hsl(var(--wall-coral) / 0.2);
+  }
+
+  .wall-button-primary:hover {
+    background: hsl(var(--wall-coral) / 0.88);
+  }
+
+  .wall-button-secondary {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-button-secondary:hover,
+  .wall-button-ghost:hover {
+    background: hsl(var(--accent));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-button-ghost {
+    background: transparent;
+    color: hsl(var(--wall-muted));
+  }
+
+  .wall-button-outline {
+    background: hsl(var(--wall-surface) / 0.7);
+    color: hsl(var(--wall-ink));
+    box-shadow: inset 0 0 0 1px hsl(var(--wall-line) / 0.7);
+  }
+
+  .wall-button-outline:hover {
+    background: hsl(var(--wall-surface-raised));
+    box-shadow: inset 0 0 0 2px hsl(var(--wall-coral) / 0.35);
+  }
+
+  .wall-button-danger {
+    background: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
+  }
+
+  .wall-family-avatar {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .wall-family-avatar-with-name {
+    gap: 0.5rem;
+  }
+
+  .wall-family-avatar-image {
+    box-shadow: 0 0 0 3px hsl(var(--wall-surface-raised));
+  }
+
+  .wall-family-avatar-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .wall-nav-item {
+    position: relative;
+    display: flex;
+    min-height: 76px;
+    width: 76px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.38rem;
+    border-radius: var(--wall-radius-md);
+    color: hsl(var(--wall-muted));
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.05;
+    text-align: center;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease,
+      transform 160ms ease;
+  }
+
+  .wall-nav-item:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+    transform: translateY(-1px);
+  }
+
+  .wall-nav-item-active {
+    background: var(--wall-nav-accent-soft);
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-nav-item-active .wall-nav-icon {
+    color: var(--wall-nav-accent);
+  }
+
+  .wall-nav-item-expanded {
+    width: 100%;
+    min-height: 56px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 0.85rem;
+    padding: 0 1rem;
+    font-size: 1rem;
+    text-align: left;
+  }
+
+  .wall-nav-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+  }
+
+  .wall-nav-item-active .wall-nav-icon-wrap {
+    background: hsl(var(--wall-surface-raised) / 0.72);
+  }
+
+  .wall-nav-icon {
+    width: 22px;
+    height: 22px;
+    stroke-width: 2.1;
+  }
+
+  .wall-nav-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-user-button {
+    min-height: 56px;
+    width: 100%;
+    border-radius: var(--wall-radius-md);
+  }
+
+  .wall-home-button {
+    flex-shrink: 0;
+    min-height: 52px;
+    min-width: 52px;
+    width: 52px;
+    border-radius: 50%;
+  }
+
+  .wall-event-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--wall-radius-sm);
+    background: var(--wall-event-fill);
+    color: hsl(var(--wall-ink));
+    box-shadow: inset 5px 0 0 var(--wall-event-color);
+    transition:
+      background-color 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+  }
+
+  .wall-display .wall-card-event {
+    border: 0;
+    border-radius: var(--wall-radius-sm);
+    background: var(--wall-event-fill);
+    box-shadow: inset 5px 0 0 var(--wall-event-color);
+  }
+
+  .wall-event-card-compact {
+    padding: 0.42rem 0.62rem 0.42rem 0.78rem;
+  }
+
+  .wall-event-card-comfortable {
+    padding: 0.62rem 0.78rem 0.62rem 0.95rem;
+  }
+
+  .wall-event-card:hover {
+    background: color-mix(in srgb, var(--wall-event-fill) 80%, white);
+  }
+
+  .wall-event-card:active {
+    transform: scale(0.99);
+  }
+
+  .wall-display .wall-subpage-header {
+    border-bottom: 0;
+    background: hsl(var(--wall-canvas));
+    padding: 0.9rem 1.6rem 0.75rem;
+  }
+
+  .wall-display .wall-subpage-header-inner {
+    min-height: 68px;
+  }
+
+  .wall-display .wall-subpage-title {
+    font-size: clamp(1.35rem, 2vw, 2rem);
+    font-weight: 700;
+    letter-spacing: normal;
+  }
+
+  .wall-display .wall-dashboard-header {
+    min-height: 72px;
+    background: hsl(var(--wall-canvas) / 0.94);
+    padding: 0.8rem 1.6rem;
+  }
+
+  .wall-display .wall-header-action {
+    display: inline-flex;
+    min-height: 52px;
+    min-width: 52px;
+    align-items: center;
+    justify-content: center;
+    color: hsl(var(--wall-muted));
+  }
+
+  .wall-display .wall-subpage-header .wall-view-trigger,
+  .wall-display .wall-subpage-header .wall-options-trigger {
+    height: 52px;
+    min-height: 52px;
+    border: 0;
+    border-radius: var(--wall-radius-pill);
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-view-menu {
+    height: 52px;
+  }
+
+  .wall-display .wall-view-cycle {
+    min-height: var(--wall-control-sm);
+    min-width: var(--wall-control-sm);
+    border: 0;
+    border-radius: 0.65rem;
+    background: hsl(var(--wall-surface-muted));
+  }
+
+  /* Calendar widgets retain compact labels, but not compact hit targets. */
+  .wall-display .wall-widget-container .wall-options-trigger {
+    height: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    border-radius: var(--wall-radius-sm);
+    padding-inline: 0.65rem;
+  }
+
+  .wall-display .wall-widget-container {
+    border: 0;
+    border-radius: var(--wall-radius-lg);
+    background: hsl(var(--wall-surface) / 0.92);
+    box-shadow: none;
+  }
+
+  .wall-display .wall-widget-header {
+    padding: 1rem 1.2rem 0.3rem;
+  }
+
+  .wall-display .wall-widget-content {
+    padding: 0.45rem 1.2rem 1.2rem;
+  }
+
+  .wall-display .wall-calendar-page {
+    background: hsl(var(--wall-canvas));
+  }
+
+  .wall-display .wall-calendar-stage {
+    padding: 0.5rem 1.6rem 1.6rem;
+  }
+
+  .wall-display .wall-filter-bar {
+    border-bottom: 0;
+    background: transparent;
+    padding: 0 1.6rem 0.8rem;
+  }
+
+  .wall-display .wall-portrait-nav {
+    border-top: 0;
+    background: hsl(var(--wall-canvas) / 0.98);
+    box-shadow: 0 -10px 28px hsl(var(--wall-ink) / 0.08);
+  }
+
+  .wall-display .wall-portrait-nav-items {
+    height: 6rem;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .wall-display .wall-portrait-nav-item {
+    min-width: 84px;
+    min-height: 80px;
+    justify-content: center;
+    border-radius: var(--wall-radius-md);
+    color: hsl(var(--wall-muted));
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .wall-display .wall-portrait-nav-item:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-portrait-nav-item-active {
+    background: hsl(var(--wall-coral) / 0.14);
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-portrait-nav-item-active svg {
+    color: hsl(var(--wall-coral));
+  }
+
+  .wall-display .wall-portrait-nav-item-user {
+    border: 0;
+    background: transparent;
+  }
+
+  .wall-display .wall-mobile-nav {
+    border-top: 0;
+    background: hsl(var(--wall-canvas) / 0.98);
+    box-shadow: 0 -8px 24px hsl(var(--wall-ink) / 0.08);
+  }
+
+  .wall-display .wall-mobile-nav-item,
+  .wall-display .wall-mobile-more-item {
+    min-height: 60px;
+    border-radius: var(--wall-radius-md);
+  }
+
+  .wall-display .wall-mobile-nav-item:hover,
+  .wall-display .wall-mobile-more-item:hover {
+    background: hsl(var(--wall-surface-muted));
+  }
+
+  .wall-display .wall-mobile-more-menu {
+    border: 0;
+    border-radius: var(--wall-radius-lg) var(--wall-radius-lg) 0 0;
+    background: hsl(var(--wall-surface-raised));
+    box-shadow: 0 -18px 42px hsl(var(--wall-ink) / 0.14);
+    padding: 0.75rem;
+  }
+
+  .wall-display .wall-mobile-more-close {
+    min-height: 52px;
+    border-top-color: hsl(var(--wall-line) / 0.7);
+    border-radius: var(--wall-radius-md);
+  }
+
+  .wall-display .wall-calendar-grid {
+    gap: 0.7rem;
+  }
+
+  .wall-display .wall-calendar-page .border-border,
+  .wall-display .wall-day-column {
+    border-color: hsl(var(--wall-line) / 0.62);
+  }
+
+  .wall-display .wall-day-column {
+    border-width: 0;
+    box-shadow: none;
+  }
+
+  .wall-display .wall-agenda-day {
+    padding: 0.25rem 0;
+  }
+
+  .wall-display .wall-calendar-day-label {
+    padding: 0.45rem 0.25rem;
+    color: hsl(var(--wall-muted));
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .wall-display input,
+  .wall-display textarea,
+  .wall-display select {
+    border-color: hsl(var(--wall-line));
+    border-radius: var(--wall-radius-sm);
+    background: hsl(var(--wall-surface-raised));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-dialog-overlay {
+    background: hsl(153 19% 20% / 0.32);
+    backdrop-filter: blur(3px);
+  }
+
+  .wall-display .wall-dialog-content {
+    border: 0;
+    border-radius: var(--wall-radius-lg);
+    background: hsl(var(--wall-surface-raised));
+    box-shadow: 0 22px 60px hsl(153 19% 20% / 0.2);
+  }
+
+  .wall-display .wall-event-detail-overlay {
+    background: hsl(153 19% 20% / 0.32);
+    backdrop-filter: blur(3px);
+  }
+
+  .wall-display .wall-event-detail-card {
+    border: 0;
+    border-radius: var(--wall-radius-lg);
+    background: hsl(var(--wall-surface-raised));
+    color: hsl(var(--wall-ink));
+    box-shadow: 0 22px 60px hsl(153 19% 20% / 0.2);
+  }
+
+  .wall-display .wall-event-detail-card button {
+    min-height: 52px;
+    border-radius: var(--wall-radius-pill);
+    padding-inline: 1.2rem;
+    font-size: 1rem;
+  }
+
+  .wall-display .wall-dialog-content input,
+  .wall-display .wall-dialog-content textarea,
+  .wall-display .wall-dialog-content select {
+    min-height: 52px;
+  }
+
+  .wall-display .wall-dialog-content label {
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+}
+
+@media (min-width: 768px) {
+  .wall-display .wall-main {
+    margin-left: 92px;
+  }
+
+  .wall-display .wall-side-nav {
+    width: 92px;
+    border-right: 0;
+    background: hsl(var(--wall-canvas) / 0.96);
+  }
+
+  .wall-display .wall-side-nav-expanded {
+    width: 248px;
+    box-shadow: 12px 0 30px hsl(153 19% 20% / 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wall-display .wall-button,
+  .wall-display .wall-icon-button,
+  .wall-display .wall-nav-item,
+  .wall-display .wall-event-card {
+    transition: none;
+  }
+}
+
+/* Radix portals render outside AppShell. Keep their surfaces in the same
+   appliance language by keying them off the mounted wall shell. */
+body:has(.wall-display) .wall-dialog-overlay {
+  background: hsl(153 19% 20% / 0.32);
+  backdrop-filter: blur(3px);
+}
+
+body:has(.wall-display) .wall-dialog-content {
+  --background: 39 34% 91%;
+  --foreground: 153 19% 20%;
+  --card: 42 48% 98%;
+  --card-foreground: 153 19% 20%;
+  --popover: 42 54% 99%;
+  --popover-foreground: 153 19% 20%;
+  --primary: 11 68% 55%;
+  --primary-foreground: 42 54% 99%;
+  --secondary: 39 31% 87%;
+  --secondary-foreground: 153 19% 20%;
+  --muted: 39 31% 87%;
+  --muted-foreground: 151 10% 40%;
+  --accent: 42 77% 84%;
+  --accent-foreground: 153 19% 20%;
+  --border: 39 19% 79%;
+  --input: 39 18% 68%;
+  --ring: 11 68% 55%;
+  border: 0;
+  border-radius: 1.5rem;
+  background: hsl(42 54% 99%);
+  color: hsl(153 19% 20%);
+  box-shadow: 0 22px 60px hsl(153 19% 20% / 0.2);
+}
+
+body:has(.wall-display) .wall-dialog-content .bg-card {
+  border: 0;
+  background: hsl(39 31% 87% / 0.42);
+  box-shadow: none;
+}
+
+body:has(.wall-display) .wall-dialog-content input,
+body:has(.wall-display) .wall-dialog-content textarea,
+body:has(.wall-display) .wall-dialog-content select {
+  min-height: 52px;
+  border-radius: 0.8rem;
+  background: hsl(42 54% 99%);
+  font-size: 1rem;
+}
+
+body:has(.wall-display) .wall-dialog-content button {
+  min-height: 44px;
+  border-radius: 999px;
+}
+
+body:has(.wall-display) .wall-dialog-content label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+body:has(.wall-display) .wall-popover-content,
+body:has(.wall-display) [data-radix-popover-content] {
+  border: 0;
+  border-radius: 1.25rem;
+  background: hsl(42 54% 99%);
+  color: hsl(153 19% 20%);
+  box-shadow: 0 18px 42px hsl(153 19% 20% / 0.16);
+}
+
+body:has(.wall-display) .wall-popover-content {
+  width: min(22rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+}
+
+body:has(.wall-display) .wall-view-picker-popover {
+  width: min(20rem, calc(100vw - 2rem));
+  padding: 0.6rem;
+}
+
+body:has(.wall-display) .wall-popover-content section + section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(39 19% 79% / 0.55);
+}
+
+body:has(.wall-display) .wall-popover-content p {
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  letter-spacing: normal;
+}
+
+body:has(.wall-display) .wall-popover-content button {
+  min-height: 48px;
+  border-radius: 0.9rem;
+  padding-inline: 1rem;
+  font-size: 0.98rem;
+}
+
+body:has(.wall-display) .wall-popover-content button:hover,
+body:has(.wall-display) .wall-popover-content button:focus-visible,
+body:has(.wall-display) [data-radix-popover-content] button:hover,
+body:has(.wall-display) [data-radix-popover-content] button:focus-visible {
+  background: hsl(42 77% 84%);
+  color: hsl(153 19% 20%);
+}
+
+html.dark body:has(.wall-display) .wall-popover-content,
+html.dark body:has(.wall-display) [data-radix-popover-content] {
+  background: hsl(153 15% 25%);
+  color: hsl(42 34% 93%);
+  box-shadow: 0 18px 42px hsl(0 0% 0% / 0.26);
+}
+
+html.dark body:has(.wall-display) .wall-popover-content section + section {
+  border-top-color: hsl(153 10% 38% / 0.65);
+}
+
+html.dark body:has(.wall-display) .wall-dialog-content {
+  --background: 153 18% 15%;
+  --foreground: 42 34% 93%;
+  --card: 153 16% 21%;
+  --card-foreground: 42 34% 93%;
+  --popover: 153 15% 25%;
+  --popover-foreground: 42 34% 93%;
+  --primary: 11 68% 65%;
+  --primary-foreground: 153 18% 15%;
+  --secondary: 153 13% 26%;
+  --secondary-foreground: 42 34% 93%;
+  --muted: 153 13% 26%;
+  --muted-foreground: 40 18% 72%;
+  --accent: 42 45% 32%;
+  --accent-foreground: 42 34% 93%;
+  --border: 153 10% 38%;
+  --input: 153 10% 48%;
+  --ring: 11 68% 65%;
+  background: hsl(153 15% 25%);
+  color: hsl(42 34% 93%);
+}
+
+/*
+ * Wall-display typography
+ *
+ * DM Sans is bundled as the single product typeface. Its large x-height and
+ * native spacing stay friendly and legible without per-component kerning
+ * corrections. These size tokens also keep the portrait wall readable when
+ * the browser reports a fine pointer during QA.
+ */
+.wall-display {
+  font-family: var(--wall-font-family);
+  font-size: var(--wall-type-base);
+  line-height: 1.4;
+  letter-spacing: normal;
+  font-kerning: normal;
+  font-synthesis: none;
+}
+
+.wall-display :is(button, input, textarea, select) {
+  font-family: inherit;
+}
+
+.wall-display .tracking-tight {
+  letter-spacing: normal;
+}
+
+.wall-display .text-xs {
+  font-size: var(--wall-type-xs);
+  line-height: 1.3;
+}
+
+.wall-display .text-sm {
+  font-size: var(--wall-type-sm);
+  line-height: 1.35;
+}
+
+.wall-display .text-base {
+  font-size: var(--wall-type-base);
+  line-height: 1.4;
+}
+
+.wall-display .text-lg {
+  font-size: var(--wall-type-lg);
+  line-height: 1.35;
+}
+
+.wall-display [class~='text-[12px]'],
+.wall-display [class~='text-[13px]'],
+.wall-display [class~='text-[14px]'],
+.wall-display [class~='text-[10px]'],
+.wall-display [class~='text-[11px]'] {
+  font-size: var(--wall-type-xs);
+  line-height: 1.3;
+}
+
+.wall-display .wall-dashboard-eyebrow {
+  font-size: clamp(14px, 0.85vw, 17px);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.15;
+}
+
+.wall-display .wall-dashboard-date {
+  font-size: clamp(20px, 1.45vw, 30px);
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.12;
+}
+
+.wall-display .wall-widget-title {
+  font-size: clamp(17px, 1.15vw, 23px);
+  font-weight: 600;
+  letter-spacing: normal;
+  line-height: 1.2;
+}
+
+.wall-display .wall-button,
+.wall-display .wall-icon-button {
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.wall-display .wall-nav-item,
+.wall-display .wall-portrait-nav-item {
+  font-size: var(--wall-type-xs);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: normal;
+}
+
+.wall-display .wall-event-card,
+.wall-display .wall-card-event {
+  font-size: var(--wall-type-sm);
+  line-height: 1.3;
+  letter-spacing: normal;
+}
+
+.wall-display .wall-event-card .font-medium,
+.wall-display .wall-event-card .font-semibold,
+.wall-display .wall-card-event .font-medium,
+.wall-display .wall-card-event .font-semibold {
+  font-weight: 600;
+}
+
+.wall-display .wall-calendar-day-label {
+  font-size: var(--wall-type-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.wall-display .wall-clock-greeting {
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: 1.2;
+}
+
+.wall-display .wall-clock-greeting-small {
+  font-size: clamp(17px, 1.4vw, 25px);
+  margin-bottom: 0;
+}
+
+.wall-display .wall-clock-greeting-medium {
+  font-size: clamp(22px, 1.8vw, 32px);
+  margin-bottom: 0.3rem;
+}
+
+.wall-display .wall-clock-greeting-large {
+  font-size: clamp(28px, 2.2vw, 40px);
+  margin-bottom: 0.45rem;
+}
+
+.wall-display .wall-clock-time {
+  font-weight: 700;
+  letter-spacing: normal;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.98;
+}
+
+.wall-display .wall-clock-time-small {
+  font-size: clamp(32px, 2.9vw, 48px);
+}
+
+.wall-display .wall-clock-time-medium {
+  font-size: clamp(46px, 4.1vw, 70px);
+}
+
+.wall-display .wall-clock-time-large {
+  font-size: clamp(62px, 5.2vw, 92px);
+}
+
+.wall-display .wall-clock-date {
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: 1.3;
+}
+
+.wall-display .wall-clock-date-small {
+  font-size: var(--wall-type-xs);
+}
+
+.wall-display .wall-clock-date-medium {
+  font-size: var(--wall-type-lg);
+}
+
+.wall-display .wall-clock-date-large {
+  font-size: clamp(22px, 1.7vw, 32px);
+}
+
+.wall-display .wall-weather-temp {
+  font-weight: 700;
+  letter-spacing: normal;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.98;
+}
+
+.wall-display .wall-weather-feels {
+  font-size: var(--wall-type-lg);
+  line-height: 1.3;
+}
+
+.wall-display .wall-weather-stats {
+  font-size: var(--wall-type-xs);
+  line-height: 1.3;
+}
+
+.wall-display .weather-current-icon,
+.wall-display .weather-hour-icon {
+  color: hsl(var(--weather-condition-color));
+}
+
+.wall-display .weather-current-icon {
+  fill: hsl(var(--weather-condition-color) / 0.12);
+  filter: drop-shadow(0 2px 5px hsl(var(--weather-condition-color) / 0.2));
+}
+
+.wall-display .weather-timeline-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid hsl(var(--wall-line) / 0.5);
+  border-radius: var(--wall-radius-sm);
+  background: hsl(var(--wall-surface-muted) / 0.16);
+  color: hsl(var(--wall-ink));
+}
+
+.wall-display .weather-condition-bar {
+  min-height: 1.8rem;
+  border-bottom: 1px solid hsl(var(--wall-line) / 0.42);
+}
+
+.wall-display .weather-condition-band {
+  background: hsl(var(--weather-condition-surface));
+  box-shadow: inset 0 -3px 0 hsl(var(--weather-condition-color) / 0.92);
+  color: hsl(var(--wall-ink));
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.wall-display .weather-condition-band + .weather-condition-band {
+  border-left: 1px solid hsl(var(--wall-surface) / 0.72);
+}
+
+.wall-display .weather-hour-cell {
+  background: transparent;
+}
+
+.wall-display .weather-hour-cell + .weather-hour-cell {
+  border-left: 1px solid hsl(var(--wall-line) / 0.36);
+}
+
+.wall-display .weather-hour-now {
+  background: hsl(var(--weather-timeline-now) / 0.07);
+}
+
+.wall-display .weather-hour-now .weather-hour-time {
+  color: hsl(var(--weather-timeline-now));
+}
+
+.wall-display .weather-hour-icon-wrap {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.wall-display .weather-hour-icon {
+  fill: hsl(var(--weather-condition-color) / 0.12);
+  filter: drop-shadow(0 1px 3px hsl(var(--weather-condition-color) / 0.18));
+  stroke-width: 2;
+}
+
+.wall-display .weather-hour-time {
+  color: hsl(var(--wall-muted));
+}
+
+.wall-display .weather-hour-temperature {
+  color: hsl(var(--wall-ink));
+  font-size: 0.92rem;
+}
+
+.wall-display .weather-hour-temperature-divider,
+.wall-display .weather-hour-feels-like {
+  color: hsl(var(--wall-muted));
+}
+
+.wall-display .weather-hour-precipitation {
+  color: hsl(var(--weather-condition-rainy));
+}
+
+.wall-display .weather-condition-sunny {
+  --weather-condition-color: var(--weather-condition-sunny);
+  --weather-condition-surface: var(--weather-condition-surface-sunny);
+}
+
+.wall-display .weather-condition-partly-cloudy {
+  --weather-condition-color: var(--weather-condition-partly-cloudy);
+  --weather-condition-surface: var(--weather-condition-surface-partly-cloudy);
+}
+
+.wall-display .weather-condition-cloudy {
+  --weather-condition-color: var(--weather-condition-cloudy);
+  --weather-condition-surface: var(--weather-condition-surface-cloudy);
+}
+
+.wall-display .weather-condition-rainy {
+  --weather-condition-color: var(--weather-condition-rainy);
+  --weather-condition-surface: var(--weather-condition-surface-rainy);
+}
+
+.wall-display .weather-condition-snowy {
+  --weather-condition-color: var(--weather-condition-snowy);
+  --weather-condition-surface: var(--weather-condition-surface-snowy);
+}
+
+.wall-display .weather-condition-stormy {
+  --weather-condition-color: var(--weather-condition-stormy);
+  --weather-condition-surface: var(--weather-condition-surface-stormy);
+}
+
+/* Radix surfaces render outside the wall shell, so carry the same type voice
+   into event editors, drawers, and popovers without changing desktop pages. */
+body:has(.wall-display)
+  :is(.wall-dialog-content, .wall-popover-content, .wall-toast, [data-radix-popover-content]) {
+  font-family: 'DM Sans', 'Avenir Next', Avenir, 'Segoe UI', system-ui, sans-serif;
+}
+
+body:has(.wall-display) .wall-dialog-overlay {
+  background: hsl(153 19% 20% / 0.42);
+  backdrop-filter: blur(3px);
+}
+
+body:has(.wall-display) .wall-dialog-content {
+  width: min(48rem, calc(100vw - 5rem));
+  max-width: min(48rem, calc(100vw - 5rem));
+  max-height: min(88vh, 72rem);
+  gap: 1.25rem;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 1.5rem;
+  background: hsl(42 54% 99%);
+  color: hsl(153 19% 20%);
+  box-shadow: 0 22px 60px hsl(153 19% 20% / 0.2);
+  padding: 2rem;
+}
+
+body:has(.wall-display) .wall-dialog-content :is(input, select, textarea, [role='combobox']) {
+  min-height: 52px;
+  border-color: hsl(39 19% 79%);
+  border-radius: 0.8rem;
+  background: hsl(42 48% 98%);
+  color: hsl(153 19% 20%);
+  font-size: 1rem;
+}
+
+body:has(.wall-display) .wall-dialog-content :is(button, [role='button']) {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+body:has(.wall-display) .wall-dialog-content .wall-control:not([data-wall-size='sm']) {
+  min-height: 52px;
+}
+
+body:has(.wall-display) .wall-dialog-content label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+body:has(.wall-display) .wall-dialog-close {
+  background: hsl(39 31% 87%);
+  color: hsl(153 19% 20%);
+}
+
+body:has(.wall-display) .wall-popover-content {
+  border: 0;
+  border-radius: 1.25rem;
+  background: hsl(42 54% 99%);
+  color: hsl(153 19% 20%);
+  box-shadow: 0 18px 42px hsl(153 19% 20% / 0.16);
+  padding: 0.55rem;
+}
+
+body:has(.wall-display) .wall-popover-content button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+body:has(.wall-display) .wall-toast {
+  border-color: hsl(39 19% 79% / 0.7);
+  border-radius: 1.25rem;
+  background: hsl(42 54% 99%);
+  color: hsl(153 19% 20%);
+  box-shadow: 0 18px 42px hsl(153 19% 20% / 0.16);
+}
+
+html.dark body:has(.wall-display) :is(.wall-dialog-content, .wall-popover-content, .wall-toast) {
+  border-color: hsl(153 10% 38% / 0.7);
+  background: hsl(153 15% 25%);
+  color: hsl(42 34% 93%);
+  box-shadow: 0 22px 60px hsl(0 0% 0% / 0.28);
+}
+
+html.dark
+  body:has(.wall-display)
+  .wall-dialog-content
+  :is(input, select, textarea, [role='combobox']) {
+  border-color: hsl(153 10% 38%);
+  background: hsl(153 16% 21%);
+  color: hsl(42 34% 93%);
+}
+
+html.dark body:has(.wall-display) .wall-dialog-close {
+  background: hsl(153 13% 26%);
+  color: hsl(42 34% 93%);
+}
+
+/*
+ * Cross-screen conformance pass
+ *
+ * Feature pages still use the original shadcn primitives in a few places.
+ * These presentation-boundary rules keep those controls, cards, menus, and
+ * custom overlays in the same family-appliance system without changing their
+ * behavior or requiring every feature to carry its own visual exceptions.
+ */
+@layer components {
+  .wall-display .wall-main .wall-control {
+    min-height: 44px;
+    min-width: 44px;
+    border-radius: var(--wall-radius-pill);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: normal;
+  }
+
+  .wall-display .wall-main .wall-control[data-wall-size='default'],
+  .wall-display .wall-main .wall-control[data-wall-size='touch'] {
+    min-height: 52px;
+  }
+
+  .wall-display .wall-main .wall-control[data-wall-size='lg'],
+  .wall-display .wall-main .wall-control[data-wall-size='touch'] {
+    min-height: 60px;
+  }
+
+  .wall-display .wall-main .wall-control[data-wall-size='icon'] {
+    min-width: 44px;
+    width: 44px;
+    padding-inline: 0.55rem;
+  }
+
+  .wall-display .wall-main .wall-control[data-wall-size='touch'] {
+    padding-inline: 1.35rem;
+    font-size: 1rem;
+  }
+
+  /* Widget labels stay compact, while every hit target remains appliance-
+     sized and independent of pointer type. */
+  .wall-display .wall-widget-container .wall-control {
+    min-height: var(--wall-control-sm);
+    min-width: var(--wall-control-sm);
+    width: auto;
+    border-radius: var(--wall-radius-sm);
+    padding-inline: 0.75rem;
+    font-size: var(--wall-type-xs);
+  }
+
+  .wall-display .wall-widget-container .wall-control[data-wall-size='icon'] {
+    min-width: var(--wall-control-sm);
+    width: var(--wall-control-sm);
+    padding-inline: 0;
+  }
+
+  .wall-display .wall-filter-bar .wall-filter-control,
+  .wall-display .wall-filter-bar > button:not(.wall-control) {
+    min-height: 44px;
+    min-width: 44px;
+    border-radius: var(--wall-radius-pill);
+    padding-inline: 0.9rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .wall-display .wall-filter-bar .wall-select-trigger {
+    height: 44px;
+    min-height: 44px;
+    width: auto;
+    min-width: 8rem;
+    border: 0;
+    border-radius: var(--wall-radius-pill);
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+    font-size: 0.95rem;
+  }
+
+  .wall-display .wall-main .wall-select-trigger {
+    height: 52px;
+    min-height: 52px;
+    border-color: hsl(var(--wall-line));
+    border-radius: var(--wall-radius-sm);
+    background: hsl(var(--wall-surface-raised));
+    color: hsl(var(--wall-ink));
+    font-size: 1rem;
+  }
+
+  .wall-display .wall-widget-container .wall-select-trigger {
+    height: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    border-radius: var(--wall-radius-sm);
+    font-size: 0.86rem;
+  }
+
+  .wall-display .wall-main .wall-input {
+    min-height: 52px;
+    border-color: hsl(var(--wall-line));
+    border-radius: var(--wall-radius-sm);
+    background: hsl(var(--wall-surface-raised));
+    color: hsl(var(--wall-ink));
+    font-size: 1rem;
+  }
+
+  .wall-display .wall-main button[aria-label],
+  .wall-display .wall-main [role='button'][aria-label] {
+    min-height: var(--wall-control-sm);
+    min-width: var(--wall-control-sm);
+  }
+
+  .wall-display .wall-main button {
+    min-height: var(--wall-control-sm);
+    min-width: var(--wall-control-sm);
+  }
+
+  .wall-display .wall-main [role='button'] {
+    min-height: var(--wall-control-sm);
+    min-width: var(--wall-control-sm);
+  }
+
+  .wall-display .wall-widget-container a {
+    display: inline-flex;
+    min-height: var(--wall-control-sm);
+    min-width: var(--wall-control-sm);
+    align-items: center;
+  }
+
+  .wall-display .wall-segmented {
+    display: inline-flex;
+    min-height: var(--wall-control-md);
+    align-items: stretch;
+    gap: 0.25rem;
+    border: 0;
+    border-radius: var(--wall-radius-pill);
+    background: hsl(var(--wall-surface-muted));
+    padding: 0.25rem;
+  }
+
+  .wall-display .wall-segmented-item {
+    min-height: 44px;
+    min-width: 44px;
+    border: 0;
+    border-radius: var(--wall-radius-pill);
+    padding-inline: 1rem;
+    font-size: var(--wall-type-sm);
+    font-weight: 600;
+  }
+
+  .wall-display .wall-help-topic {
+    min-height: 56px;
+    border: 0;
+    border-radius: var(--wall-radius-md);
+    background: hsl(var(--wall-surface));
+    padding: 0.85rem 1rem;
+  }
+
+  .wall-display .wall-card {
+    border: 0;
+    border-radius: var(--wall-radius-lg);
+    background: hsl(var(--wall-surface) / 0.94);
+    box-shadow: none;
+  }
+
+  /* Several mature feature rows are intentionally plain divs rather than
+     Card instances. Normalize only the recognizable card surface pattern. */
+  .wall-display .wall-main [class*='border-border'][class*='bg-card'] {
+    border-color: hsl(var(--wall-line) / 0.5);
+    border-radius: var(--wall-radius-md);
+    background: hsl(var(--wall-surface) / 0.9);
+    box-shadow: none;
+  }
+
+  .wall-display .wall-main .max-w-4xl {
+    max-width: min(72rem, calc(100vw - 6rem));
+  }
+
+  .wall-display .wall-main .max-w-5xl,
+  .wall-display .wall-main .max-w-6xl {
+    max-width: min(82rem, calc(100vw - 6rem));
+  }
+
+  .wall-display .wall-badge {
+    min-height: 28px;
+    align-items: center;
+    padding-inline: 0.75rem;
+    font-size: 0.86rem;
+    line-height: 1.1;
+  }
+}
+
+/* Radix menus/selects are portaled to body. Give all of them one generous,
+   touch-readable surface and one selected/pressed treatment. */
+body:has(.wall-display) :is(.wall-menu-content, .wall-select-content) {
+  border: 0;
+  border-radius: 1.25rem;
+  background: hsl(42 54% 99%);
+  color: hsl(153 19% 20%);
+  box-shadow: 0 18px 42px hsl(153 19% 20% / 0.16);
+  padding: 0.55rem;
+}
+
+body:has(.wall-display) :is(.wall-menu-item, .wall-select-item) {
+  min-height: 48px;
+  border-radius: 0.85rem;
+  padding: 0.65rem 0.9rem;
+  font-size: 1rem;
+}
+
+body:has(.wall-display)
+  :is(.wall-menu-content, .wall-select-content, .wall-popover-content)
+  :is(button, [role='option'], [role='menuitem'], [role='menuitemcheckbox']) {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+body:has(.wall-display) .wall-menu-checkbox-item {
+  padding-left: 2.4rem;
+}
+
+body:has(.wall-display)
+  :is(
+    .wall-menu-item:hover,
+    .wall-menu-item:focus,
+    .wall-select-item:focus,
+    .wall-select-item[data-highlighted]
+  ) {
+  background: hsl(42 77% 84%);
+  color: hsl(153 19% 20%);
+}
+
+body:has(.wall-display) .wall-alert-overlay,
+body:has(.wall-display) .wall-pin-overlay,
+body:has(.wall-display) .fixed.inset-0[class*='bg-black/50'],
+body:has(.wall-display) .fixed.inset-0[class*='bg-black/70'] {
+  background: hsl(153 19% 20% / 0.42);
+  backdrop-filter: blur(3px);
+}
+
+body:has(.wall-display) .wall-alert-content,
+body:has(.wall-display) .wall-pin-card,
+body:has(.wall-display) .fixed.inset-0[class*='bg-black/50'] > [class*='bg-card'],
+body:has(.wall-display) .fixed.inset-0[class*='bg-black/70'] > [class*='bg-card'] {
+  width: min(48rem, calc(100vw - 5rem));
+  max-width: min(48rem, calc(100vw - 5rem));
+  max-height: min(88vh, 72rem);
+  overflow-y: auto;
+  border: 0;
+  border-radius: var(--wall-radius-lg, 1.5rem);
+  background: hsl(42 54% 99%);
+  color: hsl(153 19% 20%);
+  box-shadow: 0 22px 60px hsl(153 19% 20% / 0.2);
+}
+
+body:has(.wall-display) .wall-alert-content {
+  gap: 1.25rem;
+  padding: 2rem;
+}
+
+body:has(.wall-display) .wall-pin-card {
+  padding: 2rem;
+}
+
+body:has(.wall-display) .wall-pin-card h2 {
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+body:has(.wall-display) .wall-pin-card [class*='grid-cols-2'] > button {
+  min-height: 7rem;
+  border-radius: 1rem;
+  padding: 0.9rem;
+}
+
+body:has(.wall-display) .wall-pin-card [class*='grid-cols-3'] > button {
+  width: 4.25rem;
+  height: 4.25rem;
+  min-height: 4.25rem;
+  border-radius: 999px;
+  font-size: 1.15rem;
+}
+
+body:has(.wall-display) .wall-pin-card .wall-control[data-wall-size='icon'] {
+  width: 52px;
+  min-width: 52px;
+  min-height: 52px;
+}
+
+body:has(.wall-display) .wall-alert-content .wall-control {
+  min-height: 52px;
+}
+
+html.dark body:has(.wall-display) :is(.wall-menu-content, .wall-select-content) {
+  background: hsl(153 15% 25%);
+  color: hsl(42 34% 93%);
+  box-shadow: 0 18px 42px hsl(0 0% 0% / 0.26);
+}
+
+html.dark
+  body:has(.wall-display)
+  :is(
+    .wall-menu-item:hover,
+    .wall-menu-item:focus,
+    .wall-select-item:focus,
+    .wall-select-item[data-highlighted]
+  ) {
+  background: hsl(42 45% 32%);
+  color: hsl(42 34% 93%);
+}
+
+html.dark body:has(.wall-display) .wall-alert-content,
+html.dark body:has(.wall-display) .wall-pin-card,
+html.dark body:has(.wall-display) .fixed.inset-0[class*='bg-black/50'] > [class*='bg-card'],
+html.dark body:has(.wall-display) .fixed.inset-0[class*='bg-black/70'] > [class*='bg-card'] {
+  background: hsl(153 15% 25%);
+  color: hsl(42 34% 93%);
+  box-shadow: 0 22px 60px hsl(0 0% 0% / 0.28);
+}
+
+@layer components {
+  .wall-display .wall-weekend-toolbar,
+  .wall-display .wall-travel-tabbar {
+    border-bottom: 0;
+    background: hsl(var(--wall-canvas));
+  }
+
+  .wall-display .wall-weekend-toolbar {
+    padding: 0.9rem 1.6rem;
+    gap: 0.6rem;
+  }
+
+  .wall-display .wall-weekend-status-group {
+    border-radius: var(--wall-radius-pill);
+    background: hsl(var(--wall-surface-muted));
+    padding: 0.25rem;
+  }
+
+  .wall-display .wall-weekend-filter-control {
+    min-height: 44px;
+    min-width: 44px;
+    border-radius: var(--wall-radius-pill);
+    padding-inline: 1rem;
+    font-size: 0.95rem;
+  }
+
+  .wall-display .wall-weekend-tagbar {
+    border-bottom: 0;
+    background: transparent;
+    padding: 0.65rem 1.6rem;
+  }
+
+  .wall-display .wall-tag-chip {
+    min-height: 44px;
+    min-width: 44px;
+    padding-inline: 0.85rem;
+    font-size: 0.86rem;
+  }
+
+  .wall-display .wall-travel-tabbar {
+    padding: 0.65rem 1.6rem 0;
+  }
+
+  .wall-display .wall-travel-tab {
+    min-height: 52px;
+    border-bottom-width: 3px;
+    border-radius: var(--wall-radius-sm) var(--wall-radius-sm) 0 0;
+    padding-inline: 1.2rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .wall-display .wall-travel-map-control {
+    min-height: 44px;
+    min-width: 44px;
+    border: 0;
+    border-radius: var(--wall-radius-pill);
+    background: hsl(var(--wall-surface-raised) / 0.94);
+    color: hsl(var(--wall-ink));
+    padding-inline: 1rem;
+    box-shadow: 0 5px 14px hsl(var(--wall-ink) / 0.12);
+    font-size: 0.95rem;
+  }
+
+  .wall-display .wall-travel-places .wall-control,
+  .wall-display .wall-travel-places button {
+    touch-action: manipulation;
+  }
+
+  .wall-display .wall-travel-places .wall-select-trigger {
+    min-height: 48px;
+    height: 48px;
+  }
+
+  .wall-display .maplibregl-ctrl button,
+  .wall-display .mapboxgl-ctrl button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .wall-display .wall-shopping-category {
+    border-color: hsl(var(--wall-line) / 0.42) !important;
+    border-radius: var(--wall-radius-lg);
+    background: hsl(var(--wall-surface) / 0.94);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--wall-category-color) 78%, transparent);
+  }
+
+  .wall-display .wall-shopping-category-row {
+    border-color: hsl(var(--wall-line) / 0.38) !important;
+  }
+
+  .wall-display .wall-shopping-category-header {
+    min-height: 56px;
+    padding-inline: 0.85rem;
+  }
+
+  .wall-display .wall-setup-page {
+    min-height: 100vh;
+    padding: clamp(1.5rem, 4vw, 4rem);
+    background: hsl(var(--wall-canvas));
+  }
+
+  .wall-display .wall-setup-content {
+    width: min(46rem, calc(100vw - 3rem));
+  }
+
+  .wall-display .wall-setup-content .wall-card {
+    border-radius: var(--wall-radius-lg);
+    padding: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .wall-display .wall-setup-content .wall-control {
+    min-height: var(--wall-control-md);
+    min-width: var(--wall-control-sm);
+    border-radius: var(--wall-radius-pill);
+  }
+
+  .wall-display .wall-setup-content :is(input, select, textarea) {
+    min-height: var(--wall-control-md);
+    font-size: var(--wall-type-base);
+  }
+
+  .wall-state-screen {
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+    padding: clamp(2rem, 6vw, 6rem);
+    background: hsl(var(--wall-canvas));
+  }
+
+  .wall-state-card {
+    width: min(44rem, 100%);
+    border-radius: var(--wall-radius-lg);
+    background: hsl(var(--wall-surface));
+    padding: clamp(2rem, 5vw, 4rem);
+    text-align: center;
+  }
+
+  .wall-state-icon {
+    display: inline-flex;
+    width: 72px;
+    height: 72px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: hsl(var(--wall-coral) / 0.14);
+    color: hsl(var(--wall-coral));
+  }
+
+  .wall-state-title {
+    margin-top: 1.25rem;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: normal;
+  }
+
+  .wall-state-description {
+    margin: 0.85rem auto 0;
+    max-width: 34rem;
+    color: hsl(var(--wall-muted));
+    font-size: var(--wall-type-base);
+    line-height: 1.55;
+  }
+
+  .wall-state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1.75rem;
+  }
+
+  .wall-state-actions .wall-control {
+    min-height: var(--wall-control-lg);
+    min-width: 10rem;
+    border-radius: var(--wall-radius-pill);
+    padding-inline: 1.5rem;
+    font-size: var(--wall-type-base);
+  }
 }

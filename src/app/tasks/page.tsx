@@ -32,11 +32,11 @@ export const metadata = {
  */
 export default function TasksPage() {
   return (
-    <main className="min-h-screen bg-background">
+    <div className="wall-display min-h-screen bg-background">
       <Suspense fallback={<TasksSkeleton />}>
         <TasksView />
       </Suspense>
-    </main>
+    </div>
   );
 }
 

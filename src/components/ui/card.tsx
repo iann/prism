@@ -54,6 +54,8 @@ const Card = React.forwardRef<
       'rounded-xl',
       // Shadow for depth (subtle)
       'shadow-sm',
+      // Presentation boundary for the wall-display appliance skin
+      'wall-card',
       // Allow custom classes to override
       className
     )}

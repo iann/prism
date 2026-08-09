@@ -230,7 +230,7 @@ export function CoordinateEditor({
         <div className="relative" ref={addRef}>
           <button
             onClick={() => setAddOpen((prev) => !prev)}
-            className="flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs transition-colors hover:bg-accent"
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2 text-sm font-semibold transition-colors hover:bg-accent active:scale-[0.98]"
           >
             + Add widget
             <svg
@@ -259,7 +259,7 @@ export function CoordinateEditor({
                     onClick={() => {
                       handleAddWidget(type);
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-1 text-left text-xs transition-colors hover:bg-accent"
+                    className="flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left text-base transition-colors hover:bg-accent"
                   >
                     <span
                       className="inline-block h-2 w-2 flex-shrink-0 rounded-full"

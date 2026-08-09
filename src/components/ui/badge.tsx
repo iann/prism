@@ -68,11 +68,11 @@ const badgeVariants = cva(
 
         // Success - green, for completed items
         success:
-          'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+          'border border-status-success/30 bg-status-success/15 text-status-success',
 
         // Warning - yellow/orange, for attention needed
         warning:
-          'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+          'border border-status-warning/30 bg-status-warning/15 text-status-warning',
       },
     },
     defaultVariants: {
@@ -109,7 +109,7 @@ export interface BadgeProps
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
     <div
-      className={cn(badgeVariants({ variant }), className)}
+      className={cn(badgeVariants({ variant }), 'wall-badge', className)}
       {...props}
     />
   );

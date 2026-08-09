@@ -86,7 +86,7 @@ export function MealsView() {
   };
 
   const handleSyncWithAuth = async () => {
-    const user = await requireAuth('Sync meal plan', 'Please log in to sync meals');
+    const user = await requireAuth('Review meal-plan sync', 'Please log in to review meal changes');
     if (!user) return;
     setShowSyncModal(true);
   };
@@ -112,7 +112,7 @@ export function MealsView() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSyncWithAuth}>
                   <Soup className="h-4 w-4 mr-2 text-muted-foreground" />
-                  Sync meal plan (Tandoor / Mealie)…
+                  Review meal-plan sync…
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

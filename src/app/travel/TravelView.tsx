@@ -2,9 +2,13 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Globe, List, Loader2, Moon, Sun, Route, MapPin, X } from 'lucide-react';
+import { Globe, List, Loader2, Moon, Plus, Sun, Route, MapPin, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageWrapper } from '@/components/layout/PageWrapper';
+import { SubpageHeader } from '@/components/layout/SubpageHeader';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageLoader } from '@/components/ui/spinner';
 import { useTravelData, TravelAuthError } from './useTravelData';
 import { useToast } from '@/components/ui/use-toast';
 import { PinList } from './components/PinList';
@@ -307,13 +311,23 @@ export function TravelView() {
 
   return (
     <PageWrapper>
-      <div className="flex flex-col h-screen overflow-hidden">
+      <div className="wall-travel-page flex flex-col h-screen overflow-hidden">
+        <SubpageHeader
+          icon={<Globe className="h-5 w-5 text-primary" />}
+          title="Travel"
+          actions={
+            <Button size="sm" onClick={handleAddFromList}>
+              <Plus className="h-4 w-4" />
+              Add place
+            </Button>
+          }
+        />
         {/* Tab bar */}
-        <div className="flex items-center gap-1 px-4 pt-3 pb-0 border-b border-border shrink-0 bg-background">
+        <div className="wall-travel-tabbar flex items-center gap-1 px-4 pt-3 pb-0 border-b border-border shrink-0 bg-background">
           <button
             onClick={() => setActiveTab('globe')}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
+              'wall-travel-tab flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
               activeTab === 'globe' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
@@ -323,7 +337,7 @@ export function TravelView() {
           <button
             onClick={() => setActiveTab('places')}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
+              'wall-travel-tab flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
               activeTab === 'places' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
@@ -342,24 +356,42 @@ export function TravelView() {
           {/* Globe tab */}
           <div className={cn('absolute inset-0 flex', activeTab !== 'globe' && 'invisible pointer-events-none')}>
             <div className="flex-1 p-4 flex relative">
-              <TravelGlobe
-                pins={visiblePins}
-                trips={trips}
-                selectedPinId={selectedPinId}
-                selectedTripId={selectedTripId}
-                darkMode={globeDarkMode}
-                overlayOpen={overlay.mode !== 'none'}
-                onPinClick={handlePinClick}
-                onTripStopClick={handleTripStopClick}
-                onMapClick={handleMapClick}
-              />
+              {loading ? (
+                <PageLoader label="Loading your travel map…" className="h-full flex-1" />
+              ) : pins.length === 0 && trips.length === 0 ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <EmptyState
+                    icon={<MapPin />}
+                    title="No places yet"
+                    description="Save a favorite place, future trip, or family memory to start your map."
+                    action={
+                      <Button onClick={handleAddFromList}>
+                        <Plus className="h-4 w-4" />
+                        Add your first place
+                      </Button>
+                    }
+                  />
+                </div>
+              ) : (
+                <TravelGlobe
+                  pins={visiblePins}
+                  trips={trips}
+                  selectedPinId={selectedPinId}
+                  selectedTripId={selectedTripId}
+                  darkMode={globeDarkMode}
+                  overlayOpen={overlay.mode !== 'none'}
+                  onPinClick={handlePinClick}
+                  onTripStopClick={handleTripStopClick}
+                  onMapClick={handleMapClick}
+                />
+              )}
               {/* Globe controls */}
-              <div className="absolute top-7 left-7 z-10 flex items-center gap-1.5">
+              {(pins.length > 0 || trips.length > 0) && <div className="absolute top-7 left-7 z-10 flex items-center gap-1.5">
                 <button
                   onClick={() => setShowAllChildren((v) => !v)}
                   title={showAllChildren ? 'Hide all sub-locations' : 'Show all sub-locations on map'}
                   className={cn(
-                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium shadow transition-colors',
+                    'wall-travel-map-control flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium shadow transition-colors',
                     showAllChildren ? 'bg-primary text-primary-foreground' : 'bg-background/90 text-foreground border border-border hover:bg-muted'
                   )}
                 >
@@ -368,11 +400,11 @@ export function TravelView() {
                 </button>
                 <button
                   onClick={() => setGlobeDarkMode((v) => !v)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium shadow transition-colors bg-background/90 text-foreground border border-border hover:bg-muted"
+                  className="wall-travel-map-control flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium shadow transition-colors bg-background/90 text-foreground border border-border hover:bg-muted"
                 >
                   {globeDarkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
                 </button>
-              </div>
+              </div>}
             </div>
 
             {/* Overlay panel */}
@@ -472,7 +504,7 @@ export function TravelView() {
           </div>
 
           {/* Places tab */}
-          <div className={cn('absolute inset-0 overflow-y-auto', activeTab !== 'places' && 'invisible pointer-events-none')}>
+          <div className={cn('wall-travel-places absolute inset-0 overflow-y-auto', activeTab !== 'places' && 'invisible pointer-events-none')}>
             {loading ? (
               <div className="flex items-center justify-center h-32">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

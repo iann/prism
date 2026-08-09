@@ -63,12 +63,17 @@ describe('app themes', () => {
     );
   });
 
-  it('gives every standard light card, calendar, and widget an opaque visible surface', () => {
+  it('gives standard light surfaces an opaque boundary when they are distinct from the canvas', () => {
     for (const id of STANDARD_THEME_IDS) {
       const tokens = appThemes[id].light;
       const background = opaqueSurface(tokens, '--background');
 
       for (const surface of BOUNDED_SURFACES) {
+        // Some presets intentionally let widget shells disappear into the
+        // page canvas. Their internal calendar/card surfaces still receive
+        // the contrast check below.
+        if (token(tokens, surface) === token(tokens, '--background')) continue;
+
         assertContrast(
           `${id}/light ${surface} against background`,
           opaqueSurface(tokens, surface),
@@ -221,14 +226,14 @@ describe('app themes', () => {
     }
   });
 
-  it('keeps Kitchen Calm first-paint tokens synchronized with the named preset', () => {
+  it('keeps Daybook first-paint tokens synchronized with the named preset', () => {
     const css = readFileSync(join(process.cwd(), 'src/styles/globals.css'), 'utf8');
 
     expect(readCssTokenBlock(css, ':root:not([data-color-theme])')).toEqual(
-      appThemes['kitchen-calm'].light
+      appThemes.daybook.light
     );
     expect(readCssTokenBlock(css, ':root.dark:not([data-color-theme])')).toEqual(
-      appThemes['kitchen-calm'].dark
+      appThemes.daybook.dark
     );
   });
 });

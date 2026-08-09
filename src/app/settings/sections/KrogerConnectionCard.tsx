@@ -205,9 +205,8 @@ export function KrogerConnectionCard() {
           <CardTitle>Kroger / Mariano&apos;s cart</CardTitle>
         </div>
         <CardDescription>
-          Push your shopping list to your Kroger online cart. Works with any
-          Kroger banner (Mariano&apos;s, Ralphs, Smith&apos;s, Fred Meyer, etc.) — one
-          account spans all of them.
+          Push your shopping list to your Kroger online cart. Availability can
+          vary by Kroger-family store, account, and region.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -5,6 +5,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { UtensilsCrossed } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { hexToRgba } from '@/lib/utils/color';
 
 export type WeekItemVariant = 'event' | 'chore' | 'task' | 'meal';
 export type WeekItemSize = 'xs' | 'sm' | 'md' | 'lg';
@@ -42,30 +43,33 @@ interface WeekItemCardProps {
 // Diagonal-stripes overlay used to mark "pending approval" items. The
 // 4px-on / 4px-off pattern reads as a non-solid surface without overpowering
 // the underlying card content.
-const PENDING_APPROVAL_OVERLAY = 'repeating-linear-gradient(45deg, rgba(168,85,247,0.18) 0 6px, rgba(168,85,247,0) 6px 12px)';
+const PENDING_APPROVAL_OVERLAY =
+  'repeating-linear-gradient(45deg, rgba(168,85,247,0.18) 0 6px, rgba(168,85,247,0) 6px 12px)';
 
 /**
  * Tailwind class fragments per size — kept as static strings (not template-built)
  * so Tailwind's JIT can detect them.
  */
 /**
- * Size profiles tuned to the FamousWolf/week-planner-card visual recon
- * (see docs/calendar-cards-design.md). Upstream uses 10px internal padding,
- * 5px left stripe, and 1em title — we map those onto Tailwind tokens that
- * remain theme-aware.
+ * Size profiles keep the information legible at wall distance while still
+ * allowing dense month/week layouts to fit. Metadata intentionally stays
+ * secondary; the colored event surface does most of the scanning work.
  */
-const SIZE_STYLES: Record<WeekItemSize, {
-  padding: string;
-  titleText: string;
-  titleWeight: string;
-  metaText: string;
-  stripeWidth: string;
-  showSubtitle: boolean;
-  showTime: boolean;
-}> = {
+const SIZE_STYLES: Record<
+  WeekItemSize,
+  {
+    padding: string;
+    titleText: string;
+    titleWeight: string;
+    metaText: string;
+    stripeWidth: string;
+    showSubtitle: boolean;
+    showTime: boolean;
+  }
+> = {
   xs: {
     padding: 'py-0.5 pr-1',
-    titleText: 'text-[12px] leading-tight',
+    titleText: 'text-[13px] leading-tight',
     titleWeight: 'font-semibold',
     metaText: 'text-[12px] leading-tight',
     stripeWidth: 'w-0.5',
@@ -73,28 +77,28 @@ const SIZE_STYLES: Record<WeekItemSize, {
     showTime: false,
   },
   sm: {
-    padding: 'py-1 pr-1.5',
-    titleText: 'text-[12px] leading-tight',
+    padding: 'py-1.5 pr-2',
+    titleText: 'text-[13px] leading-tight',
     titleWeight: 'font-semibold',
-    metaText: 'text-[12px] leading-tight',
+    metaText: 'text-[13px] leading-tight',
     stripeWidth: 'w-[3px]',
     showSubtitle: false,
     showTime: true,
   },
   md: {
-    padding: 'py-1.5 pr-2',
-    titleText: 'text-xs leading-tight',
+    padding: 'py-2 pr-2.5',
+    titleText: 'text-sm leading-tight',
     titleWeight: 'font-semibold',
-    metaText: 'text-[12px] leading-tight',
+    metaText: 'text-[13px] leading-tight',
     stripeWidth: 'w-[5px]',
     showSubtitle: true,
     showTime: true,
   },
   lg: {
-    padding: 'py-2 pr-2.5',
-    titleText: 'text-sm leading-snug',
+    padding: 'py-2.5 pr-3',
+    titleText: 'text-base leading-snug',
     titleWeight: 'font-bold',
-    metaText: 'text-xs leading-tight',
+    metaText: 'text-sm leading-tight',
     stripeWidth: 'w-[5px]',
     showSubtitle: true,
     showTime: true,
@@ -136,11 +140,13 @@ export function WeekItemCard({
   // (xs) cells where there isn't room.
   const showMealIcon = variant === 'meal' && size !== 'xs';
 
-  const transformStyle: React.CSSProperties = {
+  const transformStyle = {
     transform: CSS.Translate.toString(draggable.transform),
     touchAction: dragId ? 'none' : undefined,
     zIndex: draggable.isDragging ? 50 : undefined,
-  };
+    '--wall-event-color': stripeColor,
+    '--wall-event-fill': hexToRgba(stripeColor, size === 'xs' ? 0.1 : size === 'sm' ? 0.12 : 0.16),
+  } as React.CSSProperties;
 
   // For row layout, render: [stripe][time][title][subtitle aside]
   if (layout === 'row') {
@@ -157,29 +163,53 @@ export function WeekItemCard({
         {...(dragId ? draggable.attributes : {})}
         className={cn(
           'group relative flex w-full items-center gap-2',
-          'overflow-hidden rounded-md',
-          'bg-calendar-surface',
-          'border border-border shadow-sm',
+          'wall-event-card overflow-hidden border border-border bg-calendar-surface',
           'text-left text-foreground',
           'transition-colors duration-150',
           interactive && 'cursor-pointer hover:bg-accent',
           dragId && 'cursor-grab active:cursor-grabbing',
-          draggable.isDragging && 'opacity-60 ring-2 ring-seasonal-accent shadow-xl',
+          draggable.isDragging && 'opacity-60 shadow-xl ring-2 ring-seasonal-accent',
           muted && 'opacity-60',
-          styles.padding,
+          styles.padding
         )}
       >
         {pendingApproval && (
-          <span aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: PENDING_APPROVAL_OVERLAY }} />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{ background: PENDING_APPROVAL_OVERLAY }}
+          />
         )}
-        <span aria-hidden className={cn('shrink-0 self-stretch rounded-full', styles.stripeWidth)} style={{ backgroundColor: stripeColor }} />
+        <span
+          aria-hidden
+          className={cn('h-2.5 shrink-0 self-center rounded-full', styles.stripeWidth)}
+          style={{ backgroundColor: stripeColor }}
+        />
         {styles.showTime && timeLabel && (
-          <span className={cn('shrink-0 font-medium tabular-nums text-muted-foreground', styles.metaText)}>
+          <span
+            className={cn(
+              'shrink-0 font-medium tabular-nums text-muted-foreground',
+              styles.metaText
+            )}
+          >
             {timeLabel}
           </span>
         )}
-        <span className={cn('flex min-w-0 flex-1 items-center gap-1 text-foreground', styles.titleText, styles.titleWeight, muted && 'line-through')}>
-          {showMealIcon && <UtensilsCrossed aria-hidden className="h-3 w-3 shrink-0" style={{ color: stripeColor }} />}
+        <span
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-1 text-foreground',
+            styles.titleText,
+            styles.titleWeight,
+            muted && 'line-through'
+          )}
+        >
+          {showMealIcon && (
+            <UtensilsCrossed
+              aria-hidden
+              className="h-3 w-3 shrink-0"
+              style={{ color: stripeColor }}
+            />
+          )}
           <span className="truncate">{title}</span>
         </span>
         {styles.showSubtitle && subtitle && (
@@ -205,21 +235,27 @@ export function WeekItemCard({
       {...(dragId ? draggable.attributes : {})}
       className={cn(
         'group relative flex w-full items-stretch gap-2',
-        'overflow-hidden rounded-md',
-        'bg-calendar-surface',
-        'border border-border shadow-sm',
+        'wall-event-card overflow-hidden border border-border bg-calendar-surface',
         'text-left text-foreground',
         'transition-colors duration-150',
         interactive && 'cursor-pointer hover:bg-accent',
         dragId && 'cursor-grab active:cursor-grabbing',
-        draggable.isDragging && 'opacity-60 ring-2 ring-seasonal-accent shadow-xl',
-        muted && 'opacity-60',
+        draggable.isDragging && 'opacity-60 shadow-xl ring-2 ring-seasonal-accent',
+        muted && 'opacity-60'
       )}
     >
       {pendingApproval && (
-        <span aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: PENDING_APPROVAL_OVERLAY }} />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: PENDING_APPROVAL_OVERLAY }}
+        />
       )}
-      <span aria-hidden className={cn('shrink-0 rounded-l-md', styles.stripeWidth)} style={{ backgroundColor: stripeColor }} />
+      <span
+        aria-hidden
+        className={cn('mt-2.5 h-2.5 shrink-0 rounded-full', styles.stripeWidth)}
+        style={{ backgroundColor: stripeColor }}
+      />
 
       <div className={cn('flex min-w-0 flex-1 flex-col', styles.padding)}>
         {styles.showTime && timeLabel && (
@@ -227,14 +263,25 @@ export function WeekItemCard({
             {timeLabel}
           </span>
         )}
-        <span className={cn('flex min-w-0 items-center gap-1 text-foreground', styles.titleText, styles.titleWeight, muted && 'line-through')}>
-          {showMealIcon && <UtensilsCrossed aria-hidden className="h-3 w-3 shrink-0" style={{ color: stripeColor }} />}
+        <span
+          className={cn(
+            'flex min-w-0 items-center gap-1 text-foreground',
+            styles.titleText,
+            styles.titleWeight,
+            muted && 'line-through'
+          )}
+        >
+          {showMealIcon && (
+            <UtensilsCrossed
+              aria-hidden
+              className="h-3 w-3 shrink-0"
+              style={{ color: stripeColor }}
+            />
+          )}
           <span className="truncate">{title}</span>
         </span>
         {styles.showSubtitle && subtitle && (
-          <span className={cn('truncate text-muted-foreground', styles.metaText)}>
-            {subtitle}
-          </span>
+          <span className={cn('truncate text-muted-foreground', styles.metaText)}>{subtitle}</span>
         )}
       </div>
     </Tag>

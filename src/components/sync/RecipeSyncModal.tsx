@@ -19,7 +19,7 @@ export type SyncEntity = 'recipes' | 'meals';
 
 const ENTITY = {
   recipes: {
-    title: 'Sync recipes',
+    title: 'Review recipe sync',
     reviewTitle: 'Review recipe changes',
     entityLabel: 'recipes',
     blurb:
@@ -28,7 +28,7 @@ const ENTITY = {
     apply: (id: string) => `/api/recipe-sources/${id}/sync/apply`,
   },
   meals: {
-    title: 'Sync meal plan',
+    title: 'Review meal-plan sync',
     reviewTitle: 'Review meal-plan changes',
     entityLabel: 'meals',
     blurb:

@@ -84,6 +84,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           'appearance-none',
           // Touch optimization
           'touch-action-manipulation',
+          // Presentation boundary for the wall-display appliance skin
+          'wall-input',
           // Custom classes
           className
         )}

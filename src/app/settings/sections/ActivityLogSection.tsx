@@ -121,7 +121,7 @@ export function ActivityLogSection() {
           Activity Log
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          30-day history of all actions taken in Prism
+          Recent recorded activity from supported features, kept for 30 days
         </p>
       </div>
 

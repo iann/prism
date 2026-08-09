@@ -30,11 +30,11 @@ export const metadata = {
  */
 export default function MessagesPage() {
   return (
-    <main className="min-h-screen bg-background">
+    <div className="wall-display min-h-screen bg-background">
       <Suspense fallback={<MessagesSkeleton />}>
         <MessagesView />
       </Suspense>
-    </main>
+    </div>
   );
 }
 

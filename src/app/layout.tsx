@@ -38,13 +38,16 @@ import '@/styles/lcars.css';
 // kiosk. Subsetted by unicode-range, so a browser only downloads the small
 // chunks for the emoji actually on screen, not the whole font. See #145.
 import '@fontsource/noto-color-emoji/index.css';
+// DM Sans provides one friendly, well-kerned UI voice across the whole
+// product. Keep it bundled so the always-on display never depends on a
+// network font at runtime.
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/500.css';
+import '@fontsource/dm-sans/600.css';
+import '@fontsource/dm-sans/700.css';
 
 // Next.js types for metadata
 import type { Metadata, Viewport } from 'next';
-
-// Inter font from Google Fonts (loaded by Next.js for performance)
-// Next.js automatically optimizes font loading to prevent layout shift
-import { Inter } from 'next/font/google';
 
 // Providers (theme, auth, etc.)
 import { Providers } from '@/components/providers';
@@ -59,28 +62,6 @@ import { DemoBanner } from '@/components/layout/DemoBanner';
 
 // Toast notifications
 import { Toaster } from '@/components/ui/toaster';
-
-
-/**
- * FONT CONFIGURATION
- * We use Inter, a highly readable sans-serif font designed for screens.
- *
- * Configuration options:
- * - subsets: Which character sets to include (latin for English)
- * - variable: CSS variable name for using the font in Tailwind
- * - display: 'swap' shows fallback font immediately, then swaps when loaded
- *
- * WHY INTER:
- * - Designed specifically for computer screens
- * - Excellent readability at all sizes
- * - Open source and free to use
- * - Supports many languages
- */
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
 
 
 /**
@@ -242,7 +223,6 @@ export default function RootLayout({
         The body element with our font applied.
 
         CLASSES EXPLAINED:
-        - inter.variable: Adds CSS variable for Inter font
         - font-sans: Uses our sans-serif font stack
         - antialiased: Smooth font rendering
         - bg-background: Background color from theme
@@ -255,7 +235,6 @@ export default function RootLayout({
       */}
       <body
         className={`
-          ${inter.variable}
           font-sans
           antialiased
           bg-background

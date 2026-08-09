@@ -28,6 +28,19 @@ module.exports = {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
         },
+        status: {
+          success: 'hsl(var(--status-success))',
+          warning: 'hsl(var(--status-warning))',
+          error: 'hsl(var(--status-error))',
+          info: 'hsl(var(--status-info))',
+          pending: '#F59E0B',
+          approved: '#10B981',
+          overdue: '#EF4444',
+        },
+        disabled: {
+          DEFAULT: 'hsl(var(--disabled))',
+          foreground: 'hsl(var(--disabled-foreground))',
+        },
         muted: {
           DEFAULT: 'hsl(var(--muted))',
           foreground: 'hsl(var(--muted-foreground))',
@@ -62,11 +75,6 @@ module.exports = {
           member5: '#8B5CF6',
           member6: '#EF4444',
         },
-        status: {
-          pending: '#F59E0B',
-          approved: '#10B981',
-          overdue: '#EF4444',
-        },
         priority: {
           high: '#EF4444',
           medium: '#F59E0B',
@@ -82,7 +90,7 @@ module.exports = {
 
       fontFamily: {
         sans: [
-          'Inter',
+          'DM Sans',
           'system-ui',
           '-apple-system',
           'BlinkMacSystemFont',
@@ -111,11 +119,11 @@ module.exports = {
       },
 
       fontSize: {
-        'xs': ['0.75rem', { lineHeight: '1rem' }],
-        'sm': ['0.875rem', { lineHeight: '1.25rem' }],
-        'base': ['1rem', { lineHeight: '1.5rem' }],
-        'lg': ['1.125rem', { lineHeight: '1.75rem' }],
-        'xl': ['1.25rem', { lineHeight: '1.75rem' }],
+        xs: ['0.75rem', { lineHeight: '1rem' }],
+        sm: ['0.875rem', { lineHeight: '1.25rem' }],
+        base: ['1rem', { lineHeight: '1.5rem' }],
+        lg: ['1.125rem', { lineHeight: '1.75rem' }],
+        xl: ['1.25rem', { lineHeight: '1.75rem' }],
         '2xl': ['1.5rem', { lineHeight: '2rem' }],
         '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
         '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
@@ -128,7 +136,7 @@ module.exports = {
 
       spacing: {
         'touch-sm': '44px',
-        'touch': '48px',
+        touch: '48px',
         'touch-lg': '60px',
       },
 
@@ -157,23 +165,29 @@ module.exports = {
           from: { transform: 'scale(0.95)' },
           to: { transform: 'scale(1)' },
         },
-        'spin': {
+        spin: {
           from: { transform: 'rotate(0deg)' },
           to: { transform: 'rotate(360deg)' },
         },
-        'pulse': {
+        pulse: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.5' },
         },
-        'bounce': {
-          '0%, 100%': { transform: 'translateY(-5%)', animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)' },
-          '50%': { transform: 'translateY(0)', animationTimingFunction: 'cubic-bezier(0, 0, 0.2, 1)' },
+        bounce: {
+          '0%, 100%': {
+            transform: 'translateY(-5%)',
+            animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)',
+          },
+          '50%': {
+            transform: 'translateY(0)',
+            animationTimingFunction: 'cubic-bezier(0, 0, 0.2, 1)',
+          },
         },
-        'confetti': {
+        confetti: {
           '0%': { transform: 'translateY(0) rotate(0deg)', opacity: '1' },
           '100%': { transform: 'translateY(100vh) rotate(720deg)', opacity: '0' },
         },
-        'shake': {
+        shake: {
           '0%, 100%': { transform: 'translateX(0)' },
           '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
           '20%, 40%, 60%, 80%': { transform: 'translateX(4px)' },
@@ -186,26 +200,24 @@ module.exports = {
         'slide-up': 'slide-up 0.2s ease-out',
         'slide-down': 'slide-down 0.2s ease-out',
         'scale-up': 'scale-up 0.15s ease-out',
-        'spin': 'spin 1s linear infinite',
-        'pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'bounce': 'bounce 1s infinite',
-        'confetti': 'confetti 3s ease-out forwards',
-        'shake': 'shake 0.5s ease-in-out',
+        spin: 'spin 1s linear infinite',
+        pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        bounce: 'bounce 1s infinite',
+        confetti: 'confetti 3s ease-out forwards',
+        shake: 'shake 0.5s ease-in-out',
       },
 
       screens: {
-        'xs': '480px',
-        'sm': '640px',
-        'md': '768px',
-        'lg': '1024px',
-        'xl': '1280px',
+        xs: '480px',
+        sm: '640px',
+        md: '768px',
+        lg: '1024px',
+        xl: '1280px',
         '2xl': '1536px',
         '3xl': '1920px',
       },
     },
   },
 
-  plugins: [
-    require('tailwindcss-animate'),
-  ],
+  plugins: [require('tailwindcss-animate')],
 };
