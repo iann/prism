@@ -39,10 +39,10 @@ export function SetupWizard() {
   const showProgress = currentStep !== 'welcome' && currentStep !== 'complete';
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+    <div className="wall-display wall-setup-page flex flex-col items-center justify-center">
       {/* Progress bar */}
       {showProgress && (
-        <div className="w-full max-w-lg mb-6">
+        <div className="wall-setup-content mb-8">
           <div className="flex justify-between mb-2">
             {CONTENT_STEPS.map((step, i) => (
               <div
@@ -66,7 +66,7 @@ export function SetupWizard() {
       )}
 
       {/* Step content */}
-      <div className="w-full max-w-lg">
+      <div className="wall-setup-content">
         {currentStep === 'welcome' && <WelcomeStep onNext={goNext} />}
         {currentStep === 'family' && <FamilyStep onNext={goNext} onBack={goBack} />}
         {currentStep === 'household' && <HouseholdStep onNext={goNext} onBack={goBack} />}

@@ -43,6 +43,7 @@ const SelectTrigger = React.forwardRef<
       'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
       'disabled:cursor-not-allowed disabled:opacity-50',
       '[&>span]:line-clamp-1',
+      'wall-select-trigger',
       className
     )}
     {...props}
@@ -104,6 +105,7 @@ const SelectContent = React.forwardRef<
         // out of space". Falls back to 24rem when the var isn't set.
         'relative z-50 max-h-[min(24rem,var(--radix-select-content-available-height,24rem))] min-w-[8rem] overflow-hidden',
         'rounded-md border bg-popover text-popover-foreground shadow-md',
+        'wall-select-content',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -160,6 +162,7 @@ const SelectItem = React.forwardRef<
       'rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none',
       'focus:bg-accent focus:text-accent-foreground',
       'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'wall-select-item',
       className
     )}
     {...props}

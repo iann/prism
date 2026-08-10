@@ -293,8 +293,8 @@ export function SettingsView() {
                         <h3 className="text-4xl font-bold text-primary mb-6">Prism</h3>
                         <div className="text-sm text-muted-foreground max-w-lg space-y-4 text-left">
                           <p>
-                            Prism is a subscription-free, self-hosted family dashboard that pulls together
-                            your calendars, tasks, and photos from the services you already use.
+                            Prism charges no subscription and is self-hosted. Hosting and connected services
+                            may have separate costs.
                           </p>
                           <p>
                             Prism is source-available under the PolyForm Noncommercial 1.0.0 license — free for

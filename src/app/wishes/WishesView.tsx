@@ -239,11 +239,11 @@ export function WishesView() {
 
       {/* Tab toggle */}
       <div className="px-4 pb-3 flex items-center gap-3 flex-wrap">
-        <div className="flex items-center border rounded-md">
+        <div className="wall-segmented">
           <button
             onClick={() => setActiveTab('wishes')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-l-md transition-colors',
+              'wall-segmented-item flex items-center gap-1.5 transition-colors',
               activeTab === 'wishes' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
             )}
           >
@@ -253,7 +253,7 @@ export function WishesView() {
           <button
             onClick={() => setActiveTab('ideas')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-r-md transition-colors border-l',
+              'wall-segmented-item flex items-center gap-1.5 transition-colors',
               activeTab === 'ideas' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
             )}
           >

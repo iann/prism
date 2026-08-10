@@ -13,6 +13,7 @@
 
 import { Suspense } from 'react';
 import { SettingsPinGate } from './SettingsPinGate';
+import { PageLoader } from '@/components/ui/spinner';
 
 
 /**
@@ -29,11 +30,11 @@ export const metadata = {
  */
 export default function SettingsPage() {
   return (
-    <main className="min-h-screen bg-background">
+    <div className="wall-display min-h-screen bg-background">
       <Suspense fallback={<SettingsSkeleton />}>
         <SettingsPinGate />
       </Suspense>
-    </main>
+    </div>
   );
 }
 
@@ -43,15 +44,9 @@ export default function SettingsPage() {
  */
 function SettingsSkeleton() {
   return (
-    <div className="h-screen flex flex-col p-4">
-      <div className="h-8 w-32 bg-muted rounded animate-pulse mb-6" />
-      <div className="space-y-6 max-w-2xl">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="space-y-2">
-            <div className="h-6 w-40 bg-muted rounded animate-pulse" />
-            <div className="h-24 bg-muted/50 rounded animate-pulse" />
-          </div>
-        ))}
+    <div className="wall-state-screen">
+      <div className="wall-state-card">
+        <PageLoader label="Opening settings…" size="lg" className="py-4" />
       </div>
     </div>
   );

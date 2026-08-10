@@ -5,7 +5,7 @@ import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 const MIN_TEXT_CONTRAST = 4.5;
 
 /** Shared chrome applied by the grid when it owns a customized widget shell. */
-export const CUSTOM_WIDGET_SHELL_CLASS = 'rounded-xl border border-border shadow-sm';
+export const CUSTOM_WIDGET_SHELL_CLASS = 'rounded-[1.5rem] border-0 shadow-none';
 
 export function hasCustomWidgetShell(w: WidgetConfig): boolean {
   return !!w.backgroundColor || !!w.outlineColor;
@@ -62,12 +62,13 @@ export function getWidgetStyle(w: WidgetConfig): CSSProperties | undefined {
   const style: CSSProperties = {};
 
   if (hasCustomShell) {
-    // Match the shared Card's rounded-xl, one-pixel semantic boundary. The
-    // grid wrapper owns this chrome while WidgetContainer strips its duplicate.
-    style.borderRadius = '0.75rem';
-    style.borderWidth = '1px';
+    // Keep custom surfaces on the shared wall-display geometry. The grid
+    // wrapper owns the rounded, borderless chrome while WidgetContainer strips
+    // its duplicate surface treatment.
+    style.borderRadius = '1.5rem';
+    style.borderWidth = '0px';
     style.borderStyle = 'solid';
-    style.borderColor = 'hsl(var(--border))';
+    style.borderColor = 'transparent';
   }
 
   if (w.backgroundColor === 'frosted') {

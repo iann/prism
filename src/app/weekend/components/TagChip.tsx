@@ -19,7 +19,7 @@ export function TagChip({ tag, active, onClick, size = 'md' }: TagChipProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex items-center rounded-full border transition-colors',
+        'wall-tag-chip inline-flex items-center rounded-full border transition-colors',
         size === 'sm' ? 'px-1.5 py-0 text-[12px]' : 'px-2 py-0.5 text-xs',
         active
           ? 'bg-primary text-primary-foreground border-primary'

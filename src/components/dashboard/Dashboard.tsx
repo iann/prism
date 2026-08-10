@@ -534,6 +534,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     >
       <DashboardLayout className={cn(className, isLCARS && 'lcars-dashboard')}>
         <DashboardHeader
+          dashboardName={layout.activeLayout?.name}
           onScreensaverClick={() => window.dispatchEvent(new Event('prism:screensaver'))}
           onEditClick={
             activeUser && activeUser.role !== 'parent' ? undefined : layout.handleEditStart
@@ -807,6 +808,16 @@ function DashboardWidgetCell({
     () => triggerExpand(widgetId),
     [widgetId, triggerExpand]
   );
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return;
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        triggerExpand(widgetId);
+      }
+    },
+    [widgetId, triggerExpand]
+  );
   // Hide the in-grid instance while its clone is the magnified modal —
   // avoids two copies of the same widget rendering simultaneously and
   // bleeding through the dimmed backdrop.
@@ -814,6 +825,10 @@ function DashboardWidgetCell({
   return (
     <div
       onDoubleClick={handleDoubleClick}
+      onKeyDown={handleKeyDown}
+      role="group"
+      tabIndex={0}
+      aria-label="Dashboard widget. Press Enter to expand."
       className="h-full w-full"
       style={{ visibility: hidden ? 'hidden' : 'visible' }}
     >

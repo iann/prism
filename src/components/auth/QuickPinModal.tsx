@@ -211,11 +211,11 @@ export function QuickPinModal({
   // Use portal to escape any stacking context (e.g., backdrop-blur in parent)
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10001]"
+      className="wall-pin-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-[10001]"
       onClick={() => onOpenChange(false)}
     >
       <div
-        className="bg-card rounded-2xl p-3 max-w-[20rem] w-full mx-4 shadow-lg"
+        className="wall-pin-card bg-card rounded-2xl p-3 max-w-[20rem] w-full mx-4 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -228,7 +228,8 @@ export function QuickPinModal({
             variant="ghost"
             size="icon"
             onClick={() => onOpenChange(false)}
-            className="h-7 w-7"
+            className="h-11 w-11"
+            aria-label="Close sign-in"
           >
             <X className="h-4 w-4" />
           </Button>

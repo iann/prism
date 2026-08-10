@@ -135,8 +135,9 @@ export async function GET(request: NextRequest) {
 
     let currentSource: WeatherCurrentSource = provider === 'pirate' ? 'pirate' : 'provider';
     try {
+      const airGradientCacheTarget = process.env.AIRGRADIENT_URL?.trim() || 'default';
       const airGradient = await getCached(
-        'airgradient:10.0.1.55:current',
+        `airgradient:${airGradientCacheTarget}:current`,
         fetchAirGradientMeasurement,
         AIRGRADIENT_CACHE_TTL,
       );

@@ -10,8 +10,7 @@
  * - Works with screen readers
  *
  * TOUCH OPTIMIZATION:
- * - 24x24px visual size (larger than typical 16x16)
- * - Touch target extends beyond visual bounds
+ * - 28x28px visual size inside a true 44x44px target
  * - Clear visual feedback on interaction
  *
  * USAGE:
@@ -71,47 +70,28 @@ const Checkbox = React.forwardRef<
   <CheckboxPrimitive.Root
     ref={ref}
     className={cn(
-      // Size (larger than typical for touch)
-      'h-6 w-6',
-      // Shape
-      'rounded-md',
-      // Border
-      'border-2 border-primary',
+      'wall-checkbox group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
       // Focus state
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
       // Disabled state
       'disabled:cursor-not-allowed disabled:opacity-50',
-      // Checked state (filled background)
-      'data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground',
-      // Indeterminate state
-      'data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground',
-      // Transitions
-      'transition-colors duration-150',
-      // Flex for centering the check icon
-      'flex items-center justify-center',
-      // Touch target (extends clickable area)
       'touch-action-manipulation',
-      // Shrink prevention
-      'shrink-0',
       className
     )}
     {...props}
   >
-    {/*
-      CHECKBOX INDICATOR
-      The checkmark icon that appears when checked.
-      Radix handles showing/hiding based on state.
-    */}
-    <CheckboxPrimitive.Indicator
+    <span
       className={cn(
-        // Fill available space
-        'flex items-center justify-center',
-        // Text color (inherited from parent)
-        'text-current'
+        'flex h-7 w-7 items-center justify-center rounded-lg border-2 border-primary',
+        'transition-colors duration-150',
+        'group-data-[state=checked]:bg-primary group-data-[state=checked]:text-primary-foreground',
+        'group-data-[state=indeterminate]:bg-primary group-data-[state=indeterminate]:text-primary-foreground'
       )}
     >
-      <Check className="h-4 w-4" strokeWidth={3} />
-    </CheckboxPrimitive.Indicator>
+      <CheckboxPrimitive.Indicator className="flex items-center justify-center text-current">
+        <Check className="h-5 w-5" strokeWidth={3} />
+      </CheckboxPrimitive.Indicator>
+    </span>
   </CheckboxPrimitive.Root>
 ));
 

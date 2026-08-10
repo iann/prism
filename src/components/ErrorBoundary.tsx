@@ -1,6 +1,9 @@
 'use client';
 
 import { Component, type ReactNode } from 'react';
+import { TriangleAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { WallStateScreen } from '@/components/wall';
 
 interface Props {
   children: ReactNode;
@@ -31,32 +34,27 @@ export class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback;
 
       return (
-        <div className="flex items-center justify-center min-h-screen bg-background text-foreground p-8">
-          <div className="max-w-md text-center space-y-4">
-            <h1 className="text-2xl font-bold">Something went wrong</h1>
-            <p className="text-muted-foreground">
+        <WallStateScreen
+          icon={<TriangleAlert className="h-8 w-8" aria-hidden="true" />}
+          title="Something went wrong"
+          description={
+            <p>
               {process.env.NODE_ENV === 'development'
                 ? this.state.error?.message || 'An unexpected error occurred.'
                 : 'An unexpected error occurred. Please try again.'}
             </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => this.setState({ hasError: false, error: null })}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
-              >
+          }
+          actions={
+            <>
+              <Button type="button" size="touch" onClick={() => this.setState({ hasError: false, error: null })}>
                 Try again
-              </button>
-              <button
-                type="button"
-                onClick={() => window.location.assign('/')}
-                className="px-4 py-2 border border-border text-foreground rounded-md hover:bg-muted"
-              >
-                Reload dashboard
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+              <Button type="button" size="touch" variant="secondary" onClick={() => window.location.assign('/')}>
+                Go to dashboard
+              </Button>
+            </>
+          }
+        />
       );
     }
 

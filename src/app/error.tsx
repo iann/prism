@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
+import { House, TriangleAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { WallStateScreen } from '@/components/wall';
 
 export default function Error({
   error,
@@ -14,31 +17,25 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background text-foreground p-8">
-      <div className="max-w-md text-center space-y-4">
-        <h1 className="text-2xl font-bold">Something went wrong</h1>
-        <p className="text-muted-foreground">
+    <WallStateScreen
+      icon={<TriangleAlert className="h-8 w-8" aria-hidden="true" />}
+      title="Something went wrong"
+      description={
+        <p>
           {process.env.NODE_ENV === 'development'
             ? error.message
             : 'An unexpected error occurred. Please try again.'}
         </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <button
-            type="button"
-            onClick={reset}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
-          >
-            Try again
-          </button>
-          <button
-            type="button"
-            onClick={() => window.location.assign('/')}
-            className="px-4 py-2 border border-border text-foreground rounded-md hover:bg-muted"
-          >
-            Reload dashboard
-          </button>
-        </div>
-      </div>
-    </div>
+      }
+      actions={
+        <>
+          <Button type="button" size="touch" onClick={reset}>Try again</Button>
+          <Button type="button" size="touch" variant="secondary" onClick={() => window.location.assign('/')}>
+            <House className="h-5 w-5" aria-hidden="true" />
+            Go to dashboard
+          </Button>
+        </>
+      }
+    />
   );
 }

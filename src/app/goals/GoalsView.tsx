@@ -261,7 +261,7 @@ export function GoalsView() {
                     className={cn(
                       'rounded-lg border p-4 transition-all',
                       goal.fullyAchieved
-                        ? 'border-green-500/50 bg-green-100 dark:bg-green-950'
+                        ? 'border-status-success/50 bg-status-success/15'
                         : 'bg-card border-border',
                       isParent && 'cursor-grab active:cursor-grabbing touch-none',
                       draggedGoalId === goal.id && 'opacity-50 scale-95 ring-4 ring-primary/50'
@@ -270,24 +270,30 @@ export function GoalsView() {
                     {/* Goal header */}
                     <div className="flex items-center gap-2 mb-3">
                       {isParent && (
-                        <div className="flex flex-col items-center gap-0.5">
-                          <button
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleMoveUp(index)}
                             disabled={index === 0}
-                            className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"
+                            className="text-muted-foreground hover:text-foreground disabled:opacity-20"
                             aria-label="Move goal up"
                           >
-                            <ChevronUp className="h-3.5 w-3.5" />
-                          </button>
-                          <GripVertical className="h-3 w-3 text-muted-foreground/50" />
-                          <button
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <GripVertical className="h-4 w-4 text-muted-foreground/50" aria-hidden="true" />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleMoveDown(index)}
                             disabled={index >= goals.length - 1}
-                            className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"
+                            className="text-muted-foreground hover:text-foreground disabled:opacity-20"
                             aria-label="Move goal down"
                           >
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          </button>
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
                         </div>
                       )}
 
@@ -297,7 +303,7 @@ export function GoalsView() {
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold truncate">{goal.name}</h3>
                           {goal.fullyAchieved && (
-                            <Check className="h-5 w-5 text-green-500 shrink-0" />
+                            <Check className="h-5 w-5 text-status-success shrink-0" />
                           )}
                         </div>
                         {goal.description && (
@@ -361,18 +367,18 @@ export function GoalsView() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleReset(goal.id)}
-                            className="text-green-600 hover:text-green-700"
+                            className="text-status-success hover:text-status-success/80"
                           >
                             <RotateCcw className="h-3.5 w-3.5 mr-1" />
                             Reset
                           </Button>
                         )}
-                        <Button variant="ghost" size="sm" onClick={() => openEditModal(goal)} aria-label="Edit goal">
+                        <Button variant="ghost" size="icon" onClick={() => openEditModal(goal)} aria-label="Edit goal">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => handleDelete(goal.id)}
                           className="text-destructive hover:text-destructive"
                           aria-label="Delete goal"

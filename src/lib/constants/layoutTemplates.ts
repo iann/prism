@@ -175,19 +175,17 @@ export const LAYOUT_TEMPLATES: Record<string, LayoutTemplate> = {
   },
 };
 
-// New-user / empty-layout fallback. Deliberately weather-forward with NO
-// calendar/birthdays/points — a fresh install hasn't connected a calendar yet,
-// so a calendar-hero default would render empty. Not shown in the template
-// picker; it's the safety-net layout applied when a dashboard has no widgets.
+// New-user / empty-layout fallback. Keep the three wall-display anchors in the
+// default composition: Calendar is the household hero, with Weather and Clock
+// as the glanceable supporting rail. An unconnected calendar still renders a
+// calm empty state, while the layout remains ready for a later integration.
 export const DEFAULT_TEMPLATE: LayoutTemplate = {
   name: 'Default',
-  description: 'One-screen 5-widget layout — weather-forward, no calendar/birthdays/points',
+  description: 'Calendar hero with a glanceable weather and clock rail',
   orientation: 'landscape',
   widgets: [
-    { i: 'weather',  x: 0,  y: 0,  w: 24, h: 24 },
-    { i: 'clock',    x: 24, y: 0,  w: 24, h: 6  },
-    { i: 'tasks',    x: 24, y: 6,  w: 24, h: 6  },
-    { i: 'chores',   x: 24, y: 12, w: 24, h: 6  },
-    { i: 'shopping', x: 24, y: 18, w: 24, h: 6  },
+    { i: 'calendar', x: 0,  y: 0,  w: 34, h: 27 },
+    { i: 'weather',  x: 34, y: 0,  w: 14, h: 17 },
+    { i: 'clock',    x: 34, y: 17, w: 14, h: 10 },
   ],
 };

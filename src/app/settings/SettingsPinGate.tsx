@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { PageLoader, Spinner } from '@/components/ui/spinner';
 import { UserAvatar } from '@/components/ui/avatar';
 import { useFamily, useAuth } from '@/components/providers';
 import { DEFAULT_PIN_LENGTH } from '@/lib/constants';
@@ -50,8 +51,10 @@ export function SettingsPinGate() {
 
   if (state === 'checking') {
     return (
-      <div className="h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="wall-state-screen">
+        <div className="wall-state-card">
+          <PageLoader label="Checking parent access…" size="lg" className="py-4" />
+        </div>
       </div>
     );
   }
@@ -193,27 +196,29 @@ function SettingsPinPrompt({
 
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10001]"
+      className="wall-pin-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-[10001]"
       onClick={onDismiss}
     >
       <div
-        className="bg-card rounded-2xl p-3 max-w-[20rem] w-full mx-4 shadow-lg"
+        className="wall-pin-card bg-card rounded-2xl p-3 max-w-[20rem] w-full mx-4 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-2 pb-2 border-b border-border">
           <div>
             <h2 className="text-base font-semibold leading-tight">Parent PIN Required</h2>
-            <p className="text-xs text-muted-foreground">Select a parent to continue</p>
+            <p className="text-xs text-muted-foreground">
+              {selectedParent ? 'Enter your PIN' : 'Select a parent to continue'}
+            </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onDismiss} className="h-7 w-7">
+          <Button variant="ghost" size="icon" onClick={onDismiss} className="h-11 w-11" aria-label="Close settings sign-in">
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <Spinner aria-label="Loading family members" />
           </div>
         ) : (
           <div className="grid">

@@ -25,7 +25,7 @@ export function PersonFilter({ members, selected, onSelect, className }: PersonF
       <button
         onClick={() => onSelect(null)}
         className={cn(
-          'h-8 px-3 rounded-md text-sm font-medium transition-colors',
+          'wall-filter-control h-8 px-3 rounded-md text-sm font-medium transition-colors',
           isAll
             ? 'bg-secondary text-secondary-foreground'
             : 'hover:bg-accent text-muted-foreground',
@@ -40,7 +40,7 @@ export function PersonFilter({ members, selected, onSelect, className }: PersonF
             key={member.id}
             onClick={() => toggle(member.id)}
             className={cn(
-              'h-8 flex items-center gap-1.5 px-2 rounded-md text-sm font-medium transition-colors',
+              'wall-filter-control h-8 flex items-center gap-1.5 px-2 rounded-md text-sm font-medium transition-colors',
               active
                 ? 'bg-secondary text-secondary-foreground'
                 : 'hover:bg-accent text-muted-foreground',

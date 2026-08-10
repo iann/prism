@@ -21,18 +21,26 @@
  */
 
 'use client';
-import { Emoji } from '@/components/ui/Emoji';
 
 import * as React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, UserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PrismIcon } from '@/components/ui/PrismIcon';
 import { ALL_NAV_ITEMS } from '@/lib/constants/navItems';
 import { useHiddenPages } from '@/lib/hooks/useHiddenPages';
-import { contrastText } from '@/lib/utils/color';
+import { FamilyAvatar, WallNavItem } from '@/components/wall';
+
+const WALL_NAV_ACCENTS = [
+  '#e28b77',
+  '#6eaa98',
+  '#e5b654',
+  '#7ea9c7',
+  '#a18dc8',
+  '#dc8ea7',
+  '#53a69f',
+] as const;
 
 /**
  * SIDE NAV PROPS
@@ -114,7 +122,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
   const handleAsideClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('a') || target.closest('button')) return;
-    setExpanded(prev => !prev);
+    setExpanded((prev) => !prev);
   };
 
   return (
@@ -124,74 +132,64 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
         ref={asideRef}
         onClick={handleAsideClick}
         className={cn(
+          'wall-side-nav',
           'fixed left-0 top-0 z-40 h-screen',
           'bg-card dark:bg-card/95',
           'flex flex-col',
           'transition-[transform,opacity,width] duration-300 ease-in-out',
+          expanded && 'wall-side-nav-expanded',
           expanded ? 'w-52 shadow-xl' : 'w-16',
           uiHidden ? '-translate-x-full opacity-0 delay-100' : 'translate-x-0 opacity-100 delay-0',
           className
         )}
       >
         {/* HEADER WITH LOGO */}
-        <div className={cn('flex items-center h-12 [@media(pointer:coarse)]:h-16 px-2', expanded ? 'justify-start' : 'justify-center')}>
-          <Link href="/" prefetch={false} className="flex items-center gap-2" aria-label="Prism home">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
-              <PrismIcon size={24} />
+        <div
+          className={cn(
+            'flex h-20 items-center px-2',
+            expanded ? 'justify-start px-4' : 'justify-center'
+          )}
+        >
+          <Link
+            href="/"
+            prefetch={false}
+            className="flex items-center gap-2"
+            aria-label="Prism home"
+          >
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[hsl(var(--wall-surface-raised))]">
+              <PrismIcon size={28} />
             </div>
-            {expanded && <span className="font-semibold text-lg">Prism</span>}
+            {expanded && <span className="text-lg font-bold tracking-tight">Prism</span>}
           </Link>
         </div>
 
         {/* NAVIGATION LINKS */}
-        <nav className="flex-1 overflow-y-auto py-4">
-          <ul className="space-y-1 px-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    prefetch={false}
-                    aria-label={item.label}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-1.5 [@media(pointer:coarse)]:py-2.5 rounded-lg',
-                      'text-sm font-medium',
-                      'transition-colors duration-200',
-                      'touch-target',
-                      active
-                        ? 'bg-seasonal-accent text-seasonal-accent-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                      expanded ? 'justify-start' : 'justify-center'
-                    )}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                    {expanded && <span className="whitespace-nowrap">
-                      {item.label}
-                    </span>}
-                  </Link>
-                </li>
-              );
-            })}
+        <nav className="flex-1 overflow-y-auto py-3">
+          <ul className={cn('space-y-2 px-2', expanded && 'px-3')}>
+            {navItems.map((item, index) => (
+              <li key={item.href}>
+                <WallNavItem
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  active={isActive(item.href)}
+                  expanded={expanded}
+                  accent={WALL_NAV_ACCENTS[index % WALL_NAV_ACCENTS.length]}
+                />
+              </li>
+            ))}
           </ul>
         </nav>
 
         {/* HELP LINK */}
-        <div className={cn('px-2 pb-1', expanded ? 'text-left' : 'text-center')}>
-          <Link
+        <div className={cn('px-2 pb-2', expanded ? 'px-3' : 'text-center')}>
+          <WallNavItem
             href="/help"
-            prefetch={false}
-            aria-label="Help"
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
-              expanded ? 'justify-start' : 'justify-center'
-            )}
-          >
-            <HelpCircle className="h-4 w-4 flex-shrink-0" />
-            {expanded && <span>Help</span>}
-          </Link>
+            label="Help"
+            icon={HelpCircle}
+            expanded={expanded}
+            accent="#7ea9c7"
+          />
         </div>
 
         {/* USER AVATAR AT BOTTOM */}
@@ -199,61 +197,31 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
           <button
             onClick={user ? onLogout : onLogin}
             className={cn(
-              'flex items-center gap-3 px-3 py-1.5 [@media(pointer:coarse)]:py-2.5 rounded-lg w-full',
+              'flex w-full items-center gap-3 rounded-lg px-3 py-1.5 [@media(pointer:coarse)]:py-2.5',
               'text-sm font-medium',
               'transition-colors duration-200',
               'touch-target',
-              'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-              expanded ? 'justify-start' : 'justify-center'
+              'wall-user-button text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+              expanded ? 'justify-start px-3' : 'justify-center'
             )}
             aria-label={user ? 'Log out' : 'Log in'}
           >
             {user ? (
               <>
-                <div
-                  className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0"
-                  style={{ backgroundColor: user.color || '#6B7280', color: contrastText(user.color || '#6B7280') }}
-                >
-                  {user.avatarUrl?.startsWith('emoji:') ? (
-                    <span className="text-lg"><Emoji e={user.avatarUrl.slice(6)} /></span>
-                  ) : user.avatarUrl ? (
-                    <Image
-                      src={user.avatarUrl}
-                      alt={user.name}
-                      fill
-                      unoptimized
-                      className="rounded-full object-cover"
-                    />
-                  ) : (
-                    user.name.charAt(0).toUpperCase()
-                  )}
-                </div>
-                {expanded && <span className="whitespace-nowrap truncate">
-                  {user.name}
-                </span>}
+                <FamilyAvatar
+                  name={user.name}
+                  color={user.color}
+                  imageUrl={user.avatarUrl}
+                  size="md"
+                />
+                {expanded && <span className="truncate whitespace-nowrap">{user.name}</span>}
               </>
             ) : (
               <>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-red-500/10 border-2 border-dashed border-red-500 flex-shrink-0">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="text-red-500"
-                  >
-                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--wall-surface-muted))]">
+                  <UserRound className="h-5 w-5" />
                 </div>
-                {expanded && <span className="whitespace-nowrap text-red-500">
-                  Log in
-                </span>}
+                {expanded && <span className="whitespace-nowrap">Log in</span>}
               </>
             )}
           </button>

@@ -63,26 +63,16 @@ const Switch = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SwitchPrimitives.Root
     className={cn(
-      // Size (width x height for the track)
-      'peer inline-flex h-6 w-11',
-      // Shape
-      'rounded-full',
-      // Border
-      'border-2 border-transparent',
+      // A generous transparent target surrounds the familiar 44x24 track.
+      'wall-switch peer relative inline-flex h-11 w-14 shrink-0 cursor-pointer items-center rounded-full border-0 bg-transparent p-0',
+      'before:absolute before:left-1.5 before:top-2.5 before:h-6 before:w-11 before:rounded-full before:bg-input before:transition-colors',
+      'data-[state=checked]:before:bg-primary',
       // Focus state
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
       // Disabled state
       'disabled:cursor-not-allowed disabled:opacity-50',
-      // Default state (unchecked)
-      'bg-input',
-      // Checked state
-      'data-[state=checked]:bg-primary',
-      // Transitions
-      'transition-colors',
       // Touch optimization
       'cursor-pointer touch-action-manipulation',
-      // Shrink prevention
-      'shrink-0',
       className
     )}
     {...props}
@@ -95,17 +85,14 @@ const Switch = React.forwardRef<
     */}
     <SwitchPrimitives.Thumb
       className={cn(
-        // Size
-        'pointer-events-none block h-5 w-5',
+        'pointer-events-none absolute left-2 top-3 block h-5 w-5',
         // Shape
         'rounded-full',
         // Color
         'bg-background',
         // Shadow
         'shadow-lg',
-        // Initial position (left side when unchecked)
         'translate-x-0',
-        // Checked position (right side)
         'data-[state=checked]:translate-x-5',
         // Transitions (smooth slide)
         'transition-transform ring-0'

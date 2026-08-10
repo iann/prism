@@ -166,20 +166,22 @@ export function DayColumn({
       ref={disableDrop ? undefined : droppable.setNodeRef}
       data-droppable-day={disableDrop ? undefined : droppableId}
       className={cn(
-        'flex flex-col rounded-lg',
+        'wall-day-column flex flex-col rounded-2xl',
         'bg-calendar-surface',
         'border border-border',
         profile.containerPadding,
         profile.minHeight,
         profile.gap,
         today && 'ring-1 ring-inset ring-ring',
-        droppable.isOver && !disableDrop && 'ring-2 ring-seasonal-accent shadow-lg bg-calendar-today',
-        className,
+        droppable.isOver &&
+          !disableDrop &&
+          'bg-calendar-today shadow-lg ring-2 ring-seasonal-accent',
+        className
       )}
     >
       {/* HEADER */}
       <div className="flex items-baseline justify-between gap-1 pb-1">
-        <div className="flex items-baseline gap-1.5 min-w-0">
+        <div className="flex min-w-0 items-baseline gap-1.5">
           <span className={cn('leading-none text-foreground', profile.headerDateText)}>
             {format(bucket.date, 'd')}
           </span>
@@ -187,9 +189,7 @@ export function DayColumn({
             className={cn(
               'truncate leading-none',
               profile.headerLabelText,
-              today
-                ? 'font-semibold text-foreground'
-                : 'text-muted-foreground',
+              today ? 'font-semibold text-foreground' : 'text-muted-foreground'
             )}
           >
             {dayLabel(bucket.date)}
