@@ -400,10 +400,10 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
 46. **AirGradient-first local weather readings**
 
-    Uses the AirGradient monitor at 10.0.1.55 for current temperature,
-    humidity, and PM2.5 readings, recalculates feels-like from local
-    conditions, and falls back to Pirate Weather with a red source indicator
-    when the monitor cannot be reached.
+    Uses the configured AirGradient monitor for current temperature, humidity,
+    and PM2.5 readings, recalculates feels-like from local conditions, and
+    falls back to Pirate Weather with a red source indicator when the monitor
+    cannot be reached.
 
     Commit: c4ba702
 
@@ -557,6 +557,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
     the restored segmented weather timeline.
 
     Commit: 14ad7c4
+
+68. **Removed hard-coded AirGradient LAN address**
+
+    Keeps the AirGradient monitor configurable through `AIRGRADIENT_URL`,
+    uses a neutral hostname in public defaults, and derives the weather cache
+    key from the configured runtime target so no private network address is
+    committed.
+
+    Commit: dbf4e4e
 
 ## Superseded personal iterations
 
