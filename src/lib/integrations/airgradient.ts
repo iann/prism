@@ -1,6 +1,6 @@
 import type { AirQuality, WeatherData, WeatherUnits } from '@/components/widgets/WeatherWidget';
 
-const DEFAULT_AIRGRADIENT_URL = 'http://10.0.1.55';
+const DEFAULT_AIRGRADIENT_URL = 'http://airgradient.local';
 const AIRGRADIENT_TIMEOUT_MS = 2_000;
 
 interface RawAirGradientMeasurement {
