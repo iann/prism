@@ -41,10 +41,13 @@ import {
   Thermometer,
   Eye,
   AlertTriangle,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import { getTemperatureTrend } from '@/lib/weather/temperatureTrend';
+import { getUvIndexTrend, type UvIndexTrend } from '@/lib/weather/uvIndexTrend';
 import { WidgetContainer } from './WidgetContainer';
 import { DayHeader } from './WeatherForecastBar';
 
@@ -167,6 +170,7 @@ export interface HourlyForecast {
   condition: WeatherCondition;
   temp: number; // In WeatherUnits.temperature
   feelsLike: number; // In WeatherUnits.temperature
+  uvIndex?: number;
   precipProbability?: number; // 0–100
   precipIntensity?: number;   // in/hr or mm/hr, according to WeatherUnits
 }
@@ -278,6 +282,7 @@ export type UvIndexCategory = 'Low' | 'Moderate' | 'High' | 'Very High' | 'Extre
 export type UvIndexStatus = {
   label: UvIndexCategory;
   dotClassName: string;
+  chevronClassName: string;
 };
 
 /** WHO/EPA UV Index bands, kept in one place so the indicator and its label agree. */
@@ -288,29 +293,34 @@ export function getUvIndexStatus(uvIndex: number): UvIndexStatus | null {
     return {
       label: 'Low',
       dotClassName: 'bg-emerald-500 dark:bg-emerald-300',
+      chevronClassName: 'text-emerald-500 dark:text-emerald-300',
     };
   }
   if (uvIndex <= 5) {
     return {
       label: 'Moderate',
       dotClassName: 'bg-yellow-500 dark:bg-yellow-300',
+      chevronClassName: 'text-yellow-500 dark:text-yellow-300',
     };
   }
   if (uvIndex <= 7) {
     return {
       label: 'High',
       dotClassName: 'bg-orange-500 dark:bg-orange-300',
+      chevronClassName: 'text-orange-500 dark:text-orange-300',
     };
   }
   if (uvIndex <= 10) {
     return {
       label: 'Very High',
       dotClassName: 'bg-red-500 dark:bg-red-300',
+      chevronClassName: 'text-red-500 dark:text-red-300',
     };
   }
   return {
     label: 'Extreme',
     dotClassName: 'bg-purple-500 dark:bg-purple-300',
+    chevronClassName: 'text-purple-500 dark:text-purple-300',
   };
 }
 
@@ -792,6 +802,9 @@ function CurrentConditions({
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
   const temperatureTrend = getTemperatureTrend(weather.temperature, hourly);
+  const uvIndexTrend = weather.uvIndex === undefined
+    ? null
+    : getUvIndexTrend(weather.uvIndex, hourly);
   const sunIsAboveHorizon = isSunAboveHorizon(sunrise, sunset);
   const airQualityStatus = weather.airQuality?.pm25 !== undefined
     ? getAirQualityStatus(weather.airQuality.pm25)
@@ -887,7 +900,7 @@ function CurrentConditions({
           </span>
         </div>
         {weather.uvIndex !== undefined && sunIsAboveHorizon && (
-          <UvIndexLine uvIndex={weather.uvIndex} />
+          <UvIndexLine uvIndex={weather.uvIndex} trend={uvIndexTrend} />
         )}
         {weather.visibility !== undefined && (
           <div className="flex items-center justify-end gap-1">
@@ -901,23 +914,48 @@ function CurrentConditions({
 }
 
 
-/** Keep UV as a single compact stat, with a warning dot at UV 5 and above. */
-function UvIndexLine({ uvIndex }: { uvIndex: number }) {
+/** Keep UV as a single compact stat, with a warning indicator at UV 5 and above. */
+function UvIndexLine({ uvIndex, trend }: { uvIndex: number; trend: UvIndexTrend }) {
   const status = getUvIndexStatus(uvIndex);
   if (!status) return null;
 
   const displayValue = formatCompactNumber(uvIndex);
-  const showWarningDot = uvIndex >= 5;
+  const showWarningIndicator = uvIndex >= 5;
   const shouldPulse = uvIndex > 5;
+  const trendDescription = trend === 'rising'
+    ? 'increasing'
+    : trend === 'falling'
+      ? 'decreasing'
+      : null;
+  const trendSuffix = trendDescription ? `, ${trendDescription}` : '';
+  const chevronClassName = cn(
+    'h-3 w-3',
+    status.chevronClassName,
+    shouldPulse && 'uv-index-dot--pulse',
+  );
 
   return (
     <div
       data-testid="uv-index-line"
       className="flex items-center justify-end gap-1"
-      title={`UV index ${displayValue}: ${status.label}`}
-      aria-label={`UV index ${displayValue}, ${status.label}`}
+      title={`UV index ${displayValue}: ${status.label}${trendSuffix}`}
+      aria-label={`UV index ${displayValue}, ${status.label}${trendSuffix}`}
     >
-      {showWarningDot && (
+      {showWarningIndicator && trend === 'rising' && (
+        <ChevronUp
+          data-testid="uv-index-up-chevron"
+          className={chevronClassName}
+          aria-hidden="true"
+        />
+      )}
+      {showWarningIndicator && trend === 'falling' && (
+        <ChevronDown
+          data-testid="uv-index-down-chevron"
+          className={chevronClassName}
+          aria-hidden="true"
+        />
+      )}
+      {showWarningIndicator && !trend && (
         <span
           data-testid="uv-index-dot"
           className={cn(

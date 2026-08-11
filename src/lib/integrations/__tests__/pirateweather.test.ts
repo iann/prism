@@ -65,6 +65,7 @@ function daily(dt: number, overrides: Partial<{
 function hourly(dt: number, overrides: Partial<{
   icon: string;
   temperature: number;
+  uvIndex: number;
   precipProbability: number;
   precipIntensity: number;
 }> = {}) {
@@ -72,6 +73,7 @@ function hourly(dt: number, overrides: Partial<{
     time: dt,
     icon: overrides.icon ?? 'clear-day',
     temperature: overrides.temperature ?? 68,
+    uvIndex: overrides.uvIndex,
     precipProbability: overrides.precipProbability ?? 0,
     precipIntensity: overrides.precipIntensity ?? 0,
   };
@@ -476,6 +478,17 @@ describe('hourly forecast', () => {
     const h = result.hourly![0];
     expect(h?.precipProbability).toBe(40);
     expect(h?.precipIntensity).toBe(0.02);
+  });
+
+  it('includes hourly UV index values for trend display', async () => {
+    const slot = SEC(MOCK_NOW + 3_600_000);
+    mockFetch(buildResponse({
+      hourlyData: [hourly(slot, { uvIndex: 7.5 })],
+    }));
+    const { fetchWeatherData } = await import('../pirateweather');
+    const result = await fetchWeatherData();
+
+    expect(result.hourly?.[0]?.uvIndex).toBe(7.5);
   });
 });
 

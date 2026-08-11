@@ -93,6 +93,17 @@ function makeHourlyForecast(
   }));
 }
 
+function makeUvTrendForecast(uvIndex: number): HourlyForecast[] {
+  return [{
+    time: new Date(Date.now() + 60 * 60_000),
+    condition: 'sunny',
+    temp: 70,
+    feelsLike: 68,
+    uvIndex,
+    precipProbability: 0,
+  }];
+}
+
 const DEFAULT_UNITS = {
   temperature: 'F' as const,
   windSpeed: 'mph' as const,
@@ -700,6 +711,44 @@ describe('current conditions', () => {
       <WeatherWidget data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 5 } })} />
     );
     expect(screen.getByTestId('uv-index-dot').className).toContain('bg-yellow-500');
+  });
+
+  it('uses a risk-colored up chevron when UV is increasing', () => {
+    render(
+      <WeatherWidget
+        data={makeWeatherData({
+          current: { ...makeWeatherData().current, uvIndex: 6.5 },
+          hourly: makeUvTrendForecast(7.5),
+        })}
+      />
+    );
+
+    const chevron = screen.getByTestId('uv-index-up-chevron');
+    expect(chevron.getAttribute('class')).toContain('text-orange-500');
+    expect(screen.queryByTestId('uv-index-dot')).toBeNull();
+    expect(screen.queryByTestId('uv-index-down-chevron')).toBeNull();
+    expect(screen.getByTestId('uv-index-line').getAttribute('aria-label')).toBe(
+      'UV index 6.5, High, increasing'
+    );
+  });
+
+  it('uses a risk-colored down chevron when UV is decreasing', () => {
+    render(
+      <WeatherWidget
+        data={makeWeatherData({
+          current: { ...makeWeatherData().current, uvIndex: 6.5 },
+          hourly: makeUvTrendForecast(5.5),
+        })}
+      />
+    );
+
+    const chevron = screen.getByTestId('uv-index-down-chevron');
+    expect(chevron.getAttribute('class')).toContain('text-orange-500');
+    expect(screen.queryByTestId('uv-index-dot')).toBeNull();
+    expect(screen.queryByTestId('uv-index-up-chevron')).toBeNull();
+    expect(screen.getByTestId('uv-index-line').getAttribute('aria-label')).toBe(
+      'UV index 6.5, High, decreasing'
+    );
   });
 
   it('removes the UV line when the sun is below the horizon', () => {
