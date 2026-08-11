@@ -580,6 +580,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: c91903e
 
+70. **Softer portrait wall-display refinement**
+
+    Rebalances the Daybook wall presentation with warmer semantic surfaces,
+    quieter borders, more generous portrait spacing, touch-sized calendar
+    chips, and compact-weather handling that preserves the existing data and
+    interaction behavior.
+
+    Commit: f46c43b
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
