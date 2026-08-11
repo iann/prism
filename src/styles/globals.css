@@ -1165,6 +1165,14 @@
     box-shadow: 0 1px 0 hsl(var(--wall-line) / 0.24);
   }
 
+  /* The visible header needs a touch-friendly minimum height, but that
+     minimum must not preserve a blank band after auto-hide collapses it. Keep
+     the hidden state aligned with the grid's 12px top/side padding. */
+  .wall-display .wall-dashboard-header[data-chrome-hidden='true'] {
+    min-height: 0;
+    padding-block: 0;
+  }
+
   .wall-display .wall-header-action {
     display: inline-flex;
     min-height: 48px;
