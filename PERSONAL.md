@@ -589,6 +589,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: f46c43b
 
+71. **Runtime display font-scale settings**
+
+    Keeps per-dashboard font scaling live in production by reading saved
+    values at request time, while hardening the debounced Settings save path
+    against failed responses, stale slider requests, and unmounts.
+
+    Commit: a81bb25c
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
