@@ -552,11 +552,12 @@ upstream-sync-only commits are omitted unless they changed behavior.
 67. **Incremental Skylight-inspired wall-display foundation**
 
     Refines shared buttons, cards, dialogs, inputs, selects, switches,
-    navigation surfaces, mobile dashboard cards, and widget shells around a
-    warm, touch-first family display language while preserving the existing
-    calendar, navigation, data, and integration behavior.
+    navigation surfaces, mobile dashboard cards, widget shells, typography,
+    weather indicators, and calendar controls around a warm, touch-first
+    family display language while preserving the existing calendar,
+    navigation, data, and integration behavior.
 
-    Commit: 01c2027
+    Commits: 01c2027, d0c84df, df24ce8
 
 68. **Removed hard-coded AirGradient LAN address**
 
