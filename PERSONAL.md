@@ -613,6 +613,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 61e3ef2e
 
+73. **Centered weather fallback indicator**
+
+    Centers the Pirate Weather fallback dot against the numeric temperature,
+    before the near-term “& rising/falling” trend label.
+
+    Commit: dd20f304
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
