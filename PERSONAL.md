@@ -518,6 +518,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 8320d8e
 
+63. **Near-term temperature trend label**
+
+    Adds “& rising” or “& falling” to the current temperature when the nearest
+    forecast point in the next 90 minutes changes the displayed value, and
+    omits the suffix when the reading is steady or no near-term point exists.
+
+    Commit: bcffbf9a
+
 63. **Roomier hourly timeline spacing**
 
     Adds a little more vertical breathing room between the timeline tile
@@ -604,6 +612,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
     the same 12px top and side inset as the grid.
 
     Commit: 61e3ef2e
+
+73. **Centered weather fallback indicator**
+
+    Centers the Pirate Weather fallback dot against the numeric temperature,
+    before the near-term “& rising/falling” trend label.
+
+    Commit: dd20f304
 
 ## Superseded personal iterations
 

@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
+import { getTemperatureTrend } from '@/lib/weather/temperatureTrend';
 import { WidgetContainer } from './WidgetContainer';
 import { DayHeader } from './WeatherForecastBar';
 
@@ -646,6 +647,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           weather={weatherData.current}
           location={weatherData.location}
           units={units}
+          hourly={weatherData.hourly}
           currentSource={weatherData.currentSource}
           sunrise={weatherData.sunrise}
           sunset={weatherData.sunset}
@@ -813,6 +815,7 @@ function CurrentConditions({
   weather,
   location,
   units,
+  hourly,
   currentSource,
   sunrise,
   sunset,
@@ -820,12 +823,14 @@ function CurrentConditions({
   weather: CurrentWeather;
   location: string;
   units: WeatherUnits;
+  hourly?: HourlyForecast[];
   currentSource?: WeatherCurrentSource;
   sunrise?: Date;
   sunset?: Date;
 }) {
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
+  const temperatureTrend = getTemperatureTrend(weather.temperature, hourly);
   const sunIsAboveHorizon = isSunAboveHorizon(sunrise, sunset);
   const airQualityStatus = weather.airQuality?.pm25 !== undefined
     ? getAirQualityStatus(weather.airQuality.pm25)
@@ -845,16 +850,30 @@ function CurrentConditions({
             className="h-10 w-10 text-amber-500 dark:text-amber-300 flex-shrink-0"
           />
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="text-5xl font-bold leading-none">{temp}</div>
-              {currentSource === 'pirate' && (
+            <div
+              data-testid="weather-current-temperature"
+              aria-label={`${temp}${temperatureTrend ? ` & ${temperatureTrend}` : ''}`}
+              className="flex items-baseline gap-2"
+            >
+              <div className="flex items-center gap-2">
+                <div className="text-5xl font-bold leading-none">{temp}</div>
+                {currentSource === 'pirate' && (
+                  <span
+                    data-testid="weather-fallback-indicator"
+                    role="img"
+                    aria-label="Using Pirate Weather fallback data"
+                    title="Using Pirate Weather fallback data"
+                    className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-red-500"
+                  />
+                )}
+              </div>
+              {temperatureTrend && (
                 <span
-                  data-testid="weather-fallback-indicator"
-                  role="img"
-                  aria-label="Using Pirate Weather fallback data"
-                  title="Using Pirate Weather fallback data"
-                  className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-red-500"
-                />
+                  data-testid="weather-temperature-trend"
+                  className="whitespace-nowrap text-lg font-semibold leading-none text-muted-foreground"
+                >
+                  &amp; {temperatureTrend}
+                </span>
               )}
             </div>
           </div>
