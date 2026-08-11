@@ -620,6 +620,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: dd20f304
 
+74. **Simplified weather UV indicator**
+
+    Removes the weather location from the widget header, keeps the UV label in
+    the shared stats color, and shows the risk-colored dot only at UV 5 or
+    higher.
+
+    Commit: e42a55df
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
