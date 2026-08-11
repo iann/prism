@@ -125,10 +125,11 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
         onClick={handleAsideClick}
         className={cn(
           'fixed left-0 top-0 z-40 h-screen',
-          'bg-card dark:bg-card/95',
+          'bg-card',
+          'border-r border-border/45',
           'flex flex-col',
           'transition-[transform,opacity,width] duration-300 ease-in-out',
-          expanded ? 'w-52 shadow-xl' : 'w-16',
+          expanded ? 'w-52 shadow-lg' : 'w-16',
           uiHidden ? '-translate-x-full opacity-0 delay-100' : 'translate-x-0 opacity-100 delay-0',
           className
         )}
@@ -162,7 +163,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                       'transition-colors duration-200',
                       'touch-target',
                       active
-                        ? 'bg-seasonal-accent text-seasonal-accent-foreground'
+                        ? 'bg-accent text-accent-foreground'
                         : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                       expanded ? 'justify-start' : 'justify-center'
                     )}

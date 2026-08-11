@@ -74,7 +74,7 @@ const Switch = React.forwardRef<
       // Disabled state
       'disabled:cursor-not-allowed disabled:opacity-50',
       // Default state (unchecked)
-      'bg-input',
+      'bg-muted',
       // Checked state
       'data-[state=checked]:bg-primary',
       // Transitions
@@ -102,7 +102,7 @@ const Switch = React.forwardRef<
         // Color
         'bg-background',
         // Shadow
-        'shadow-lg',
+        'shadow-sm',
         // Initial position (left side when unchecked)
         'translate-x-0',
         // Checked position (right side)

@@ -48,10 +48,10 @@ const Card = React.forwardRef<
     ref={ref}
     className={cn(
       // Background and border
-      'bg-card dark:bg-card/85 dark:backdrop-blur-sm text-card-foreground',
-      'border border-border',
+      'bg-card text-card-foreground',
+      'border border-border/55',
       // Shape
-      'rounded-xl',
+      'rounded-2xl',
       // Shadow for depth (subtle)
       'shadow-sm',
       // Allow custom classes to override
