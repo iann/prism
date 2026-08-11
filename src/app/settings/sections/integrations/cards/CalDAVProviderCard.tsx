@@ -51,7 +51,7 @@ export function CalDAVProviderCard({ onChange, forceSubSectionOpen }: Props) {
               <code className="text-xs bg-muted px-1 py-0.5 rounded">caldav.icloud.com</code>{' '}
               and{' '}
               <code className="text-xs bg-muted px-1 py-0.5 rounded">contacts.icloud.com</code>,
-              so Prism can read supported calendars and contacts, including birthdays.
+              so calendars and contacts (incl. birthdays) sync cleanly.
               Everything else in iCloud — Reminders, Notes, Photos, Find My,
               Health — is CloudKit-only with no public API.
             </p>

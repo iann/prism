@@ -134,14 +134,14 @@ export function ExitAwayModeModal({
 
   return (
     <div
-      className="wall-pin-overlay fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]"
       onClick={(e) => {
         e.stopPropagation();
         onOpenChange(false);
       }}
     >
       <div
-        className="wall-pin-card bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl"
+        className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -154,7 +154,6 @@ export function ExitAwayModeModal({
             variant="ghost"
             size="icon"
             onClick={() => onOpenChange(false)}
-            aria-label="Close away-mode sign-in"
           >
             <X className="h-4 w-4" />
           </Button>

@@ -76,27 +76,25 @@ describe('grid widget styles', () => {
     });
 
     it.each(['#F7F3E8', 'transparent', 'frosted'])(
-      'uses the preset radius and borderless shell chrome for %s',
+      'uses the preset radius and one-pixel semantic boundary for %s',
       (backgroundColor) => {
         const style = getWidgetStyle(widget({ backgroundColor }));
 
         expect(hasCustomWidgetShell(widget({ backgroundColor }))).toBe(true);
         expect(style).toMatchObject({
-          borderRadius: '1.5rem',
-          borderWidth: '0px',
+          borderRadius: '0.75rem',
+          borderWidth: '1px',
           borderStyle: 'solid',
-          borderColor: 'transparent',
+          borderColor: 'hsl(var(--border))',
         });
-        expect(CUSTOM_WIDGET_SHELL_CLASS).toContain('rounded-[1.5rem]');
-        expect(CUSTOM_WIDGET_SHELL_CLASS).toContain('border-0');
-        expect(CUSTOM_WIDGET_SHELL_CLASS).toContain('shadow-none');
+        expect(CUSTOM_WIDGET_SHELL_CLASS).toContain('shadow-sm');
       }
     );
 
-    it('uses an explicit outline color without changing shell geometry', () => {
+    it('uses an explicit outline color without changing boundary width', () => {
       expect(getWidgetStyle(widget({ outlineColor: '#abc', outlineOpacity: 0.5 }))).toMatchObject({
-        borderRadius: '1.5rem',
-        borderWidth: '0px',
+        borderRadius: '0.75rem',
+        borderWidth: '1px',
         borderStyle: 'solid',
         borderColor: 'rgba(170,187,204,0.5)',
       });

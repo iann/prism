@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { MapPinned, Plus, Search, Star, X } from 'lucide-react';
+import { Plus, Search, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,6 @@ import { toast } from '@/components/ui/use-toast';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PageWrapper } from '@/components/layout/PageWrapper';
-import { SubpageHeader } from '@/components/layout/SubpageHeader';
 import { useWeekendData, WeekendAuthError } from './useWeekendData';
 import { WeekendPlaceGrid } from './components/WeekendPlaceGrid';
 import { WeekendPlaceDetail } from './components/WeekendPlaceDetail';
@@ -129,27 +128,17 @@ export function WeekendView() {
 
   return (
     <PageWrapper>
-    <div className="wall-weekend-page h-screen flex flex-col">
-      <SubpageHeader
-        icon={<MapPinned className="h-5 w-5 text-primary" />}
-        title="Weekend Ideas"
-        actions={
-          <Button onClick={handleAdd} size="sm">
-            <Plus className="h-4 w-4" />
-            Add place
-          </Button>
-        }
-      />
+    <div className="h-screen flex flex-col">
       {/* Toolbar */}
-      <div className="wall-weekend-toolbar flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background/80 backdrop-blur shrink-0 flex-wrap">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background/80 backdrop-blur shrink-0 flex-wrap">
         {/* Status tabs */}
-        <div className="wall-weekend-status-group flex items-center gap-1 bg-muted rounded-lg p-0.5">
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
           {(['all', 'backlog', 'visited'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setFilterStatus(s)}
               className={cn(
-                'wall-weekend-filter-control px-2.5 py-1 rounded-md text-xs font-medium transition-colors capitalize',
+                'px-2.5 py-1 rounded-md text-xs font-medium transition-colors capitalize',
                 filterStatus === s ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -162,7 +151,7 @@ export function WeekendView() {
         <button
           onClick={() => setFilterFavorites((v) => !v)}
           className={cn(
-            'wall-weekend-filter-control flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors',
+            'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors',
             filterFavorites
               ? 'bg-amber-50 dark:bg-amber-950 border-amber-400 text-amber-600'
               : 'border-transparent bg-muted text-muted-foreground hover:bg-accent'
@@ -188,10 +177,14 @@ export function WeekendView() {
           )}
         </div>
 
+        <Button onClick={handleAdd} size="sm" className="ml-auto shrink-0">
+          <Plus className="h-4 w-4 mr-1" />
+          Add Place
+        </Button>
       </div>
 
       {/* Tag filter row */}
-      <div className="wall-weekend-tagbar flex items-center gap-1.5 px-4 py-1.5 border-b border-border bg-background/50 shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-border bg-background/50 shrink-0 overflow-x-auto">
         {TAG_PRESETS.map((t) => (
           <TagChip
             key={t.value}

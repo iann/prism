@@ -38,11 +38,11 @@ export const metadata = {
  */
 export default function CalendarPage() {
   return (
-    <div className="wall-display min-h-screen bg-background">
+    <main className="min-h-screen bg-background">
       <Suspense fallback={<CalendarSkeleton />}>
         <CalendarView />
       </Suspense>
-    </div>
+    </main>
   );
 }
 

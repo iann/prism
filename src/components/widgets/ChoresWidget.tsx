@@ -117,25 +117,22 @@ export const ChoresWidget = React.memo(function ChoresWidget({
   // Local state for optimistic updates
   const [completingChores, setCompletingChores] = useState<Set<string>>(new Set());
 
-  const handleComplete = useCallback(
-    async (choreId: string) => {
-      // Mark as completing
-      setCompletingChores((prev) => new Set(prev).add(choreId));
+  const handleComplete = useCallback(async (choreId: string) => {
+    // Mark as completing
+    setCompletingChores((prev) => new Set(prev).add(choreId));
 
-      // Call external handler
-      try {
-        await onChoreComplete?.(choreId);
-      } finally {
-        // Remove from completing state
-        setCompletingChores((prev) => {
-          const next = new Set(prev);
-          next.delete(choreId);
-          return next;
-        });
-      }
-    },
-    [onChoreComplete]
-  );
+    // Call external handler
+    try {
+      await onChoreComplete?.(choreId);
+    } finally {
+      // Remove from completing state
+      setCompletingChores((prev) => {
+        const next = new Set(prev);
+        next.delete(choreId);
+        return next;
+      });
+    }
+  }, [onChoreComplete]);
 
   return (
     <WidgetContainer
@@ -176,7 +173,7 @@ export const ChoresWidget = React.memo(function ChoresWidget({
           }
         />
       ) : (
-        <div className="-mr-2 h-full overflow-auto pr-2">
+        <div className="overflow-auto h-full -mr-2 pr-2">
           <div className="space-y-2">
             {displayChores.map((chore) => (
               <ChoreItem
@@ -231,10 +228,10 @@ function ChoreItem({
   return (
     <div
       className={cn(
-        'flex items-start gap-3 rounded-lg p-2',
-        'transition-colors hover:bg-accent/50',
+        'flex items-start gap-3 p-2 rounded-lg',
+        'hover:bg-accent/50 transition-colors',
         'touch-action-manipulation',
-        isPendingApproval && 'bg-status-warning/10 border-status-warning/30 border'
+        isPendingApproval && 'bg-amber-500/10 border border-amber-500/30'
       )}
     >
       {/* Complete button — stops propagation so the row click doesn't also
@@ -242,19 +239,14 @@ function ChoreItem({
       <Button
         size="icon"
         variant="ghost"
-        onClick={(e) => {
-          e.stopPropagation();
-          onComplete();
-        }}
+        onClick={(e) => { e.stopPropagation(); onComplete(); }}
         disabled={completing}
         className={cn(
           'h-8 w-8 shrink-0',
           isOverdue && !isPendingApproval && 'text-destructive hover:text-destructive',
-          isPendingApproval && 'text-status-warning'
+          isPendingApproval && 'text-amber-700 dark:text-amber-300'
         )}
-        title={
-          isPendingApproval ? 'Pending approval - click to complete or approve' : 'Mark as complete'
-        }
+        title={isPendingApproval ? 'Pending approval - click to complete or approve' : 'Mark as complete'}
         aria-label={isPendingApproval ? 'Pending approval' : 'Mark as complete'}
       >
         {completing ? (
@@ -268,60 +260,43 @@ function ChoreItem({
 
       {/* Chore content — clickable surface that opens the edit modal. */}
       <div
-        className={cn('min-w-0 flex-1', onClick && 'cursor-pointer')}
+        className={cn('flex-1 min-w-0', onClick && 'cursor-pointer')}
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
         onClick={onClick}
-        onKeyDown={
-          onClick
-            ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onClick();
-                }
-              }
-            : undefined
-        }
+        onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       >
         <div className="flex items-center gap-2">
           {/* Category emoji */}
-          <span className="text-base">
-            <Emoji e={categoryEmoji} />
-          </span>
+          <span className="text-base"><Emoji e={categoryEmoji} /></span>
 
           {/* Title */}
-          <span
-            className={cn(
-              'truncate text-sm font-medium',
-              isPendingApproval && 'text-status-warning'
-            )}
-          >
-            {chore.title}
-          </span>
+          <span className={cn(
+            'text-sm font-medium truncate',
+            isPendingApproval && 'text-amber-800 dark:text-amber-300'
+          )}>{chore.title}</span>
 
           {/* Points badge */}
           {chore.pointValue > 0 && (
-            <Badge variant="secondary" className="px-1.5 py-0 text-[12px]">
+            <Badge variant="secondary" className="text-[12px] px-1.5 py-0">
               +{chore.pointValue}
             </Badge>
           )}
 
           {/* Pending approval badge - takes priority over "requires approval" */}
           {isPendingApproval ? (
-            <Badge variant="warning" className="px-1.5 py-0 text-[12px]">
+            <Badge variant="warning" className="text-[12px] px-1.5 py-0">
               Pending
             </Badge>
-          ) : (
-            chore.requiresApproval && (
-              <Badge variant="outline" className="px-1.5 py-0 text-[12px]">
-                Approval
-              </Badge>
-            )
+          ) : chore.requiresApproval && (
+            <Badge variant="outline" className="text-[12px] px-1.5 py-0">
+              Approval
+            </Badge>
           )}
         </div>
 
         {/* Metadata row */}
-        <div className="mt-0.5 flex items-center gap-2">
+        <div className="flex items-center gap-2 mt-0.5">
           {/* Show who completed it if pending approval */}
           {isPendingApproval && chore.pendingApproval && (
             <div className="flex items-center gap-1">
@@ -331,7 +306,7 @@ function ChoreItem({
                 size="sm"
                 className="h-4 w-4 text-[8px]"
               />
-              <span className="text-xs text-status-warning">
+              <span className="text-xs text-amber-800 dark:text-amber-300">
                 Done by {chore.pendingApproval.completedBy.name}
               </span>
             </div>
@@ -346,7 +321,9 @@ function ChoreItem({
                 size="sm"
                 className="h-4 w-4 text-[8px]"
               />
-              <span className="text-xs text-muted-foreground">{chore.assignedTo.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {chore.assignedTo.name}
+              </span>
             </div>
           )}
 
@@ -360,10 +337,12 @@ function ChoreItem({
             <span
               className={cn(
                 'text-xs',
-                isOverdue ? 'font-medium text-destructive' : 'text-muted-foreground'
+                isOverdue
+                  ? 'text-destructive font-medium'
+                  : 'text-muted-foreground'
               )}
             >
-              {isOverdue && <AlertCircle className="mr-0.5 inline h-3 w-3" />}
+              {isOverdue && <AlertCircle className="h-3 w-3 inline mr-0.5" />}
               {dueDateDisplay}
             </span>
           )}
@@ -372,6 +351,7 @@ function ChoreItem({
     </div>
   );
 }
+
 
 /**
  * FORMAT DUE DATE

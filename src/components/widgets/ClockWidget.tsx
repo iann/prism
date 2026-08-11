@@ -84,8 +84,6 @@ export const ClockWidget = React.memo(function ClockWidget({
         <time
           dateTime={currentTime.toISOString()}
           className={cn(
-            'wall-clock-time',
-            `wall-clock-time-${size}`,
             'font-bold tracking-tight',
             'tabular-nums',
             timeStyles[size]
@@ -98,8 +96,7 @@ export const ClockWidget = React.memo(function ClockWidget({
           <time
             dateTime={currentTime.toISOString().split('T')[0]}
             className={cn(
-              'wall-clock-date text-muted-foreground mt-1',
-              `wall-clock-date-${size}`,
+              'text-muted-foreground mt-1',
               dateStyles[size]
             )}
           >

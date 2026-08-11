@@ -893,9 +893,8 @@ function AddIcalSubscriptionCard({ onAdded }: { onAdded: () => void }) {
       <CardHeader>
         <CardTitle>Subscribe to a calendar — no account needed</CardTitle>
         <CardDescription>
-          Paste a public iCal URL from Google Calendar, Apple Calendar / iCloud,
-          Outlook.live.com, a school sports feed, or another provider. No account sign-in is required;
-          Prism validates the link and adds it as a read-only subscription.
+          Paste any public iCal URL — Google Calendar, Apple Calendar / iCloud, Outlook.live.com, a school sports feed, etc.
+          Works immediately, read-only, zero setup.
           Apple users: in <em>Calendar.app → right-click your calendar → Share Calendar → Public Calendar</em>, then copy the <code>webcal://</code> URL. iCloud.com works the same way under <em>Calendar → ⓘ → Public Calendar</em>.
         </CardDescription>
         <details className="text-xs text-muted-foreground">

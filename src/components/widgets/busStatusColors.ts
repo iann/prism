@@ -1,14 +1,14 @@
 export const BUS_STATUS_COLORS = {
   arrived: {
-    className: 'bg-status-success',
+    className: 'bg-green-700 dark:bg-green-500',
     lightHex: '#15803d',
   },
   inTransit: {
-    className: 'bg-status-warning',
+    className: 'bg-amber-700 dark:bg-amber-500',
     lightHex: '#b45309',
   },
   overdue: {
-    className: 'bg-status-error',
+    className: 'bg-red-600 dark:bg-red-500',
     lightHex: '#dc2626',
   },
 } as const;

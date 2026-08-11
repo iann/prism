@@ -1,7 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { Settings2, Calendar, UtensilsCrossed, ListChecks, CheckSquare } from 'lucide-react';
+import {
+  Settings2,
+  Calendar,
+  UtensilsCrossed,
+  ListChecks,
+  CheckSquare,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -63,32 +69,25 @@ function CheckRow({ checked, onChange, label, Icon, disabled }: CheckRowProps) {
   return (
     <button
       type="button"
-      role="checkbox"
-      aria-checked={checked}
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       className={cn(
         'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm',
         !disabled && 'hover:bg-accent hover:text-accent-foreground',
         'transition-colors',
-        disabled && 'cursor-not-allowed opacity-50',
-        checked ? 'text-foreground' : 'text-muted-foreground'
+        disabled && 'opacity-50 cursor-not-allowed',
+        checked ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
       <span
         className={cn(
           'flex h-4 w-4 items-center justify-center rounded border',
-          checked
-            ? 'border-primary bg-primary'
-            : 'border-muted-foreground dark:border-muted-foreground/40'
+          checked ? 'bg-primary border-primary' : 'border-muted-foreground dark:border-muted-foreground/40',
         )}
         aria-hidden
       >
         {checked && (
-          <svg
-            viewBox="0 0 12 12"
-            className="h-3 w-3 fill-none stroke-primary-foreground stroke-[2.5]"
-          >
+          <svg viewBox="0 0 12 12" className="h-3 w-3 fill-none stroke-primary-foreground stroke-[2.5]">
             <path d="M2 6.5l2.5 2.5L10 3" />
           </svg>
         )}
@@ -145,12 +144,12 @@ export function ViewOptionsMenu({
         <Button
           variant="outline"
           size="sm"
-          aria-label="Display options"
-          title="Display options"
-          className={cn('wall-options-trigger h-9 gap-1.5', triggerClassName)}
+          aria-label="View options"
+          title="View options"
+          className={cn('gap-1.5 h-9', triggerClassName)}
         >
           <Settings2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Display</span>
+          <span className="hidden sm:inline">View</span>
           {nonDefaultCount > 0 && (
             // Count circle is the ONLY visual indicator that filters are
             // active — the button's outer fill stays the same regardless,
@@ -162,10 +161,7 @@ export function ViewOptionsMenu({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        className="wall-popover-content wall-view-options-popover w-64 p-2"
-      >
+      <PopoverContent align="end" className="w-64 p-2">
         <div className="space-y-3">
           <section>
             <p className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -180,20 +176,16 @@ export function ViewOptionsMenu({
                     className={cn(
                       'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
                       'hover:bg-accent hover:text-accent-foreground',
-                      displayMode === 'cards' ? 'text-foreground' : 'text-muted-foreground'
+                      displayMode === 'cards' ? 'text-foreground' : 'text-muted-foreground',
                     )}
                   >
                     <span
                       className={cn(
                         'flex h-4 w-4 items-center justify-center rounded-full border',
-                        displayMode === 'cards'
-                          ? 'border-primary'
-                          : 'border-muted-foreground dark:border-muted-foreground/40'
+                        displayMode === 'cards' ? 'border-primary' : 'border-muted-foreground dark:border-muted-foreground/40',
                       )}
                     >
-                      {displayMode === 'cards' && (
-                        <span className="h-2 w-2 rounded-full bg-primary" />
-                      )}
+                      {displayMode === 'cards' && <span className="h-2 w-2 rounded-full bg-primary" />}
                     </span>
                     <span className="flex-1 text-left">Cards</span>
                   </button>
@@ -203,20 +195,16 @@ export function ViewOptionsMenu({
                     className={cn(
                       'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
                       'hover:bg-accent hover:text-accent-foreground',
-                      displayMode === 'inline' ? 'text-foreground' : 'text-muted-foreground'
+                      displayMode === 'inline' ? 'text-foreground' : 'text-muted-foreground',
                     )}
                   >
                     <span
                       className={cn(
                         'flex h-4 w-4 items-center justify-center rounded-full border',
-                        displayMode === 'inline'
-                          ? 'border-primary'
-                          : 'border-muted-foreground dark:border-muted-foreground/40'
+                        displayMode === 'inline' ? 'border-primary' : 'border-muted-foreground dark:border-muted-foreground/40',
                       )}
                     >
-                      {displayMode === 'inline' && (
-                        <span className="h-2 w-2 rounded-full bg-primary" />
-                      )}
+                      {displayMode === 'inline' && <span className="h-2 w-2 rounded-full bg-primary" />}
                     </span>
                     <span className="flex-1 text-left">Inline blocks</span>
                   </button>
@@ -235,7 +223,11 @@ export function ViewOptionsMenu({
                 />
               )}
               {notesApplicable && (
-                <CheckRow checked={showNotes} onChange={onShowNotesChange} label="Notes column" />
+                <CheckRow
+                  checked={showNotes}
+                  onChange={onShowNotesChange}
+                  label="Notes column"
+                />
               )}
               {mergeApplicable && onMergedViewChange && (
                 <CheckRow
@@ -276,7 +268,7 @@ export function ViewOptionsMenu({
               <button
                 type="button"
                 onClick={onReset}
-                className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
               >
                 Reset to defaults
               </button>

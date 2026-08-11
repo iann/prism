@@ -48,11 +48,8 @@ interface ToolbarLeftProps {
   onCreateOpen: () => void;
   onRenameOpen: () => void;
 }
-
-const btnClass =
-  'inline-flex min-h-11 items-center rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors active:scale-[0.98]';
-const moreItemClass =
-  'min-h-11 w-full px-4 py-3 text-left text-base transition-colors hover:bg-accent';
+const btnClass = 'px-2 py-1.5 text-xs rounded-md whitespace-nowrap transition-colors';
+const moreItemClass = 'w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors';
 
 export function LayoutEditorToolbarLeft({
   editingScreensaver,
@@ -95,7 +92,7 @@ export function LayoutEditorToolbarLeft({
 
   const handleSelectTemplate = (key: string) => {
     const template = LAYOUT_TEMPLATES[key];
-    if (template) onWidgetsChange(template.widgets.map((w) => ({ ...w, visible: true })));
+    if (template) onWidgetsChange(template.widgets.map(w => ({ ...w, visible: true })));
     onTogglePopover('templates');
   };
 
@@ -106,11 +103,11 @@ export function LayoutEditorToolbarLeft({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {!editingScreensaver && onRenameOpen ? (
         <button
           onClick={onRenameOpen}
-          className="rounded p-1 transition-colors hover:bg-accent"
+          className="p-1 rounded hover:bg-accent transition-colors"
           title="Rename dashboard"
         >
           <EditIcon />
@@ -134,19 +131,17 @@ export function LayoutEditorToolbarLeft({
         />
       )}
 
-      <div className="mx-0.5 h-4 w-px bg-border" />
+      <div className="h-4 w-px bg-border mx-0.5" />
 
       {/* Orientation toggle */}
       <button
-        onClick={() =>
-          onScreenGuideOrientationChange?.(
-            screenGuideOrientation === 'landscape' ? 'portrait' : 'landscape'
-          )
-        }
+        onClick={() => onScreenGuideOrientationChange?.(
+          screenGuideOrientation === 'landscape' ? 'portrait' : 'landscape'
+        )}
         className={`${btnClass} border ${
           screenGuideOrientation === 'landscape'
-            ? 'border-border bg-muted hover:bg-accent'
-            : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
+            ? 'bg-muted border-border hover:bg-accent'
+            : 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
         }`}
       >
         {screenGuideOrientation === 'landscape' ? '\u2B1C Landscape' : '\u25AF Portrait'}
@@ -159,13 +154,12 @@ export function LayoutEditorToolbarLeft({
         onToggle={() => onTogglePopover('widgets')}
         width={340}
       >
-        <div className="max-h-[60vh] overflow-auto p-2">
+        <div className="p-2 max-h-[60vh] overflow-auto">
           <CoordinateEditor
             widgets={currentWidgets}
-            onWidgetsChange={
-              editingScreensaver && onSelectScreensaverPreset
-                ? onSelectScreensaverPreset
-                : onWidgetsChange
+            onWidgetsChange={editingScreensaver && onSelectScreensaverPreset
+              ? onSelectScreensaverPreset
+              : onWidgetsChange
             }
             mode={mode}
             onFocusedWidgetChange={onFocusedWidgetChange}
@@ -184,16 +178,14 @@ export function LayoutEditorToolbarLeft({
           {templates.map(([key, template]) => (
             <button
               key={key}
-              onClick={() =>
-                editingScreensaver ? handleSelectSsTemplate(key) : handleSelectTemplate(key)
-              }
+              onClick={() => editingScreensaver ? handleSelectSsTemplate(key) : handleSelectTemplate(key)}
               className={moreItemClass}
             >
               {template.name}
             </button>
           ))}
           {templates.length === 0 && (
-            <div className="px-3 py-2 text-xs italic text-muted-foreground">
+            <div className="px-3 py-2 text-xs text-muted-foreground italic">
               No templates for {screenGuideOrientation}
             </div>
           )}
@@ -207,12 +199,8 @@ export function LayoutEditorToolbarLeft({
         onToggle={() => onTogglePopover('community')}
         width={640}
       >
-        <div className="max-h-[60vh] overflow-auto p-3">
-          <CommunityGallery
-            mode={mode}
-            onApplyLayout={onApplyCommunityLayout}
-            currentOrientation={screenGuideOrientation}
-          />
+        <div className="p-3 max-h-[60vh] overflow-auto">
+          <CommunityGallery mode={mode} onApplyLayout={onApplyCommunityLayout} currentOrientation={screenGuideOrientation} />
         </div>
       </PopoverButton>
 
@@ -222,7 +210,7 @@ export function LayoutEditorToolbarLeft({
           <>
             Mini-map
             {validation.errors.length > 0 && (
-              <span className="ml-1 inline-block h-2 w-2 rounded-full bg-destructive" />
+              <span className="ml-1 w-2 h-2 rounded-full bg-destructive inline-block" />
             )}
           </>
         }

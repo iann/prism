@@ -32,11 +32,11 @@ export const metadata = {
  */
 export default function ShoppingPage() {
   return (
-    <div className="wall-display min-h-screen bg-background">
+    <main className="min-h-screen bg-background">
       <Suspense fallback={<ShoppingSkeleton />}>
         <ShoppingView />
       </Suspense>
-    </div>
+    </main>
   );
 }
 

@@ -1,20 +1,21 @@
 import Link from 'next/link';
-import { Home } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { WallStateScreen } from '@/components/wall';
 
 export default function NotFound() {
   return (
-    <WallStateScreen
-      icon={<Home className="h-8 w-8" aria-hidden="true" />}
-      eyebrow="404"
-      title="That page isn’t here"
-      description="It may have moved, but your family dashboard is ready whenever you are."
-      actions={
-        <Button asChild size="touch">
-          <Link href="/">Back to dashboard</Link>
-        </Button>
-      }
-    />
+    <div className="flex items-center justify-center min-h-screen bg-background text-foreground p-8">
+      <div className="max-w-md text-center space-y-4">
+        <h1 className="text-6xl font-bold text-muted-foreground">404</h1>
+        <h2 className="text-2xl font-bold">Page not found</h2>
+        <p className="text-muted-foreground">
+          The page you&apos;re looking for doesn&apos;t exist or has been moved.
+        </p>
+        <Link
+          href="/"
+          className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
+        >
+          Back to Dashboard
+        </Link>
+      </div>
+    </div>
   );
 }

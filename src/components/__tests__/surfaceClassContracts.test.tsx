@@ -43,9 +43,7 @@ function findProductionSourceFiles(directory: string): string[] {
     if (entry.isDirectory()) {
       return entry.name === '__tests__' ? [] : findProductionSourceFiles(entryPath);
     }
-    // Inspect authored class names, not CSS attribute-selector values such as
-    // [class~='text-[10px]'] in the wall-display typography overrides.
-    return /\.(?:js|jsx|ts|tsx)$/.test(entry.name) && !/\.(?:test|spec)\./.test(entry.name)
+    return /\.(?:css|js|jsx|ts|tsx)$/.test(entry.name) && !/\.(?:test|spec)\./.test(entry.name)
       ? [entryPath]
       : [];
   });
@@ -250,6 +248,8 @@ describe('surface class contracts', () => {
     expect(alphaCards).toEqual([
       // Goal celebration is a transient overlay over a deliberately dark scrim.
       'src/components/ui/GoalCelebration.tsx:bg-card/95',
+      // This colors an hourly weather segment; it is not a card, header, or navigation surface.
+      'src/components/widgets/WeatherWidget.tsx:bg-card/80',
     ]);
   });
 
@@ -273,6 +273,9 @@ describe('surface class contracts', () => {
       'src/components/layout/LayoutPreview.tsx:border-border/30',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
       'src/components/widgets/BirthdaysWidget.tsx:border-border/50',
+      'src/components/widgets/WeatherWidget.tsx:border-border/60',
+      'src/components/widgets/WeatherWidget.tsx:border-border/60',
+      'src/components/widgets/WeatherWidget.tsx:border-border/60',
     ]);
   });
 
@@ -282,6 +285,9 @@ describe('surface class contracts', () => {
     );
 
     expect(subTwelveText).toEqual([
+      // Decorative up/down triangle glyphs.
+      'src/app/calendar/ViewMenu.tsx:text-[10px]',
+      'src/app/calendar/ViewMenu.tsx:text-[10px]',
       // Avatar initials always have an adjacent full-size person name.
       'src/app/chores/ChoreCompletionsList.tsx:text-[8px]',
       'src/app/chores/ChoreItem.tsx:text-[8px]',
@@ -305,6 +311,9 @@ describe('surface class contracts', () => {
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddTaskModal.tsx:text-[10px]',
+      // Decorative up/down triangle glyphs.
+      'src/components/widgets/CalendarWidgetControls.tsx:text-[10px]',
+      'src/components/widgets/CalendarWidgetControls.tsx:text-[10px]',
       // Compact avatar initials with adjacent names.
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',

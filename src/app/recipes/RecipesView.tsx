@@ -144,7 +144,7 @@ export function RecipesView() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSyncTandoorWithAuth}>
                   <Soup className="h-4 w-4 mr-2 text-muted-foreground" />
-                  Review recipe sync…
+                  Sync recipes (Tandoor / Mealie)…
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleAddWithAuth}>
                   <PenLine className="h-4 w-4 mr-2 text-muted-foreground" />

@@ -37,6 +37,7 @@ import { PerformanceModeBadge } from '@/components/layout/PerformanceModeBadge';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { RefreshCw } from 'lucide-react';
 
+
 /**
  * DASHBOARD GRID PROPS
  */
@@ -50,6 +51,7 @@ export interface DashboardGridProps {
   /** Additional CSS classes */
   className?: string;
 }
+
 
 /**
  * DASHBOARD GRID COMPONENT
@@ -77,7 +79,12 @@ export interface DashboardGridProps {
  *   {widgets}
  * </DashboardGrid>
  */
-export function DashboardGrid({ children, columns = 4, gap = 16, className }: DashboardGridProps) {
+export function DashboardGrid({
+  children,
+  columns = 4,
+  gap = 16,
+  className,
+}: DashboardGridProps) {
   // Column configuration based on prop
   const columnClasses = {
     2: 'grid-cols-1 md:grid-cols-2',
@@ -105,6 +112,7 @@ export function DashboardGrid({ children, columns = 4, gap = 16, className }: Da
     </div>
   );
 }
+
 
 /**
  * DASHBOARD LAYOUT
@@ -153,6 +161,7 @@ export function DashboardLayout({
   );
 }
 
+
 /**
  * DASHBOARD HEADER PROPS
  */
@@ -161,9 +170,8 @@ export interface DashboardHeaderProps {
   onEditClick?: () => void;
   /** Callback when screensaver button is clicked */
   onScreensaverClick?: () => void;
-  /** Name of the currently selected saved dashboard */
-  dashboardName?: string;
 }
+
 
 /**
  * DASHBOARD HEADER
@@ -186,16 +194,9 @@ export interface DashboardHeaderProps {
 export function DashboardHeader({
   onEditClick,
   onScreensaverClick,
-  dashboardName,
 }: DashboardHeaderProps) {
   const { uiHidden } = useAutoHideUI();
   const [measureHideChrome, setMeasureHideChrome] = React.useState(false);
-  const [now, setNow] = React.useState(() => new Date());
-
-  React.useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   React.useEffect(() => {
     const handler = (e: Event) => {
@@ -209,77 +210,46 @@ export function DashboardHeader({
 
   const hidden = uiHidden || measureHideChrome;
   return (
-    <header
-      className={cn(
-        'wall-dashboard-header',
-        // 'relative z-10' is load-bearing: WallpaperBackground is fixed at z-0,
-        // and without our own stacking context the toolbar would paint underneath
-        // it whenever backdrop-blur is disabled (e.g. perf mode).
-        'relative z-10 flex-shrink-0 overflow-hidden bg-card px-4 transition-all duration-500 ease-in-out dark:bg-card/95 dark:backdrop-blur-sm',
-        hidden ? 'max-h-0 py-0 opacity-0' : 'max-h-20 py-2 delay-200'
-      )}
-    >
-      <div className="flex w-full items-center justify-between gap-4">
-        <div className="hidden items-center gap-3 md:flex">
-          <div
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-muted text-xl"
-            aria-hidden
-          >
-            ✦
-          </div>
-          <div className="flex flex-col leading-tight">
-            <span className="wall-dashboard-eyebrow text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              {dashboardName || 'Family calendar'}
-            </span>
-            <span className="wall-dashboard-date text-xl font-bold tracking-tight">
-              {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </span>
-          </div>
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
-          {onEditClick && (
-            <button
-              onClick={onEditClick}
-              className="wall-header-action inline-flex min-h-11 items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm font-semibold transition-colors hover:bg-accent active:scale-[0.98]"
-              aria-label="Customize dashboard"
-              title="Customize dashboard"
-            >
-              <GridEditIcon />
-              <span>Customize</span>
-            </button>
-          )}
-
+    <header className={cn(
+      // 'relative z-10' is load-bearing: WallpaperBackground is fixed at z-0,
+      // and without our own stacking context the toolbar would paint underneath
+      // it whenever backdrop-blur is disabled (e.g. perf mode).
+      'relative z-10 flex-shrink-0 bg-card dark:bg-card/95 dark:backdrop-blur-sm px-4 transition-all duration-500 ease-in-out overflow-hidden',
+      hidden ? 'opacity-0 max-h-0 py-0' : 'max-h-20 py-2 delay-200'
+    )}>
+      <div className="flex items-center justify-end gap-2">
+        {onEditClick && (
           <button
-            onClick={() => window.location.reload()}
-            className="wall-header-action rounded-full p-2 transition-colors hover:bg-accent"
-            aria-label="Refresh page"
-            title="Refresh page"
+            onClick={onEditClick}
+            className="p-2 rounded-md hover:bg-accent transition-colors"
+            aria-label="Edit layout"
           >
-            <RefreshCw className="h-5 w-5" />
+            <GridEditIcon />
           </button>
+        )}
 
-          <PerformanceModeBadge />
-          <BabysitterModeToggle />
-          <AwayModeToggle />
+        <button
+          onClick={() => window.location.reload()}
+          className="p-2 rounded-md hover:bg-accent transition-colors"
+          aria-label="Refresh page"
+        >
+          <RefreshCw className="h-5 w-5" />
+        </button>
 
-          {onScreensaverClick && (
-            <button
-              onMouseDown={(e) => {
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onScreensaverClick();
-              }}
-              className="wall-header-action rounded-full p-2 transition-colors hover:bg-accent"
-              aria-label="Start screensaver"
-              title="Start screensaver"
-            >
-              <ScreensaverIcon />
-            </button>
-          )}
-        </div>
+        <PerformanceModeBadge />
+        <BabysitterModeToggle />
+        <AwayModeToggle />
+
+        {onScreensaverClick && (
+          <button
+            onMouseDown={(e) => { e.stopPropagation(); }}
+            onClick={(e) => { e.stopPropagation(); onScreensaverClick(); }}
+            className="p-2 rounded-md hover:bg-accent transition-colors"
+            aria-label="Start screensaver"
+          >
+            <ScreensaverIcon />
+          </button>
+        )}
       </div>
     </header>
   );

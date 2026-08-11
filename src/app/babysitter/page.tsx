@@ -8,11 +8,11 @@ export const metadata = {
 
 export default function BabysitterPage() {
   return (
-    <div className="wall-display min-h-screen bg-background">
+    <main className="min-h-screen bg-background">
       <Suspense fallback={<BabysitterSkeleton />}>
         <BabysitterView />
       </Suspense>
-    </div>
+    </main>
   );
 }
 

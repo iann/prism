@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { WidgetContainer, WidgetEmpty } from './WidgetContainer';
 import { Button, UserAvatar } from '@/components/ui';
 
+
 /**
  * FAMILY MESSAGE TYPE
  * Represents a single message on the board.
@@ -49,6 +50,7 @@ export interface FamilyMessage {
   important: boolean;
   expiresAt?: Date | null;
 }
+
 
 /**
  * MESSAGES WIDGET PROPS
@@ -71,6 +73,7 @@ export interface MessagesWidgetProps {
   /** Additional CSS classes */
   className?: string;
 }
+
 
 /**
  * MESSAGES WIDGET COMPONENT
@@ -143,7 +146,7 @@ export const MessagesWidget = React.memo(function MessagesWidget({
           }
         />
       ) : (
-        <div className="-mr-2 h-full overflow-auto pr-2">
+        <div className="overflow-auto h-full -mr-2 pr-2">
           <div className="space-y-3">
             {displayMessages.map((message) => (
               <MessageItem
@@ -167,6 +170,7 @@ export const MessagesWidget = React.memo(function MessagesWidget({
   );
 });
 
+
 /**
  * MESSAGE ITEM
  * A single message with author info and timestamp.
@@ -185,15 +189,15 @@ function MessageItem({
   return (
     <div
       className={cn(
-        'group w-full rounded-lg p-2 text-left',
-        'transition-colors hover:bg-accent/50',
+        'w-full text-left p-2 rounded-lg group',
+        'hover:bg-accent/50 transition-colors',
         'touch-action-manipulation',
-        message.important && 'bg-status-error/10 border-status-error/20 border'
+        message.important && 'bg-destructive/10 border border-destructive/20'
       )}
     >
       {/* Header: Author and time */}
-      <div className="mb-1 flex items-center justify-between">
-        <button onClick={onClick} className="flex flex-1 items-center gap-2">
+      <div className="flex items-center justify-between mb-1">
+        <button onClick={onClick} className="flex items-center gap-2 flex-1">
           <UserAvatar
             name={message.author.name}
             color={message.author.color}
@@ -201,18 +205,24 @@ function MessageItem({
             size="sm"
             className="h-5 w-5 text-[10px]"
           />
-          <span className="text-xs font-medium">{message.author.name}</span>
-          {message.pinned && <Pin className="h-3 w-3 text-muted-foreground" />}
+          <span className="text-xs font-medium">
+            {message.author.name}
+          </span>
+          {message.pinned && (
+            <Pin className="h-3 w-3 text-muted-foreground" />
+          )}
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{timeAgo}</span>
+          <span className="text-xs text-muted-foreground">
+            {timeAgo}
+          </span>
           {onDelete && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
               }}
-              className="rounded p-1 opacity-0 transition-opacity hover:bg-destructive/20 group-hover:opacity-100"
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 transition-opacity"
               title="Delete message"
               aria-label="Delete message"
             >
@@ -224,7 +234,9 @@ function MessageItem({
 
       {/* Message content */}
       <button onClick={onClick} className="w-full text-left">
-        <p className="text-sm text-foreground">{message.message}</p>
+        <p className="text-sm text-foreground">
+          {message.message}
+        </p>
       </button>
     </div>
   );

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { ShoppingItemRow } from '@/app/shopping/ShoppingItemRow';
 import { cn } from '@/lib/utils';
 import type { ShoppingItem } from '@/types';
-import type { CSSProperties, KeyboardEvent, FocusEvent, MutableRefObject } from 'react';
+import type { KeyboardEvent, FocusEvent, MutableRefObject } from 'react';
 
 interface ShoppingCategoryCardProps {
   category: string;
@@ -76,20 +76,23 @@ export function ShoppingCategoryCard({
       onTouchMove={!isMobile ? onTouchMove : undefined}
       onTouchEnd={!isMobile ? onTouchEnd : undefined}
       className={cn(
-        'wall-shopping-category border rounded-lg overflow-hidden bg-card dark:bg-card/90 dark:backdrop-blur-sm',
+        'border-2 rounded-lg overflow-hidden bg-card dark:bg-card/90 dark:backdrop-blur-sm',
         'flex flex-col transition-all',
         !isMobile && 'cursor-grab active:cursor-grabbing touch-none',
         isDragging && 'opacity-50 scale-95 ring-4 ring-primary/50'
       )}
-      style={{ '--wall-category-color': categoryColor } as CSSProperties}
+      style={{ borderColor: categoryColor }}
     >
       <div
-        className="wall-shopping-category-header px-2 py-1 flex items-center gap-1 select-none"
-        style={{ backgroundColor: categoryColor + '14' }}
+        className="px-2 py-1 flex items-center gap-1 select-none"
+        style={{ backgroundColor: categoryColor + '20' }}
       >
         <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0 hidden md:block" />
         <span className="text-xl"><Emoji e={categoryEmoji} /></span>
-        <h3 className="text-base font-bold capitalize text-foreground">
+        <h3
+          className="text-base font-bold capitalize"
+          style={{ color: categoryColor }}
+        >
           {category}
         </h3>
         <Badge variant="outline" className="ml-auto text-xs">
@@ -110,7 +113,8 @@ export function ShoppingCategoryCard({
         {items.map((item) => (
           <div
             key={item.id}
-            className="wall-shopping-category-row border-b border-muted-foreground/30"
+            className="border-b border-muted-foreground/30"
+            style={{ borderColor: categoryColor + '40' }}
           >
             <ShoppingItemRow
               item={item}
@@ -121,7 +125,10 @@ export function ShoppingCategoryCard({
           </div>
         ))}
 
-        <div className="wall-shopping-category-row border-b border-muted-foreground/30 py-1 px-2">
+        <div
+          className="border-b border-muted-foreground/30 py-1 px-2"
+          style={{ borderColor: categoryColor + '40' }}
+        >
           <Input
             ref={(el) => { inputRefs.current[category] = el; }}
             value={inlineInputValue}
@@ -136,7 +143,8 @@ export function ShoppingCategoryCard({
         {Array.from({ length: emptyLinesNeeded }).map((_, i) => (
           <div
             key={`empty-${i}`}
-            className="wall-shopping-category-row h-7 border-b border-muted-foreground/30"
+            className="h-7 border-b border-muted-foreground/30"
+            style={{ borderColor: categoryColor + '40' }}
           />
         ))}
 

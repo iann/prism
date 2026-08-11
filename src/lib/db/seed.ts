@@ -943,12 +943,17 @@ async function seed() {
       name: 'Default Dashboard',
       isDefault: true,
       widgets: [
-        // Calendar is the household hero, with weather and clock as the
-        // glanceable supporting rail. Keep this in sync with DEFAULT_TEMPLATE
-        // in src/lib/constants/layoutTemplates.ts.
-        { i: 'calendar', x: 0,  y: 0,  w: 34, h: 27 },
-        { i: 'weather',  x: 34, y: 0,  w: 14, h: 17 },
-        { i: 'clock',    x: 34, y: 17, w: 14, h: 10 },
+        // One-screen, two-column layout: weather fills the full-height left
+        // half, four widgets stack down the right half. Fits without scrolling
+        // on common laptop/desktop viewports. Calendar, Birthdays, Points,
+        // Messages, and Meals are intentionally omitted from the default —
+        // users add them via Settings. Keep in sync with DEFAULT_TEMPLATE in
+        // src/lib/constants/layoutTemplates.ts.
+        { i: 'weather',  x: 0,  y: 0,  w: 24, h: 24 },
+        { i: 'clock',    x: 24, y: 0,  w: 24, h: 6  },
+        { i: 'tasks',    x: 24, y: 6,  w: 24, h: 6  },
+        { i: 'chores',   x: 24, y: 12, w: 24, h: 6  },
+        { i: 'shopping', x: 24, y: 18, w: 24, h: 6  },
       ],
       createdBy: alex.id,
     },

@@ -294,7 +294,6 @@ export function WidgetContainer({
   return (
     <Card
       className={cn(
-        'wall-widget-container',
         // Grid sizing
         sizeClasses[size],
         // Full height within grid cell
@@ -315,9 +314,7 @@ export function WidgetContainer({
       )}
       onClick={onClick}
       data-widget={widgetType ?? title}
-      data-theme-surface={
-        stripCardBg || !!overrideTextColor || !!backgroundColor ? 'custom' : 'preset'
-      }
+      data-theme-surface={stripCardBg || !!overrideTextColor || !!backgroundColor ? 'custom' : 'preset'}
       style={{
         // Grid rows: auto for header (if present), 1fr for content
         gridTemplateRows: showHeader && title ? 'auto 1fr' : '1fr',
@@ -421,17 +418,17 @@ export function WidgetContainer({
     >
       {/* WIDGET HEADER */}
       {showHeader && title && (
-        <CardHeader className="wall-widget-header flex flex-shrink-0 flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-shrink-0 flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center gap-2">
             {/* Icon */}
             {icon && <span className="text-seasonal-accent">{icon}</span>}
             {/* Title - clickable link if titleHref provided */}
             {titleHref ? (
               <Link href={titleHref} prefetch={false} className="hover:underline">
-                <CardTitle className="wall-widget-title text-base font-medium">{title}</CardTitle>
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
               </Link>
             ) : (
-              <CardTitle className="wall-widget-title text-base font-medium">{title}</CardTitle>
+              <CardTitle className="text-base font-medium">{title}</CardTitle>
             )}
           </div>
           {/* Action buttons */}
@@ -442,7 +439,6 @@ export function WidgetContainer({
       {/* WIDGET CONTENT */}
       <CardContent
         className={cn(
-          'wall-widget-content',
           // Fill remaining space; min-h-0 prevents grid row overflow
           'flex min-h-0 flex-col',
           // Clip content overflow (individual widgets use ScrollArea for scrolling)
@@ -493,9 +489,7 @@ function WidgetLoading() {
 function WidgetError({ message }: { message: string }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
-      <div className="mb-2 text-4xl text-destructive">
-        <Emoji e="⚠️" />
-      </div>
+      <div className="mb-2 text-4xl text-destructive"><Emoji e="⚠️" /></div>
       <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );

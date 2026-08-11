@@ -351,15 +351,7 @@ export const ClockGreeting = React.memo(function ClockGreeting({
   className,
 }: ClockGreetingProps) {
   return (
-    <div
-      className={cn(
-        'wall-clock-greeting',
-        `wall-clock-greeting-${size}`,
-        'font-medium tracking-wider',
-        SIZE_STYLES[size],
-        className
-      )}
-    >
+    <div className={cn('font-medium tracking-wider', SIZE_STYLES[size], className)}>
       {pickGreeting(date)}
     </div>
   );

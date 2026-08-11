@@ -60,7 +60,7 @@ export function MapboxStep({ onNext, onBack }: MapboxStepProps) {
               >
                 mapbox.com <ExternalLink className="h-3 w-3" />
               </a>
-              . Check Mapbox&apos;s current account requirements and pricing before continuing.
+              {' '}(free account, no credit card required)
             </span>
           </li>
           <li className="flex gap-3">

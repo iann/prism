@@ -142,16 +142,12 @@ export function AppShell({
     <div
       className={cn(
         'relative min-h-screen',
-        !isLCARS && 'wall-display',
         isLCARS && 'lcars-shell',
         (!showWallpaper || isLCARS) && 'bg-background'
       )}
       data-layout-theme={isLCARS ? 'lcars' : 'standard'}
       data-chrome-hidden={showLCARSChrome && chromeHidden ? 'true' : undefined}
     >
-      <a href="#wall-main-content" className="wall-skip-link">
-        Skip to household content
-      </a>
       {/* WALLPAPER BACKGROUND (only on dashboard/screensaver) */}
       {showWallpaper && !isLCARS && <WallpaperBackground />}
 
@@ -173,11 +169,9 @@ export function AppShell({
 
       {/* MAIN CONTENT AREA */}
       <main
-        id="wall-main-content"
         style={lcarsMainStyle}
         className={cn(
           'min-h-screen',
-          !isLCARS && 'wall-main',
           isLCARS && 'lcars-main',
           // Snap margin/padding when nav hides — animating layout properties causes
           // layout reflow on every frame, which is expensive on weak CPUs (Atom).

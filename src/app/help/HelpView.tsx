@@ -118,7 +118,7 @@ export function HelpView() {
               <button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
-                className="wall-help-topic w-full flex items-center justify-between hover:bg-accent transition-colors text-left"
+                className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-card dark:bg-card/85 hover:bg-accent transition-colors text-left"
               >
                 <span className="font-medium text-sm">{section.title}</span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -230,7 +230,7 @@ function DashboardHelp() {
       <Ul>
         <Li><strong>Community gallery</strong>: Click <strong>Community</strong> in the editor toolbar to browse layouts shared by other Prism users. Search by name and filter by <strong>orientation</strong> (Landscape/Portrait, pre-set to the dashboard you&apos;re editing), preview each as a thumbnail, then <strong>Apply layout</strong> to drop it onto a new dashboard.</Li>
         <Li><strong>Share</strong>: Submit your own layout (More &gt; Share). Fill in the details and submit; Prism opens a pre-filled submission, and once it&apos;s approved your layout appears in the gallery.</Li>
-        <Li><strong>Copy layout JSON</strong>: Copy your current layout to share it directly (More &gt; Copy layout JSON)</Li>
+        <Li><strong>Export</strong>: Copy your current layout as JSON to share it directly (More &gt; Export)</Li>
         <Li><strong>Import</strong>: Paste a layout JSON to load someone else&apos;s design (More &gt; Import)</Li>
         <Li><strong>Reset</strong>: Revert unsaved edits back to the last saved layout (More &gt; Reset)</Li>
       </Ul>
@@ -534,7 +534,7 @@ function SettingsHelp({ isMobile }: { isMobile: boolean }) {
 function IntegrationsHelp() {
   return (
     <>
-      <P>Start provider connections in <strong>Settings &gt; Integrations</strong>. Photos, buses, and a few other features finish setup in their own Settings sections.</P>
+      <P>Everything connects from one place: <strong>Settings &gt; Integrations</strong>, shown as provider cards.</P>
       <H2>Google Calendar</H2>
       <P>Connect in Settings &gt; Integrations (Google card). <strong>Two-way sync</strong>: events you add, edit, or delete in Prism are pushed back to the connected Google calendar.</P>
       <H2>Microsoft To Do</H2>
