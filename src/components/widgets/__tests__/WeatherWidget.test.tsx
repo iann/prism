@@ -603,11 +603,11 @@ describe('current conditions', () => {
     expect(screen.queryByTestId('weather-temperature-trend')).toBeNull();
   });
 
-  it('renders the location at the bottom of the right-side stats', () => {
+  it('does not render the weather location in the right-side stats', () => {
     const data = makeWeatherData({ location: 'Denver, Colorado, US 80202' });
     render(<WeatherWidget data={data} />);
     const stats = within(screen.getByTestId('weather-current-stats'));
-    expect(stats.queryByText('Denver, CO')).not.toBeNull();
+    expect(stats.queryByText('Denver, CO')).toBeNull();
     expect(stats.queryByText('80202')).toBeNull();
   });
 
@@ -683,20 +683,21 @@ describe('current conditions', () => {
     expect(uvLine.textContent).toBe('UV 6.5');
     expect(uvLine.getAttribute('title')).toBe('UV index 6.5: High');
     expect(uvLine.getAttribute('aria-label')).toBe('UV index 6.5, High');
+    expect(uvLine.className).not.toContain('text-orange-700');
     expect(screen.getByTestId('uv-index-dot').className).toContain('bg-orange-500');
     expect(screen.getByTestId('uv-index-dot').className).toContain('uv-index-dot--pulse');
     expect(uvLine.querySelector('svg')).toBeNull();
   });
 
-  it('shows the warning dot at yellow and above, but not for low UV', () => {
+  it('shows the warning dot at UV 5 and above, but not below the threshold', () => {
     const { queryByTestId, rerender } = render(
-      <WeatherWidget data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 2 } })} />
+      <WeatherWidget data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 4.9 } })} />
     );
     expect(queryByTestId('uv-index-line')).not.toBeNull();
     expect(queryByTestId('uv-index-dot')).toBeNull();
 
     rerender(
-      <WeatherWidget data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 2.1 } })} />
+      <WeatherWidget data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 5 } })} />
     );
     expect(screen.getByTestId('uv-index-dot').className).toContain('bg-yellow-500');
   });
