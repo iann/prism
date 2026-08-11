@@ -1906,8 +1906,9 @@ function SunriseSunsetArc({
         />
       </svg>
 
-      {/* Sun / moon times — keep the sun pair together on the left and the moon
-          pair on the right, with daylight duration retained between the sun times. */}
+      {/* Sun / moon times — a compact evenly-spaced row keeps the sun pair on
+          the left and moon pair on the right, with daylight duration retained
+          between the sun times. */}
       <div className="flex items-center justify-between gap-3 text-[11px] tabular-nums pt-0.5 whitespace-nowrap">
         <span className="flex items-center gap-3">
           <span className="flex items-center gap-1" style={{ color: SUN_COLOR }} title="Sunrise">
