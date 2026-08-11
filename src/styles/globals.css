@@ -61,6 +61,19 @@
     --weather-temp-very-hot: 348 78% 48%;
     --weather-precipitation: 205 80% 48%;
 
+    /* Weather display colors stay vivid and independent of the active home
+     * theme. Theme tokens above still drive the celestial treatment; these
+     * dedicated stops keep forecast bars and condition bands glanceable. */
+    --weather-forecast-very-cold: 207 92% 56%;
+    --weather-forecast-freezing: 193 90% 53%;
+    --weather-forecast-cold: 181 78% 47%;
+    --weather-forecast-cool: 144 58% 43%;
+    --weather-forecast-mild: 47 94% 51%;
+    --weather-forecast-warm: 27 93% 54%;
+    --weather-forecast-hot: 9 88% 55%;
+    --weather-forecast-very-hot: 346 82% 58%;
+    --weather-forecast-precipitation: 201 90% 58%;
+
     --seasonal-accent: 222 47% 31%;
     --seasonal-accent-foreground: 210 40% 98%;
     --seasonal-highlight: 210 40% 96%;
@@ -111,6 +124,16 @@
     --weather-temp-hot: 9 92% 64%;
     --weather-temp-very-hot: 348 86% 68%;
     --weather-precipitation: 205 86% 66%;
+
+    --weather-forecast-very-cold: 207 96% 70%;
+    --weather-forecast-freezing: 193 94% 68%;
+    --weather-forecast-cold: 181 86% 64%;
+    --weather-forecast-cool: 144 70% 62%;
+    --weather-forecast-mild: 47 98% 70%;
+    --weather-forecast-warm: 27 98% 68%;
+    --weather-forecast-hot: 9 95% 69%;
+    --weather-forecast-very-hot: 346 90% 73%;
+    --weather-forecast-precipitation: 201 95% 72%;
 
     --seasonal-accent: 210 40% 98%;
     --seasonal-accent-foreground: 222 47% 11%;
@@ -215,10 +238,11 @@
     font-size: 16px;
   }
 
-  /* Desktop/laptop (mouse/trackpad): tighter base matches dashboard UIs */
+  /* Keep the base rhythm comfortable when the app is previewed with a mouse;
+   * wall displays use the larger coarse-pointer steps below. */
   @media (pointer: fine) {
     html {
-      font-size: 14px;
+      font-size: 16px;
     }
   }
 
@@ -242,6 +266,10 @@
 
   body {
     @apply bg-background text-foreground;
+    font-kerning: normal;
+    font-feature-settings: 'kern', 'liga', 'clig', 'calt';
+    line-height: 1.45;
+    text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
@@ -354,24 +382,24 @@
 @layer utilities {
   /* Touch targets: Apple HIG 44px minimum — only enforced on touch devices */
   .touch-target {
-    @apply min-h-[32px] min-w-[32px];
+    @apply min-h-[40px] min-w-[40px];
   }
 
   .touch-target-lg {
-    @apply min-h-[36px] min-w-[36px];
+    @apply min-h-[44px] min-w-[44px];
   }
 
   .touch-target-xl {
-    @apply min-h-[44px] min-w-[44px];
+    @apply min-h-[48px] min-w-[48px];
   }
 
   @media (pointer: coarse) {
     .touch-target {
-      @apply min-h-[44px] min-w-[44px];
+      @apply min-h-[48px] min-w-[48px];
     }
 
     .touch-target-lg {
-      @apply min-h-[48px] min-w-[48px];
+      @apply min-h-[52px] min-w-[52px];
     }
 
     .touch-target-xl {

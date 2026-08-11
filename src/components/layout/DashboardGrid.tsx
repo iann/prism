@@ -221,7 +221,7 @@ export function DashboardHeader({
         {onEditClick && (
           <button
             onClick={onEditClick}
-            className="p-2 rounded-md hover:bg-accent transition-colors"
+            className="touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
             aria-label="Edit layout"
           >
             <GridEditIcon />
@@ -230,7 +230,7 @@ export function DashboardHeader({
 
         <button
           onClick={() => window.location.reload()}
-          className="p-2 rounded-md hover:bg-accent transition-colors"
+          className="touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
           aria-label="Refresh page"
         >
           <RefreshCw className="h-5 w-5" />
@@ -244,7 +244,7 @@ export function DashboardHeader({
           <button
             onMouseDown={(e) => { e.stopPropagation(); }}
             onClick={(e) => { e.stopPropagation(); onScreensaverClick(); }}
-            className="p-2 rounded-md hover:bg-accent transition-colors"
+            className="touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
             aria-label="Start screensaver"
           >
             <ScreensaverIcon />

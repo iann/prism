@@ -425,10 +425,10 @@ export function WidgetContainer({
             {/* Title - clickable link if titleHref provided */}
             {titleHref ? (
               <Link href={titleHref} prefetch={false} className="hover:underline">
-                <CardTitle className="text-base font-medium">{title}</CardTitle>
+                <CardTitle className="text-lg font-semibold tracking-[-0.01em]">{title}</CardTitle>
               </Link>
             ) : (
-              <CardTitle className="text-base font-medium">{title}</CardTitle>
+              <CardTitle className="text-lg font-semibold tracking-[-0.01em]">{title}</CardTitle>
             )}
           </div>
           {/* Action buttons */}
@@ -490,7 +490,7 @@ function WidgetError({ message }: { message: string }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
       <div className="mb-2 text-4xl text-destructive"><Emoji e="⚠️" /></div>
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="max-w-[28rem] text-base leading-6 text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -523,7 +523,7 @@ export function WidgetEmpty({
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-4 text-center">
       {icon && <div className="text-4xl text-muted-foreground">{icon}</div>}
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="max-w-[28rem] text-base leading-6 text-muted-foreground">{message}</p>
       {action}
     </div>
   );

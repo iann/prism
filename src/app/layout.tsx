@@ -42,9 +42,9 @@ import '@fontsource/noto-color-emoji/index.css';
 // Next.js types for metadata
 import type { Metadata, Viewport } from 'next';
 
-// Inter font from Google Fonts (loaded by Next.js for performance)
+// DM Sans from Google Fonts (loaded by Next.js for performance)
 // Next.js automatically optimizes font loading to prevent layout shift
-import { Inter } from 'next/font/google';
+import { DM_Sans } from 'next/font/google';
 
 // Providers (theme, auth, etc.)
 import { Providers } from '@/components/providers';
@@ -63,23 +63,25 @@ import { Toaster } from '@/components/ui/toaster';
 
 /**
  * FONT CONFIGURATION
- * We use Inter, a highly readable sans-serif font designed for screens.
+ * DM Sans gives the wall display a friendlier, more open rhythm than a
+ * desktop-first UI font while remaining highly legible at distance.
  *
  * Configuration options:
  * - subsets: Which character sets to include (latin for English)
  * - variable: CSS variable name for using the font in Tailwind
  * - display: 'swap' shows fallback font immediately, then swaps when loaded
  *
- * WHY INTER:
- * - Designed specifically for computer screens
- * - Excellent readability at all sizes
+ * WHY DM SANS:
+ * - Friendly geometry without decorative quirks
+ * - Clear numerals and punctuation for dates and weather
+ * - Comfortable rhythm at large display sizes
  * - Open source and free to use
- * - Supports many languages
  */
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-dm-sans',
   display: 'swap',
+  weight: ['400', '500', '600', '700'],
 });
 
 
@@ -242,7 +244,7 @@ export default function RootLayout({
         The body element with our font applied.
 
         CLASSES EXPLAINED:
-        - inter.variable: Adds CSS variable for Inter font
+        - dmSans.variable: Adds CSS variable for DM Sans
         - font-sans: Uses our sans-serif font stack
         - antialiased: Smooth font rendering
         - bg-background: Background color from theme
@@ -255,7 +257,7 @@ export default function RootLayout({
       */}
       <body
         className={`
-          ${inter.variable}
+          ${dmSans.variable}
           font-sans
           antialiased
           bg-background

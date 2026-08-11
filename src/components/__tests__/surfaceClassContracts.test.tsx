@@ -251,8 +251,6 @@ describe('surface class contracts', () => {
     expect(alphaCards).toEqual([
       // Goal celebration is a transient overlay over a deliberately dark scrim.
       'src/components/ui/GoalCelebration.tsx:bg-card/95',
-      // This colors an hourly weather segment; it is not a card, header, or navigation surface.
-      'src/components/widgets/WeatherWidget.tsx:bg-card/80',
     ]);
   });
 
@@ -284,9 +282,12 @@ describe('surface class contracts', () => {
       'src/components/ui/dialog.tsx:border-border/55',
       'src/components/ui/select.tsx:border-border/60',
       'src/components/widgets/BirthdaysWidget.tsx:border-border/50',
-      'src/components/widgets/WeatherWidget.tsx:border-border/60',
-      'src/components/widgets/WeatherWidget.tsx:border-border/60',
-      'src/components/widgets/WeatherWidget.tsx:border-border/60',
+      'src/components/widgets/WeatherWidget.tsx:border-border/35',
+      'src/components/widgets/WeatherWidget.tsx:border-border/35',
+      'src/components/widgets/WeatherWidget.tsx:border-border/35',
+      'src/components/widgets/WeatherWidget.tsx:border-border/40',
+      'src/components/widgets/WeatherWidget.tsx:border-border/45',
+      'src/components/widgets/WeatherWidget.tsx:border-border/45',
     ]);
   });
 

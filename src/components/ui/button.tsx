@@ -97,16 +97,16 @@ const buttonVariants = cva(
        */
       size: {
         // Default size - good for most uses
-        default: 'h-10 px-4 py-2',
+        default: 'h-11 px-4 py-2',
 
         // Small size - for compact UIs (still touch-friendly at 36px)
-        sm: 'h-9 rounded-lg px-3 text-xs',
+        sm: 'h-10 rounded-lg px-3 text-sm',
 
         // Large size - for primary CTAs, easier to tap
-        lg: 'h-12 rounded-xl px-8 text-base',
+        lg: 'h-[52px] rounded-xl px-8 text-base',
 
         // Icon button - square, for icon-only buttons
-        icon: 'h-10 w-10',
+        icon: 'h-11 w-11',
 
         // Touch-optimized - extra large for wall-mounted displays
         touch: 'h-14 px-6 text-base',
