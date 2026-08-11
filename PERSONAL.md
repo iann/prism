@@ -555,9 +555,11 @@ upstream-sync-only commits are omitted unless they changed behavior.
     navigation surfaces, mobile dashboard cards, widget shells, typography,
     weather indicators, and calendar controls around a warm, touch-first
     family display language while preserving the existing calendar,
-    navigation, data, and integration behavior.
+    navigation, data, and integration behavior. Restores the Daybook
+    powder-blue/paper palette as the default across light and dark modes,
+    including its weather color ramp.
 
-    Commits: 01c2027, d0c84df, df24ce8
+    Commits: 01c2027, d0c84df, df24ce8, fb4a5b3
 
 68. **Removed hard-coded AirGradient LAN address**
 
