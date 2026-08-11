@@ -549,14 +549,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 4dddcc7
 
-67. **Skylight-inspired wall-display design system**
+67. **Incremental Skylight-inspired wall-display foundation**
 
-    Unifies the dashboard, calendar, navigation, widgets, forms, dialogs,
-    states, and light/dark themes around a warm, touch-first family display
-    language, including shared wall primitives, portrait-display tuning, and
-    the restored segmented weather timeline.
+    Refines shared buttons, cards, dialogs, inputs, selects, switches,
+    navigation surfaces, mobile dashboard cards, and widget shells around a
+    warm, touch-first family display language while preserving the existing
+    calendar, navigation, data, and integration behavior.
 
-    Commit: 14ad7c4
+    Commit: 01c2027
 
 68. **Removed hard-coded AirGradient LAN address**
 
@@ -572,6 +572,9 @@ upstream-sync-only commits are omitted unless they changed behavior.
 These are retained for historical context but should not be described as the
 current UI behavior:
 
+- The broad Skylight wall-display overhaul (14ad7c4) was rolled back by
+  8eaa353 after interaction regressions; its visual direction is retained as
+  reference for the incremental foundation in item 67.
 - The hourly weather view moved through the original merry-timeline strip
   (0d61d7d, f9c3521, cd94137), including width, screensaver, tracker-line,
   and red-current-indicator fixes (30a1d8e, 29e264f, d5a5bc9, 91538c9),
