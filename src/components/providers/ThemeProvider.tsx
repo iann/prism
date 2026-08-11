@@ -59,7 +59,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 const STORAGE_KEY = 'prism-theme';
 const SUNSET_OFFSET_STORAGE_KEY = 'prism-sunset-offset';
 const COLOR_THEME_STORAGE_KEY = 'prism-color-theme';
-const DEFAULT_COLOR_THEME: AppThemeId = 'kitchen-calm';
+const DEFAULT_COLOR_THEME: AppThemeId = 'daybook';
 
 /**
  * Get the system theme preference
