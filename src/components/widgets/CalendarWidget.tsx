@@ -305,7 +305,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
         <button
           onClick={() => toggleCalendar('all')}
           className={cn(
-            'rounded-full px-2 py-1 text-[12px] font-medium leading-none transition-colors',
+            'touch-target rounded-full px-3 py-2 text-[14px] font-medium leading-none transition-colors',
             selectedCalendarIds.has('all')
               ? 'bg-primary text-primary-foreground'
               : transparentMode
@@ -320,7 +320,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
             key={group.id}
             onClick={() => toggleCalendar(group.id)}
             className={cn(
-              'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[12px] font-medium leading-none transition-colors',
+              'touch-target inline-flex items-center gap-1 rounded-full px-3 py-2 text-[14px] font-medium leading-none transition-colors',
               selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
                 ? isLightColor(group.color)
                   ? '!text-black'

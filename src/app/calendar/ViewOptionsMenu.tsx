@@ -45,8 +45,7 @@ interface ViewOptionsMenuProps {
   /** Reset every option back to default. */
   onReset: () => void;
 
-  /** Override the trigger button height (e.g. "h-8" for compact widget
-      toolbars). Defaults to h-9 to match page-level toolbar baseline. */
+  /** Override the trigger button height for a specific toolbar context. */
   triggerClassName?: string;
 }
 
@@ -72,7 +71,7 @@ function CheckRow({ checked, onChange, label, Icon, disabled }: CheckRowProps) {
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       className={cn(
-        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm',
+        'flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm',
         !disabled && 'hover:bg-accent hover:text-accent-foreground',
         'transition-colors',
         disabled && 'opacity-50 cursor-not-allowed',
@@ -174,7 +173,7 @@ export function ViewOptionsMenu({
                     type="button"
                     onClick={() => onDisplayModeChange('cards')}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
+                      'flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors',
                       'hover:bg-accent hover:text-accent-foreground',
                       displayMode === 'cards' ? 'text-foreground' : 'text-muted-foreground',
                     )}
@@ -193,7 +192,7 @@ export function ViewOptionsMenu({
                     type="button"
                     onClick={() => onDisplayModeChange('inline')}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
+                      'flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors',
                       'hover:bg-accent hover:text-accent-foreground',
                       displayMode === 'inline' ? 'text-foreground' : 'text-muted-foreground',
                     )}
@@ -268,7 +267,7 @@ export function ViewOptionsMenu({
               <button
                 type="button"
                 onClick={onReset}
-                className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                className="flex min-h-11 w-full items-center justify-center rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
               >
                 Reset to defaults
               </button>
