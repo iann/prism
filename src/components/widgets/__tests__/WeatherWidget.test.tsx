@@ -545,6 +545,17 @@ describe('current conditions', () => {
       .toBe('Using Pirate Weather fallback data');
   });
 
+  it('keeps the fallback indicator centered with the numeric temperature', () => {
+    render(<WeatherWidget data={makeWeatherData({ currentSource: 'pirate' })} />);
+
+    const temperature = screen.getByTestId('weather-current-temperature');
+    const fallbackIndicator = screen.getByTestId('weather-fallback-indicator');
+    const trend = screen.getByTestId('weather-temperature-trend');
+
+    expect(temperature.firstElementChild?.contains(fallbackIndicator)).toBe(true);
+    expect(temperature.firstElementChild?.nextElementSibling).toBe(trend);
+  });
+
   it('does not show the fallback indicator for the local sensor source', () => {
     render(<WeatherWidget data={makeWeatherData({ currentSource: 'airgradient' })} />);
 

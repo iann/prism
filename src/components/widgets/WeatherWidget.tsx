@@ -855,7 +855,18 @@ function CurrentConditions({
               aria-label={`${temp}${temperatureTrend ? ` & ${temperatureTrend}` : ''}`}
               className="flex items-baseline gap-2"
             >
-              <div className="text-5xl font-bold leading-none">{temp}</div>
+              <div className="flex items-center gap-2">
+                <div className="text-5xl font-bold leading-none">{temp}</div>
+                {currentSource === 'pirate' && (
+                  <span
+                    data-testid="weather-fallback-indicator"
+                    role="img"
+                    aria-label="Using Pirate Weather fallback data"
+                    title="Using Pirate Weather fallback data"
+                    className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-red-500"
+                  />
+                )}
+              </div>
               {temperatureTrend && (
                 <span
                   data-testid="weather-temperature-trend"
@@ -863,15 +874,6 @@ function CurrentConditions({
                 >
                   &amp; {temperatureTrend}
                 </span>
-              )}
-              {currentSource === 'pirate' && (
-                <span
-                  data-testid="weather-fallback-indicator"
-                  role="img"
-                  aria-label="Using Pirate Weather fallback data"
-                  title="Using Pirate Weather fallback data"
-                  className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-red-500"
-                />
               )}
             </div>
           </div>
