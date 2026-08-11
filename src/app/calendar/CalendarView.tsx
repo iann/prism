@@ -360,8 +360,8 @@ export function CalendarView() {
   }, [isMobile, viewType, setViewType]);
 
   return (
-    <PageWrapper>
-      <div className="h-screen flex flex-col">
+    <PageWrapper className="wall-calendar-page">
+      <div className="wall-calendar-stage h-screen flex flex-col">
         <SubpageHeader
           icon={!isMobile ? <Calendar className="h-5 w-5 text-primary" /> : undefined}
           title={getDateRangeTitle()}
@@ -489,7 +489,7 @@ export function CalendarView() {
           </FilterBar>
         )}
 
-        <div ref={swipeRef} className="flex-1 overflow-hidden p-4 min-h-0">
+        <div ref={swipeRef} className="wall-calendar-content flex-1 overflow-hidden p-4 min-h-0">
           {loading && (
             <div className="h-full flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

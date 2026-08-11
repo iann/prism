@@ -42,11 +42,12 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
 
   return (
     <nav className={cn(
+      'wall-portrait-nav',
       'fixed bottom-0 left-0 right-0 bg-card dark:bg-card/95 border-t border-border z-40 safe-area-bottom',
       'transition-[transform,opacity] duration-300 ease-in-out',
       uiHidden ? 'translate-y-full opacity-0 delay-100' : 'translate-y-0 opacity-100 delay-0'
     )}>
-      <div className="flex items-center justify-center h-20 overflow-x-auto scrollbar-none px-4">
+      <div className="wall-portrait-nav-items flex items-center justify-center h-20 overflow-x-auto scrollbar-none px-4">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -56,6 +57,8 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
               href={item.href}
               prefetch={false}
               className={cn(
+                'wall-portrait-nav-item',
+                active && 'wall-portrait-nav-item-active',
                 'flex flex-col items-center gap-1 py-2 px-4 min-w-[72px] shrink-0 transition-colors',
                 active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               )}
@@ -70,6 +73,7 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
         <button
           onClick={user ? onLogout : onLogin}
           className={cn(
+            'wall-portrait-nav-item wall-portrait-nav-item-user',
             'flex flex-col items-center gap-1 py-2 px-4 min-w-[72px] shrink-0 transition-colors',
             'text-muted-foreground hover:text-foreground'
           )}

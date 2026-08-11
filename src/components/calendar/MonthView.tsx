@@ -80,10 +80,10 @@ export function MonthView({
       {/* Month header — kept compact (py-1, text-sm) so it doesn't eat into
           the calendar grid. The toolbar already shows the month name; this
           band is mostly a colored anchor. */}
-      <div className="shrink-0 text-center py-1 font-semibold text-sm rounded-t-md mb-1 shadow-sm bg-primary text-primary-foreground">
+      <div className="wall-calendar-month-header shrink-0 text-center py-1 font-semibold text-sm rounded-t-md mb-1 shadow-sm bg-primary text-primary-foreground">
         {format(currentDate, 'MMMM yyyy')}
       </div>
-      <div className="shrink-0 grid grid-cols-7 gap-1 mb-1">
+      <div className="wall-calendar-day-labels shrink-0 grid grid-cols-7 gap-1 mb-1">
         {dayNames.map((name) => (
           <div
             key={name}
@@ -96,7 +96,7 @@ export function MonthView({
 
       {/* Auto-scaling calendar grid */}
       <div
-        className="flex-1 shrink-0 grid grid-cols-7 gap-1"
+        className="wall-calendar-grid flex-1 shrink-0 grid grid-cols-7 gap-1"
         style={{ gridTemplateRows: `repeat(${numWeeks}, minmax(60px, 1fr))` }}
       >
         {days.map((date, index) => {
@@ -184,6 +184,7 @@ function MonthDayCell({
       data-droppable-day={cards && enableDnd ? droppable.droppableId : undefined}
       onClick={() => onDateClick(date)}
       className={cn(
+        'wall-calendar-day-cell',
         (cards || bordered) && 'border border-border',
         'cursor-pointer overflow-hidden rounded-md',
         !transparentMode && !cellBgStyle && 'bg-calendar-surface',
@@ -197,7 +198,7 @@ function MonthDayCell({
       style={cellBgStyle}
     >
       <div className="px-1 pt-1 mb-0.5">
-        <span className={cn('text-sm font-medium', isToday(date) && 'font-bold text-foreground')}>
+        <span className={cn('wall-calendar-day-number text-sm font-medium', isToday(date) && 'font-bold text-foreground')}>
           {format(date, 'd')}
         </span>
       </div>
@@ -222,7 +223,7 @@ function MonthDayCell({
                 onEventClick(event);
               }}
               className={cn(
-                'text-xs px-1 rounded truncate cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
+                'wall-inline-event-card text-xs px-1 rounded truncate cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
                 event.allDay ? 'py-px' : 'py-0.5'
               )}
               style={event.allDay
@@ -302,8 +303,8 @@ function DayCardsCell({
             e.stopPropagation();
             onEventClick(event);
           }}
-          className="w-full text-left border-border bg-calendar-surface text-[12px] px-1 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight"
-          style={{ borderLeft: `3px solid ${event.color}` }}
+          className="wall-month-event-card w-full text-left border-border bg-calendar-surface text-[12px] px-1 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight"
+          style={{ borderLeft: `3px solid ${event.color}`, '--wall-event-color': event.color } as React.CSSProperties}
         >
           <span className="font-medium text-foreground">{event.title}</span>
         </button>

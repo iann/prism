@@ -124,11 +124,14 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
         ref={asideRef}
         onClick={handleAsideClick}
         className={cn(
+          'wall-side-nav',
           'fixed left-0 top-0 z-40 h-screen',
-          'bg-card dark:bg-card/95',
+          'bg-card',
+          'border-r border-border/45',
           'flex flex-col',
           'transition-[transform,opacity,width] duration-300 ease-in-out',
-          expanded ? 'w-52 shadow-xl' : 'w-16',
+          expanded && 'wall-side-nav-expanded',
+          expanded ? 'w-52 shadow-lg' : 'w-16',
           uiHidden ? '-translate-x-full opacity-0 delay-100' : 'translate-x-0 opacity-100 delay-0',
           className
         )}
@@ -157,17 +160,20 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                     prefetch={false}
                     aria-label={item.label}
                     className={cn(
+                      'wall-nav-item',
+                      active && 'wall-nav-item-active',
+                      expanded && 'wall-nav-item-expanded',
                       'flex items-center gap-3 px-3 py-1.5 [@media(pointer:coarse)]:py-2.5 rounded-lg',
                       'text-sm font-medium',
                       'transition-colors duration-200',
                       'touch-target',
                       active
-                        ? 'bg-seasonal-accent text-seasonal-accent-foreground'
+                        ? 'bg-accent text-accent-foreground'
                         : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                       expanded ? 'justify-start' : 'justify-center'
                     )}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                    <Icon className="wall-nav-icon h-5 w-5 flex-shrink-0" aria-hidden="true" />
                     {expanded && <span className="whitespace-nowrap">
                       {item.label}
                     </span>}
@@ -185,6 +191,8 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
             prefetch={false}
             aria-label="Help"
             className={cn(
+              'wall-nav-item wall-help-item',
+              expanded && 'wall-nav-item-expanded',
               'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
               expanded ? 'justify-start' : 'justify-center'
             )}
@@ -199,6 +207,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
           <button
             onClick={user ? onLogout : onLogin}
             className={cn(
+              'wall-user-button',
               'flex items-center gap-3 px-3 py-1.5 [@media(pointer:coarse)]:py-2.5 rounded-lg w-full',
               'text-sm font-medium',
               'transition-colors duration-200',

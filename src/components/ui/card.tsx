@@ -48,12 +48,12 @@ const Card = React.forwardRef<
     ref={ref}
     className={cn(
       // Background and border
-      'bg-card dark:bg-card/85 dark:backdrop-blur-sm text-card-foreground',
-      'border border-border',
+      'bg-card text-card-foreground',
+      'border border-border/55',
       // Shape
       'rounded-xl',
       // Shadow for depth (subtle)
-      'shadow-sm',
+      'shadow-sm wall-card',
       // Allow custom classes to override
       className
     )}
@@ -109,7 +109,7 @@ const CardTitle = React.forwardRef<
     ref={ref}
     className={cn(
       // Typography
-      'text-lg font-semibold leading-none tracking-tight',
+      'text-lg font-semibold leading-tight tracking-[-0.01em]',
       className
     )}
     {...props}
@@ -134,7 +134,7 @@ const CardDescription = React.forwardRef<
     ref={ref}
     className={cn(
       // Typography
-      'text-sm text-muted-foreground',
+      'text-sm leading-6 text-muted-foreground',
       className
     )}
     {...props}

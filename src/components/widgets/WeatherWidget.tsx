@@ -277,6 +277,7 @@ export type UvIndexCategory = 'Low' | 'Moderate' | 'High' | 'Very High' | 'Extre
 export type UvIndexStatus = {
   label: UvIndexCategory;
   dotClassName: string;
+  textClassName: string;
 };
 
 /** WHO/EPA UV Index bands, kept in one place so the indicator and its label agree. */
@@ -284,18 +285,38 @@ export function getUvIndexStatus(uvIndex: number): UvIndexStatus | null {
   if (!Number.isFinite(uvIndex) || uvIndex < 0) return null;
 
   if (uvIndex <= 2) {
-    return { label: 'Low', dotClassName: 'bg-emerald-500 dark:bg-emerald-300' };
+    return {
+      label: 'Low',
+      dotClassName: 'bg-emerald-500 dark:bg-emerald-300',
+      textClassName: 'text-emerald-700 dark:text-emerald-300',
+    };
   }
   if (uvIndex <= 5) {
-    return { label: 'Moderate', dotClassName: 'bg-yellow-500 dark:bg-yellow-300' };
+    return {
+      label: 'Moderate',
+      dotClassName: 'bg-yellow-500 dark:bg-yellow-300',
+      textClassName: 'text-yellow-700 dark:text-yellow-300',
+    };
   }
   if (uvIndex <= 7) {
-    return { label: 'High', dotClassName: 'bg-orange-500 dark:bg-orange-300' };
+    return {
+      label: 'High',
+      dotClassName: 'bg-orange-500 dark:bg-orange-300',
+      textClassName: 'text-orange-700 dark:text-orange-300',
+    };
   }
   if (uvIndex <= 10) {
-    return { label: 'Very High', dotClassName: 'bg-red-500 dark:bg-red-300' };
+    return {
+      label: 'Very High',
+      dotClassName: 'bg-red-500 dark:bg-red-300',
+      textClassName: 'text-red-700 dark:text-red-300',
+    };
   }
-  return { label: 'Extreme', dotClassName: 'bg-purple-500 dark:bg-purple-300' };
+  return {
+    label: 'Extreme',
+    dotClassName: 'bg-purple-500 dark:bg-purple-300',
+    textClassName: 'text-purple-700 dark:text-purple-300',
+  };
 }
 
 function isSunAboveHorizon(sunrise?: Date, sunset?: Date, nowMs = Date.now()): boolean {
@@ -636,19 +657,24 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
         {/* HOURLY FORECAST */}
         {showHourly && weatherData.hourly && weatherData.hourly.length > 0 && (
-          <div className="border-t border-border pt-3">
+          <div className="border-t border-border/45 pt-4">
             <HourlyTimeline hourly={weatherData.hourly} units={units} />
           </div>
         )}
 
         {/* FORECAST SECTION */}
         {showForecast && hasDays && resolvedDays > 0 && (
-          <div className="border-t border-border pt-3 flex-1 min-h-0 flex flex-col gap-3">
+          <div
+            className={cn(
+              'wall-weather-forecast border-t border-border/45 pt-4 flex-1 min-h-0 flex flex-col gap-3',
+              gridH < 16 && 'wall-weather-forecast-compact',
+            )}
+          >
 
             {/* Multi-day summary — the day list fills the remaining space and
                 clips to WHOLE rows (maxDayRows) so a day is never half-cut. */}
             <div className="flex-1 min-h-0 flex flex-col">
-              <span className="flex-shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="flex-shrink-0 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 {shownForecast.length}-Day Forecast
               </span>
               <div ref={dayListRef} className="flex-1 min-h-0 overflow-hidden">
@@ -816,7 +842,7 @@ function CurrentConditions({
         <div className="flex items-center gap-3">
           <WeatherIcon
             condition={weather.condition}
-            className="h-10 w-10 text-primary flex-shrink-0"
+            className="h-10 w-10 text-amber-500 dark:text-amber-300 flex-shrink-0"
           />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -833,10 +859,10 @@ function CurrentConditions({
             </div>
           </div>
         </div>
-        <div className="text-lg leading-7 text-muted-foreground">Feels like {feels}</div>
+        <div className="text-lg leading-6 text-muted-foreground">Feels like {feels}</div>
         {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
           <div
-            className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"
+            className="mt-2 flex items-center gap-1.5 text-[13px] text-muted-foreground"
             title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
           >
             <span
@@ -844,14 +870,14 @@ function CurrentConditions({
               aria-label={`Air quality: ${airQualityStatus.label}`}
               title={airQualityStatus.label}
               className={cn(
-                'inline-flex max-w-[135px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-xs font-medium leading-none',
+                'inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full border px-2 py-1 text-[13px] font-semibold leading-none',
                 airQualityStatus.badgeClassName,
               )}
             >
-              <span className={cn('h-1.5 w-1.5 rounded-full', airQualityStatus.dotClassName)} />
+              <span className={cn('h-2 w-2 rounded-full', airQualityStatus.dotClassName)} />
               Air: {airQualityStatus.label}
             </span>
-            <span className="text-xs">{weather.airQuality.pm25} µg/m³</span>
+            <span className="text-[13px] tabular-nums">{weather.airQuality.pm25} µg/m³</span>
           </div>
         )}
       </div>
@@ -859,7 +885,7 @@ function CurrentConditions({
       {/* Right: current stats */}
       <div
         data-testid="weather-current-stats"
-        className="flex flex-col items-end gap-1 pt-0.5 text-right text-xs leading-4 text-muted-foreground"
+        className="flex flex-col items-end gap-1.5 pt-0.5 text-right text-[14px] leading-5 text-muted-foreground"
       >
         <div data-testid="weather-humidity-dewpoint" className="flex items-center justify-end gap-2">
           <div className="flex items-center gap-1">
@@ -912,7 +938,7 @@ function UvIndexLine({ uvIndex }: { uvIndex: number }) {
   return (
     <div
       data-testid="uv-index-line"
-      className="flex items-center justify-end gap-1"
+      className={cn('flex items-center justify-end gap-1', status.textClassName)}
       title={`UV index ${displayValue}: ${status.label}`}
       aria-label={`UV index ${displayValue}, ${status.label}`}
     >
@@ -920,7 +946,7 @@ function UvIndexLine({ uvIndex }: { uvIndex: number }) {
         <span
           data-testid="uv-index-dot"
           className={cn(
-            'h-1.5 w-1.5 rounded-full',
+            'h-2 w-2 rounded-full',
             status.dotClassName,
             shouldPulse && 'uv-index-dot--pulse',
           )}
@@ -986,12 +1012,24 @@ function conditionBandShortLabel(condition: WeatherCondition, precipIntensity?: 
 
 function conditionBandClass(condition: WeatherCondition): string {
   const classes: Record<WeatherCondition, string> = {
-    'sunny': 'bg-amber-400/15',
-    'partly-cloudy': 'bg-primary/10',
-    'cloudy': 'bg-muted/80',
-    'rainy': 'bg-primary/20',
-    'snowy': 'bg-card/80',
-    'stormy': 'bg-destructive/10',
+    'sunny': 'weather-condition-band-sunny',
+    'partly-cloudy': 'weather-condition-band-partly-cloudy',
+    'cloudy': 'weather-condition-band-cloudy',
+    'rainy': 'weather-condition-band-rainy',
+    'snowy': 'weather-condition-band-snowy',
+    'stormy': 'weather-condition-band-stormy',
+  };
+  return classes[condition];
+}
+
+function conditionIconClass(condition: WeatherCondition): string {
+  const classes: Record<WeatherCondition, string> = {
+    sunny: 'weather-condition-icon-sunny',
+    'partly-cloudy': 'weather-condition-icon-partly-cloudy',
+    cloudy: 'weather-condition-icon-cloudy',
+    rainy: 'weather-condition-icon-rainy',
+    snowy: 'weather-condition-icon-snowy',
+    stormy: 'weather-condition-icon-stormy',
   };
   return classes[condition];
 }
@@ -1049,7 +1087,7 @@ function ConditionBandLabel({
       {fullLabel !== shortLabel && (
         <span
           ref={fullLabelRef}
-          className="pointer-events-none absolute invisible w-max whitespace-nowrap text-[14px] font-medium"
+          className="pointer-events-none absolute invisible w-max whitespace-nowrap text-[15px] font-medium"
           aria-hidden="true"
           data-condition-measure="true"
         >
@@ -1057,7 +1095,7 @@ function ConditionBandLabel({
         </span>
       )}
       <span
-        className="truncate text-[14px] font-medium text-foreground"
+        className="truncate text-[15px] font-medium text-foreground"
         data-condition-label={condition}
       >
         {showFullLabel ? fullLabel : shortLabel}
@@ -1120,19 +1158,19 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         Next 9 Hours
       </span>
       <div
-        className="overflow-hidden rounded-xl border border-border dark:border-border/80 bg-background/30 shadow-sm"
+        className="overflow-hidden rounded-2xl border border-border/40 bg-background/20 shadow-none"
         data-keep-bg=""
       >
-        <div className="flex min-h-6 border-b border-border/60" aria-label="Hourly conditions">
+        <div className="flex min-h-8 border-b border-border/35" aria-label="Hourly conditions">
           {conditionBands.map((band, index) => (
             <ConditionBandLabel
               key={`${band.condition}-${index}`}
               className={cn(
-                'relative flex min-w-0 items-center justify-center border-r border-border/60 px-1 py-1 last:border-r-0',
+                'relative flex min-w-0 items-center justify-center border-r border-border/35 px-1.5 py-1.5 last:border-r-0',
                 conditionBandClass(band.condition)
               )}
               style={{ flex: band.hours }}
@@ -1154,28 +1192,28 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
                 key={hour.time.getTime()}
                 data-testid="hourly-sample"
                 className={cn(
-                  'relative flex min-w-0 flex-col items-center gap-1 px-1 py-2 text-center',
-                  index > 0 && 'border-l border-border/60',
-                  index === 0 && 'bg-primary/[0.08]'
+                  'relative flex min-w-0 flex-col items-center gap-1.5 px-1 py-3 text-center',
+                  index > 0 && 'border-l border-border/35',
+                  index === 0 && 'bg-foreground/[0.05]'
                 )}
                 aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}, ${label}, ${formatTemperature(hour.temp)} degrees, feels like ${formatTemperature(hour.feelsLike)} degrees${hour.precipProbability !== undefined ? `, ${Math.round(hour.precipProbability)} percent chance of rain` : ''}`}
               >
                 {index === 0 && (
-                  <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-400 dark:bg-amber-300" aria-hidden />
                 )}
-                <span className="text-[14px] font-semibold text-muted-foreground">
+                <span className="text-[15px] font-semibold text-muted-foreground">
                   {index === 0 ? 'Now' : formatHour(hour.time)}
                 </span>
-                <WeatherIcon condition={hour.condition} className="my-0.5 h-4 w-4 text-primary" />
+                <WeatherIcon condition={hour.condition} className={`my-0.5 h-5 w-5 ${conditionIconClass(hour.condition)}`} />
                 <span
-                  className="text-sm font-semibold leading-none tabular-nums text-foreground"
+                  className="text-[15px] font-semibold leading-none tabular-nums text-foreground"
                   title="Actual temperature | feels-like temperature"
                 >
                   {formatTemperature(hour.temp)}° <span className="text-muted-foreground/70" aria-hidden>|</span> {formatTemperature(hour.feelsLike)}°
                 </span>
                 {hour.precipProbability !== undefined && (
                   <span
-                    className="pt-0.5 text-xs leading-none tabular-nums text-muted-foreground"
+                    className="pt-0.5 text-[13px] leading-none tabular-nums text-muted-foreground"
                     title="Chance of precipitation"
                   >
                     {Math.round(hour.precipProbability)}%

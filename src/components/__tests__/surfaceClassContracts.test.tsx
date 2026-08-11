@@ -12,12 +12,15 @@ import { WeatherCard } from '@/components/dashboard/MobileCards';
 import { Card } from '@/components/ui/card';
 import type { CalendarEvent } from '@/types/calendar';
 
-function expectOpaqueLightTranslucentDark(element: Element) {
+function expectSoftCardSurface(element: Element) {
   expect(element.classList.contains('bg-card')).toBe(true);
   expect(element.classList.contains('bg-card/85')).toBe(false);
   expect(element.classList.contains('backdrop-blur-sm')).toBe(false);
-  expect(element.classList.contains('dark:bg-card/85')).toBe(true);
-  expect(element.classList.contains('dark:backdrop-blur-sm')).toBe(true);
+  expect(element.classList.contains('dark:bg-card/85')).toBe(false);
+  expect(element.classList.contains('dark:backdrop-blur-sm')).toBe(false);
+  expect(element.classList.contains('border-border/55')).toBe(true);
+  expect(element.classList.contains('rounded-xl')).toBe(true);
+  expect(element.classList.contains('shadow-sm')).toBe(true);
 }
 
 function expectSemanticCalendarSurface(element: Element) {
@@ -66,7 +69,7 @@ describe('surface class contracts', () => {
   it('keeps the shared Card opaque in light mode and translucent in dark mode', () => {
     const { container } = render(<Card>Card content</Card>);
 
-    expectOpaqueLightTranslucentDark(container.firstElementChild!);
+    expectSoftCardSurface(container.firstElementChild!);
   });
 
   it('uses the same contract for a representative mobile dashboard card', () => {
@@ -83,7 +86,7 @@ describe('surface class contracts', () => {
     };
     const { container } = render(<WeatherCard data={data as never} />);
 
-    expectOpaqueLightTranslucentDark(container.firstElementChild!);
+    expectSoftCardSurface(container.firstElementChild!);
   });
 
   it('keeps calendar event cards opaque with a full light border', () => {
@@ -248,8 +251,6 @@ describe('surface class contracts', () => {
     expect(alphaCards).toEqual([
       // Goal celebration is a transient overlay over a deliberately dark scrim.
       'src/components/ui/GoalCelebration.tsx:bg-card/95',
-      // This colors an hourly weather segment; it is not a card, header, or navigation surface.
-      'src/components/widgets/WeatherWidget.tsx:bg-card/80',
     ]);
   });
 
@@ -265,6 +266,9 @@ describe('surface class contracts', () => {
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       // Calendar planning-group divider is decorative.
       'src/components/calendar/cells/DayColumn.tsx:border-border/40',
+      'src/components/dashboard/MobileCards.tsx:border-border/55',
+      'src/components/dashboard/MobileCards.tsx:border-border/55',
+      'src/components/dashboard/MobileCards.tsx:border-border/55',
       // Community gallery preview and hover boundaries are decorative.
       'src/components/layout/CommunityGallery.tsx:border-border/70',
       'src/components/layout/CommunityGallery.tsx:border-border/70',
@@ -272,10 +276,18 @@ describe('surface class contracts', () => {
       'src/components/layout/CoordinateEditor.tsx:border-border/50',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
+      'src/components/layout/SideNav.tsx:border-border/45',
+      'src/components/layout/SubpageHeader.tsx:border-border/45',
+      'src/components/ui/card.tsx:border-border/55',
+      'src/components/ui/dialog.tsx:border-border/55',
+      'src/components/ui/select.tsx:border-border/60',
       'src/components/widgets/BirthdaysWidget.tsx:border-border/50',
-      'src/components/widgets/WeatherWidget.tsx:border-border/60',
-      'src/components/widgets/WeatherWidget.tsx:border-border/60',
-      'src/components/widgets/WeatherWidget.tsx:border-border/60',
+      'src/components/widgets/WeatherWidget.tsx:border-border/35',
+      'src/components/widgets/WeatherWidget.tsx:border-border/35',
+      'src/components/widgets/WeatherWidget.tsx:border-border/35',
+      'src/components/widgets/WeatherWidget.tsx:border-border/40',
+      'src/components/widgets/WeatherWidget.tsx:border-border/45',
+      'src/components/widgets/WeatherWidget.tsx:border-border/45',
     ]);
   });
 
@@ -311,9 +323,6 @@ describe('surface class contracts', () => {
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddTaskModal.tsx:text-[10px]',
-      // Decorative up/down triangle glyphs.
-      'src/components/widgets/CalendarWidgetControls.tsx:text-[10px]',
-      'src/components/widgets/CalendarWidgetControls.tsx:text-[10px]',
       // Compact avatar initials with adjacent names.
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',

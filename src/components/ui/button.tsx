@@ -48,9 +48,9 @@ const buttonVariants = cva(
     // Typography
     'text-sm font-medium whitespace-nowrap',
     // Shape
-    'rounded-md',
+    'rounded-xl',
     // Transitions (smooth hover/focus effects)
-    'transition-colors duration-200',
+    'transition-[background-color,color,border-color,box-shadow,transform] duration-200',
     // Focus state (accessibility)
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
     // Disabled state
@@ -68,23 +68,23 @@ const buttonVariants = cva(
       variant: {
         // Primary action - most prominent
         default:
-          'bg-primary text-primary-foreground shadow hover:bg-primary/90 active:bg-primary/80',
+          'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]',
 
         // Destructive action - delete, remove, etc.
         destructive:
-          'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 active:bg-destructive/80',
+          'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 active:bg-destructive/80 active:scale-[0.98]',
 
         // Secondary action - less prominent than default
         secondary:
-          'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 active:bg-secondary/70',
+          'bg-secondary text-secondary-foreground shadow-none hover:bg-secondary/80 active:bg-secondary/70 active:scale-[0.98]',
 
         // Outlined button - bordered, transparent background
         outline:
-          'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground active:bg-accent/80',
+          'border border-input/70 bg-card shadow-none hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:scale-[0.98]',
 
         // Ghost button - minimal, for toolbars and icon buttons
         ghost:
-          'hover:bg-accent hover:text-accent-foreground active:bg-accent/80',
+          'hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:scale-[0.98]',
 
         // Link button - looks like a text link
         link:
@@ -97,16 +97,16 @@ const buttonVariants = cva(
        */
       size: {
         // Default size - good for most uses
-        default: 'h-10 px-4 py-2',
+        default: 'h-11 px-4 py-2',
 
         // Small size - for compact UIs (still touch-friendly at 36px)
-        sm: 'h-9 rounded-md px-3 text-xs',
+        sm: 'h-10 rounded-lg px-3 text-sm',
 
         // Large size - for primary CTAs, easier to tap
-        lg: 'h-12 rounded-md px-8 text-base',
+        lg: 'h-[52px] rounded-xl px-8 text-base',
 
         // Icon button - square, for icon-only buttons
-        icon: 'h-10 w-10',
+        icon: 'h-11 w-11',
 
         // Touch-optimized - extra large for wall-mounted displays
         touch: 'h-14 px-6 text-base',

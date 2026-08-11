@@ -549,14 +549,17 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 4dddcc7
 
-67. **Skylight-inspired wall-display design system**
+67. **Incremental Skylight-inspired wall-display foundation**
 
-    Unifies the dashboard, calendar, navigation, widgets, forms, dialogs,
-    states, and light/dark themes around a warm, touch-first family display
-    language, including shared wall primitives, portrait-display tuning, and
-    the restored segmented weather timeline.
+    Refines shared buttons, cards, dialogs, inputs, selects, switches,
+    navigation surfaces, mobile dashboard cards, widget shells, typography,
+    weather indicators, and calendar controls around a warm, touch-first
+    family display language while preserving the existing calendar,
+    navigation, data, and integration behavior. Restores the Daybook
+    powder-blue/paper palette as the default across light and dark modes,
+    including its weather color ramp.
 
-    Commit: 14ad7c4
+    Commits: 01c2027, d0c84df, df24ce8, fb4a5b3
 
 68. **Removed hard-coded AirGradient LAN address**
 
@@ -567,11 +570,33 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: dbf4e4e
 
+69. **Daybook cross-screen surface alignment**
+
+    Extends the incremental wall-display treatment through the expanded
+    calendar, shared subpage headers and filters, month cells, family event
+    cards, and touch controls so the dashboard and secondary household
+    screens share the same cool paper, quiet surfaces, and restrained color
+    rhythm in both light and dark modes.
+
+    Commit: c91903e
+
+70. **Softer portrait wall-display refinement**
+
+    Rebalances the Daybook wall presentation with warmer semantic surfaces,
+    quieter borders, more generous portrait spacing, touch-sized calendar
+    chips, and compact-weather handling that preserves the existing data and
+    interaction behavior.
+
+    Commit: f46c43b
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
 current UI behavior:
 
+- The broad Skylight wall-display overhaul (14ad7c4) was rolled back by
+  8eaa353 after interaction regressions; its visual direction is retained as
+  reference for the incremental foundation in item 67.
 - The hourly weather view moved through the original merry-timeline strip
   (0d61d7d, f9c3521, cd94137), including width, screensaver, tracker-line,
   and red-current-indicator fixes (30a1d8e, 29e264f, d5a5bc9, 91538c9),

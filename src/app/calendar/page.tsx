@@ -38,7 +38,7 @@ export const metadata = {
  */
 export default function CalendarPage() {
   return (
-    <main className="min-h-screen bg-background">
+    <main className="wall-calendar-route min-h-screen bg-background">
       <Suspense fallback={<CalendarSkeleton />}>
         <CalendarView />
       </Suspense>

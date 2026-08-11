@@ -142,6 +142,7 @@ export function AppShell({
     <div
       className={cn(
         'relative min-h-screen',
+        !isLCARS && 'wall-display',
         isLCARS && 'lcars-shell',
         (!showWallpaper || isLCARS) && 'bg-background'
       )}
@@ -172,6 +173,7 @@ export function AppShell({
         style={lcarsMainStyle}
         className={cn(
           'min-h-screen',
+          !isLCARS && 'wall-main',
           isLCARS && 'lcars-main',
           // Snap margin/padding when nav hides — animating layout properties causes
           // layout reflow on every frame, which is expensive on weak CPUs (Atom).

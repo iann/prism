@@ -301,11 +301,11 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   // Calendar filter chips
   const calendarChips =
     calendarGroups.length > 0 ? (
-      <div className="-mt-1 flex flex-wrap items-center gap-1 px-3 pb-2">
+      <div className="wall-calendar-chips -mt-1 flex flex-wrap items-center gap-1 px-3 pb-2">
         <button
           onClick={() => toggleCalendar('all')}
           className={cn(
-            'rounded-full px-2 py-1 text-[12px] font-medium leading-none transition-colors',
+            'touch-target rounded-full px-3 py-2 text-[14px] font-medium leading-none transition-colors',
             selectedCalendarIds.has('all')
               ? 'bg-primary text-primary-foreground'
               : transparentMode
@@ -320,19 +320,23 @@ export const CalendarWidget = React.memo(function CalendarWidget({
             key={group.id}
             onClick={() => toggleCalendar(group.id)}
             className={cn(
-              'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[12px] font-medium leading-none transition-colors',
+              'wall-family-chip touch-target inline-flex items-center gap-1 rounded-full px-3 py-2 text-[14px] font-medium leading-none transition-colors',
               selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
-                ? isLightColor(group.color)
-                  ? '!text-black'
-                  : '!text-white'
+                ? cn(
+                    'wall-family-chip-active',
+                    isLightColor(group.color) ? '!text-black' : '!text-white',
+                  )
                 : transparentMode
                   ? 'text-current hover:text-current'
                   : 'bg-muted text-muted-foreground hover:bg-accent'
             )}
             style={
-              selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
-                ? { backgroundColor: group.color }
-                : undefined
+              {
+                '--wall-family-color': group.color,
+                ...(selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
+                  ? { backgroundColor: group.color }
+                  : {}),
+              } as React.CSSProperties
             }
           >
             <span

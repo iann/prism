@@ -1,5 +1,6 @@
 export const APP_THEME_IDS = [
   'prism',
+  'daybook',
   'claude',
   'kitchen-calm',
   'herb-garden',
@@ -49,6 +50,35 @@ const prismWeatherDark: ThemeTokens = {
   '--weather-temp-hot': '9 92% 64%',
   '--weather-temp-very-hot': '348 86% 68%',
   '--weather-precipitation': '205 86% 66%',
+};
+
+/**
+ * Daybook keeps weather in the same visual family as its paper-planner
+ * surfaces: powder blue and blue-green for cold air, sage for comfortable
+ * weather, then butter and coral for warmth.
+ */
+const daybookWeatherLight: ThemeTokens = {
+  '--weather-temp-very-cold': '211 70% 45%',
+  '--weather-temp-freezing': '198 68% 43%',
+  '--weather-temp-cold': '184 58% 40%',
+  '--weather-temp-cool': '151 52% 38%',
+  '--weather-temp-mild': '45 78% 43%',
+  '--weather-temp-warm': '28 80% 45%',
+  '--weather-temp-hot': '10 72% 48%',
+  '--weather-temp-very-hot': '350 58% 48%',
+  '--weather-precipitation': '202 68% 43%',
+};
+
+const daybookWeatherDark: ThemeTokens = {
+  '--weather-temp-very-cold': '211 76% 71%',
+  '--weather-temp-freezing': '198 76% 69%',
+  '--weather-temp-cold': '184 66% 65%',
+  '--weather-temp-cool': '151 60% 63%',
+  '--weather-temp-mild': '45 86% 70%',
+  '--weather-temp-warm': '28 88% 69%',
+  '--weather-temp-hot': '10 80% 71%',
+  '--weather-temp-very-hot': '350 68% 73%',
+  '--weather-precipitation': '202 76% 70%',
 };
 
 const kitchenWeatherLight: ThemeTokens = {
@@ -215,6 +245,81 @@ const prismDark: ThemeTokens = {
   '--widget-info': '222 47% 15%',
 };
 
+/**
+ * Daybook is the compact color-system layer for the Skylight-inspired
+ * surface pass: cool paper, charcoal ink, teal actions, butter emphasis, and
+ * concentrated family colors inside events and status treatments.
+ */
+const daybookLight: ThemeTokens = {
+  ...prismLight,
+  ...daybookWeatherLight,
+  '--background': '210 24% 82%',
+  '--foreground': '222 20% 16%',
+  '--card': '0 0% 100%',
+  '--card-foreground': '222 20% 16%',
+  '--popover': '0 0% 100%',
+  '--popover-foreground': '222 20% 16%',
+  '--primary': '199 65% 39%',
+  '--primary-foreground': '0 0% 100%',
+  '--secondary': '204 28% 90%',
+  '--secondary-foreground': '222 20% 16%',
+  '--muted': '214 24% 92%',
+  '--muted-foreground': '218 16% 30%',
+  '--accent': '42 88% 75%',
+  '--accent-foreground': '222 20% 16%',
+  '--destructive': '6 70% 30%',
+  '--destructive-foreground': '0 0% 100%',
+  '--border': '214 18% 40%',
+  '--input': '214 20% 40%',
+  '--ring': '199 65% 32%',
+  '--chart-1': '10 70% 53%',
+  '--chart-2': '198 65% 46%',
+  '--chart-3': '145 45% 42%',
+  '--chart-4': '42 78% 46%',
+  '--chart-5': '279 35% 50%',
+  '--calendar-surface': '0 0% 100%',
+  '--calendar-today': '43 80% 86%',
+  '--widget-calendar': '210 24% 82%',
+  '--widget-planning': '210 24% 82%',
+  '--widget-family': '210 24% 82%',
+  '--widget-info': '210 24% 82%',
+};
+
+const daybookDark: ThemeTokens = {
+  ...prismDark,
+  ...daybookWeatherDark,
+  '--background': '220 22% 13%',
+  '--foreground': '38 45% 94%',
+  '--card': '220 18% 20%',
+  '--card-foreground': '38 45% 94%',
+  '--popover': '220 18% 24%',
+  '--popover-foreground': '38 45% 94%',
+  '--primary': '198 65% 68%',
+  '--primary-foreground': '220 22% 13%',
+  '--secondary': '215 17% 28%',
+  '--secondary-foreground': '38 45% 94%',
+  '--muted': '218 15% 24%',
+  '--muted-foreground': '36 26% 84%',
+  '--accent': '42 65% 30%',
+  '--accent-foreground': '38 45% 94%',
+  '--destructive': '6 76% 75%',
+  '--destructive-foreground': '6 40% 15%',
+  '--border': '215 15% 58%',
+  '--input': '214 18% 60%',
+  '--ring': '198 65% 74%',
+  '--chart-1': '10 76% 72%',
+  '--chart-2': '198 75% 72%',
+  '--chart-3': '145 55% 67%',
+  '--chart-4': '42 88% 72%',
+  '--chart-5': '279 55% 76%',
+  '--calendar-surface': '220 17% 22%',
+  '--calendar-today': '42 62% 28%',
+  '--widget-calendar': '220 22% 13%',
+  '--widget-planning': '220 22% 13%',
+  '--widget-family': '220 22% 13%',
+  '--widget-info': '220 22% 13%',
+};
+
 const claudeWeatherLight: ThemeTokens = {
   '--weather-temp-very-cold': '213 82% 48%',
   '--weather-temp-freezing': '199 85% 47%',
@@ -368,6 +473,13 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     description: 'The original crisp, neutral Prism palette.',
     light: prismLight,
     dark: prismDark,
+  },
+  daybook: {
+    id: 'daybook',
+    name: 'Daybook',
+    description: 'Cool paper, charcoal ink, teal actions, and family color chips.',
+    light: daybookLight,
+    dark: daybookDark,
   },
   claude: {
     id: 'claude',
