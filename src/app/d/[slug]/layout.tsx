@@ -7,6 +7,9 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
+// This layout reads the dashboard's saved display scale at request time.
+export const dynamic = 'force-dynamic';
+
 export default async function SlugLayout({ children, params }: Props) {
   const { slug } = await params;
 

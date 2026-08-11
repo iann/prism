@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Monitor, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -28,29 +28,47 @@ export function DisplaysSection() {
     });
   }, [layouts]);
 
-  const saveTimers = useState<Record<string, ReturnType<typeof setTimeout>>>({});
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const saveVersions = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimers.current).forEach((timer) => clearTimeout(timer));
+    };
+  }, []);
 
   const updateFontScale = (layoutId: string, scale: number) => {
     // Update local state immediately — slider stays responsive
     setLocalScales((prev) => ({ ...prev, [layoutId]: scale }));
 
+    const version = (saveVersions.current[layoutId] ?? 0) + 1;
+    saveVersions.current[layoutId] = version;
+
     // Debounce DB write so rapid slider drags don't spam the API
-    const timers = saveTimers[0];
-    if (timers[layoutId]) clearTimeout(timers[layoutId]);
-    timers[layoutId] = setTimeout(async () => {
+    if (saveTimers.current[layoutId]) clearTimeout(saveTimers.current[layoutId]);
+    const timer = setTimeout(async () => {
       setSaving(layoutId);
       try {
-        await fetch(`/api/layouts/${layoutId}`, {
+        const response = await fetch(`/api/layouts/${layoutId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fontScale: scale === 100 ? null : scale }),
         });
+        if (!response.ok) throw new Error(`Font scale save failed (${response.status})`);
       } catch {
-        setLocalScales((prev) => ({ ...prev, [layoutId]: layouts.find(l => l.id === layoutId)?.fontScale ?? 100 }));
+        // Do not let an older request undo a newer slider selection.
+        if (saveVersions.current[layoutId] === version) {
+          setLocalScales((prev) => ({
+            ...prev,
+            [layoutId]: layouts.find((l) => l.id === layoutId)?.fontScale ?? 100,
+          }));
+        }
       } finally {
-        setSaving(null);
+        if (saveTimers.current[layoutId] === timer) delete saveTimers.current[layoutId];
+        if (saveVersions.current[layoutId] === version) setSaving(null);
       }
     }, 400);
+    saveTimers.current[layoutId] = timer;
   };
 
   return (

@@ -6,11 +6,14 @@ export const metadata = {
   description: 'Your family dashboard - view calendars, tasks, weather, and more.',
 };
 
-// Named dashboards at /d/[slug] wrap their content in a zoom container driven
-// by `layouts.fontScale`. The default dashboard at `/` was missing the same
-// wrapper, so the Display Settings slider had no effect on the main
-// dashboard — fix is to fetch the default layout's fontScale here and apply
-// the same zoom wrapper.
+// The default dashboard reads its per-display font scale from the database.
+// Keep this route dynamic so a change in Settings is reflected without
+// requiring the next Docker build to bake in a new value.
+export const dynamic = 'force-dynamic';
+
+// Both the default and named dashboards wrap their content in a zoom
+// container driven by `layouts.fontScale`. The default route reads the
+// selected layout here; named dashboards do the equivalent in their layout.
 export default async function HomePage() {
   let fontScale = 100;
   try {
