@@ -570,6 +570,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: dbf4e4e
 
+69. **Daybook cross-screen surface alignment**
+
+    Extends the incremental wall-display treatment through the expanded
+    calendar, shared subpage headers and filters, month cells, family event
+    cards, and touch controls so the dashboard and secondary household
+    screens share the same cool paper, quiet surfaces, and restrained color
+    rhythm in both light and dark modes.
+
+    Commit: c91903e
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
