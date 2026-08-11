@@ -217,7 +217,7 @@ export function DashboardHeader({
       // it whenever backdrop-blur is disabled (e.g. perf mode).
       'relative z-10 flex-shrink-0 bg-card dark:bg-card/95 dark:backdrop-blur-sm px-4 transition-all duration-500 ease-in-out overflow-hidden',
       hidden ? 'opacity-0 max-h-0 py-0' : 'max-h-20 py-2 delay-200'
-    )}>
+    )} data-chrome-hidden={hidden ? 'true' : undefined}>
       <div className="flex items-center justify-end gap-2">
         {onEditClick && (
           <button
