@@ -597,6 +597,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: a81bb25c
 
+72. **Collapsed hidden dashboard navigation spacing**
+
+    Removes the wall-display header's retained minimum height and vertical
+    padding when navigation auto-hides, keeping dashboard content aligned with
+    the same 12px top and side inset as the grid.
+
+    Commit: 61e3ef2e
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
