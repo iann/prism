@@ -323,9 +323,6 @@ describe('surface class contracts', () => {
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddTaskModal.tsx:text-[10px]',
-      // Decorative up/down triangle glyphs.
-      'src/components/widgets/CalendarWidgetControls.tsx:text-[10px]',
-      'src/components/widgets/CalendarWidgetControls.tsx:text-[10px]',
       // Compact avatar initials with adjacent names.
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',
