@@ -562,6 +562,36 @@ describe('current conditions', () => {
     expect(screen.queryByText('0°C')).not.toBeNull();
   });
 
+  it('adds a rising suffix when the next hour is warmer', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, temperature: 68 },
+      hourly: makeHourlyForecast('sunny', 70),
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-temperature-trend').textContent).toBe('& rising');
+  });
+
+  it('adds a falling suffix when the next hour is cooler', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, temperature: 72 },
+      hourly: makeHourlyForecast('sunny', 70),
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-temperature-trend').textContent).toBe('& falling');
+  });
+
+  it('omits the suffix when the next hour is steady', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, temperature: 70 },
+      hourly: makeHourlyForecast('sunny', 70),
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.queryByTestId('weather-temperature-trend')).toBeNull();
+  });
+
   it('renders the location at the bottom of the right-side stats', () => {
     const data = makeWeatherData({ location: 'Denver, Colorado, US 80202' });
     render(<WeatherWidget data={data} />);
