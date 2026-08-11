@@ -147,10 +147,12 @@ export function CssGridDisplay({
   deferOffscreen = !fillHeight,
   headerOffset = 140,
   bottomOffset = 0,
+  rowHeightScale = 1,
   minVisibleRows = 0,
   className,
 }: CssGridDisplayProps) {
   const { containerRef, cellSize } = useSquareCells(cols, containerPadding, margin, fillHeight);
+  const rowCellSize = Math.max(16, Math.round(cellSize * rowHeightScale));
 
   const visibleWidgets = useMemo(() => layout.filter((w) => w.visible !== false), [layout]);
 
@@ -159,12 +161,12 @@ export function CssGridDisplay({
     if (fillHeight) return 12;
     if (typeof window === 'undefined') return 24;
     const availableHeight = window.innerHeight - headerOffset - bottomOffset;
-    return Math.max(minVisibleRows, Math.floor((availableHeight + margin) / (cellSize + margin)));
-  }, [fillHeight, cellSize, margin, headerOffset, bottomOffset, minVisibleRows]);
+    return Math.max(minVisibleRows, Math.floor((availableHeight + margin) / (rowCellSize + margin)));
+  }, [fillHeight, rowCellSize, margin, headerOffset, bottomOffset, minVisibleRows]);
 
   const containerHeight = fillHeight
     ? '100%'
-    : visibleRows * (cellSize + margin) + 2 * containerPadding;
+    : visibleRows * (rowCellSize + margin) + 2 * containerPadding;
 
   return (
     <div
@@ -176,7 +178,7 @@ export function CssGridDisplay({
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-          gridAutoRows: `${cellSize}px`,
+          gridAutoRows: `${rowCellSize}px`,
           gap: `${margin}px`,
           padding: `${containerPadding}px`,
           height: '100%',

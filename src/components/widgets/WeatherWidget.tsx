@@ -664,7 +664,12 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
         {/* FORECAST SECTION */}
         {showForecast && hasDays && resolvedDays > 0 && (
-          <div className="border-t border-border/45 pt-4 flex-1 min-h-0 flex flex-col gap-3">
+          <div
+            className={cn(
+              'wall-weather-forecast border-t border-border/45 pt-4 flex-1 min-h-0 flex flex-col gap-3',
+              gridH < 16 && 'wall-weather-forecast-compact',
+            )}
+          >
 
             {/* Multi-day summary — the day list fills the remaining space and
                 clips to WHOLE rows (maxDayRows) so a day is never half-cut. */}

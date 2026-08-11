@@ -956,7 +956,7 @@
    =========================================================
 
    This is intentionally a presentation boundary. It gives the existing
-   dashboard and sub-pages the cool paper / dark ink rhythm of Daybook while
+   dashboard and sub-pages the warm paper / dark ink rhythm of Daybook while
    leaving layout data, routes, integrations, and interaction handlers alone.
    The active theme still supplies the underlying semantic colors; Daybook
    uses the chart roles for its concentrated family and navigation accents.
@@ -987,8 +987,8 @@
     --wall-radius-md: 1rem;
     --wall-radius-lg: 1.15rem;
     --wall-radius-pill: 999px;
-    --wall-control-sm: 44px;
-    --wall-control-md: 52px;
+    --wall-control-sm: 48px;
+    --wall-control-md: 56px;
     --wall-shadow-soft: 0 5px 16px hsl(var(--foreground) / 0.08);
 
     /* Daybook keeps the dashboard quiet and lets calendar/member colors do
@@ -1030,17 +1030,77 @@
     --weather-condition-surface-stormy: 266 46% 43%;
   }
 
-  /* Daybook's reference keeps the information widgets one quiet layer above
-     the cool paper canvas. The calendar remains closer to the canvas so it
-     reads as the primary wall surface. */
+  /* Daybook's Skylight-like wall treatment uses warm stone and ivory instead
+     of a cool blue-gray canvas. Keep the calendar close to the canvas so it
+     remains the primary wall surface, while information widgets sit one quiet
+     layer above it. */
   :root[data-color-theme='daybook'] .wall-display {
-    --wall-info-surface: 212 27% 85%;
-    --wall-calendar-surface: 210 24% 82%;
+    --wall-canvas: 40 22% 94%;
+    --wall-surface: 40 22% 94%;
+    --wall-surface-raised: 40 30% 99%;
+    --wall-surface-muted: 40 18% 90%;
+    --wall-info-surface: 40 26% 97%;
+    --wall-calendar-surface: 40 18% 94%;
+    --wall-ink: 28 18% 15%;
+    --wall-muted: 30 10% 38%;
+    --wall-line: 32 11% 68%;
+    --wall-teal: 169 30% 39%;
+
+    /* Rebind the semantic utility colors inside the wall shell as well. A
+       widget can still use its existing bg-background/bg-card classes, but
+       those surfaces must belong to the same warm palette as its shell. */
+    --background: var(--wall-canvas);
+    --foreground: var(--wall-ink);
+    --card: var(--wall-surface-raised);
+    --card-foreground: var(--wall-ink);
+    --popover: var(--wall-surface-raised);
+    --popover-foreground: var(--wall-ink);
+    --primary: var(--wall-teal);
+    --primary-foreground: var(--wall-surface-raised);
+    --secondary: var(--wall-surface-muted);
+    --secondary-foreground: var(--wall-ink);
+    --muted: var(--wall-surface-muted);
+    --muted-foreground: var(--wall-muted);
+    --accent: 43 84% 82%;
+    --accent-foreground: var(--wall-ink);
+    --border: var(--wall-line);
+    --input: var(--wall-line);
+    --ring: var(--wall-teal);
+    --calendar-surface: var(--wall-calendar-surface);
+    --calendar-today: 43 80% 86%;
   }
 
   :root.dark[data-color-theme='daybook'] .wall-display {
-    --wall-info-surface: 210 20% 23%;
-    --wall-calendar-surface: 224 14% 21%;
+    --wall-canvas: 30 10% 14%;
+    --wall-surface: 30 10% 14%;
+    --wall-surface-raised: 32 8% 22%;
+    --wall-surface-muted: 30 8% 25%;
+    --wall-info-surface: 32 10% 24%;
+    --wall-calendar-surface: 30 8% 21%;
+    --wall-ink: 36 28% 93%;
+    --wall-muted: 34 12% 76%;
+    --wall-line: 32 8% 40%;
+    --wall-teal: 169 27% 63%;
+
+    --background: var(--wall-canvas);
+    --foreground: var(--wall-ink);
+    --card: var(--wall-surface-raised);
+    --card-foreground: var(--wall-ink);
+    --popover: var(--wall-surface-raised);
+    --popover-foreground: var(--wall-ink);
+    --primary: var(--wall-teal);
+    --primary-foreground: var(--wall-canvas);
+    --secondary: var(--wall-surface-muted);
+    --secondary-foreground: var(--wall-ink);
+    --muted: var(--wall-surface-muted);
+    --muted-foreground: var(--wall-muted);
+    --accent: 42 48% 30%;
+    --accent-foreground: var(--wall-ink);
+    --border: var(--wall-line);
+    --input: var(--wall-line);
+    --ring: var(--wall-teal);
+    --calendar-surface: var(--wall-calendar-surface);
+    --calendar-today: 42 62% 28%;
   }
 }
 
@@ -1058,7 +1118,7 @@
 
   .wall-display .wall-card {
     border-radius: var(--wall-radius-md);
-    border-color: hsl(var(--wall-line) / 0.5);
+    border-color: hsl(var(--wall-line) / 0.36);
     box-shadow: var(--wall-shadow-soft);
   }
 
@@ -1067,7 +1127,7 @@
      layout-editor fills remain authoritative. */
   .wall-display .wall-widget-container[data-theme-surface='preset'] {
     background-color: hsl(var(--wall-surface));
-    border: 1px solid hsl(var(--wall-line) / 0.72);
+    border: 1px solid hsl(var(--wall-line) / 0.42);
     border-radius: var(--wall-radius-lg);
     box-shadow: none;
   }
@@ -1086,11 +1146,11 @@
   }
 
   .wall-display .wall-widget-header {
-    padding: 0.9rem 1.1rem 0.3rem;
+    padding: 1.05rem 1.3rem 0.65rem;
   }
 
   .wall-display .wall-widget-content {
-    padding: 0.4rem 1.1rem 1.1rem;
+    padding: 0.65rem 1.3rem 1.35rem;
   }
 
   .wall-display .wall-widget-title {
@@ -1239,14 +1299,14 @@
      wall-display geometry and selected/pressed feedback. */
   .wall-display .wall-calendar-controls {
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.6rem;
   }
 
   .wall-display .wall-calendar-controls > button,
   .wall-display .wall-calendar-controls > div > button {
     min-height: var(--wall-control-sm);
     border-radius: var(--wall-radius-sm);
-    border-color: hsl(var(--wall-line) / 0.72);
+    border-color: hsl(var(--wall-line) / 0.48);
   }
 
   .wall-display .wall-calendar-controls > button:hover,
@@ -1290,7 +1350,7 @@
   .wall-display .wall-subpage-actions .wall-options-trigger {
     min-height: var(--wall-control-md);
     border-radius: var(--wall-radius-pill);
-    border-color: hsl(var(--wall-line) / 0.62);
+    border-color: hsl(var(--wall-line) / 0.48);
     background: hsl(var(--wall-surface-raised) / 0.72);
     box-shadow: none;
   }
@@ -1330,7 +1390,7 @@
     min-height: 44px;
     height: 44px;
     border-radius: var(--wall-radius-pill);
-    border-color: hsl(var(--wall-line) / 0.62);
+    border-color: hsl(var(--wall-line) / 0.48);
     padding-inline: 0.9rem;
     box-shadow: none;
   }
@@ -1354,9 +1414,46 @@
     border-color: transparent;
   }
 
+  .wall-display .wall-calendar-chips {
+    gap: 0.65rem;
+    padding-inline: 1.3rem;
+    padding-bottom: 0.9rem;
+  }
+
+  .wall-display .wall-calendar-chips > button {
+    min-height: 48px;
+  }
+
+  .wall-display .wall-family-chip-active {
+    border: 1px solid color-mix(in srgb, var(--wall-family-color) 42%, transparent);
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--wall-surface-raised)) 72%,
+      var(--wall-family-color)
+    ) !important;
+    color: hsl(var(--wall-ink)) !important;
+  }
+
+  .wall-display .wall-family-chip-active:hover {
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--wall-surface-raised)) 60%,
+      var(--wall-family-color)
+    ) !important;
+  }
+
+  .dark .wall-display .wall-family-chip-active {
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--wall-surface-raised)) 46%,
+      var(--wall-family-color)
+    ) !important;
+    color: hsl(var(--wall-ink)) !important;
+  }
+
   .wall-display .wall-calendar-content {
     background: transparent;
-    padding: 0.4rem 1.2rem 1.2rem;
+    padding: 0.75rem 1.35rem 1.5rem;
   }
 
   .wall-display .wall-calendar-content > .h-full {
@@ -1379,7 +1476,7 @@
   }
 
   .wall-display .wall-calendar-day-labels > div {
-    padding-block: 0.55rem;
+    padding-block: 0.75rem;
     color: hsl(var(--wall-muted));
     font-size: 0.82rem;
     font-weight: 700;
@@ -1388,12 +1485,12 @@
   }
 
   .wall-display .wall-calendar-grid {
-    gap: 0.4rem;
+    gap: 0.55rem;
   }
 
   .wall-display .wall-calendar-day-cell {
     min-height: 0;
-    border-color: hsl(var(--wall-line) / 0.48);
+    border-color: hsl(var(--wall-line) / 0.3);
     border-radius: var(--wall-radius-sm);
     background-color: hsl(var(--wall-calendar-surface));
     box-shadow: none;
@@ -1417,12 +1514,12 @@
   }
 
   .wall-display .wall-month-event-card {
-    min-height: 30px;
+    min-height: 36px;
     border: 0;
-    border-radius: 0.55rem;
+    border-radius: 0.7rem;
     background: color-mix(in srgb, hsl(var(--wall-surface-raised)) 78%, var(--wall-event-color, hsl(var(--wall-sky))));
     box-shadow: inset 3px 0 0 var(--wall-event-color, hsl(var(--wall-sky)));
-    padding-inline: 0.5rem;
+    padding: 0.35rem 0.65rem;
   }
 
   .wall-display .wall-month-event-card:hover {
@@ -1430,10 +1527,10 @@
   }
 
   .wall-display .wall-inline-event-card {
-    min-height: 28px;
-    border-radius: 0.55rem;
-    padding-inline: 0.45rem;
-    line-height: 1.35;
+    min-height: 34px;
+    border-radius: 0.7rem;
+    padding: 0.35rem 0.6rem;
+    line-height: 1.45;
   }
 
   .wall-display .wall-view-menu {
@@ -1465,7 +1562,7 @@
   }
 
   .wall-display .wall-calendar-page .border-border {
-    border-color: hsl(var(--wall-line) / 0.45);
+    border-color: hsl(var(--wall-line) / 0.3);
   }
 
   .wall-display .wall-calendar-page .shadow-sm,
@@ -1474,7 +1571,7 @@
   }
 
   .wall-display [data-widget='Calendar'] .border-border {
-    border-color: hsl(var(--wall-line) / 0.42);
+    border-color: hsl(var(--wall-line) / 0.28);
   }
 
   .wall-display [data-widget='Calendar'] .shadow-sm {
@@ -1497,13 +1594,13 @@
   .wall-display select {
     min-height: 48px;
     border-radius: var(--wall-radius-sm);
-    border-color: hsl(var(--wall-line) / 0.72);
+    border-color: hsl(var(--wall-line) / 0.48);
   }
 
   /* Keep the forecast track colorful and independent from the blue-gray
      Daybook canvas. */
   .wall-display [aria-label='Hourly conditions'] {
-    border-color: hsl(var(--wall-line) / 0.58);
+    border-color: hsl(var(--wall-line) / 0.42);
     background: hsl(var(--wall-surface-raised) / 0.14);
     border-radius: var(--wall-radius-md);
   }
@@ -1554,6 +1651,16 @@
 
   .weather-condition-icon-stormy {
     color: hsl(var(--weather-condition-stormy));
+  }
+
+  /* The compact portrait card already gives the hourly bar the available
+     glanceable space. Keep the full forecast in the DOM for normal layouts,
+     but avoid exposing an orphaned heading when the wall card cannot fit its
+     daily rows yet. Taller portrait cards keep the complete section. */
+  @media (orientation: portrait) {
+    .wall-display .wall-weather-forecast-compact {
+      display: none;
+    }
   }
 }
 
