@@ -38,7 +38,7 @@ describe('WidgetContainer theme overrides', () => {
 
     expect(card.dataset.themeSurface).toBe('preset');
     expect(card.classList.contains('border-border/55')).toBe(true);
-    expect(card.classList.contains('rounded-2xl')).toBe(true);
+    expect(card.classList.contains('rounded-xl')).toBe(true);
     expect(card.classList.contains('shadow-sm')).toBe(true);
     expect(card.classList.contains('border-transparent')).toBe(false);
   });

@@ -19,7 +19,7 @@ function expectSoftCardSurface(element: Element) {
   expect(element.classList.contains('dark:bg-card/85')).toBe(false);
   expect(element.classList.contains('dark:backdrop-blur-sm')).toBe(false);
   expect(element.classList.contains('border-border/55')).toBe(true);
-  expect(element.classList.contains('rounded-2xl')).toBe(true);
+  expect(element.classList.contains('rounded-xl')).toBe(true);
   expect(element.classList.contains('shadow-sm')).toBe(true);
 }
 

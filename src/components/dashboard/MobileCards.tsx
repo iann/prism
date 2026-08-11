@@ -45,7 +45,7 @@ function CardShell({ href, icon, title, count, children }: {
 }) {
   const compact = useContext(LayoutCtx) === 'tiles';
   const inner = (
-    <div className={`bg-card rounded-2xl border border-border/55 shadow-sm hover:border-primary transition-colors ${compact ? 'p-3' : 'p-3'}`}>
+    <div className={`wall-card bg-card rounded-xl border border-border/55 shadow-sm hover:border-primary transition-colors ${compact ? 'p-3' : 'p-3'}`}>
       <div className={`flex items-center justify-between ${compact ? '' : 'mb-2'}`}>
         <div className="flex items-center gap-2 min-w-0">
           {icon}
@@ -80,7 +80,7 @@ export function WeatherCard({ data }: { data: DashData['weather'] }) {
     <Cloud className={iconCls} />;
 
   return (
-    <div className="bg-card rounded-2xl border border-border/55 shadow-sm p-3 flex items-center gap-3">
+    <div className="wall-card bg-card rounded-xl border border-border/55 shadow-sm p-3 flex items-center gap-3">
       {icon}
       <span className="text-2xl font-light tabular-nums">{Math.round(cur.temperature)}°{wd.units.temperature}</span>
       <span className="text-sm text-muted-foreground capitalize">{cur.description}</span>
@@ -90,7 +90,7 @@ export function WeatherCard({ data }: { data: DashData['weather'] }) {
 
 export function ClockCard() {
   return (
-    <div className="bg-card rounded-2xl border border-border/55 shadow-sm p-3 flex items-center gap-3">
+    <div className="wall-card bg-card rounded-xl border border-border/55 shadow-sm p-3 flex items-center gap-3">
       <Clock className="h-5 w-5 text-muted-foreground" />
       <span className="text-2xl font-light tabular-nums">{format(new Date(), 'h:mm a')}</span>
       <span className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, MMM d')}</span>

@@ -74,6 +74,20 @@
     --weather-forecast-very-hot: 346 82% 58%;
     --weather-forecast-precipitation: 201 90% 58%;
 
+    /* Condition colors stay legible when the dashboard surface changes. */
+    --weather-condition-sunny: 43 98% 52%;
+    --weather-condition-partly-cloudy: 201 92% 54%;
+    --weather-condition-cloudy: 215 24% 53%;
+    --weather-condition-rainy: 207 92% 55%;
+    --weather-condition-snowy: 187 74% 50%;
+    --weather-condition-stormy: 266 76% 59%;
+    --weather-condition-surface-sunny: 43 90% 86%;
+    --weather-condition-surface-partly-cloudy: 201 78% 86%;
+    --weather-condition-surface-cloudy: 215 24% 87%;
+    --weather-condition-surface-rainy: 207 78% 86%;
+    --weather-condition-surface-snowy: 187 60% 88%;
+    --weather-condition-surface-stormy: 266 62% 88%;
+
     --seasonal-accent: 222 47% 31%;
     --seasonal-accent-foreground: 210 40% 98%;
     --seasonal-highlight: 210 40% 96%;
@@ -134,6 +148,19 @@
     --weather-forecast-hot: 9 95% 69%;
     --weather-forecast-very-hot: 346 90% 73%;
     --weather-forecast-precipitation: 201 95% 72%;
+
+    --weather-condition-sunny: 43 98% 66%;
+    --weather-condition-partly-cloudy: 201 96% 69%;
+    --weather-condition-cloudy: 215 28% 72%;
+    --weather-condition-rainy: 207 96% 68%;
+    --weather-condition-snowy: 187 82% 74%;
+    --weather-condition-stormy: 266 82% 74%;
+    --weather-condition-surface-sunny: 43 52% 38%;
+    --weather-condition-surface-partly-cloudy: 201 48% 39%;
+    --weather-condition-surface-cloudy: 215 20% 42%;
+    --weather-condition-surface-rainy: 207 52% 37%;
+    --weather-condition-surface-snowy: 187 44% 42%;
+    --weather-condition-surface-stormy: 266 46% 43%;
 
     --seasonal-accent: 210 40% 98%;
     --seasonal-accent-foreground: 222 47% 11%;
@@ -922,4 +949,633 @@
 [data-virtual-keyboard] .hg-button.key-dismiss {
   flex-grow: 1;
   font-size: 20px;
+}
+
+/* =========================================================
+   Daybook wall-display surface
+   =========================================================
+
+   This is intentionally a presentation boundary. It gives the existing
+   dashboard and sub-pages the cool paper / dark ink rhythm of Daybook while
+   leaving layout data, routes, integrations, and interaction handlers alone.
+   The active theme still supplies the underlying semantic colors; Daybook
+   uses the chart roles for its concentrated family and navigation accents.
+*/
+
+@layer base {
+  .wall-display {
+    --wall-canvas: var(--background);
+    --wall-surface: var(--background);
+    --wall-surface-raised: var(--card);
+    --wall-surface-muted: var(--secondary);
+    --wall-info-surface: var(--card);
+    --wall-calendar-surface: var(--wall-surface);
+    --wall-ink: var(--foreground);
+    --wall-muted: var(--muted-foreground);
+    --wall-line: var(--border);
+    --wall-coral: var(--chart-1);
+    --wall-mustard: var(--chart-4);
+    --wall-sage: var(--chart-3);
+    --wall-sky: var(--chart-2);
+    --wall-lavender: var(--chart-5);
+    --wall-pink: 342 57% 71%;
+    --wall-teal: var(--primary);
+    --wall-nav-accent: var(--chart-1);
+    --wall-nav-accent-soft: hsl(var(--wall-nav-accent) / 0.16);
+    --wall-font-family: var(--font-dm-sans), 'DM Sans', 'Avenir Next', Avenir, sans-serif;
+    --wall-radius-sm: 0.75rem;
+    --wall-radius-md: 1rem;
+    --wall-radius-lg: 1.15rem;
+    --wall-radius-pill: 999px;
+    --wall-control-sm: 44px;
+    --wall-control-md: 52px;
+    --wall-shadow-soft: 0 5px 16px hsl(var(--foreground) / 0.08);
+
+    /* Daybook keeps the dashboard quiet and lets calendar/member colors do
+       the organizational work inside widgets. */
+    --widget-calendar: var(--wall-surface);
+    --widget-planning: var(--wall-surface);
+    --widget-family: var(--wall-surface);
+    --widget-info: var(--wall-surface);
+
+    /* Weather is deliberately brighter than the active theme so its timeline
+       remains readable in both daylight and the evening palette. */
+    --weather-condition-sunny: 43 98% 52%;
+    --weather-condition-partly-cloudy: 201 92% 54%;
+    --weather-condition-cloudy: 215 24% 53%;
+    --weather-condition-rainy: 207 92% 55%;
+    --weather-condition-snowy: 187 74% 50%;
+    --weather-condition-stormy: 266 76% 59%;
+    --weather-condition-surface-sunny: 43 90% 86%;
+    --weather-condition-surface-partly-cloudy: 201 78% 86%;
+    --weather-condition-surface-cloudy: 215 24% 87%;
+    --weather-condition-surface-rainy: 207 78% 86%;
+    --weather-condition-surface-snowy: 187 60% 88%;
+    --weather-condition-surface-stormy: 266 62% 88%;
+  }
+
+  .dark .wall-display {
+    --wall-shadow-soft: 0 8px 22px hsl(220 22% 6% / 0.28);
+    --weather-condition-sunny: 43 98% 66%;
+    --weather-condition-partly-cloudy: 201 96% 69%;
+    --weather-condition-cloudy: 215 28% 72%;
+    --weather-condition-rainy: 207 96% 68%;
+    --weather-condition-snowy: 187 82% 74%;
+    --weather-condition-stormy: 266 82% 74%;
+    --weather-condition-surface-sunny: 43 52% 38%;
+    --weather-condition-surface-partly-cloudy: 201 48% 39%;
+    --weather-condition-surface-cloudy: 215 20% 42%;
+    --weather-condition-surface-rainy: 207 52% 37%;
+    --weather-condition-surface-snowy: 187 44% 42%;
+    --weather-condition-surface-stormy: 266 46% 43%;
+  }
+
+  /* Daybook's reference keeps the information widgets one quiet layer above
+     the cool paper canvas. The calendar remains closer to the canvas so it
+     reads as the primary wall surface. */
+  :root[data-color-theme='daybook'] .wall-display {
+    --wall-info-surface: 212 27% 85%;
+    --wall-calendar-surface: 210 24% 82%;
+  }
+
+  :root.dark[data-color-theme='daybook'] .wall-display {
+    --wall-info-surface: 210 20% 23%;
+    --wall-calendar-surface: 224 14% 21%;
+  }
+}
+
+@layer utilities {
+  .wall-display {
+    min-height: 100vh;
+    background: hsl(var(--wall-canvas));
+    color: hsl(var(--wall-ink));
+    font-family: var(--wall-font-family);
+  }
+
+  .wall-display .wall-main {
+    min-height: 100vh;
+  }
+
+  .wall-display .wall-card {
+    border-radius: var(--wall-radius-md);
+    border-color: hsl(var(--wall-line) / 0.5);
+    box-shadow: var(--wall-shadow-soft);
+  }
+
+  /* Preset widget shells are quiet outlined areas, matching the Daybook
+     reference instead of a collection of unrelated SaaS cards. Custom
+     layout-editor fills remain authoritative. */
+  .wall-display .wall-widget-container[data-theme-surface='preset'] {
+    background-color: hsl(var(--wall-surface));
+    border: 1px solid hsl(var(--wall-line) / 0.72);
+    border-radius: var(--wall-radius-lg);
+    box-shadow: none;
+  }
+
+  .wall-display [data-theme-widget='clock'] > .wall-widget-container[data-theme-surface='preset'],
+  .wall-display [data-theme-widget='weather'] > .wall-widget-container[data-theme-surface='preset'] {
+    background-color: hsl(var(--wall-info-surface));
+  }
+
+  .wall-display [data-theme-widget='calendar'] > .wall-widget-container[data-theme-surface='preset'] {
+    background-color: hsl(var(--wall-calendar-surface));
+  }
+
+  .wall-display .wall-widget-container[data-theme-surface='custom'] {
+    border-radius: var(--wall-radius-lg);
+  }
+
+  .wall-display .wall-widget-header {
+    padding: 0.9rem 1.1rem 0.3rem;
+  }
+
+  .wall-display .wall-widget-content {
+    padding: 0.4rem 1.1rem 1.1rem;
+  }
+
+  .wall-display .wall-widget-title {
+    letter-spacing: normal;
+    font-weight: 600;
+  }
+
+  .wall-display .wall-dashboard-header {
+    min-height: 56px;
+    background: hsl(var(--wall-surface-raised) / 0.94);
+    padding: 0.45rem 1rem;
+    box-shadow: 0 1px 0 hsl(var(--wall-line) / 0.24);
+  }
+
+  .wall-display .wall-header-action {
+    display: inline-flex;
+    min-height: 48px;
+    min-width: 48px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--wall-radius-pill);
+    color: hsl(var(--wall-muted));
+  }
+
+  .wall-display .wall-header-action:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-side-nav {
+    width: 64px;
+    border-right: 0;
+    background: hsl(var(--wall-surface-raised) / 0.96);
+    box-shadow: 4px 0 18px hsl(var(--wall-ink) / 0.05);
+  }
+
+  .wall-display .wall-side-nav-expanded {
+    width: 13rem;
+    box-shadow: 8px 0 24px hsl(var(--wall-ink) / 0.1);
+  }
+
+  .wall-display .wall-side-nav > div:first-child {
+    min-height: 56px;
+  }
+
+  .wall-display .wall-nav-item {
+    min-height: 52px;
+    border-radius: var(--wall-radius-sm);
+    color: hsl(var(--wall-muted));
+    font-weight: 600;
+    transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+  }
+
+  .wall-display .wall-side-nav:not(.wall-side-nav-expanded) .wall-nav-item {
+    width: 48px;
+    margin-inline: auto;
+    padding-inline: 0;
+  }
+
+  .wall-display .wall-nav-item:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-nav-item:active,
+  .wall-display .wall-portrait-nav-item:active {
+    transform: scale(0.97);
+  }
+
+  .wall-display .wall-nav-item-active {
+    background: hsl(var(--wall-nav-accent));
+    color: hsl(var(--wall-surface-raised));
+  }
+
+  .wall-display .wall-nav-item-active .wall-nav-icon {
+    color: currentColor;
+  }
+
+  .wall-display .wall-nav-icon {
+    width: 21px;
+    height: 21px;
+    stroke-width: 2.1;
+  }
+
+  .wall-display .wall-nav-item-expanded {
+    min-height: 52px;
+    width: 100%;
+    justify-content: flex-start;
+    padding-inline: 0.9rem;
+  }
+
+  .wall-display .wall-help-item {
+    min-height: 48px;
+  }
+
+  .wall-display .wall-user-button {
+    min-height: 56px;
+    border-radius: var(--wall-radius-sm);
+  }
+
+  .wall-display .wall-portrait-nav {
+    border-top: 0;
+    background: hsl(var(--wall-surface-raised) / 0.98);
+    box-shadow: 0 -8px 24px hsl(var(--wall-ink) / 0.08);
+  }
+
+  .wall-display .wall-portrait-nav-items {
+    min-height: 5.5rem;
+    height: 5.5rem;
+    justify-content: flex-start;
+    gap: 0.25rem;
+    padding: 0.45rem 0.75rem;
+  }
+
+  .wall-display .wall-portrait-nav-item {
+    min-width: 78px;
+    min-height: 72px;
+    justify-content: center;
+    border-radius: var(--wall-radius-sm);
+    color: hsl(var(--wall-muted));
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .wall-display .wall-portrait-nav-item:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-portrait-nav-item-active {
+    background: hsl(var(--wall-nav-accent));
+    color: hsl(var(--wall-surface-raised));
+  }
+
+  .wall-display .wall-portrait-nav-item-active svg {
+    color: currentColor;
+  }
+
+  .wall-display .wall-portrait-nav-item-user {
+    border: 0;
+    background: transparent;
+  }
+
+  /* Calendar controls share one baseline and one shape language. The
+     controls remain the same buttons/popovers; this only normalizes their
+     wall-display geometry and selected/pressed feedback. */
+  .wall-display .wall-calendar-controls {
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .wall-display .wall-calendar-controls > button,
+  .wall-display .wall-calendar-controls > div > button {
+    min-height: var(--wall-control-sm);
+    border-radius: var(--wall-radius-sm);
+    border-color: hsl(var(--wall-line) / 0.72);
+  }
+
+  .wall-display .wall-calendar-controls > button:hover,
+  .wall-display .wall-calendar-controls > div > button:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  /* Expanded pages use the same quiet paper rhythm as the dashboard. The
+     route keeps its existing structure; these hooks only give the shared
+     header, filters, and calendar stage one Daybook surface treatment. */
+  .wall-display .wall-subpage-header {
+    border-bottom: 0;
+    background: transparent;
+    padding: 0.8rem 1.2rem 0.45rem;
+  }
+
+  .wall-display .wall-subpage-header-inner {
+    min-height: 4.2rem;
+    gap: 1rem;
+  }
+
+  .wall-display .wall-subpage-title {
+    font-size: clamp(1.35rem, 2vw, 2rem);
+    letter-spacing: -0.018em;
+    line-height: 1.15;
+  }
+
+  .wall-display .wall-subpage-home {
+    min-height: 48px;
+    min-width: 48px;
+    border-radius: var(--wall-radius-pill);
+  }
+
+  .wall-display .wall-subpage-actions {
+    gap: 0.5rem;
+  }
+
+  .wall-display .wall-subpage-actions > button,
+  .wall-display .wall-subpage-actions .wall-view-trigger,
+  .wall-display .wall-subpage-actions .wall-options-trigger {
+    min-height: var(--wall-control-md);
+    border-radius: var(--wall-radius-pill);
+    border-color: hsl(var(--wall-line) / 0.62);
+    background: hsl(var(--wall-surface-raised) / 0.72);
+    box-shadow: none;
+  }
+
+  .wall-display .wall-subpage-actions > button:hover,
+  .wall-display .wall-subpage-actions .wall-view-trigger:hover,
+  .wall-display .wall-subpage-actions .wall-options-trigger:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-subpage-actions > button.bg-primary {
+    background: hsl(var(--wall-teal));
+    border-color: transparent;
+    color: hsl(var(--primary-foreground));
+  }
+
+  .wall-display .wall-filter-bar {
+    max-height: none;
+    overflow: visible;
+    border-bottom: 0;
+    background: transparent;
+    padding: 0.15rem 1.2rem 0.8rem;
+  }
+
+  .wall-display .wall-filter-items {
+    gap: 0.55rem;
+  }
+
+  .wall-display .wall-filter-items > span {
+    color: hsl(var(--wall-muted));
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .wall-display .wall-filter-items > button {
+    min-height: 44px;
+    height: 44px;
+    border-radius: var(--wall-radius-pill);
+    border-color: hsl(var(--wall-line) / 0.62);
+    padding-inline: 0.9rem;
+    box-shadow: none;
+  }
+
+  .wall-display .wall-filter-items button {
+    min-height: 44px;
+    height: 44px;
+    border-radius: var(--wall-radius-pill);
+  }
+
+  .wall-display .wall-filter-items > div > button {
+    padding-inline: 0.9rem;
+  }
+
+  .wall-display .wall-filter-items > button:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-filter-items > button.bg-primary {
+    border-color: transparent;
+  }
+
+  .wall-display .wall-calendar-content {
+    background: transparent;
+    padding: 0.4rem 1.2rem 1.2rem;
+  }
+
+  .wall-display .wall-calendar-content > .h-full {
+    min-height: 0;
+  }
+
+  .wall-display .wall-calendar-month-header {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--wall-radius-sm);
+    background: hsl(var(--wall-teal) / 0.86);
+    box-shadow: none;
+    letter-spacing: 0.01em;
+  }
+
+  .wall-display .wall-calendar-day-labels {
+    gap: 0.4rem;
+  }
+
+  .wall-display .wall-calendar-day-labels > div {
+    padding-block: 0.55rem;
+    color: hsl(var(--wall-muted));
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+  }
+
+  .wall-display .wall-calendar-grid {
+    gap: 0.4rem;
+  }
+
+  .wall-display .wall-calendar-day-cell {
+    min-height: 0;
+    border-color: hsl(var(--wall-line) / 0.48);
+    border-radius: var(--wall-radius-sm);
+    background-color: hsl(var(--wall-calendar-surface));
+    box-shadow: none;
+  }
+
+  .wall-display .wall-calendar-day-cell:hover {
+    border-color: hsl(var(--wall-teal) / 0.55);
+  }
+
+  .wall-display .wall-calendar-day-cell.bg-muted\/65 {
+    background-color: hsl(var(--wall-surface-muted) / 0.65);
+  }
+
+  .wall-display .wall-calendar-day-cell.bg-calendar-today {
+    background-color: hsl(var(--wall-mustard) / 0.2);
+    border-color: hsl(var(--wall-mustard) / 0.7);
+  }
+
+  .wall-display .wall-calendar-day-number {
+    font-size: 1rem;
+  }
+
+  .wall-display .wall-month-event-card {
+    min-height: 30px;
+    border: 0;
+    border-radius: 0.55rem;
+    background: color-mix(in srgb, hsl(var(--wall-surface-raised)) 78%, var(--wall-event-color, hsl(var(--wall-sky))));
+    box-shadow: inset 3px 0 0 var(--wall-event-color, hsl(var(--wall-sky)));
+    padding-inline: 0.5rem;
+  }
+
+  .wall-display .wall-month-event-card:hover {
+    background: color-mix(in srgb, hsl(var(--wall-surface-raised)) 68%, var(--wall-event-color, hsl(var(--wall-sky))));
+  }
+
+  .wall-display .wall-inline-event-card {
+    min-height: 28px;
+    border-radius: 0.55rem;
+    padding-inline: 0.45rem;
+    line-height: 1.35;
+  }
+
+  .wall-display .wall-view-menu {
+    height: var(--wall-control-md);
+  }
+
+  .wall-display .wall-view-trigger {
+    height: var(--wall-control-md);
+  }
+
+  .wall-display .wall-view-cycles {
+    width: 3rem;
+    height: var(--wall-control-md);
+    gap: 0.25rem;
+  }
+
+  .wall-display .wall-view-cycle {
+    min-height: 0;
+    min-width: 1.5rem;
+    border: 0;
+    border-radius: 0.7rem;
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-muted));
+  }
+
+  .wall-display .wall-view-cycle:hover {
+    background: hsl(var(--wall-teal) / 0.16);
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-calendar-page .border-border {
+    border-color: hsl(var(--wall-line) / 0.45);
+  }
+
+  .wall-display .wall-calendar-page .shadow-sm,
+  .wall-display .wall-calendar-page .shadow-lg {
+    box-shadow: none;
+  }
+
+  .wall-display [data-widget='Calendar'] .border-border {
+    border-color: hsl(var(--wall-line) / 0.42);
+  }
+
+  .wall-display [data-widget='Calendar'] .shadow-sm {
+    box-shadow: none;
+  }
+
+  .wall-display .wall-event-card {
+    border: 0;
+    border-radius: var(--wall-radius-sm);
+    background: color-mix(in srgb, hsl(var(--wall-surface-raised)) 84%, var(--wall-event-color, hsl(var(--wall-sky))));
+    box-shadow: inset 4px 0 0 var(--wall-event-color, hsl(var(--wall-sky)));
+  }
+
+  .wall-display .wall-event-card:hover {
+    background: color-mix(in srgb, hsl(var(--wall-surface-raised)) 74%, var(--wall-event-color, hsl(var(--wall-sky))));
+  }
+
+  .wall-display input:not([type='hidden']),
+  .wall-display textarea,
+  .wall-display select {
+    min-height: 48px;
+    border-radius: var(--wall-radius-sm);
+    border-color: hsl(var(--wall-line) / 0.72);
+  }
+
+  /* Keep the forecast track colorful and independent from the blue-gray
+     Daybook canvas. */
+  .wall-display [aria-label='Hourly conditions'] {
+    border-color: hsl(var(--wall-line) / 0.58);
+    background: hsl(var(--wall-surface-raised) / 0.14);
+    border-radius: var(--wall-radius-md);
+  }
+
+  .weather-condition-band-sunny {
+    background-color: hsl(var(--weather-condition-surface-sunny) / 0.72);
+  }
+
+  .weather-condition-band-partly-cloudy {
+    background-color: hsl(var(--weather-condition-surface-partly-cloudy) / 0.72);
+  }
+
+  .weather-condition-band-cloudy {
+    background-color: hsl(var(--weather-condition-surface-cloudy) / 0.72);
+  }
+
+  .weather-condition-band-rainy {
+    background-color: hsl(var(--weather-condition-surface-rainy) / 0.72);
+  }
+
+  .weather-condition-band-snowy {
+    background-color: hsl(var(--weather-condition-surface-snowy) / 0.72);
+  }
+
+  .weather-condition-band-stormy {
+    background-color: hsl(var(--weather-condition-surface-stormy) / 0.72);
+  }
+
+  .weather-condition-icon-sunny {
+    color: hsl(var(--weather-condition-sunny));
+  }
+
+  .weather-condition-icon-partly-cloudy {
+    color: hsl(var(--weather-condition-partly-cloudy));
+  }
+
+  .weather-condition-icon-cloudy {
+    color: hsl(var(--weather-condition-cloudy));
+  }
+
+  .weather-condition-icon-rainy {
+    color: hsl(var(--weather-condition-rainy));
+  }
+
+  .weather-condition-icon-snowy {
+    color: hsl(var(--weather-condition-snowy));
+  }
+
+  .weather-condition-icon-stormy {
+    color: hsl(var(--weather-condition-stormy));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wall-display .wall-nav-item,
+  .wall-display .wall-portrait-nav-item,
+  .wall-display .wall-event-card {
+    transition: none;
+  }
+}
+
+/* Dialogs and popovers render through portals, outside AppShell. Keep those
+   surfaces in the same Daybook family without requiring every modal to know
+   about the wall shell. */
+body:has(.wall-display) [role='dialog'],
+body:has(.wall-display) [data-radix-popper-content-wrapper] > * {
+  border-radius: var(--wall-radius-lg, 1.15rem);
+}
+
+body:has(.wall-display) [role='dialog'] input:not([type='hidden']),
+body:has(.wall-display) [role='dialog'] textarea,
+body:has(.wall-display) [role='dialog'] select {
+  min-height: 48px;
+  border-radius: var(--wall-radius-sm, 0.75rem);
 }

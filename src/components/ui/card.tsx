@@ -51,9 +51,9 @@ const Card = React.forwardRef<
       'bg-card text-card-foreground',
       'border border-border/55',
       // Shape
-      'rounded-2xl',
+      'rounded-xl',
       // Shadow for depth (subtle)
-      'shadow-sm',
+      'shadow-sm wall-card',
       // Allow custom classes to override
       className
     )}

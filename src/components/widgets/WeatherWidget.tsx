@@ -1007,24 +1007,24 @@ function conditionBandShortLabel(condition: WeatherCondition, precipIntensity?: 
 
 function conditionBandClass(condition: WeatherCondition): string {
   const classes: Record<WeatherCondition, string> = {
-    'sunny': 'bg-amber-400/25',
-    'partly-cloudy': 'bg-sky-400/20',
-    'cloudy': 'bg-slate-400/20',
-    'rainy': 'bg-blue-400/25',
-    'snowy': 'bg-cyan-300/20',
-    'stormy': 'bg-violet-400/25',
+    'sunny': 'weather-condition-band-sunny',
+    'partly-cloudy': 'weather-condition-band-partly-cloudy',
+    'cloudy': 'weather-condition-band-cloudy',
+    'rainy': 'weather-condition-band-rainy',
+    'snowy': 'weather-condition-band-snowy',
+    'stormy': 'weather-condition-band-stormy',
   };
   return classes[condition];
 }
 
 function conditionIconClass(condition: WeatherCondition): string {
   const classes: Record<WeatherCondition, string> = {
-    sunny: 'text-amber-500 dark:text-amber-300',
-    'partly-cloudy': 'text-sky-500 dark:text-sky-300',
-    cloudy: 'text-slate-500 dark:text-slate-300',
-    rainy: 'text-blue-500 dark:text-blue-300',
-    snowy: 'text-cyan-500 dark:text-cyan-300',
-    stormy: 'text-violet-500 dark:text-violet-300',
+    sunny: 'weather-condition-icon-sunny',
+    'partly-cloudy': 'weather-condition-icon-partly-cloudy',
+    cloudy: 'weather-condition-icon-cloudy',
+    rainy: 'weather-condition-icon-rainy',
+    snowy: 'weather-condition-icon-snowy',
+    stormy: 'weather-condition-icon-stormy',
   };
   return classes[condition];
 }

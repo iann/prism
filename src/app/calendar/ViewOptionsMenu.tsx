@@ -145,7 +145,7 @@ export function ViewOptionsMenu({
           size="sm"
           aria-label="View options"
           title="View options"
-          className={cn('gap-1.5 h-9', triggerClassName)}
+          className={cn('wall-options-trigger gap-1.5 h-9', triggerClassName)}
         >
           <Settings2 className="h-4 w-4" />
           <span className="hidden sm:inline">View</span>

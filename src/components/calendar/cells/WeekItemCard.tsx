@@ -140,6 +140,7 @@ export function WeekItemCard({
     transform: CSS.Translate.toString(draggable.transform),
     touchAction: dragId ? 'none' : undefined,
     zIndex: draggable.isDragging ? 50 : undefined,
+    ['--wall-event-color' as string]: stripeColor,
   };
 
   // For row layout, render: [stripe][time][title][subtitle aside]
@@ -156,6 +157,7 @@ export function WeekItemCard({
         {...(dragId ? draggable.listeners : {})}
         {...(dragId ? draggable.attributes : {})}
         className={cn(
+          'wall-event-card',
           'group relative flex w-full items-center gap-2',
           'overflow-hidden rounded-md',
           'bg-calendar-surface',
@@ -204,6 +206,7 @@ export function WeekItemCard({
       {...(dragId ? draggable.listeners : {})}
       {...(dragId ? draggable.attributes : {})}
       className={cn(
+        'wall-event-card',
         'group relative flex w-full items-stretch gap-2',
         'overflow-hidden rounded-md',
         'bg-calendar-surface',

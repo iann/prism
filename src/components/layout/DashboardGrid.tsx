@@ -211,6 +211,7 @@ export function DashboardHeader({
   const hidden = uiHidden || measureHideChrome;
   return (
     <header className={cn(
+      'wall-dashboard-header',
       // 'relative z-10' is load-bearing: WallpaperBackground is fixed at z-0,
       // and without our own stacking context the toolbar would paint underneath
       // it whenever backdrop-blur is disabled (e.g. perf mode).
@@ -221,7 +222,7 @@ export function DashboardHeader({
         {onEditClick && (
           <button
             onClick={onEditClick}
-            className="touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
+            className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
             aria-label="Edit layout"
           >
             <GridEditIcon />
@@ -230,7 +231,7 @@ export function DashboardHeader({
 
         <button
           onClick={() => window.location.reload()}
-          className="touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
+          className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
           aria-label="Refresh page"
         >
           <RefreshCw className="h-5 w-5" />
@@ -244,7 +245,7 @@ export function DashboardHeader({
           <button
             onMouseDown={(e) => { e.stopPropagation(); }}
             onClick={(e) => { e.stopPropagation(); onScreensaverClick(); }}
-            className="touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
+            className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
             aria-label="Start screensaver"
           >
             <ScreensaverIcon />

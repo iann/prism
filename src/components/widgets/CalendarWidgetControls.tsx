@@ -77,7 +77,7 @@ export function CalendarWidgetControls({
   return (
     // Layout mirrors the calendar subpage toolbar: Today | < > | view menu |
     // gear popover. All controls share a wall-friendly 44px baseline.
-    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+    <div className="wall-calendar-controls flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
       {/* Navigation (hidden in agenda-only mode) */}
       {availableViews.length > 1 && resolvedView !== 'agenda' && (
         <>
