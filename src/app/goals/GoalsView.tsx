@@ -274,7 +274,7 @@ export function GoalsView() {
                           <button
                             onClick={() => handleMoveUp(index)}
                             disabled={index === 0}
-                            className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"
+                            className="wall-touch-control flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20"
                             aria-label="Move goal up"
                           >
                             <ChevronUp className="h-3.5 w-3.5" />
@@ -283,7 +283,7 @@ export function GoalsView() {
                           <button
                             onClick={() => handleMoveDown(index)}
                             disabled={index >= goals.length - 1}
-                            className="text-muted-foreground hover:text-foreground disabled:opacity-20 p-0.5"
+                            className="wall-touch-control flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20"
                             aria-label="Move goal down"
                           >
                             <ChevronDown className="h-3.5 w-3.5" />

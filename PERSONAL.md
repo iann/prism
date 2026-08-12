@@ -646,6 +646,31 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: 9f188c95, f08714d6
 
+78. **Balanced calendar name filters**
+
+    Aligns the full calendar's Family and member filter labels with the
+    dashboard chips and shared person filters, using readable 14px text
+    inside the existing wall-display touch targets.
+
+    Commit: b079bd80
+
+79. **Balanced meal planner filters**
+
+    Aligns the Breakfast, Lunch, Dinner, and Snack filters with the
+    wall-display filter sizing used by calendar and person controls:
+    readable 14px labels inside the existing 44px touch targets.
+
+    Commit: 2343aa95
+
+80. **Consistent wall-display secondary controls**
+
+    Normalizes the remaining wall-display touch targets across calendar,
+    meals, shopping, chores, tasks, goals, messages, Weekend, and Travel,
+    including navigation arrows, inline actions, reorder controls, filters,
+    map controls, and accessible labels.
+
+    Commit: e0b89a59
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

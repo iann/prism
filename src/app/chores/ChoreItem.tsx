@@ -80,7 +80,7 @@ export function ChoreItem({
         onClick={onComplete}
         disabled={!chore.enabled}
         className={cn(
-          'flex-shrink-0 h-9 w-9',
+          'wall-touch-control flex-shrink-0 h-9 w-9',
           isOverdue && !isPendingApproval && 'text-destructive hover:text-destructive',
           isPendingApproval && 'text-amber-500'
         )}
@@ -186,7 +186,7 @@ export function ChoreItem({
           variant="ghost"
           size="icon"
           onClick={onEdit}
-          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="wall-touch-control h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
           aria-label="Edit chore"
         >
           <Edit2 className="h-4 w-4" />
@@ -195,7 +195,7 @@ export function ChoreItem({
           variant="ghost"
           size="icon"
           onClick={onDelete}
-          className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+          className="wall-touch-control h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
           aria-label="Delete chore"
         >
           <Trash2 className="h-4 w-4" />

@@ -382,10 +382,10 @@ export function CalendarView() {
               <>
                 <Button variant="outline" size="sm" onClick={goToToday} className="h-9">Today</Button>
                 <div className="flex items-center gap-1">
-                  <Button variant="outline" size="icon" onClick={goToPrevious} aria-label="Previous" className="h-9 w-9">
+                  <Button variant="outline" size="icon" onClick={goToPrevious} aria-label="Previous" className="wall-calendar-date-nav h-9 w-9">
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
-                  <Button variant="outline" size="icon" onClick={goToNext} aria-label="Next" className="h-9 w-9">
+                  <Button variant="outline" size="icon" onClick={goToNext} aria-label="Next" className="wall-calendar-date-nav h-9 w-9">
                     <ChevronRight className="h-5 w-5" />
                   </Button>
                 </div>
@@ -451,7 +451,7 @@ export function CalendarView() {
               variant={selectedCalendarIds.has('all') ? 'default' : 'outline'}
               size="sm"
               onClick={() => toggleCalendar('all')}
-              className="h-7 text-xs"
+              className="h-7 text-sm"
             >
               All
             </Button>
@@ -463,7 +463,7 @@ export function CalendarView() {
                   variant={isSelected ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => toggleCalendar(group.id)}
-                  className={cn('h-7 text-xs gap-1.5', isSelected && 'border-transparent')}
+                  className={cn('h-7 text-sm gap-1.5', isSelected && 'border-transparent')}
                   style={isSelected ? { backgroundColor: group.color, color: contrastText(group.color) } : undefined}
                 >
                   <span

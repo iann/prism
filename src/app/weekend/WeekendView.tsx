@@ -138,7 +138,7 @@ export function WeekendView() {
               key={s}
               onClick={() => setFilterStatus(s)}
               className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium transition-colors capitalize',
+                'wall-filter-control px-2.5 py-1 rounded-md text-xs font-medium transition-colors capitalize',
                 filterStatus === s ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -151,7 +151,7 @@ export function WeekendView() {
         <button
           onClick={() => setFilterFavorites((v) => !v)}
           className={cn(
-            'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors',
+            'wall-filter-control flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors',
             filterFavorites
               ? 'bg-amber-50 dark:bg-amber-950 border-amber-400 text-amber-600'
               : 'border-transparent bg-muted text-muted-foreground hover:bg-accent'
@@ -168,7 +168,7 @@ export function WeekendView() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search places…"
-            className="pl-7 h-7 text-xs"
+            className="wall-filter-input pl-7 h-7 text-xs"
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -191,10 +191,11 @@ export function WeekendView() {
             tag={t.value}
             active={filterTags.includes(t.value)}
             onClick={() => toggleFilterTag(t.value)}
+            wallFilter
           />
         ))}
         {filterTags.length > 0 && (
-          <button onClick={() => setFilterTags([])} className="text-xs text-muted-foreground hover:text-foreground whitespace-nowrap ml-1">
+          <button onClick={() => setFilterTags([])} className="wall-filter-control text-xs text-muted-foreground hover:text-foreground whitespace-nowrap ml-1">
             Clear
           </button>
         )}

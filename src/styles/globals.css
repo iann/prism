@@ -1323,6 +1323,77 @@
     color: hsl(var(--wall-ink));
   }
 
+  /* Reusable wall-display control sizes for inline actions and custom filter
+     bars that do not use the shared layout primitives. Keep their compact
+     desktop geometry outside the wall shell, but make every visible action
+     comfortably tappable on the display. */
+  .wall-display .wall-calendar-date-nav {
+    min-width: var(--wall-control-md);
+    width: var(--wall-control-md);
+    min-height: var(--wall-control-md);
+    height: var(--wall-control-md);
+    border-radius: var(--wall-radius-pill);
+  }
+
+  .wall-display .wall-touch-control {
+    min-width: var(--wall-control-sm);
+    width: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    border-radius: var(--wall-radius-sm);
+  }
+
+  .wall-display .wall-touch-control-inline {
+    min-width: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    padding-inline: 0.85rem;
+    border-radius: var(--wall-radius-sm);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .wall-display .wall-filter-control {
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    border-radius: var(--wall-radius-pill);
+    padding-inline: 0.9rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .wall-display .wall-filter-input {
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    font-size: 0.875rem;
+  }
+
+  .wall-display .wall-tab-control {
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .wall-display .wall-map-control {
+    min-width: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    padding-inline: 0.85rem;
+    border-radius: var(--wall-radius-sm);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  /* FilterBar has its own 44px button baseline. Custom wall controls placed
+     inside it still need the larger touch target defined above. */
+  .wall-display .wall-filter-items .wall-touch-control,
+  .wall-display .wall-filter-items .wall-touch-control-inline,
+  .wall-display .wall-filter-items .wall-filter-control {
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+  }
+
   /* Expanded pages use the same quiet paper rhythm as the dashboard. The
      route keeps its existing structure; these hooks only give the shared
      header, filters, and calendar stage one Daybook surface treatment. */
@@ -1550,18 +1621,25 @@
   }
 
   .wall-display .wall-view-cycles {
-    width: 3rem;
+    width: calc(var(--wall-control-md) * 2 + 0.25rem);
     height: var(--wall-control-md);
     gap: 0.25rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 1fr;
   }
 
   .wall-display .wall-view-cycle {
-    min-height: 0;
-    min-width: 1.5rem;
+    min-height: var(--wall-control-md);
+    height: var(--wall-control-md);
+    min-width: 0;
     border: 0;
     border-radius: 0.7rem;
     background: hsl(var(--wall-surface-muted));
     color: hsl(var(--wall-muted));
+  }
+
+  .wall-display .wall-view-cycle > span {
+    font-size: 1rem;
   }
 
   .wall-display .wall-view-cycle:hover {
@@ -1611,6 +1689,15 @@
     border-color: hsl(var(--wall-line) / 0.42);
     background: hsl(var(--wall-surface-raised) / 0.14);
     border-radius: var(--wall-radius-md);
+  }
+
+  .wall-display .maplibregl-ctrl-zoom-in,
+  .wall-display .maplibregl-ctrl-zoom-out {
+    width: var(--wall-control-sm);
+    min-width: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    font-size: 1.25rem;
   }
 
   .weather-condition-band-sunny {

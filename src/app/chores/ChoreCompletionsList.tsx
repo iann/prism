@@ -96,8 +96,9 @@ export function ChoreCompletionsList({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                className="wall-touch-control h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={() => onUndo(c.id, c.choreId)}
+                aria-label="Undo completion"
                 title="Undo completion and reverse points"
               >
                 <Undo2 className="h-4 w-4" />
