@@ -654,6 +654,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: b079bd80
 
+79. **Balanced meal planner filters**
+
+    Aligns the Breakfast, Lunch, Dinner, and Snack filters with the
+    wall-display filter sizing used by calendar and person controls:
+    readable 14px labels inside the existing 44px touch targets.
+
+    Commit: 2343aa95
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
