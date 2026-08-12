@@ -149,13 +149,13 @@
     --weather-forecast-very-hot: 346 90% 73%;
     --weather-forecast-precipitation: 201 95% 72%;
 
-    --weather-condition-sunny: 177 55% 72%;
+    --weather-condition-sunny: 39 88% 68%;
     --weather-condition-partly-cloudy: 199 80% 72%;
     --weather-condition-cloudy: 215 28% 72%;
     --weather-condition-rainy: 207 96% 68%;
     --weather-condition-snowy: 187 82% 74%;
     --weather-condition-stormy: 266 82% 74%;
-    --weather-condition-surface-sunny: 177 28% 30%;
+    --weather-condition-surface-sunny: 39 42% 31%;
     --weather-condition-surface-partly-cloudy: 199 32% 33%;
     --weather-condition-surface-cloudy: 215 20% 38%;
     --weather-condition-surface-rainy: 207 35% 31%;
@@ -226,8 +226,8 @@
     --secondary-foreground: 210 24% 93%;
     --muted: 218 15% 24%;
     --muted-foreground: 211 18% 77%;
-    --accent: 201 34% 28%;
-    --accent-foreground: 210 24% 93%;
+    --accent: 39 56% 30%;
+    --accent-foreground: 42 86% 93%;
     --destructive: 6 76% 75%;
     --destructive-foreground: 6 40% 15%;
     --border: 215 15% 58%;
@@ -236,7 +236,7 @@
     --chart-1: 10 76% 72%;
     --chart-2: 198 75% 72%;
     --chart-3: 145 55% 67%;
-    --chart-4: 271 56% 76%;
+    --chart-4: 39 82% 72%;
     --chart-5: 279 55% 76%;
     --weather-temp-very-cold: 211 76% 71%;
     --weather-temp-freezing: 198 76% 69%;
@@ -248,7 +248,7 @@
     --weather-temp-very-hot: 350 68% 73%;
     --weather-precipitation: 202 76% 70%;
     --calendar-surface: 220 17% 22%;
-    --calendar-today: 201 38% 28%;
+    --calendar-today: 39 58% 24%;
     --widget-calendar: 220 22% 13%;
     --widget-planning: 220 22% 13%;
     --widget-family: 220 22% 13%;
@@ -1016,13 +1016,13 @@
 
   .dark .wall-display {
     --wall-shadow-soft: 0 8px 22px hsl(220 22% 6% / 0.28);
-    --weather-condition-sunny: 177 55% 72%;
+    --weather-condition-sunny: 39 88% 68%;
     --weather-condition-partly-cloudy: 199 80% 72%;
     --weather-condition-cloudy: 215 28% 72%;
     --weather-condition-rainy: 207 96% 68%;
     --weather-condition-snowy: 187 82% 74%;
     --weather-condition-stormy: 266 82% 74%;
-    --weather-condition-surface-sunny: 177 28% 30%;
+    --weather-condition-surface-sunny: 39 42% 31%;
     --weather-condition-surface-partly-cloudy: 199 32% 33%;
     --weather-condition-surface-cloudy: 215 20% 38%;
     --weather-condition-surface-rainy: 207 35% 31%;
@@ -1094,13 +1094,13 @@
     --secondary-foreground: var(--wall-ink);
     --muted: var(--wall-surface-muted);
     --muted-foreground: var(--wall-muted);
-    --accent: 201 34% 28%;
+    --accent: 39 56% 30%;
     --accent-foreground: var(--wall-ink);
     --border: var(--wall-line);
     --input: var(--wall-line);
     --ring: var(--wall-teal);
     --calendar-surface: var(--wall-calendar-surface);
-    --calendar-today: 201 38% 28%;
+    --calendar-today: 39 58% 24%;
   }
 }
 
