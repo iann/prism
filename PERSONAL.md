@@ -620,6 +620,22 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: dd20f304
 
+74. **Simplified weather UV indicator**
+
+    Removes the weather location from the widget header, keeps the UV label in
+    the shared stats color, and shows the risk-colored dot only at UV 5 or
+    higher.
+
+    Commit: e42a55df
+
+75. **Directional weather UV indicator**
+
+    Replaces the UV warning dot with a matching colored up or down chevron
+    when the near-term forecast shows UV increasing or decreasing, while
+    retaining the dot for steady or unavailable trends.
+
+    Commit: 2c0a1b35
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

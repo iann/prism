@@ -54,6 +54,7 @@ interface PirateWeatherHourly {
   summary?: string;
   temperature: number;
   apparentTemperature?: number;
+  uvIndex?: number;
   precipProbability: number;
   precipIntensity: number;
 }
@@ -247,6 +248,7 @@ export async function fetchWeatherData(
       condition: mapIcon(h.icon),
       temp: Math.round(h.temperature),
       feelsLike: Math.round(h.apparentTemperature ?? h.temperature),
+      uvIndex: h.uvIndex === undefined ? undefined : Math.round(h.uvIndex * 10) / 10,
       precipProbability: Math.round(h.precipProbability * 100),
       precipIntensity: h.precipIntensity,
     }));
@@ -260,6 +262,7 @@ export async function fetchWeatherData(
           condition: current.condition,
           temp: current.temperature,
           feelsLike: current.feelsLike,
+          uvIndex: current.uvIndex,
           precipIntensity: currently.precipIntensity,
         }
       : h

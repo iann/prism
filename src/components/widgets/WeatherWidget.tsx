@@ -41,10 +41,13 @@ import {
   Thermometer,
   Eye,
   AlertTriangle,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import { getTemperatureTrend } from '@/lib/weather/temperatureTrend';
+import { getUvIndexTrend, type UvIndexTrend } from '@/lib/weather/uvIndexTrend';
 import { WidgetContainer } from './WidgetContainer';
 import { DayHeader } from './WeatherForecastBar';
 
@@ -167,6 +170,7 @@ export interface HourlyForecast {
   condition: WeatherCondition;
   temp: number; // In WeatherUnits.temperature
   feelsLike: number; // In WeatherUnits.temperature
+  uvIndex?: number;
   precipProbability?: number; // 0–100
   precipIntensity?: number;   // in/hr or mm/hr, according to WeatherUnits
 }
@@ -278,7 +282,7 @@ export type UvIndexCategory = 'Low' | 'Moderate' | 'High' | 'Very High' | 'Extre
 export type UvIndexStatus = {
   label: UvIndexCategory;
   dotClassName: string;
-  textClassName: string;
+  chevronClassName: string;
 };
 
 /** WHO/EPA UV Index bands, kept in one place so the indicator and its label agree. */
@@ -289,34 +293,34 @@ export function getUvIndexStatus(uvIndex: number): UvIndexStatus | null {
     return {
       label: 'Low',
       dotClassName: 'bg-emerald-500 dark:bg-emerald-300',
-      textClassName: 'text-emerald-700 dark:text-emerald-300',
+      chevronClassName: 'text-emerald-500 dark:text-emerald-300',
     };
   }
   if (uvIndex <= 5) {
     return {
       label: 'Moderate',
       dotClassName: 'bg-yellow-500 dark:bg-yellow-300',
-      textClassName: 'text-yellow-700 dark:text-yellow-300',
+      chevronClassName: 'text-yellow-500 dark:text-yellow-300',
     };
   }
   if (uvIndex <= 7) {
     return {
       label: 'High',
       dotClassName: 'bg-orange-500 dark:bg-orange-300',
-      textClassName: 'text-orange-700 dark:text-orange-300',
+      chevronClassName: 'text-orange-500 dark:text-orange-300',
     };
   }
   if (uvIndex <= 10) {
     return {
       label: 'Very High',
       dotClassName: 'bg-red-500 dark:bg-red-300',
-      textClassName: 'text-red-700 dark:text-red-300',
+      chevronClassName: 'text-red-500 dark:text-red-300',
     };
   }
   return {
     label: 'Extreme',
     dotClassName: 'bg-purple-500 dark:bg-purple-300',
-    textClassName: 'text-purple-700 dark:text-purple-300',
+    chevronClassName: 'text-purple-500 dark:text-purple-300',
   };
 }
 
@@ -498,36 +502,6 @@ function toFahrenheitForColor(value: number, units: WeatherUnits): number {
   return units.temperature === 'C' ? value * 9 / 5 + 32 : value;
 }
 
-const US_STATE_ABBREVIATIONS: Record<string, string> = {
-  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
-  colorado: 'CO', connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA',
-  hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS',
-  kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD', massachusetts: 'MA',
-  michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT',
-  nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
-  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND',
-  ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI',
-  'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT',
-  vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI',
-  wyoming: 'WY',
-};
-
-/** Normalize upstream location labels to "City, ST" and omit postal codes. */
-function formatLocation(location: string): string {
-  const withoutPostalCode = location.trim().replace(/\s+\d{4,10}(?:-\d{4})?\s*$/, '');
-  const parts = withoutPostalCode.split(',').map((s) => s.trim()).filter(Boolean);
-  if (parts.length === 0) return '';
-  if (parts.length === 1) return parts[0]!;
-
-  const city = parts[0]!;
-  const region = parts[1]!;
-  const normalizedRegion = US_STATE_ABBREVIATIONS[region.toLowerCase()] ?? region;
-  const country = parts[parts.length - 1]!.toLowerCase();
-  const isCountryOnly = parts.length === 2 && (country === 'us' || country === 'usa' || country === 'united states');
-
-  return isCountryOnly ? city : `${city}, ${normalizedRegion}`;
-}
-
 function formatTempDisplay(fahrenheit: number, useCelsius: boolean): string {
   if (useCelsius) {
     return `${Math.round((fahrenheit - 32) * 5 / 9)}°C`;
@@ -645,7 +619,6 @@ export const WeatherWidget = React.memo(function WeatherWidget({
         {/* CURRENT CONDITIONS */}
         <CurrentConditions
           weather={weatherData.current}
-          location={weatherData.location}
           units={units}
           hourly={weatherData.hourly}
           currentSource={weatherData.currentSource}
@@ -813,7 +786,6 @@ function WeatherAlerts({ alerts }: { alerts: WeatherAlert[] }) {
  */
 function CurrentConditions({
   weather,
-  location,
   units,
   hourly,
   currentSource,
@@ -821,7 +793,6 @@ function CurrentConditions({
   sunset,
 }: {
   weather: CurrentWeather;
-  location: string;
   units: WeatherUnits;
   hourly?: HourlyForecast[];
   currentSource?: WeatherCurrentSource;
@@ -831,6 +802,9 @@ function CurrentConditions({
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
   const temperatureTrend = getTemperatureTrend(weather.temperature, hourly);
+  const uvIndexTrend = weather.uvIndex === undefined
+    ? null
+    : getUvIndexTrend(weather.uvIndex, hourly);
   const sunIsAboveHorizon = isSunAboveHorizon(sunrise, sunset);
   const airQualityStatus = weather.airQuality?.pm25 !== undefined
     ? getAirQualityStatus(weather.airQuality.pm25)
@@ -926,17 +900,12 @@ function CurrentConditions({
           </span>
         </div>
         {weather.uvIndex !== undefined && sunIsAboveHorizon && (
-          <UvIndexLine uvIndex={weather.uvIndex} />
+          <UvIndexLine uvIndex={weather.uvIndex} trend={uvIndexTrend} />
         )}
         {weather.visibility !== undefined && (
           <div className="flex items-center justify-end gap-1">
             <Eye className="h-3 w-3" />
             <span>Visibility {formatVisibility(weather.visibility, units)}</span>
-          </div>
-        )}
-        {location && (
-          <div className="flex max-w-[140px] items-center justify-end truncate">
-            {formatLocation(location)}
           </div>
         )}
       </div>
@@ -945,23 +914,48 @@ function CurrentConditions({
 }
 
 
-/** Keep UV as a single compact stat, with a warning dot for Moderate and above. */
-function UvIndexLine({ uvIndex }: { uvIndex: number }) {
+/** Keep UV as a single compact stat, with a warning indicator at UV 5 and above. */
+function UvIndexLine({ uvIndex, trend }: { uvIndex: number; trend: UvIndexTrend }) {
   const status = getUvIndexStatus(uvIndex);
   if (!status) return null;
 
   const displayValue = formatCompactNumber(uvIndex);
-  const showWarningDot = uvIndex > 2;
+  const showWarningIndicator = uvIndex >= 5;
   const shouldPulse = uvIndex > 5;
+  const trendDescription = trend === 'rising'
+    ? 'increasing'
+    : trend === 'falling'
+      ? 'decreasing'
+      : null;
+  const trendSuffix = trendDescription ? `, ${trendDescription}` : '';
+  const chevronClassName = cn(
+    'h-3 w-3',
+    status.chevronClassName,
+    shouldPulse && 'uv-index-dot--pulse',
+  );
 
   return (
     <div
       data-testid="uv-index-line"
-      className={cn('flex items-center justify-end gap-1', status.textClassName)}
-      title={`UV index ${displayValue}: ${status.label}`}
-      aria-label={`UV index ${displayValue}, ${status.label}`}
+      className="flex items-center justify-end gap-1"
+      title={`UV index ${displayValue}: ${status.label}${trendSuffix}`}
+      aria-label={`UV index ${displayValue}, ${status.label}${trendSuffix}`}
     >
-      {showWarningDot && (
+      {showWarningIndicator && trend === 'rising' && (
+        <ChevronUp
+          data-testid="uv-index-up-chevron"
+          className={chevronClassName}
+          aria-hidden="true"
+        />
+      )}
+      {showWarningIndicator && trend === 'falling' && (
+        <ChevronDown
+          data-testid="uv-index-down-chevron"
+          className={chevronClassName}
+          aria-hidden="true"
+        />
+      )}
+      {showWarningIndicator && !trend && (
         <span
           data-testid="uv-index-dot"
           className={cn(

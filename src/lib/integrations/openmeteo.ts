@@ -331,6 +331,9 @@ export async function fetchWeatherData(
       condition: mapWmoCode(hourly.weather_code[i] ?? 0),
       temp: Math.round(hourly.temperature_2m[i] ?? 0),
       feelsLike: Math.round(hourly.apparent_temperature?.[i] ?? hourly.temperature_2m[i] ?? 0),
+      uvIndex: hourly.uv_index?.[i] === undefined
+        ? undefined
+        : Math.round(hourly.uv_index[i]! * 10) / 10,
       precipProbability: Math.round(hourly.precipitation_probability?.[i] ?? 0),
       precipIntensity: hourly.precipitation[i] ?? 0,
     }))
@@ -348,6 +351,7 @@ export async function fetchWeatherData(
           condition: currentWeather.condition,
           temp: currentWeather.temperature,
           feelsLike: currentWeather.feelsLike,
+          uvIndex: currentWeather.uvIndex,
           precipIntensity: current.precipitation,
         }
       : h,
