@@ -1269,18 +1269,30 @@
     min-height: 5.5rem;
     height: 5.5rem;
     justify-content: flex-start;
+    min-width: 0;
     gap: 0.25rem;
     padding: 0.45rem 0.75rem;
+    overflow: hidden;
   }
 
   .wall-display .wall-portrait-nav-item {
-    min-width: 78px;
+    min-width: 0;
+    max-width: 7.5rem;
     min-height: 72px;
+    flex: 1 1 0%;
     justify-content: center;
     border-radius: var(--wall-radius-sm);
     color: hsl(var(--wall-muted));
     font-size: 0.78rem;
     font-weight: 600;
+  }
+
+  .wall-display .wall-portrait-nav-item > span {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .wall-display .wall-portrait-nav-item:hover {

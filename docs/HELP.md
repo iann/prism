@@ -141,7 +141,7 @@ A short tour of *Settings*. (Each section's deep behavior is documented in the l
 - **Bus Tracking**: Gmail connection, route configuration, route auto-discovery, Gmail label filter.
 - **Input**: on-screen keyboard and barcode-scanner toggles.
 - **Babysitter Info**: emergency contacts, house info (WiFi password stored AES-256-GCM encrypted), child info, house rules.
-- **Features**: show / hide individual nav pages.
+- **Features**: show / hide individual nav pages and choose which routes appear in the portrait bottom navigation.
 - **Security**: PINs + API tokens (with Voice / Full scope picker).
 - **Backups & Data**: create, download, restore, or delete database backups. Includes dangerous operations (Truncate, Seed demo data) gated behind explicit confirmation.
 - **Activity Log**: filterable log of every action taken in the app.
