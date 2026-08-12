@@ -451,7 +451,7 @@ export function CalendarView() {
               variant={selectedCalendarIds.has('all') ? 'default' : 'outline'}
               size="sm"
               onClick={() => toggleCalendar('all')}
-              className="h-7 text-xs"
+              className="h-7 text-sm"
             >
               All
             </Button>
@@ -463,7 +463,7 @@ export function CalendarView() {
                   variant={isSelected ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => toggleCalendar(group.id)}
-                  className={cn('h-7 text-xs gap-1.5', isSelected && 'border-transparent')}
+                  className={cn('h-7 text-sm gap-1.5', isSelected && 'border-transparent')}
                   style={isSelected ? { backgroundColor: group.color, color: contrastText(group.color) } : undefined}
                 >
                   <span
