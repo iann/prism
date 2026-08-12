@@ -821,7 +821,7 @@ function CurrentConditions({
         <div className="flex items-center gap-3">
           <WeatherIcon
             condition={weather.condition}
-            className="h-10 w-10 text-amber-500 dark:text-amber-300 flex-shrink-0"
+            className={`h-10 w-10 flex-shrink-0 ${conditionIconClass(weather.condition)}`}
           />
           <div className="min-w-0">
             <div

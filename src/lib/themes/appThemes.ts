@@ -247,7 +247,7 @@ const prismDark: ThemeTokens = {
 
 /**
  * Daybook is the compact color-system layer for the Skylight-inspired
- * surface pass: cool paper, charcoal ink, teal actions, butter emphasis, and
+ * surface pass: cool paper, charcoal ink, teal actions, sea-glass emphasis, and
  * concentrated family colors inside events and status treatments.
  */
 const daybookLight: ThemeTokens = {
@@ -289,19 +289,19 @@ const daybookDark: ThemeTokens = {
   ...prismDark,
   ...daybookWeatherDark,
   '--background': '220 22% 13%',
-  '--foreground': '38 45% 94%',
+  '--foreground': '210 24% 93%',
   '--card': '220 18% 20%',
-  '--card-foreground': '38 45% 94%',
+  '--card-foreground': '210 24% 93%',
   '--popover': '220 18% 24%',
-  '--popover-foreground': '38 45% 94%',
+  '--popover-foreground': '210 24% 93%',
   '--primary': '198 65% 68%',
   '--primary-foreground': '220 22% 13%',
   '--secondary': '215 17% 28%',
-  '--secondary-foreground': '38 45% 94%',
+  '--secondary-foreground': '210 24% 93%',
   '--muted': '218 15% 24%',
-  '--muted-foreground': '36 26% 84%',
-  '--accent': '42 65% 30%',
-  '--accent-foreground': '38 45% 94%',
+  '--muted-foreground': '211 18% 77%',
+  '--accent': '201 34% 28%',
+  '--accent-foreground': '210 24% 93%',
   '--destructive': '6 76% 75%',
   '--destructive-foreground': '6 40% 15%',
   '--border': '215 15% 58%',
@@ -310,10 +310,10 @@ const daybookDark: ThemeTokens = {
   '--chart-1': '10 76% 72%',
   '--chart-2': '198 75% 72%',
   '--chart-3': '145 55% 67%',
-  '--chart-4': '42 88% 72%',
+  '--chart-4': '271 56% 76%',
   '--chart-5': '279 55% 76%',
   '--calendar-surface': '220 17% 22%',
-  '--calendar-today': '42 62% 28%',
+  '--calendar-today': '201 38% 28%',
   '--widget-calendar': '220 22% 13%',
   '--widget-planning': '220 22% 13%',
   '--widget-family': '220 22% 13%',
