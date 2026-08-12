@@ -636,6 +636,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 2c0a1b35
 
+76. **Cooler Daybook dark palette**
+
+    Replaces warm ochre and cream dark wall-display accents with cool slate,
+    sea-glass teal, blue-white text, and a lavender secondary chart cue.
+    Weather condition bands and the current weather icon follow the calmer
+    night palette while warning and temperature colors retain their semantic
+    roles.
+
+    Commit: 9f188c95
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
