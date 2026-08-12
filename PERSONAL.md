@@ -662,6 +662,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 2343aa95
 
+80. **Consistent wall-display secondary controls**
+
+    Normalizes the remaining wall-display touch targets across calendar,
+    meals, shopping, chores, tasks, goals, messages, Weekend, and Travel,
+    including navigation arrows, inline actions, reorder controls, filters,
+    map controls, and accessible labels.
+
+    Commit: e0b89a59
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
