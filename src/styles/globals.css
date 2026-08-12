@@ -149,18 +149,18 @@
     --weather-forecast-very-hot: 346 90% 73%;
     --weather-forecast-precipitation: 201 95% 72%;
 
-    --weather-condition-sunny: 43 98% 66%;
-    --weather-condition-partly-cloudy: 201 96% 69%;
+    --weather-condition-sunny: 39 88% 68%;
+    --weather-condition-partly-cloudy: 199 80% 72%;
     --weather-condition-cloudy: 215 28% 72%;
     --weather-condition-rainy: 207 96% 68%;
     --weather-condition-snowy: 187 82% 74%;
     --weather-condition-stormy: 266 82% 74%;
-    --weather-condition-surface-sunny: 43 52% 38%;
-    --weather-condition-surface-partly-cloudy: 201 48% 39%;
-    --weather-condition-surface-cloudy: 215 20% 42%;
-    --weather-condition-surface-rainy: 207 52% 37%;
-    --weather-condition-surface-snowy: 187 44% 42%;
-    --weather-condition-surface-stormy: 266 46% 43%;
+    --weather-condition-surface-sunny: 39 42% 31%;
+    --weather-condition-surface-partly-cloudy: 199 32% 33%;
+    --weather-condition-surface-cloudy: 215 20% 38%;
+    --weather-condition-surface-rainy: 207 35% 31%;
+    --weather-condition-surface-snowy: 187 30% 35%;
+    --weather-condition-surface-stormy: 266 34% 37%;
 
     --seasonal-accent: 210 40% 98%;
     --seasonal-accent-foreground: 222 47% 11%;
@@ -215,19 +215,19 @@
 
   :root.dark:not([data-color-theme]) {
     --background: 220 22% 13%;
-    --foreground: 38 45% 94%;
+    --foreground: 210 24% 93%;
     --card: 220 18% 20%;
-    --card-foreground: 38 45% 94%;
+    --card-foreground: 210 24% 93%;
     --popover: 220 18% 24%;
-    --popover-foreground: 38 45% 94%;
+    --popover-foreground: 210 24% 93%;
     --primary: 198 65% 68%;
     --primary-foreground: 220 22% 13%;
     --secondary: 215 17% 28%;
-    --secondary-foreground: 38 45% 94%;
+    --secondary-foreground: 210 24% 93%;
     --muted: 218 15% 24%;
-    --muted-foreground: 36 26% 84%;
-    --accent: 42 65% 30%;
-    --accent-foreground: 38 45% 94%;
+    --muted-foreground: 211 18% 77%;
+    --accent: 39 56% 30%;
+    --accent-foreground: 42 86% 93%;
     --destructive: 6 76% 75%;
     --destructive-foreground: 6 40% 15%;
     --border: 215 15% 58%;
@@ -236,7 +236,7 @@
     --chart-1: 10 76% 72%;
     --chart-2: 198 75% 72%;
     --chart-3: 145 55% 67%;
-    --chart-4: 42 88% 72%;
+    --chart-4: 39 82% 72%;
     --chart-5: 279 55% 76%;
     --weather-temp-very-cold: 211 76% 71%;
     --weather-temp-freezing: 198 76% 69%;
@@ -248,7 +248,7 @@
     --weather-temp-very-hot: 350 68% 73%;
     --weather-precipitation: 202 76% 70%;
     --calendar-surface: 220 17% 22%;
-    --calendar-today: 42 62% 28%;
+    --calendar-today: 39 58% 24%;
     --widget-calendar: 220 22% 13%;
     --widget-planning: 220 22% 13%;
     --widget-family: 220 22% 13%;
@@ -1016,24 +1016,24 @@
 
   .dark .wall-display {
     --wall-shadow-soft: 0 8px 22px hsl(220 22% 6% / 0.28);
-    --weather-condition-sunny: 43 98% 66%;
-    --weather-condition-partly-cloudy: 201 96% 69%;
+    --weather-condition-sunny: 39 88% 68%;
+    --weather-condition-partly-cloudy: 199 80% 72%;
     --weather-condition-cloudy: 215 28% 72%;
     --weather-condition-rainy: 207 96% 68%;
     --weather-condition-snowy: 187 82% 74%;
     --weather-condition-stormy: 266 82% 74%;
-    --weather-condition-surface-sunny: 43 52% 38%;
-    --weather-condition-surface-partly-cloudy: 201 48% 39%;
-    --weather-condition-surface-cloudy: 215 20% 42%;
-    --weather-condition-surface-rainy: 207 52% 37%;
-    --weather-condition-surface-snowy: 187 44% 42%;
-    --weather-condition-surface-stormy: 266 46% 43%;
+    --weather-condition-surface-sunny: 39 42% 31%;
+    --weather-condition-surface-partly-cloudy: 199 32% 33%;
+    --weather-condition-surface-cloudy: 215 20% 38%;
+    --weather-condition-surface-rainy: 207 35% 31%;
+    --weather-condition-surface-snowy: 187 30% 35%;
+    --weather-condition-surface-stormy: 266 34% 37%;
   }
 
-  /* Daybook's Skylight-like wall treatment uses warm stone and ivory instead
-     of a cool blue-gray canvas. Keep the calendar close to the canvas so it
-     remains the primary wall surface, while information widgets sit one quiet
-     layer above it. */
+  /* Daybook's light wall treatment uses warm stone and ivory instead of a cool
+     blue-gray canvas. Keep the calendar close to the canvas so it remains the
+     primary wall surface, while information widgets sit one quiet layer above
+     it. */
   :root[data-color-theme='daybook'] .wall-display {
     --wall-canvas: 40 22% 94%;
     --wall-surface: 40 22% 94%;
@@ -1071,16 +1071,16 @@
   }
 
   :root.dark[data-color-theme='daybook'] .wall-display {
-    --wall-canvas: 30 10% 14%;
-    --wall-surface: 30 10% 14%;
-    --wall-surface-raised: 32 8% 22%;
-    --wall-surface-muted: 30 8% 25%;
-    --wall-info-surface: 32 10% 24%;
-    --wall-calendar-surface: 30 8% 21%;
-    --wall-ink: 36 28% 93%;
-    --wall-muted: 34 12% 76%;
-    --wall-line: 32 8% 40%;
-    --wall-teal: 169 27% 63%;
+    --wall-canvas: 220 22% 13%;
+    --wall-surface: 220 22% 13%;
+    --wall-surface-raised: 220 18% 20%;
+    --wall-surface-muted: 215 17% 28%;
+    --wall-info-surface: 220 17% 22%;
+    --wall-calendar-surface: 220 17% 22%;
+    --wall-ink: 210 24% 93%;
+    --wall-muted: 211 18% 77%;
+    --wall-line: 215 15% 58%;
+    --wall-teal: 198 65% 68%;
 
     --background: var(--wall-canvas);
     --foreground: var(--wall-ink);
@@ -1094,13 +1094,13 @@
     --secondary-foreground: var(--wall-ink);
     --muted: var(--wall-surface-muted);
     --muted-foreground: var(--wall-muted);
-    --accent: 42 48% 30%;
+    --accent: 39 56% 30%;
     --accent-foreground: var(--wall-ink);
     --border: var(--wall-line);
     --input: var(--wall-line);
     --ring: var(--wall-teal);
     --calendar-surface: var(--wall-calendar-surface);
-    --calendar-today: 42 62% 28%;
+    --calendar-today: 39 58% 24%;
   }
 }
 

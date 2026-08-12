@@ -636,6 +636,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 2c0a1b35
 
+77. **Burnished-gold Daybook dark palette**
+
+    Keeps the dark wall-display surfaces in calm slate, then restores a
+    restrained warm yellow-gold for sunny weather, selected states, and the
+    secondary chart cue. The current weather icon and condition bands share
+    the gold treatment, while warning and temperature colors retain their
+    semantic roles.
+
+    Commits: 9f188c95, f08714d6
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
@@ -652,6 +662,8 @@ current UI behavior:
   aa5491c, and e115bd0.
 - The precipitation view moved through line, SVG-area, and bar-chart forms;
   the current form is the bar chart described in item 4.
+- Item 76, the first cool sea-glass Daybook dark-palette pass (9f188c95), was
+  replaced by the burnished-gold treatment in item 77 after visual review.
 - The Podman-specific local-services notes were retired after the development
   environment moved to OrbStack.
 
