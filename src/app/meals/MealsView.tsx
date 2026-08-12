@@ -150,7 +150,7 @@ export function MealsView() {
                     return next;
                   });
                 }}
-                className="text-xs h-7 shrink-0"
+                className="text-sm h-7 shrink-0"
               >
                 <Emoji e={getMealTypeEmoji(type)} /> {type.charAt(0).toUpperCase() + type.slice(1)}
               </Button>
