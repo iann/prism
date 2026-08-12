@@ -671,6 +671,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: e0b89a59
 
+81. **Customizable portrait bottom navigation**
+
+    Added a compact default route set for portrait displays, a Features
+    setting for enabling or disabling individual bottom-bar routes, and a
+    no-scroll layout that keeps selected items within the available width.
+
+    Commit: 53b30e50
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
