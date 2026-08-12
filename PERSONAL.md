@@ -646,6 +646,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: 9f188c95, f08714d6
 
+78. **Balanced calendar name filters**
+
+    Aligns the full calendar's Family and member filter labels with the
+    dashboard chips and shared person filters, using readable 14px text
+    inside the existing wall-display touch targets.
+
+    Commit: b079bd80
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
