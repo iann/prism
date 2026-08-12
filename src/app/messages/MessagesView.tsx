@@ -428,10 +428,10 @@ function MessageCard({
                   disabled={saving}
                 />
                 <div className="flex items-center gap-1">
-                  <Button size="sm" className="h-6 text-xs px-2" onClick={saveEdit} disabled={saving || !editText.trim()}>
+                  <Button size="sm" className="wall-touch-control-inline h-6 text-xs px-2" onClick={saveEdit} disabled={saving || !editText.trim()}>
                     <Check className="h-3 w-3 mr-0.5" />{saving ? '...' : 'Save'}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={cancelEdit} disabled={saving}>
+                  <Button size="sm" variant="ghost" className="wall-touch-control-inline h-6 text-xs px-2" onClick={cancelEdit} disabled={saving}>
                     Cancel
                   </Button>
                   <span className="text-[12px] text-muted-foreground ml-auto">Ctrl+Enter</span>
@@ -462,7 +462,7 @@ function MessageCard({
                 variant="ghost"
                 size="icon"
                 onClick={startEdit}
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                className="wall-touch-control opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
                 title="Edit message"
               >
                 <Pencil className="h-3 w-3" />
@@ -471,7 +471,7 @@ function MessageCard({
                 variant="ghost"
                 size="icon"
                 onClick={onDelete}
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 text-destructive"
+                className="wall-touch-control opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 text-destructive"
                 title="Delete message"
               >
                 <Trash2 className="h-3 w-3" />
@@ -546,7 +546,7 @@ function MessageCard({
               variant="ghost"
               size="icon"
               onClick={startEdit}
-              className="opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8"
+              className="wall-touch-control opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8"
               title="Edit message"
             >
               <Pencil className="h-4 w-4" />
@@ -555,7 +555,7 @@ function MessageCard({
               variant="ghost"
               size="icon"
               onClick={onDelete}
-              className="opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8 text-destructive"
+              className="wall-touch-control opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8 text-destructive"
               title="Delete message"
             >
               <Trash2 className="h-4 w-4" />

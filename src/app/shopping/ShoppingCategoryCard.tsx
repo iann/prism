@@ -101,7 +101,7 @@ export function ShoppingCategoryCard({
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 px-1"
+          className="wall-touch-control h-6 px-1"
           onClick={() => onAddItem(category)}
           style={{ color: categoryColor }}
         >
@@ -152,7 +152,7 @@ export function ShoppingCategoryCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground"
+            className="wall-touch-control-inline h-6 px-2 text-xs text-muted-foreground"
             onClick={() => onAddExtraRows(category, -1)}
             disabled={extraRowCount <= 0 && items.length >= baseEmptyLines}
           >
@@ -161,7 +161,7 @@ export function ShoppingCategoryCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground"
+            className="wall-touch-control-inline h-6 px-2 text-xs text-muted-foreground"
             onClick={() => onAddExtraRows(category, 1)}
           >
             +1
@@ -169,7 +169,7 @@ export function ShoppingCategoryCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground"
+            className="wall-touch-control-inline h-6 px-2 text-xs text-muted-foreground"
             onClick={() => onAddExtraRows(category, 5)}
           >
             +5

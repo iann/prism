@@ -120,7 +120,7 @@ export function MealsView() {
         />
 
         <FilterBar>
-          <Button variant="ghost" size="icon" onClick={goToPreviousWeek} aria-label="Previous week" className="shrink-0 h-8 w-8">
+          <Button variant="ghost" size="icon" onClick={goToPreviousWeek} aria-label="Previous week" className="wall-touch-control shrink-0 h-8 w-8">
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="text-center shrink-0">
@@ -128,10 +128,10 @@ export function MealsView() {
               {format(currentWeek, 'MMM d')} - {format(addDays(currentWeek, 6), 'MMM d, yyyy')}
             </span>
             {!isCurrentWeek && (
-              <Button variant="link" size="sm" onClick={goToThisWeek} className="h-auto p-0 text-xs ml-2">This week</Button>
+              <Button variant="link" size="sm" onClick={goToThisWeek} className="wall-touch-control-inline h-auto p-0 text-xs ml-2">This week</Button>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={goToNextWeek} aria-label="Next week" className="shrink-0 h-8 w-8">
+          <Button variant="ghost" size="icon" onClick={goToNextWeek} aria-label="Next week" className="wall-touch-control shrink-0 h-8 w-8">
             <ChevronRight className="h-5 w-5" />
           </Button>
           <div className="w-px h-5 bg-border shrink-0" />
@@ -235,7 +235,7 @@ function DayRow({ day, date, meals, isToday, isPast, onAddMeal, onMarkCooked, on
           <span className="text-xs text-muted-foreground">{format(date, 'MMM d')}</span>
           {isToday && <Badge variant="default" className="text-xs px-2 py-0">Today</Badge>}
         </div>
-        <Button variant="ghost" size="sm" onClick={onAddMeal} className="h-7 text-xs"><Plus className="h-3 w-3 mr-1" /> Add</Button>
+        <Button variant="ghost" size="sm" onClick={onAddMeal} className="wall-touch-control-inline h-7 text-xs"><Plus className="h-3 w-3 mr-1" /> Add</Button>
       </div>
       {meals.length === 0 ? (
         <p className="text-sm text-muted-foreground italic">No meals planned</p>
@@ -338,12 +338,12 @@ function MealCard({ meal, onMarkCooked, onUnmarkCooked, onEdit, onDelete, onDrop
       </div>
       <div className="flex items-center gap-1">
         {isCooked ? (
-          <Button variant="ghost" size="icon" onClick={onUnmarkCooked} className="h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" title="Undo cooked"><Undo2 className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onUnmarkCooked} className="wall-touch-control h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" title="Undo cooked"><Undo2 className="h-4 w-4" /></Button>
         ) : (
-          <Button variant="ghost" size="icon" onClick={onMarkCooked} className="h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" title="Mark as cooked"><CheckCircle2 className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onMarkCooked} className="wall-touch-control h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" title="Mark as cooked"><CheckCircle2 className="h-4 w-4" /></Button>
         )}
-        <Button variant="ghost" size="icon" onClick={onEdit} className="h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" aria-label="Edit meal"><Edit2 className="h-3 w-3" /></Button>
-        <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" aria-label="Delete meal"><Trash2 className="h-3 w-3" /></Button>
+        <Button variant="ghost" size="icon" onClick={onEdit} className="wall-touch-control h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" aria-label="Edit meal"><Edit2 className="h-3 w-3" /></Button>
+        <Button variant="ghost" size="icon" onClick={onDelete} className="wall-touch-control h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" aria-label="Delete meal"><Trash2 className="h-3 w-3" /></Button>
       </div>
     </div>
   );

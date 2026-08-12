@@ -65,7 +65,7 @@ export function ShoppingItemRow({
           size="icon"
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
           onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onEdit(); }}
-          className="h-8 w-8"
+          className="wall-touch-control h-8 w-8"
           aria-label="Edit item"
         >
           <Edit2 className="h-4 w-4" />
@@ -75,7 +75,7 @@ export function ShoppingItemRow({
           size="icon"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(); }}
-          className="h-8 w-8 text-destructive"
+          className="wall-touch-control h-8 w-8 text-destructive"
           aria-label="Delete item"
         >
           <Trash2 className="h-4 w-4" />

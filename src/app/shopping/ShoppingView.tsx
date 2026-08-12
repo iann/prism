@@ -225,7 +225,7 @@ export function ShoppingView() {
               <div className="flex-shrink-0 border-b border-border bg-card dark:bg-card/85 dark:backdrop-blur-sm px-2 py-1">
                 <div className="flex items-center justify-between gap-2">
                   <Button size="icon" variant="ghost" onClick={goPrevList}
-                    disabled={currentListIdx <= 0} aria-label="Previous list" className="h-8 w-8 shrink-0">
+                    disabled={currentListIdx <= 0} aria-label="Previous list" className="wall-touch-control h-8 w-8 shrink-0">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <div className="flex flex-col items-center min-w-0 flex-1">
@@ -240,7 +240,7 @@ export function ShoppingView() {
                     </div>
                   </div>
                   <Button size="icon" variant="ghost" onClick={goNextList}
-                    disabled={currentListIdx >= lists.length - 1} aria-label="Next list" className="h-8 w-8 shrink-0">
+                    disabled={currentListIdx >= lists.length - 1} aria-label="Next list" className="wall-touch-control h-8 w-8 shrink-0">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>

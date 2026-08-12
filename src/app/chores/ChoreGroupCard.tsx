@@ -141,7 +141,8 @@ export function ChoreGroupCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+            className="wall-touch-control h-6 w-6 p-0 opacity-50 hover:opacity-100"
+            aria-label="Edit chore"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
@@ -152,7 +153,8 @@ export function ChoreGroupCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+            className="wall-touch-control h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+            aria-label="Delete chore"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();

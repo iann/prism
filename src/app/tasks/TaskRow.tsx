@@ -85,7 +85,8 @@ export function TaskRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+            className="wall-touch-control h-6 w-6 p-0 opacity-50 hover:opacity-100"
+            aria-label="Edit task"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
