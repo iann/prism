@@ -1272,14 +1272,15 @@
     min-width: 0;
     gap: 0.25rem;
     padding: 0.45rem 0.75rem;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
   .wall-display .wall-portrait-nav-item {
-    min-width: 0;
+    min-width: 78px;
     max-width: 7.5rem;
     min-height: 72px;
-    flex: 1 1 0%;
+    flex: 1 0 78px;
     justify-content: center;
     border-radius: var(--wall-radius-sm);
     color: hsl(var(--wall-muted));

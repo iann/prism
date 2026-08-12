@@ -2,7 +2,8 @@
  * Portrait Bottom Navigation
  *
  * A bottom navigation bar for portrait mode on web (tablets/desktop).
- * Shows all navigation items in a horizontally scrollable row, centered.
+ * Shows selected routes in a compact row, with horizontal scrolling when
+ * the chosen set is wider than the available display.
  */
 
 'use client';
@@ -47,7 +48,7 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
       'transition-[transform,opacity] duration-300 ease-in-out',
       uiHidden ? 'translate-y-full opacity-0 delay-100' : 'translate-y-0 opacity-100 delay-0'
     )} aria-label="Portrait navigation">
-      <div className="wall-portrait-nav-items flex items-center justify-center h-20 min-w-0 max-w-full gap-1 overflow-hidden px-2">
+      <div className="wall-portrait-nav-items flex items-center justify-start h-20 min-w-0 max-w-full gap-1 overflow-x-auto overflow-y-hidden px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -59,7 +60,7 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
               className={cn(
                 'wall-portrait-nav-item',
                 active && 'wall-portrait-nav-item-active',
-                'flex min-w-0 max-w-[7.5rem] flex-1 flex-col items-center gap-1 py-2 px-2 transition-colors',
+                'flex min-w-[78px] max-w-[7.5rem] flex-1 flex-col items-center gap-1 py-2 px-2 transition-colors',
                 active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -74,7 +75,7 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
           onClick={user ? onLogout : onLogin}
           className={cn(
             'wall-portrait-nav-item wall-portrait-nav-item-user',
-            'flex min-w-0 max-w-[7.5rem] flex-1 flex-col items-center gap-1 py-2 px-2 transition-colors',
+            'flex min-w-[78px] max-w-[7.5rem] flex-1 flex-col items-center gap-1 py-2 px-2 transition-colors',
             'text-muted-foreground hover:text-foreground'
           )}
           aria-label={user ? 'Log out' : 'Log in'}
