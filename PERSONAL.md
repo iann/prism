@@ -680,6 +680,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: 53b30e50, daec6705
 
+82. **Forecast-based temperature trend direction**
+
+    Bases “& rising” or “& falling” on the direction between the next two
+    future weather-provider samples instead of comparing a sensor-backed
+    current reading with one forecast point. The timeline’s “Now” tile still
+    uses the local reading when available, and the lookahead includes
+    three-hour provider intervals.
+
+    Commit: 0d5ff4e1
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

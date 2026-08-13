@@ -1,11 +1,12 @@
 /**
- * Estimate the short-term direction of the displayed temperature.
+ * Estimate the short-term direction of the provider's temperature forecast.
  *
  * Weather providers already return a smoothed forecast time series, so a
- * simple first difference is more appropriate here than trying to predict
- * from the current sensor reading. We deliberately compare rounded values:
- * the trend label should only appear when the temperature would visibly
- * change in the widget.
+ * simple first difference is more appropriate here than comparing the next
+ * forecast value with the current sensor reading. The active timeline point
+ * may be replaced by an AirGradient observation, so only future provider
+ * points are used. We deliberately compare rounded values: the trend label
+ * should only appear when the temperature would visibly change in the widget.
  */
 
 export type TemperatureTrend = 'rising' | 'falling' | null;
@@ -15,8 +16,11 @@ export interface TemperatureTrendPoint {
   temp: number;
 }
 
-/** A little longer than one hour to cover hourly samples around the boundary. */
-export const TEMPERATURE_TREND_WINDOW_MS = 90 * 60 * 1000;
+/**
+ * Look far enough ahead to include two samples from three-hour providers
+ * while keeping the label about the near-term forecast.
+ */
+export const TEMPERATURE_TREND_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 function toTimeMs(value: Date | string | number): number {
   if (value instanceof Date) return value.getTime();
@@ -25,18 +29,17 @@ function toTimeMs(value: Date | string | number): number {
 }
 
 /**
- * Return the direction of the nearest usable forecast point in the next hour
- * or so. A null result means the displayed temperature is steady at its
- * precision, or that there is no sufficiently near forecast point.
+ * Return the direction between the next two usable forecast points. A null
+ * result means the forecast is steady at its display precision, or that there
+ * are not two sufficiently near forecast points.
  */
 export function getTemperatureTrend(
-  currentTemperature: number,
   forecast: readonly TemperatureTrendPoint[] | undefined,
   nowMs = Date.now()
 ): TemperatureTrend {
-  if (!Number.isFinite(currentTemperature) || !Number.isFinite(nowMs)) return null;
+  if (!Number.isFinite(nowMs)) return null;
 
-  const nextPoint = (forecast ?? [])
+  const nextPoints = (forecast ?? [])
     .map((point) => ({
       timeMs: toTimeMs(point.time),
       temp: point.temp,
@@ -48,13 +51,15 @@ export function getTemperatureTrend(
         timeMs > nowMs &&
         timeMs <= nowMs + TEMPERATURE_TREND_WINDOW_MS
     )
-    .sort((a, b) => a.timeMs - b.timeMs)[0];
+    .sort((a, b) => a.timeMs - b.timeMs)
+    .slice(0, 2);
 
-  if (!nextPoint) return null;
+  const [firstPoint, secondPoint] = nextPoints;
+  if (!firstPoint || !secondPoint) return null;
 
-  const currentDisplayTemperature = Math.round(currentTemperature);
-  const forecastDisplayTemperature = Math.round(nextPoint.temp);
+  const firstDisplayTemperature = Math.round(firstPoint.temp);
+  const secondDisplayTemperature = Math.round(secondPoint.temp);
 
-  if (forecastDisplayTemperature === currentDisplayTemperature) return null;
-  return forecastDisplayTemperature > currentDisplayTemperature ? 'rising' : 'falling';
+  if (secondDisplayTemperature === firstDisplayTemperature) return null;
+  return secondDisplayTemperature > firstDisplayTemperature ? 'rising' : 'falling';
 }
