@@ -74,11 +74,14 @@ function makeForecastDay(overrides: Partial<ForecastDay> = {}): ForecastDay {
  */
 function makeHourlyForecast(
   conditionOrList: WeatherCondition | WeatherCondition[] = 'sunny',
-  temp = 70
+  tempOrTemps: number | number[] = 70
 ): HourlyForecast[] {
   const conditions: WeatherCondition[] = Array.isArray(conditionOrList)
     ? conditionOrList
     : Array(24).fill(conditionOrList);
+  const temperatures = Array.isArray(tempOrTemps)
+    ? tempOrTemps
+    : Array(24).fill(tempOrTemps);
 
   // Anchor to the top of the current hour
   const base = new Date();
@@ -87,8 +90,8 @@ function makeHourlyForecast(
   return Array.from({ length: 24 }, (_, i) => ({
     time: new Date(base.getTime() + i * 60 * 60_000),
     condition: conditions[i] ?? 'sunny',
-    temp,
-    feelsLike: temp - 2,
+    temp: temperatures[i] ?? temperatures[temperatures.length - 1] ?? 70,
+    feelsLike: (temperatures[i] ?? temperatures[temperatures.length - 1] ?? 70) - 2,
     precipProbability: 20,
   }));
 }
@@ -557,7 +560,10 @@ describe('current conditions', () => {
   });
 
   it('keeps the fallback indicator centered with the numeric temperature', () => {
-    render(<WeatherWidget data={makeWeatherData({ currentSource: 'pirate' })} />);
+    render(<WeatherWidget data={makeWeatherData({
+      currentSource: 'pirate',
+      hourly: makeHourlyForecast('sunny', [70, 72, 74]),
+    })} />);
 
     const temperature = screen.getByTestId('weather-current-temperature');
     const fallbackIndicator = screen.getByTestId('weather-fallback-indicator');
@@ -584,20 +590,20 @@ describe('current conditions', () => {
     expect(screen.queryByText('0°C')).not.toBeNull();
   });
 
-  it('adds a rising suffix when the next hour is warmer', () => {
+  it('adds a rising suffix when future forecast points get warmer', () => {
     const data = makeWeatherData({
-      current: { ...makeWeatherData().current, temperature: 68 },
-      hourly: makeHourlyForecast('sunny', 70),
+      current: { ...makeWeatherData().current, temperature: 80 },
+      hourly: makeHourlyForecast('sunny', [70, 72, 74]),
     });
     render(<WeatherWidget data={data} />);
 
     expect(screen.getByTestId('weather-temperature-trend').textContent).toBe('& rising');
   });
 
-  it('adds a falling suffix when the next hour is cooler', () => {
+  it('adds a falling suffix when future forecast points get cooler', () => {
     const data = makeWeatherData({
       current: { ...makeWeatherData().current, temperature: 72 },
-      hourly: makeHourlyForecast('sunny', 70),
+      hourly: makeHourlyForecast('sunny', [70, 68, 66]),
     });
     render(<WeatherWidget data={data} />);
 

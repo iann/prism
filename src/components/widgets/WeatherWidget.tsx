@@ -801,7 +801,7 @@ function CurrentConditions({
 }) {
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
-  const temperatureTrend = getTemperatureTrend(weather.temperature, hourly);
+  const temperatureTrend = getTemperatureTrend(hourly);
   const uvIndexTrend = weather.uvIndex === undefined
     ? null
     : getUvIndexTrend(weather.uvIndex, hourly);

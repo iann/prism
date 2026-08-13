@@ -10,30 +10,34 @@ function point(minutesFromNow: number, temp: number) {
 }
 
 describe('getTemperatureTrend', () => {
-  it('reports rising when the next forecast point is warmer', () => {
-    expect(getTemperatureTrend(72, [point(60, 74)], NOW)).toBe('rising');
+  it('reports rising when consecutive future forecast points get warmer', () => {
+    expect(getTemperatureTrend([point(60, 72), point(120, 74)], NOW)).toBe('rising');
   });
 
-  it('reports falling when the next forecast point is cooler', () => {
-    expect(getTemperatureTrend(72, [point(60, 70)], NOW)).toBe('falling');
+  it('reports falling when consecutive future forecast points get cooler', () => {
+    expect(getTemperatureTrend([point(60, 72), point(120, 70)], NOW)).toBe('falling');
+  });
+
+  it('uses only future forecast samples, not the active timeline reading', () => {
+    expect(getTemperatureTrend([point(-30, 90), point(60, 70), point(120, 72)], NOW)).toBe('rising');
   });
 
   it('suppresses a change that would not change the displayed temperature', () => {
-    expect(getTemperatureTrend(72.4, [point(60, 72.49)], NOW)).toBeNull();
+    expect(getTemperatureTrend([point(60, 72.4), point(120, 72.49)], NOW)).toBeNull();
   });
 
-  it('uses the nearest future point in an unsorted forecast', () => {
-    expect(getTemperatureTrend(72, [point(80, 71), point(30, 73)], NOW)).toBe('rising');
+  it('uses the nearest two future points in an unsorted forecast', () => {
+    expect(getTemperatureTrend([point(240, 71), point(120, 73), point(30, 72)], NOW)).toBe('rising');
   });
 
   it('ignores past points and points beyond the near-term window', () => {
-    expect(getTemperatureTrend(72, [point(-30, 70)], NOW)).toBeNull();
-    expect(getTemperatureTrend(72, [point(91, 70)], NOW)).toBeNull();
-    expect(getTemperatureTrend(72, [point(90, 70)], NOW)).toBe('falling');
-    expect(TEMPERATURE_TREND_WINDOW_MS).toBe(90 * 60 * 1000);
+    expect(getTemperatureTrend([point(-30, 70), point(60, 72)], NOW)).toBeNull();
+    expect(getTemperatureTrend([point(60, 70), point(361, 72)], NOW)).toBeNull();
+    expect(getTemperatureTrend([point(60, 70), point(360, 72)], NOW)).toBe('rising');
+    expect(TEMPERATURE_TREND_WINDOW_MS).toBe(6 * 60 * 60 * 1000);
   });
 
   it('returns no trend when there is no forecast', () => {
-    expect(getTemperatureTrend(72, undefined, NOW)).toBeNull();
+    expect(getTemperatureTrend(undefined, NOW)).toBeNull();
   });
 });

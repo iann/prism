@@ -7,7 +7,7 @@ export interface UvIndexTrendPoint {
   uvIndex?: number;
 }
 
-/** Match the near-term window used by the weather widget's temperature trend. */
+/** A little longer than one hour to cover hourly samples around the boundary. */
 export const UV_INDEX_TREND_WINDOW_MS = 90 * 60 * 1000;
 
 function toTimeMs(value: Date | string | number): number {
