@@ -5,8 +5,10 @@
  * simple first difference is more appropriate here than comparing the next
  * forecast value with the current sensor reading. The active timeline point
  * may be replaced by an AirGradient observation, so only future provider
- * points are used. We deliberately compare rounded values: the trend label
- * should only appear when the temperature would visibly change in the widget.
+ * points are used. The label is shown only when both actual and feels-like
+ * temperatures move in the same direction. We deliberately compare rounded
+ * values: the trend label should only appear when the temperature would
+ * visibly change in the widget.
  */
 
 export type TemperatureTrend = 'rising' | 'falling' | null;
@@ -14,6 +16,7 @@ export type TemperatureTrend = 'rising' | 'falling' | null;
 export interface TemperatureTrendPoint {
   time: Date | string | number;
   temp: number;
+  feelsLike: number;
 }
 
 /**
@@ -28,10 +31,18 @@ function toTimeMs(value: Date | string | number): number {
   return new Date(value).getTime();
 }
 
+function getDirection(first: number, second: number): TemperatureTrend {
+  const firstDisplayTemperature = Math.round(first);
+  const secondDisplayTemperature = Math.round(second);
+
+  if (secondDisplayTemperature === firstDisplayTemperature) return null;
+  return secondDisplayTemperature > firstDisplayTemperature ? 'rising' : 'falling';
+}
+
 /**
- * Return the direction between the next two usable forecast points. A null
- * result means the forecast is steady at its display precision, or that there
- * are not two sufficiently near forecast points.
+ * Return the direction shared by actual and feels-like temperatures between
+ * the next two usable forecast points. A null result means either series is
+ * steady, the series disagree, or there are not two sufficiently near points.
  */
 export function getTemperatureTrend(
   forecast: readonly TemperatureTrendPoint[] | undefined,
@@ -43,11 +54,13 @@ export function getTemperatureTrend(
     .map((point) => ({
       timeMs: toTimeMs(point.time),
       temp: point.temp,
+      feelsLike: point.feelsLike,
     }))
     .filter(
-      ({ timeMs, temp }) =>
+      ({ timeMs, temp, feelsLike }) =>
         Number.isFinite(timeMs) &&
         Number.isFinite(temp) &&
+        Number.isFinite(feelsLike) &&
         timeMs > nowMs &&
         timeMs <= nowMs + TEMPERATURE_TREND_WINDOW_MS
     )
@@ -57,9 +70,9 @@ export function getTemperatureTrend(
   const [firstPoint, secondPoint] = nextPoints;
   if (!firstPoint || !secondPoint) return null;
 
-  const firstDisplayTemperature = Math.round(firstPoint.temp);
-  const secondDisplayTemperature = Math.round(secondPoint.temp);
+  const temperatureDirection = getDirection(firstPoint.temp, secondPoint.temp);
+  const feelsLikeDirection = getDirection(firstPoint.feelsLike, secondPoint.feelsLike);
 
-  if (secondDisplayTemperature === firstDisplayTemperature) return null;
-  return secondDisplayTemperature > firstDisplayTemperature ? 'rising' : 'falling';
+  if (!temperatureDirection || temperatureDirection !== feelsLikeDirection) return null;
+  return temperatureDirection;
 }

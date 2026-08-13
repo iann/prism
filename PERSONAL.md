@@ -684,11 +684,12 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Bases “& rising” or “& falling” on the direction between the next two
     future weather-provider samples instead of comparing a sensor-backed
-    current reading with one forecast point. The timeline’s “Now” tile still
-    uses the local reading when available, and the lookahead includes
-    three-hour provider intervals.
+    current reading with one forecast point. The label now requires the
+    actual and feels-like forecasts to agree; otherwise it is omitted. The
+    timeline’s “Now” tile still uses the local reading when available, and
+    the lookahead includes three-hour provider intervals.
 
-    Commit: 0d5ff4e1
+    Commits: 0d5ff4e1, 9595dee6
 
 ## Superseded personal iterations
 
