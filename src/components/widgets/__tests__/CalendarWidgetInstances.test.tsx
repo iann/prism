@@ -15,10 +15,14 @@ jest.mock('@/lib/hooks', () => ({
   useCalendarNotes: jest.fn(),
 }));
 
-jest.mock('@/lib/hooks/useCalendarWidgetPrefs', () => ({
-  useCalendarWidgetPrefs: jest.fn(),
-  VIEW_OPTIONS: [],
-}));
+jest.mock('@/lib/hooks/useCalendarWidgetPrefs', () => {
+  const actual = jest.requireActual('@/lib/hooks/useCalendarWidgetPrefs');
+  return {
+    ...actual,
+    useCalendarWidgetPrefs: jest.fn(),
+    VIEW_OPTIONS: [],
+  };
+});
 
 jest.mock('@/lib/hooks/useDayBucketsForRange', () => ({
   useDayBucketsForRange: jest.fn(),
@@ -125,7 +129,7 @@ describe('CalendarWidget instance integration', () => {
       await Promise.resolve();
     });
 
-    expect(useCalendarWidgetPrefs).toHaveBeenCalledWith(24, 24, 'calendar-2');
+    expect(useCalendarWidgetPrefs).toHaveBeenCalledWith(24, 24, 'calendar-2', '');
     expect(useCalendarEvents).toHaveBeenCalledWith({ daysToShow: 60, enabled: false });
   });
 
