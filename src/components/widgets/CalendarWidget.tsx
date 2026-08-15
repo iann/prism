@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useMemo, useCallback, useState, lazy, Suspense } from 'react';
+import { useMemo, useCallback, useState, useContext, lazy, Suspense } from 'react';
 import {
   format,
   isToday,
@@ -32,7 +32,11 @@ import { useDayBucketsForRange } from '@/lib/hooks/useDayBucketsForRange';
 import { useWeekMutations } from '@/lib/hooks/useWeekMutations';
 import { useAuth } from '@/components/providers';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
-import { useCalendarWidgetPrefs, VIEW_OPTIONS } from '@/lib/hooks/useCalendarWidgetPrefs';
+import {
+  useCalendarWidgetPrefs,
+  VIEW_OPTIONS,
+  CalendarPrefsScopeContext,
+} from '@/lib/hooks/useCalendarWidgetPrefs';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { CalendarWidgetControls } from './CalendarWidgetControls';
 import type { CalendarEvent } from '@/types/calendar';
@@ -131,7 +135,12 @@ export const CalendarWidget = React.memo(function CalendarWidget({
     goToToday,
     goToPrevious,
     goToNext,
-  } = useCalendarWidgetPrefs(gridW, gridH, instanceId);
+  } = useCalendarWidgetPrefs(
+    gridW,
+    gridH,
+    instanceId,
+    useContext(CalendarPrefsScopeContext)
+  );
 
   const hasExternalEvents = externalEvents !== undefined;
   const {
