@@ -140,6 +140,7 @@ export function DayViewSideBySide({
             <div className="w-16 flex-shrink-0 flex items-center justify-center">
               <button
                 onClick={toggleHidden}
+                data-screensaver-keep
                 className={cn(
                   'p-1.5 rounded-full transition-colors',
                   hiddenSettings.enabled
