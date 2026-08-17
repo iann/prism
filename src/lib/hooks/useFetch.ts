@@ -73,10 +73,13 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
     errorRef.current = next;
     setErrorState(next);
   }, []);
-  const hasDataRef = useRef(cached !== undefined);
+  // Track the URL that has successfully loaded data so background polls stay
+  // stale-while-revalidate even after the short-lived navigation cache expires.
+  // A URL change is treated as a cold load and shows the spinner when needed.
+  const loadedUrlRef = useRef<string | null>(cached ? url : null);
 
   const fetchData = useCallback(async () => {
-    if (!hasDataRef.current) setLoading(true);
+    if (loadedUrlRef.current !== url && !navCacheGet(url)) setLoading(true);
     try {
       setError(null);
       const response = await fetch(url);
@@ -84,7 +87,7 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
       const json = await response.json();
       const result = transformRef.current ? transformRef.current(json) : (json as T);
       navCacheSet(url, result);
-      hasDataRef.current = true;
+      loadedUrlRef.current = url;
       const next = preserveEqual(dataRef.current, result);
       if (next !== dataRef.current) {
         dataRef.current = next;

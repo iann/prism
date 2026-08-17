@@ -3,6 +3,7 @@
 import * as React from 'react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { cn } from '@/lib/utils';
+import { isVirtualKeyboardTarget } from '@/lib/input/keyboardTarget';
 
 const Popover = PopoverPrimitive.Root;
 const PopoverTrigger = PopoverPrimitive.Trigger;
@@ -11,12 +12,20 @@ const PopoverAnchor = PopoverPrimitive.Anchor;
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = 'center', sideOffset = 4, ...props }, ref) => (
+>(({ className, align = 'center', sideOffset = 4, onInteractOutside, ...props }, ref) => (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}
       sideOffset={sideOffset}
+      // The virtual keyboard portals to <body>, outside this popover; without
+      // this guard, tapping a key counts as an outside interaction and Radix
+      // closes the popover. Ignore interactions originating in the keyboard.
+      onInteractOutside={(e) => {
+        const t = (e.detail?.originalEvent?.target ?? null) as Element | null;
+        if (isVirtualKeyboardTarget(t)) e.preventDefault();
+        onInteractOutside?.(e);
+      }}
       className={cn(
         'z-50 w-72 rounded-md border bg-popover p-3 text-popover-foreground shadow-md outline-none',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
