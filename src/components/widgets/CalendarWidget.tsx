@@ -190,8 +190,9 @@ export const CalendarWidget = React.memo(function CalendarWidget({
         to: endOfWeek(monthEnd, { weekStartsOn }),
       };
     }
-    // agenda — 14 day window
-    return { from: currentDate, to: addDays(currentDate, 13) };
+    // agenda — 30 day window (matches AgendaView days below, so cards-mode
+    // meal/chore/task overlays are loaded for every day the agenda shows)
+    return { from: currentDate, to: addDays(currentDate, 29) };
   }, [resolvedView, resolvedWeekCount, currentDate, weekStartsOn]);
 
   const overlaysActive = cardsMode;
@@ -438,8 +439,12 @@ export const CalendarWidget = React.memo(function CalendarWidget({
             {resolvedView === 'agenda' && (
               <AgendaView
                 events={visibleEvents}
-                days={14}
-                maxEventsPerDay={5}
+                days={30}
+                // Agenda is a scrollable list — show every event for each day
+                // rather than truncating to a "+N more" summary (0 = no cap).
+                // 30-day window matches the calendar subpage; empty days are
+                // skipped, so a longer horizon just shows more of your events.
+                maxEventsPerDay={0}
                 onEventClick={handleEventClick}
                 displayMode={displayMode}
                 bucketsByDate={overlaysActive ? bucketsByDate : undefined}
