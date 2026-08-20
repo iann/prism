@@ -91,7 +91,7 @@ export function CompleteStep() {
         </div>
 
         {/* First-run disclosure for the opt-out anonymous update check. */}
-        <div className="rounded-lg border border-border/60 bg-muted/30 p-4 text-left">
+        <div className="rounded-lg border border-border bg-muted/30 p-4 text-left">
           <div className="flex items-start gap-3">
             <ShieldCheck className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
             <div className="flex-1 space-y-1">

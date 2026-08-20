@@ -146,7 +146,7 @@ export function TelemetryCard() {
         </div>
 
         {showPayload && (
-          <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-x-auto border border-border/50">
+          <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-x-auto border border-border">
             {JSON.stringify(status.payload, null, 2)}
           </pre>
         )}

@@ -42,7 +42,7 @@ export function RemovedItemsManager({
           {items.map((item) => (
             <li
               key={item.id}
-              className="flex items-center justify-between gap-3 rounded-md border border-border/50 px-3 py-2"
+              className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
             >
               <span className="text-sm truncate">{item.name}</span>
               <Button
