@@ -4,6 +4,43 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+## [1.15.5] – 2026-08-20
+
+### Integrations
+- **Set up Google Calendar entirely in the app — no `.env` file needed.** You can now enter your Google OAuth credentials (Client ID, Secret, Redirect URI) directly in Settings → Integrations → Google, stored encrypted in Prism's database. This unblocks Home Assistant addon and other installs where you can't edit `.env` — previously the Google card only pointed you at `.env`, so there was no way to configure it. (Microsoft already worked this way; Google now matches.)
+
+### Security
+- **The OAuth credential-save endpoints now require an admin.** `/api/setup/credentials/google` and `/api/setup/credentials/microsoft` were unauthenticated; they now require a signed-in user with settings-management permission before storing app credentials.
+
+## [1.15.4] – 2026-08-20
+
+### Calendar
+- **The "Review removals" window now scrolls to show every item.** When the sync holds a lot of removed events for review (Delete vs. Keep in your local calendar), the list is now natively scrollable — including drag-to-scroll on touch wall displays — and the Delete/Keep buttons stay pinned at the bottom, so a long list is fully reachable instead of clipped.
+
+## [1.15.3] – 2026-08-20
+
+### Calendar
+- **Deleting a calendar in Google no longer flashes a "Sync failed" error in Prism.** When you remove a calendar from Google, Prism used to surface the resulting "not found" error as an alarming sync failure for a few cycles before auto-disabling the calendar. It now handles that quietly and, once confirmed, labels the calendar **"Removed in Google — auto-disabled"** in Manage calendars so you can see why it went inactive.
+- **Restore a Google calendar you removed by mistake.** Deleting a Google calendar from Prism tombstones it so it won't reappear on your next sign-in — but until now there was no way to undo that. Manage calendars now has a **Removed calendars** section listing anything you've deleted, each with a **Restore** button that brings it back. (The tombstone now remembers the calendar's name, so the list is readable rather than a cryptic id.)
+
+## [1.15.2] – 2026-08-20
+
+### Calendar
+- **Google calendars you've hidden in your list are now discoverable, and hiding one in Google no longer removes it from Prism.** Prism now sees all your Google calendars regardless of their visibility in your Google sidebar. Newly-discovered hidden calendars are added switched **off**, so they're available in Manage Calendars without cluttering your dashboard — and your on/off choices in Prism are now independent of Google's list, so tidying up your Google sidebar won't make calendars vanish from your board.
+
+## [1.15.1] – 2026-08-20
+
+### Calendar
+- **Re-authenticating Google now picks up newly-subscribed calendars.** Once Google was connected, re-authenticating only refreshed the calendars Prism already knew about — so a calendar you subscribed to *afterward* never appeared, and the only workaround was to fully disconnect and reconnect. Re-auth now also discovers and adds any new calendars (skipping ones you've deleted from Prism before), so subscribing to a calendar and re-authenticating brings it in.
+
+## [1.15.0] – 2026-08-20
+
+### Privacy
+- **Anonymous update check (on by default, one switch to turn off).** Once a week Prism now checks whether a newer version is available and, in the same request, adds one anonymous install to a count the maintainer uses to gauge real usage. Exactly four fields are sent — a random per-install id, the version, docker-vs-Home-Assistant, and CPU architecture — with **no IP address, no personal data, and no usage tracking**. See the exact payload any time under Settings → About, disable it there with one switch, or hard-disable it for the whole install with `PRISM_DISABLE_TELEMETRY=true`. Update notices are quiet: they appear only in Settings (never on the dashboard) and only for minor/major releases, never patches. Full details in the [Anonymous update check](features/TELEMETRY.md) guide.
+
+### Calendar
+- **Fixed calendar sync failing for events with long locations.** Events whose location lists several venues (e.g. a CalDAV event with three rooms joined by `;`, ~300+ characters) exceeded the location field's 255-character limit, so every occurrence of that recurring series failed to sync and flooded the logs with errors. The location field is now unbounded (stored as `text`), matching the description field — nothing is truncated, and existing data is preserved.
+
 ## [1.14.4] – 2026-08-19
 
 ### Calendar
