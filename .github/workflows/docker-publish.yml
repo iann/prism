@@ -62,3 +62,4 @@ jobs:
           build-args: |
             NEXT_TELEMETRY_DISABLED=1
             PRISM_BUILD_ID=${{ github.sha }}
+            PRISM_TELEMETRY_URL=https://prism-telemetry.sandydargoport.workers.dev

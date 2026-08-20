@@ -7,7 +7,9 @@ import { logError } from '@/lib/utils/logError';
 import {
   exchangeCodeForTokens,
   fetchCalendarList,
+  DISMISSED_GOOGLE_CALENDARS_KEY,
 } from '@/lib/integrations/google-calendar';
+import { tombstoneIdSet } from '@/lib/services/settingsTombstone';
 import { encrypt } from '@/lib/utils/crypto';
 import { logActivity } from '@/lib/services/auditLog';
 import { resolveRedirectUri } from '@/lib/integrations/resolveRedirectUri';
@@ -108,7 +110,13 @@ export async function GET(request: Request) {
         }).where(eq(calendarSources.id, source.id));
       }
 
-      // Update showInEventModal based on current accessRole
+      // Discover calendars added since the initial connect (e.g. one you
+      // subscribed to later). Re-auth previously only refreshed tokens for
+      // known calendars and never picked up new ones, so a newly-subscribed
+      // calendar would never appear. Mirror the fresh-connect path here:
+      // update showInEventModal for existing, and insert genuinely new ones.
+      const reauthDismissedSet = await tombstoneIdSet(DISMISSED_GOOGLE_CALENDARS_KEY);
+
       for (const calendar of reAuthCalendars) {
         const isWritable = calendar.accessRole === 'writer' || calendar.accessRole === 'owner';
         const existing = await db.query.calendarSources.findFirst({
@@ -123,7 +131,27 @@ export async function GET(request: Request) {
             .update(calendarSources)
             .set({ showInEventModal: isWritable, updatedAt: new Date() })
             .where(eq(calendarSources.id, existing.id));
+          continue;
         }
+        // New calendar — skip if the user previously deleted it from Prism.
+        if (reauthDismissedSet.has(calendar.id)) continue;
+        const calendarName = (calendar.summary || 'Untitled Calendar').slice(0, 255);
+        await db.insert(calendarSources).values({
+          userId: auth.userId,
+          provider: 'google',
+          sourceCalendarId: calendar.id,
+          dashboardCalendarName: calendarName,
+          displayName: calendarName,
+          color: calendar.backgroundColor || undefined,
+          // Calendars hidden in the user's Google list come in disabled, so
+          // they're available in Manage Calendars without cluttering the board.
+          enabled: !calendar.hidden,
+          showInEventModal: isWritable,
+          accessToken: encryptedAccessToken,
+          refreshToken: encryptedRefreshToken,
+          tokenExpiresAt,
+          accountEmail,
+        });
       }
 
       logActivity({
@@ -140,13 +168,11 @@ export async function GET(request: Request) {
     const calendars = await fetchCalendarList(tokens.access_token);
 
     // Fetch dismissed Google calendar IDs so we don't recreate user-deleted calendars
-    const [dismissedSetting] = await db.select().from(settings)
-      .where(eq(settings.key, 'dismissedGoogleCalendarIds'));
-    const dismissedIds: string[] = (dismissedSetting?.value as string[]) || [];
+    const dismissedSet = await tombstoneIdSet(DISMISSED_GOOGLE_CALENDARS_KEY);
 
     for (const calendar of calendars) {
       // Skip calendars the user has previously deleted from Prism
-      if (dismissedIds.includes(calendar.id)) continue;
+      if (dismissedSet.has(calendar.id)) continue;
       const existing = await db.query.calendarSources.findFirst({
         where: (cs, { and, eq }) =>
           and(
@@ -181,7 +207,9 @@ export async function GET(request: Request) {
           dashboardCalendarName: calendarName,
           displayName: calendarName,
           color: calendar.backgroundColor || undefined,
-          enabled: true,
+          // Calendars hidden in the user's Google list come in disabled, so
+          // they're available in Manage Calendars without cluttering the board.
+          enabled: !calendar.hidden,
           showInEventModal: isWritable,
           accessToken: encryptedAccessToken,
           refreshToken: encryptedRefreshToken,
