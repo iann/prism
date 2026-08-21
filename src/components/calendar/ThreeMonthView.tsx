@@ -11,7 +11,6 @@ import {
   subMonths,
   isSameMonth,
   isSameDay,
-  isToday,
   isBefore,
   startOfDay,
 } from 'date-fns';
@@ -21,7 +20,9 @@ import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
 import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import type { CalendarEvent } from '@/types/calendar';
-import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
+import { useTimeFormat } from '@/components/providers';
+import { InlineCalendarEvent, SpanningEventRows } from './cells';
+import { eventOccursOnDisplayDay, eventSpansMultipleDisplayDays, toDisplayDate } from '@/lib/utils/timeFormat';
 
 export interface ThreeMonthViewProps {
   currentDate: Date;
@@ -48,6 +49,8 @@ function MiniMonth({
   isCenter: boolean;
   bordered?: boolean;
 }) {
+  const { displayTimezone } = useTimeFormat();
+  const displayNow = toDisplayDate(new Date(), displayTimezone);
   const { weekStartsOn } = useWeekStartsOn();
   const dayNames = [...ALL_DAY_NAMES.slice(weekStartsOn), ...ALL_DAY_NAMES.slice(0, weekStartsOn)];
   const bgOverride = useWidgetBgOverride();
@@ -68,6 +71,15 @@ function MiniMonth({
   for (let i = 0; i < days.length; i += 7) {
     weeks.push(days.slice(i, i + 7));
   }
+  const spanningEvents = events
+    .filter((event) => eventSpansMultipleDisplayDays(
+      event.startTime,
+      event.endTime,
+      event.allDay,
+      displayTimezone,
+    ))
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime() || a.title.localeCompare(b.title));
+  const spanningEventSet = new Set(spanningEvents);
 
   return (
     <div className={cn(
@@ -92,19 +104,32 @@ function MiniMonth({
 
       {/* Day grid — fills remaining space */}
       <div className="flex-1 flex flex-col gap-px px-1 pb-1">
-        {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="flex-1 grid grid-cols-7 gap-px min-h-0">
-            {week.map((date, dayIndex) => {
+        {weeks.map((week, weekIndex) => {
+          const visibleRowDates = week.filter((date) => isSameMonth(date, month));
+          const rowSpanningEvents = spanningEvents.filter((event) => visibleRowDates.some((rowDate) =>
+            eventOccursOnDisplayDay(
+              event.startTime,
+              event.endTime,
+              event.allDay,
+              rowDate,
+              displayTimezone,
+            )));
+
+          return (
+            <div key={weekIndex} className="flex-1 grid grid-cols-7 gap-px min-h-0">
+              {week.map((date, dayIndex) => {
               const inMonth = isSameMonth(date, month);
-              const today = isToday(date);
-              const isPast = isBefore(date, startOfDay(new Date())) && !today;
-              const dayStart = startOfDay(date);
+              const today = isSameDay(date, displayNow);
+              const isPast = isBefore(date, startOfDay(displayNow)) && !today;
               const dayEvents = events
-                .filter((e) =>
-                  e.allDay
-                    ? e.startTime <= dayStart && e.endTime > dayStart
-                    : isSameDay(e.startTime, date)
-                )
+                .filter((event) => !spanningEventSet.has(event))
+                .filter((event) => eventOccursOnDisplayDay(
+                  event.startTime,
+                  event.endTime,
+                  event.allDay,
+                  date,
+                  displayTimezone,
+                ))
                 .sort((a, b) => {
                   if (a.allDay && !b.allDay) return -1;
                   if (!a.allDay && b.allDay) return 1;
@@ -116,7 +141,7 @@ function MiniMonth({
                   key={dayIndex}
                   onClick={() => onDateClick(date)}
                   className={cn(
-                    'flex flex-col rounded text-xs cursor-pointer overflow-hidden p-0.5',
+                    'relative flex flex-col rounded text-xs cursor-pointer overflow-visible p-0.5',
                     bordered && 'border border-border',
                     !transparentMode && 'bg-calendar-surface',
                     !inMonth && 'text-muted-foreground',
@@ -125,38 +150,46 @@ function MiniMonth({
                     today && 'ring-1 ring-inset ring-ring',
                   )}
                 >
-                  <span className={cn(
-                    'text-center text-[12px] leading-tight flex-shrink-0',
-                    today && 'font-bold text-foreground',
-                  )}>
-                    {format(date, 'd')}
-                  </span>
+                  <div className="flex h-4 flex-shrink-0 items-center justify-center">
+                    <span className={cn(
+                      'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[12px] leading-tight',
+                      today && 'font-bold text-foreground',
+                    )}>
+                      {format(date, 'd')}
+                    </span>
+                  </div>
+                  {inMonth && (
+                    <SpanningEventRows
+                      date={date}
+                      rowDates={visibleRowDates}
+                      events={rowSpanningEvents}
+                      onEventClick={onEventClick}
+                      compact
+                      gap="1px"
+                    />
+                  )}
                   {/* Event list — scrollable within day cell */}
                   {inMonth && dayEvents.length > 0 && (
                     <ul className="flex-1 overflow-y-auto space-y-px mt-0.5 scrollbar-thin list-none m-0 p-0">
                       {dayEvents.map((event) => (
-                        <li
-                          key={event.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEventClick(event);
-                          }}
-                          className="text-[12px] leading-tight px-0.5 rounded truncate cursor-pointer hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all"
-                          style={event.allDay
-                            ? inlineAllDayEventStyle(event.color)
-                            : inlineTimedEventStyle(event.color)
-                          }
-                        >
-                          {event.allDay ? event.title : `• ${event.title}`}
+                        <li key={event.id}>
+                          <InlineCalendarEvent
+                            event={event}
+                            onClick={onEventClick}
+                            compact
+                            showTime={false}
+                            className="text-[12px] hover:ring-1 hover:ring-seasonal-accent/50"
+                          />
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
               );
-            })}
-          </div>
-        ))}
+              })}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

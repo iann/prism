@@ -7,8 +7,26 @@
  */
 
 import React from 'react';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render as rtlRender, screen, within, type RenderOptions } from '@testing-library/react';
 import SunCalc from 'suncalc';
+import { TimeFormatProvider } from '@/components/providers';
+
+// WeatherWidget consumes useTimeFormat(), which requires a TimeFormatProvider
+// ancestor. Wrap every render so the widget mounts the way it does in the app.
+const render = (ui: React.ReactElement, options?: RenderOptions) =>
+  rtlRender(ui, { wrapper: TimeFormatProvider, ...options });
+
+// TimeFormatProvider fetches /api/settings on mount; jsdom has no global fetch,
+// so stub it to a benign empty-settings response (the widget falls back to
+// DEFAULT_TIME_FORMAT / UTC, which is what these assertions expect).
+beforeAll(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ settings: {} }) }),
+  ) as unknown as typeof fetch;
+});
+afterAll(() => {
+  delete (global as { fetch?: unknown }).fetch;
+});
 
 // --- mocks (must precede component import) ---------------------------------
 

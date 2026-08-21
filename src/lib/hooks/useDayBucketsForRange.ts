@@ -12,6 +12,8 @@ import type { CalendarEvent } from '@/types/calendar';
 import type { Chore, Meal, Task } from '@/types';
 import type { WeatherData } from '@/components/widgets/WeatherWidget';
 import type { DayBucket } from './useWeekViewData';
+import { useTimeFormat } from '@/components/providers';
+import { eventOccursOnDisplayDay, toDisplayDate } from '@/lib/utils/timeFormat';
 
 export interface OverlayFlags {
   events: boolean;
@@ -79,6 +81,45 @@ function choreDateKey(chore: Chore): string | null {
   return dateKey(due);
 }
 
+function eventDisplaySpan(
+  event: CalendarEvent,
+  displayTimezone: string,
+): { firstDay: Date; lastDay: Date } | null {
+  if (
+    Number.isNaN(event.startTime.getTime())
+    || Number.isNaN(event.endTime.getTime())
+    || event.endTime <= event.startTime
+  ) return null;
+
+  if (event.allDay) {
+    // All-day event dates are floating UTC date fields. Convert their calendar
+    // fields into local presentation dates without applying the device offset.
+    const firstDay = new Date(
+      event.startTime.getUTCFullYear(),
+      event.startTime.getUTCMonth(),
+      event.startTime.getUTCDate(),
+    );
+    const endDate = new Date(
+      event.endTime.getUTCFullYear(),
+      event.endTime.getUTCMonth(),
+      event.endTime.getUTCDate(),
+    );
+    const endIsExclusiveMidnight =
+      event.endTime.getUTCHours() === 0
+      && event.endTime.getUTCMinutes() === 0
+      && event.endTime.getUTCSeconds() === 0
+      && event.endTime.getUTCMilliseconds() === 0;
+    const lastDay = endIsExclusiveMidnight ? addDays(endDate, -1) : endDate;
+    return lastDay >= firstDay ? { firstDay, lastDay } : null;
+  }
+
+  const firstDay = startOfDay(toDisplayDate(event.startTime, displayTimezone));
+  const lastDay = startOfDay(
+    toDisplayDate(new Date(event.endTime.getTime() - 1), displayTimezone),
+  );
+  return lastDay >= firstDay ? { firstDay, lastDay } : null;
+}
+
 /**
  * Returns a Map keyed by `yyyy-MM-dd` of DayBucket objects covering the range
  * [from, to] inclusive. Streams disabled in `overlays` are not fetched.
@@ -99,6 +140,7 @@ export function useDayBucketsForRange({
   refreshChores: refreshExternalChores,
   refreshTasks: refreshExternalTasks,
 }: UseDayBucketsForRangeOptions): UseDayBucketsForRangeResult {
+  const { displayTimezone } = useTimeFormat();
   const fromKey = useMemo(() => dateKey(from), [from]);
   const toKey = useMemo(() => dateKey(to), [to]);
   const hasExternalMeals = externalMeals !== undefined;
@@ -167,16 +209,23 @@ export function useDayBucketsForRange({
     const eventsByDate = new Map<string, CalendarEvent[]>();
     if (overlays.events) {
       for (const event of events) {
-        if (event.endTime <= event.startTime) continue;
-        const firstDay = startOfDay(event.startTime);
-        const lastDay = startOfDay(new Date(event.endTime.getTime() - 1));
-        let cursor = firstDay < start ? start : firstDay;
-        const finalDay = lastDay > end ? end : lastDay;
+        const span = eventDisplaySpan(event, displayTimezone);
+        if (!span) continue;
+        let cursor = span.firstDay < start ? start : span.firstDay;
+        const finalDay = span.lastDay > end ? end : span.lastDay;
         while (cursor <= finalDay) {
-          const key = dateKey(cursor);
-          const bucket = eventsByDate.get(key);
-          if (bucket) bucket.push(event);
-          else eventsByDate.set(key, [event]);
+          if (eventOccursOnDisplayDay(
+            event.startTime,
+            event.endTime,
+            event.allDay,
+            cursor,
+            displayTimezone,
+          )) {
+            const key = dateKey(cursor);
+            const bucket = eventsByDate.get(key);
+            if (bucket) bucket.push(event);
+            else eventsByDate.set(key, [event]);
+          }
           cursor = addDays(cursor, 1);
         }
       }
@@ -277,6 +326,7 @@ export function useDayBucketsForRange({
     overlays.meals,
     overlays.chores,
     overlays.tasks,
+    displayTimezone,
   ]);
 
   const loading =

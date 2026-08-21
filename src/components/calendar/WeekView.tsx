@@ -5,7 +5,6 @@ import {
   startOfWeek,
   addDays,
   isSameDay,
-  isToday,
   isBefore,
   startOfDay,
 } from 'date-fns';
@@ -24,6 +23,16 @@ import { WeekItemCard } from './cells/WeekItemCard';
 import { getTimedEventContentVisibility } from './timedEventDensity';
 import { useMeasuredHourRowHeight } from './useMeasuredHourRowHeight';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
+import { useTimeFormat } from '@/components/providers';
+import {
+  eventOccursOnDisplayDay,
+  eventSpansMultipleDisplayDays,
+  eventStartsOnDisplayDay,
+  formatDisplayHour,
+  formatDisplayTime,
+  formatDisplayTimeRange,
+  toDisplayDate,
+} from '@/lib/utils/timeFormat';
 
 export type CalendarDisplayMode = 'inline' | 'cards';
 
@@ -53,6 +62,8 @@ export function WeekView({
   mealColor,
   onItemClick,
 }: WeekViewProps) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
+  const displayNow = toDisplayDate(new Date(), displayTimezone);
   const cards = displayMode === 'cards';
   const { weekStartsOn } = useWeekStartsOn();
   const bgOverride = useWidgetBgOverride();
@@ -69,36 +80,68 @@ export function WeekView({
   const { settings: hiddenSettings, toggleHidden, getVisibleHours } = useHiddenHours();
 
   const weekEnd = addDays(weekStart, 7);
-  const timedWeekEvents = events.filter(
-    (event) => !event.allDay && event.startTime >= weekStart && event.startTime < weekEnd
-  );
+  const timedWeekEvents = events
+    .filter((event) => {
+      const displayStart = toDisplayDate(event.startTime, displayTimezone);
+      return !event.allDay
+        && !eventSpansMultipleDisplayDays(event.startTime, event.endTime, false, displayTimezone)
+        && displayStart >= weekStart
+        && displayStart < weekEnd;
+    })
+    .map((event) => ({
+      ...event,
+      startTime: toDisplayDate(event.startTime, displayTimezone),
+      endTime: toDisplayDate(event.endTime, displayTimezone),
+    }));
 
   // Get visible hours (filtered if hidden mode is enabled)
   const hours = getVisibleHours(timedWeekEvents, { from: weekStart, to: weekEnd });
   const { gridRef: landscapeHourGridRef, rowHeightPx: landscapeHourRowHeightPx } =
     useMeasuredHourRowHeight(hours.length);
 
-  // Get all-day events for a day (multi-day events span across days)
-  const getAllDayEvents = (date: Date) => {
-    const dayStart = startOfDay(date);
-    return events.filter((e) =>
-      e.allDay && e.startTime <= dayStart && e.endTime > dayStart
-    );
-  };
+  // Multi-day timed events share the persistent header with all-day events so
+  // they do not become oversized blocks in the hourly grid.
+  const getAllDayEvents = (date: Date) => events.filter((event) =>
+    (event.allDay || eventSpansMultipleDisplayDays(
+      event.startTime,
+      event.endTime,
+      false,
+      displayTimezone,
+    )) && eventOccursOnDisplayDay(
+      event.startTime,
+      event.endTime,
+      event.allDay,
+      date,
+      displayTimezone,
+    ));
+
+  const getHeaderEventLabel = (event: CalendarEvent, date: Date) =>
+    !event.allDay && eventStartsOnDisplayDay(
+      event.startTime,
+      false,
+      date,
+      displayTimezone,
+    )
+      ? `${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`
+      : event.title;
 
   // Get all timed events for a day (used to compute side-by-side positions
   // across the entire day, so events that overlap but start in different
   // hours still split the column horizontally).
   const getDayTimedEvents = (date: Date) =>
-    events.filter((e) => isSameDay(e.startTime, date) && !e.allDay);
+    events.filter((event) =>
+      !event.allDay
+      && !eventSpansMultipleDisplayDays(event.startTime, event.endTime, false, displayTimezone)
+      && isSameDay(toDisplayDate(event.startTime, displayTimezone), date));
 
   // Get timed events for a specific day and hour
   const getHourEvents = (date: Date, hour: number) =>
     events.filter(
       (e) =>
-        isSameDay(e.startTime, date) &&
+        isSameDay(toDisplayDate(e.startTime, displayTimezone), date) &&
         !e.allDay &&
-        e.startTime.getHours() === hour
+        !eventSpansMultipleDisplayDays(e.startTime, e.endTime, false, displayTimezone) &&
+        toDisplayDate(e.startTime, displayTimezone).getHours() === hour
     );
 
   // For portrait, split into two rows
@@ -107,7 +150,7 @@ export function WeekView({
   const row2Days = [...days.slice(4, 7), nextSunday]; // Thu-Sat + next Sun
 
   const renderDayColumn = (date: Date, compact: boolean = false) => {
-    const isPast = isBefore(date, startOfDay(new Date())) && !isToday(date);
+    const isPast = isBefore(date, startOfDay(displayNow)) && !isSameDay(date, displayNow);
     const allDayEvents = getAllDayEvents(date);
     const dayPositions = calculateEventPositions(getDayTimedEvents(date));
 
@@ -123,7 +166,7 @@ export function WeekView({
           className={cn(
             'text-center py-1 shrink-0 rounded-t-md',
             !transparentMode && isPast && 'bg-muted/50 text-muted-foreground',
-            isToday(date) && 'bg-calendar-today text-foreground ring-1 ring-inset ring-ring'
+            isSameDay(date, displayNow) && 'bg-calendar-today text-foreground ring-1 ring-inset ring-ring'
           )}
         >
           <div className={cn('font-bold uppercase tracking-wide', compact ? 'text-xs' : 'text-sm')}>
@@ -137,7 +180,7 @@ export function WeekView({
         {/* All-day events */}
         {allDayEvents.length > 0 && (
           <div className={cn('shrink-0 p-0.5 flex flex-col gap-px', !transparentMode && 'bg-calendar-surface')}>
-            {allDayEvents.map((event, idx) => (
+            {allDayEvents.map((event) => (
               <button
                 key={event.id}
                 onClick={() => onEventClick(event)}
@@ -151,7 +194,7 @@ export function WeekView({
                     : inlineAllDayEventStyle(event.color)
                 }
               >
-                {event.title}
+                {getHeaderEventLabel(event, date)}
               </button>
             ))}
           </div>
@@ -185,14 +228,14 @@ export function WeekView({
                         cards
                           ? {
                               borderLeft: `3px solid ${event.color}`,
-                              top: `calc(${(event.startTime.getMinutes() / 60) * 100}% + 2px)`,
+                              top: `calc(${(toDisplayDate(event.startTime, displayTimezone).getMinutes() / 60) * 100}% + 2px)`,
                               height: `calc(${heightPct}% - 4px)`,
                               left: css.left,
                               width: css.width,
                             }
                           : {
                               ...inlineTimedEventStyle(event.color),
-                              top: `${(event.startTime.getMinutes() / 60) * 100}%`,
+                              top: `${(toDisplayDate(event.startTime, displayTimezone).getMinutes() / 60) * 100}%`,
                               height: `${heightPct}%`,
                               left: css.left,
                               width: css.width,
@@ -202,7 +245,7 @@ export function WeekView({
                       <span className={cn('truncate w-full text-[12px] font-medium leading-tight', cards && 'text-foreground')}>{event.title}</span>
                       {contentVisibility.showTime && (
                         <span className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
-                          {format(event.startTime, 'h:mm')}&ndash;{format(event.endTime ?? new Date(event.startTime.getTime() + 3600000), 'h:mm a')}
+                          {formatDisplayTimeRange(event.startTime, event.endTime ?? new Date(event.startTime.getTime() + 3600000), timeFormat, displayTimezone)}
                         </span>
                       )}
                       {contentVisibility.showDetails && (event.location || event.calendarName) && (
@@ -250,7 +293,7 @@ export function WeekView({
                   key={hour}
                   className="text-[12px] text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
                 >
-                  {format(new Date().setHours(hour, 0), 'ha')}
+                  {formatDisplayHour(new Date().setHours(hour, 0), timeFormat, { compact: true })}
                 </div>
               ))}
             </div>
@@ -267,7 +310,7 @@ export function WeekView({
                   key={hour}
                   className="text-[12px] text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
                 >
-                  {format(new Date().setHours(hour, 0), 'ha')}
+                  {formatDisplayHour(new Date().setHours(hour, 0), timeFormat, { compact: true })}
                 </div>
               ))}
             </div>
@@ -305,7 +348,7 @@ export function WeekView({
               </button>
             </div>
             {days.map((date) => {
-              const isPast = isBefore(date, startOfDay(new Date())) && !isToday(date);
+              const isPast = isBefore(date, startOfDay(displayNow)) && !isSameDay(date, displayNow);
               const allDayEvents = getAllDayEvents(date);
               const dayBucket = bucketsByDate?.get(format(date, 'yyyy-MM-dd'));
               const dayWeather = dayBucket?.weather;
@@ -331,6 +374,7 @@ export function WeekView({
                 <LandscapeDayHeader
                   key={date.toISOString()}
                   date={date}
+                  today={isSameDay(date, displayNow)}
                   isPast={isPast}
                   cards={cards}
                   enableDnd={enableDnd}
@@ -340,16 +384,16 @@ export function WeekView({
                     className={cn(
                       'flex items-baseline justify-between gap-1 px-2 py-1.5',
                       !transparentMode && isPast && 'bg-muted/50 text-muted-foreground',
-                      isToday(date) && 'bg-calendar-today text-foreground ring-1 ring-inset ring-ring',
+                      isSameDay(date, displayNow) && 'bg-calendar-today text-foreground ring-1 ring-inset ring-ring',
                     )}
                   >
                     <div className="flex items-baseline gap-1.5 min-w-0">
                       <span className="text-2xl font-bold leading-none">{format(date, 'd')}</span>
                       <span className={cn(
                         'text-xs font-medium uppercase tracking-wide truncate leading-none',
-                        isToday(date) && cards ? 'text-foreground font-semibold' : undefined,
+                        isSameDay(date, displayNow) && cards ? 'text-foreground font-semibold' : undefined,
                       )}>
-                        {isToday(date) ? 'Today' : format(date, 'EEE')}
+                        {isSameDay(date, displayNow) ? 'Today' : format(date, 'EEE')}
                       </span>
                     </div>
                     {dayWeather && (
@@ -377,7 +421,7 @@ export function WeekView({
                               : inlineAllDayEventStyle(event.color)
                           }
                         >
-                          {event.title}
+                          {getHeaderEventLabel(event, date)}
                         </button>
                       ))}
                     </div>
@@ -406,19 +450,20 @@ export function WeekView({
             <div className="w-16 shrink-0 h-full grid" style={{ gridTemplateRows: `repeat(${hours.length}, 1fr)` }}>
               {hours.map((hour) => (
                 <div key={hour} className={cn('pl-1 pr-1 text-right text-xs text-muted-foreground flex items-start pt-0.5 min-h-0', bordered && 'border-t border-border')}>
-                  {format(new Date().setHours(hour, 0), 'h a')}
+                  {formatDisplayHour(new Date().setHours(hour, 0), timeFormat)}
                 </div>
               ))}
             </div>
             {/* Day columns */}
             {days.map((date) => {
-              const isPast = isBefore(date, startOfDay(new Date())) && !isToday(date);
+              const isPast = isBefore(date, startOfDay(displayNow)) && !isSameDay(date, displayNow);
               const dayPositions = calculateEventPositions(getDayTimedEvents(date));
               const dayBucket = bucketsByDate?.get(format(date, 'yyyy-MM-dd'));
               return (
                 <LandscapeDayBody
                   key={date.toISOString()}
                   date={date}
+                  today={isSameDay(date, displayNow)}
                   isPast={isPast}
                   cards={cards}
                   enableDnd={enableDnd}
@@ -454,14 +499,14 @@ export function WeekView({
                                 cards
                                   ? {
                                       borderLeft: `3px solid ${event.color}`,
-                                      top: `calc(${(event.startTime.getMinutes() / 60) * 100}% + 2px)`,
+                                      top: `calc(${(toDisplayDate(event.startTime, displayTimezone).getMinutes() / 60) * 100}% + 2px)`,
                                       height: `calc(${heightPct}% - 4px)`,
                                       left: css.left,
                                       width: css.width,
                                     }
                                   : {
                                       ...inlineTimedEventStyle(event.color),
-                                      top: `${(event.startTime.getMinutes() / 60) * 100}%`,
+                                      top: `${(toDisplayDate(event.startTime, displayTimezone).getMinutes() / 60) * 100}%`,
                                       height: `${heightPct}%`,
                                       left: css.left,
                                       width: css.width,
@@ -471,7 +516,7 @@ export function WeekView({
                               <div className={cn('font-medium truncate w-full text-[12px] leading-tight', cards && 'text-foreground')}>{event.title}</div>
                               {contentVisibility.showTime && (
                                 <div className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
-                                  {format(event.startTime, 'h:mm')}&ndash;{format(event.endTime ?? new Date(event.startTime.getTime() + 3600000), 'h:mm a')}
+                                  {formatDisplayTimeRange(event.startTime, event.endTime ?? new Date(event.startTime.getTime() + 3600000), timeFormat, displayTimezone)}
                                 </div>
                               )}
                               {contentVisibility.showDetails && (event.location || event.calendarName) && (
@@ -536,6 +581,7 @@ function TimedBucketLayer({
   enableDnd: boolean;
   onItemClick?: (ref: OverlayItemRef) => void;
 }) {
+  const { timeFormat } = useTimeFormat();
   const slotPct = 100 / hours.length;
   const visibleSet = new Set(hours);
 
@@ -567,7 +613,7 @@ function TimedBucketLayer({
       dragId: `meal:${meal.id}`,
       variant: 'meal',
       title: meal.name,
-      timeLabel: formatTimeOfDay(t),
+      timeLabel: formatTimeOfDay(t, timeFormat),
       subtitle: meal.cookedBy?.name ? `Cooked by ${meal.cookedBy.name}` : undefined,
       stripeColor: mealColor ?? '#10b981',
       muted: Boolean(meal.cookedAt),
@@ -587,7 +633,7 @@ function TimedBucketLayer({
       dragId: `chore:${chore.id}`,
       variant: 'chore',
       title: chore.title,
-      timeLabel: formatTimeOfDay(t),
+      timeLabel: formatTimeOfDay(t, timeFormat),
       subtitle: chore.assignedTo?.name,
       stripeColor: chore.assignedTo?.color || '#f59e0b',
       pendingApproval: Boolean(chore.pendingApproval),
@@ -607,7 +653,7 @@ function TimedBucketLayer({
       dragId: `task:${task.id}`,
       variant: 'task',
       title: task.title,
-      timeLabel: formatTimeOfDay(t),
+      timeLabel: formatTimeOfDay(t, timeFormat),
       subtitle: task.assignedTo?.name,
       stripeColor: task.assignedTo?.color || '#3b82f6',
       muted: task.completed,
@@ -688,6 +734,7 @@ function PortraitDayColumn({
  */
 function LandscapeDayBody({
   date,
+  today,
   isPast,
   cards,
   enableDnd,
@@ -695,6 +742,7 @@ function LandscapeDayBody({
   children,
 }: {
   date: Date;
+  today: boolean;
   isPast: boolean;
   cards: boolean;
   enableDnd: boolean;
@@ -712,7 +760,7 @@ function LandscapeDayBody({
         // For today: 3-sided border (left + right + bottom, no top) so it joins
         // seamlessly with LandscapeDayHeader's 3-sided border to form a single
         // continuous perimeter spanning header + time grid.
-        isToday(date) && cards && 'border border-t-0 border-seasonal-accent/80',
+        today && cards && 'border border-t-0 border-seasonal-accent/80',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-inset ring-seasonal-accent shadow-lg',
       )}
     >
@@ -728,6 +776,7 @@ function LandscapeDayBody({
  */
 function LandscapeDayHeader({
   date,
+  today,
   isPast,
   cards,
   enableDnd,
@@ -735,6 +784,7 @@ function LandscapeDayHeader({
   children,
 }: {
   date: Date;
+  today: boolean;
   isPast: boolean;
   cards: boolean;
   enableDnd: boolean;
@@ -753,7 +803,7 @@ function LandscapeDayHeader({
         // the shared one-pixel border so it joins seamlessly with LandscapeDayBody's
         // matching 3-sided border (left + right + bottom). Together the two
         // form a single continuous 4-sided perimeter spanning the full column.
-        isToday(date) && cards && 'border border-b-0 border-seasonal-accent/80',
+        today && cards && 'border border-b-0 border-seasonal-accent/80',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-inset ring-seasonal-accent shadow-lg',
       )}
     >
