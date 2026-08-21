@@ -22,6 +22,16 @@ import { WeekItemCard } from './cells/WeekItemCard';
 import { getTimedEventContentVisibility } from './timedEventDensity';
 import { useMeasuredHourRowHeight } from './useMeasuredHourRowHeight';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
+import { useTimeFormat } from '@/components/providers';
+import {
+  eventOccursOnDisplayDay,
+  eventSpansMultipleDisplayDays,
+  eventStartsOnDisplayDay,
+  formatDisplayHour,
+  formatDisplayTime,
+  formatDisplayTimeRange,
+  toDisplayDate,
+} from '@/lib/utils/timeFormat';
 
 export interface DayViewSideBySideProps {
   currentDate: Date;
@@ -60,6 +70,7 @@ export function DayViewSideBySide({
   mealColor,
   onItemClick,
 }: DayViewSideBySideProps) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const cards = displayMode === 'cards';
   const droppable = useDayDroppable({ date: currentDate, enabled: cards && enableDnd });
   const bgOverride = useWidgetBgOverride();
@@ -72,7 +83,7 @@ export function DayViewSideBySide({
   const { settings: hiddenSettings, toggleHidden, getVisibleHours } = useHiddenHours();
 
   // Time tracking
-  const now = new Date();
+  const now = toDisplayDate(new Date(), displayTimezone);
   const isCurrentDay = isSameDay(currentDate, now);
   const isPastDay = isBefore(startOfDay(currentDate), startOfDay(now)) && !isCurrentDay;
   const currentHour = now.getHours();
@@ -81,16 +92,45 @@ export function DayViewSideBySide({
 
   // Get visible hours (filtered if hidden mode is enabled)
   const dayStart = startOfDay(currentDate);
-  const dayEvents = events.filter((event) =>
-    event.allDay
-      ? event.startTime <= dayStart && event.endTime > dayStart
-      : isSameDay(event.startTime, currentDate)
-  );
+  const dayEvents = events.filter((event) => eventOccursOnDisplayDay(
+    event.startTime,
+    event.endTime,
+    event.allDay,
+    currentDate,
+    displayTimezone,
+  ));
 
-  const allDayEvents = dayEvents.filter((e) => e.allDay);
-  const timedEvents = dayEvents.filter((e) => !e.allDay);
+  // Timed events that cross midnight belong in the persistent header rather
+  // than producing an oversized block in the hourly grid on every day.
+  const allDayEvents = dayEvents.filter((event) =>
+    event.allDay || eventSpansMultipleDisplayDays(
+      event.startTime,
+      event.endTime,
+      false,
+      displayTimezone,
+    ));
+  const timedEvents = dayEvents.filter((event) =>
+    !event.allDay && !eventSpansMultipleDisplayDays(
+      event.startTime,
+      event.endTime,
+      false,
+      displayTimezone,
+    ));
+  const headerLabel = (event: CalendarEvent) =>
+    !event.allDay && eventStartsOnDisplayDay(
+      event.startTime,
+      false,
+      currentDate,
+      displayTimezone,
+    )
+      ? `${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`
+      : event.title;
 
-  const hours = getVisibleHours(timedEvents, { from: dayStart, to: addDays(dayStart, 1) });
+  const hours = getVisibleHours(timedEvents.map((event) => ({
+    ...event,
+    startTime: toDisplayDate(event.startTime, displayTimezone),
+    endTime: toDisplayDate(event.endTime, displayTimezone),
+  })), { from: dayStart, to: addDays(dayStart, 1) });
   const { gridRef: hourGridRef, rowHeightPx } = useMeasuredHourRowHeight(hours.length);
 
   // If there are no calendar groups configured or merged view is on, show all events in a single column
@@ -211,7 +251,7 @@ export function DayViewSideBySide({
                               : inlineAllDayEventStyle(event.color)
                           }
                         >
-                          {event.title}
+                          {headerLabel(event)}
                         </button>
                       ))}
                     </div>
@@ -260,7 +300,7 @@ export function DayViewSideBySide({
                     isPastHour && 'bg-muted/15',
                     isNowHour && 'bg-primary text-primary-foreground font-semibold rounded-sm'
                   )}>
-                    {format(new Date().setHours(hour, 0), 'h a')}
+                    {formatDisplayHour(new Date().setHours(hour, 0), timeFormat)}
                     {isNowHour && (
                       <div className="absolute left-0 right-0 border-t-2 border-t-primary z-20 pointer-events-none" style={{ top: `${currentMinuteSnapped}%` }} />
                     )}
@@ -302,7 +342,7 @@ export function DayViewSideBySide({
                   style={{ gridTemplateRows: `repeat(${hours.length}, 1fr)` }}
                 >
                   {hours.map((hour) => {
-                    const hourEvents = calEvents.filter((event) => event.startTime.getHours() === hour);
+                    const hourEvents = calEvents.filter((event) => toDisplayDate(event.startTime, displayTimezone).getHours() === hour);
                     const isPastHour = isPastDay || (isCurrentDay && hour < currentHour);
                     const isNowHour = isCurrentDay && hour === currentHour;
                     return (
@@ -336,14 +376,15 @@ export function DayViewSideBySide({
                                 cards
                                   ? {
                                       borderLeft: `3px solid ${event.color}`,
-                                      top: `calc(${(event.startTime.getMinutes() / 60) * 100}% + 2px)`,
+                                      top: `calc(${(toDisplayDate(event.startTime, displayTimezone).getMinutes() / 60) * 100}% + 2px)`,
                                       height: `calc(${heightPct}% - 4px)`,
                                       left: css.left,
                                       width: css.width,
                                     }
                                   : {
                                       ...inlineTimedEventStyle(event.color),
-                                      top: `${(event.startTime.getMinutes() / 60) * 100}%`,
+                                      borderLeft: `2px solid ${event.color}`,
+                                      top: `${(toDisplayDate(event.startTime, displayTimezone).getMinutes() / 60) * 100}%`,
                                       height: `${heightPct}%`,
                                       left: css.left,
                                       width: css.width,
@@ -353,7 +394,7 @@ export function DayViewSideBySide({
                               <div className={cn('font-medium truncate w-full text-[12px] leading-tight', cards && 'text-foreground')}>{event.title}</div>
                               {contentVisibility.showTime && (
                                 <div className={cn('text-[12px] leading-tight', cards && 'text-muted-foreground')}>
-                                  {format(event.startTime, 'h:mm')}&ndash;{format(event.endTime ?? new Date(event.startTime.getTime() + 3600000), 'h:mm a')}
+                                  {formatDisplayTimeRange(event.startTime, event.endTime ?? new Date(event.startTime.getTime() + 3600000), timeFormat, displayTimezone)}
                                 </div>
                               )}
                               {contentVisibility.showDetails && (event.location || event.calendarName) && (
@@ -421,6 +462,7 @@ function DayTimedBucketLayer({
   enableDnd: boolean;
   onItemClick?: (ref: OverlayItemRef) => void;
 }) {
+  const { timeFormat } = useTimeFormat();
   const slotPct = 100 / hours.length;
   const visibleSet = new Set(hours);
 
@@ -451,7 +493,7 @@ function DayTimedBucketLayer({
       dragId: `meal:${meal.id}`,
       variant: 'meal',
       title: meal.name,
-      timeLabel: formatTimeOfDay(t),
+      timeLabel: formatTimeOfDay(t, timeFormat),
       subtitle: meal.cookedBy?.name ? `Cooked by ${meal.cookedBy.name}` : undefined,
       stripeColor: mealColor ?? '#10b981',
       muted: Boolean(meal.cookedAt),
@@ -471,7 +513,7 @@ function DayTimedBucketLayer({
       dragId: `chore:${chore.id}`,
       variant: 'chore',
       title: chore.title,
-      timeLabel: formatTimeOfDay(t),
+      timeLabel: formatTimeOfDay(t, timeFormat),
       subtitle: chore.assignedTo?.name,
       stripeColor: chore.assignedTo?.color || '#f59e0b',
       pendingApproval: Boolean(chore.pendingApproval),
@@ -491,7 +533,7 @@ function DayTimedBucketLayer({
       dragId: `task:${task.id}`,
       variant: 'task',
       title: task.title,
-      timeLabel: formatTimeOfDay(t),
+      timeLabel: formatTimeOfDay(t, timeFormat),
       subtitle: task.assignedTo?.name,
       stripeColor: task.assignedTo?.color || '#3b82f6',
       muted: task.completed,
