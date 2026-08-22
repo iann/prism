@@ -10,7 +10,6 @@ import {
   addDays,
   isSameMonth,
   isSameDay,
-  isToday,
   isBefore,
   startOfDay,
 } from 'date-fns';
@@ -20,10 +19,13 @@ import { hexToRgba } from '@/lib/utils/color';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import type { CalendarEvent } from '@/types/calendar';
-import { CardHeightProbe, DayOverflowPopover, DroppableOverlayCell, useDayDroppable, type OverlayItemRef } from './cells';
 import { useCardCapacity } from '@/lib/hooks/useCardCapacity';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
+import { CardHeightProbe, DayOverflowPopover, DroppableOverlayCell, SpanningEventRows, useDayDroppable, type OverlayItemRef } from './cells';
+import { useTimeFormat } from '@/components/providers';
+import { eventOccursOnDisplayDay, eventSpansMultipleDisplayDays, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
+import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 
 export interface MonthViewProps {
   currentDate: Date;
@@ -35,6 +37,8 @@ export interface MonthViewProps {
   bucketsByDate?: Map<string, DayBucket>;
   enableDnd?: boolean;
   onItemClick?: (ref: OverlayItemRef) => void;
+  /** Show the in-view month band. Full-page calendar already has this title. */
+  showMonthHeader?: boolean;
 }
 
 /** Fallback when ResizeObserver has not yet measured (~1 frame on mount). */
@@ -50,7 +54,10 @@ export function MonthView({
   bucketsByDate,
   enableDnd = false,
   onItemClick,
+  showMonthHeader = true,
 }: MonthViewProps) {
+  const { displayTimezone } = useTimeFormat();
+  const displayNow = toDisplayDate(new Date(), displayTimezone);
   const cards = displayMode === 'cards';
   const { weekStartsOn } = useWeekStartsOn();
   const [cardHeight, setCardHeight] = React.useState<number | undefined>(undefined);
@@ -73,21 +80,35 @@ export function MonthView({
 
   const numWeeks = Math.ceil(days.length / 7);
   const dayNames = [...DAYS_SHORT_ARRAY.slice(weekStartsOn), ...DAYS_SHORT_ARRAY.slice(0, weekStartsOn)];
+  // Scope the wide event list to this month grid's visible range once, so the
+  // spanning + per-day filters iterate ~40 events instead of thousands.
+  const scopedEvents = eventsOverlappingRange(events, calendarStart, calendarEnd);
+  const spanningEvents = scopedEvents
+    .filter((event) => eventSpansMultipleDisplayDays(
+      event.startTime,
+      event.endTime,
+      event.allDay,
+      displayTimezone,
+    ))
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime() || a.title.localeCompare(b.title));
+  const spanningEventSet = new Set(spanningEvents);
 
   return (
-    <div className="h-full flex flex-col overflow-auto">
+    <div className="h-full min-h-0 flex flex-col overflow-hidden">
       {cards && <CardHeightProbe size="xs" onMeasure={setCardHeight} />}
       {/* Month header — kept compact (py-1, text-sm) so it doesn't eat into
           the calendar grid. The toolbar already shows the month name; this
           band is mostly a colored anchor. */}
-      <div className="wall-calendar-month-header shrink-0 text-center py-1 font-semibold text-sm rounded-t-md mb-1 shadow-sm bg-primary text-primary-foreground">
-        {format(currentDate, 'MMMM yyyy')}
-      </div>
-      <div className="wall-calendar-day-labels shrink-0 grid grid-cols-7 gap-1 mb-1">
+      {showMonthHeader && (
+        <div className="wall-calendar-month-header shrink-0 text-center py-1 font-semibold text-sm rounded-t-md mb-1 shadow-sm bg-primary text-primary-foreground">
+          {format(currentDate, 'MMMM yyyy')}
+        </div>
+      )}
+      <div className="wall-calendar-day-labels shrink-0 grid grid-cols-7 gap-1 mb-1 border-b border-border/70">
         {dayNames.map((name) => (
           <div
             key={name}
-            className="text-center text-xs font-medium text-muted-foreground py-1"
+            className="text-center text-xs font-medium text-muted-foreground py-1.5"
           >
             {name}
           </div>
@@ -96,30 +117,44 @@ export function MonthView({
 
       {/* Auto-scaling calendar grid */}
       <div
-        className="wall-calendar-grid flex-1 shrink-0 grid grid-cols-7 gap-1"
+        className="wall-calendar-grid flex-1 min-h-0 shrink-0 grid grid-cols-7 gap-1"
         style={{ gridTemplateRows: `repeat(${numWeeks}, minmax(60px, 1fr))` }}
       >
         {days.map((date, index) => {
-          const dayStart = startOfDay(date);
-          const dayEvents = events
-            .filter((event) =>
-              event.allDay
-                ? event.startTime <= dayStart && event.endTime > dayStart
-                : isSameDay(event.startTime, date)
-            )
+          const weekStartIndex = Math.floor(index / 7) * 7;
+          const rowDates = days.slice(weekStartIndex, weekStartIndex + 7);
+          const rowSpanningEvents = spanningEvents.filter((event) => rowDates.some((rowDate) =>
+            eventOccursOnDisplayDay(
+              event.startTime,
+              event.endTime,
+              event.allDay,
+              rowDate,
+              displayTimezone,
+            )));
+          const dayEvents = scopedEvents
+            .filter((event) => !spanningEventSet.has(event))
+            .filter((event) => eventOccursOnDisplayDay(
+              event.startTime,
+              event.endTime,
+              event.allDay,
+              date,
+              displayTimezone,
+            ))
             .sort((a, b) => {
               if (a.allDay && !b.allDay) return -1;
               if (!a.allDay && b.allDay) return 1;
               return a.startTime.getTime() - b.startTime.getTime();
             });
 
-          const isPast = isBefore(date, startOfDay(new Date())) && !isToday(date);
+          const isPast = isBefore(date, startOfDay(displayNow)) && !isSameDay(date, displayNow);
 
           return (
             <MonthDayCell
               key={index}
               date={date}
               dayEvents={dayEvents}
+              rowDates={rowDates}
+              spanningEvents={rowSpanningEvents}
               bucket={bucketsByDate?.get(format(date, 'yyyy-MM-dd'))}
               cards={cards}
               enableDnd={enableDnd}
@@ -148,6 +183,8 @@ export function MonthView({
 function MonthDayCell({
   date,
   dayEvents,
+  rowDates,
+  spanningEvents,
   bucket,
   cards,
   enableDnd,
@@ -163,6 +200,8 @@ function MonthDayCell({
 }: {
   date: Date;
   dayEvents: CalendarEvent[];
+  rowDates: Date[];
+  spanningEvents: CalendarEvent[];
   bucket: DayBucket | undefined;
   cards: boolean;
   enableDnd: boolean;
@@ -176,6 +215,8 @@ function MonthDayCell({
   onEventClick: (event: CalendarEvent) => void;
   onItemClick?: (ref: OverlayItemRef) => void;
 }) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
+  const today = isSameDay(date, toDisplayDate(new Date(), displayTimezone));
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
 
   return (
@@ -184,24 +225,31 @@ function MonthDayCell({
       data-droppable-day={cards && enableDnd ? droppable.droppableId : undefined}
       onClick={() => onDateClick(date)}
       className={cn(
-        'wall-calendar-day-cell',
+        'relative wall-calendar-day-cell',
         (cards || bordered) && 'border border-border',
-        'cursor-pointer overflow-hidden rounded-md',
+        'cursor-pointer overflow-visible rounded-md',
         !transparentMode && !cellBgStyle && 'bg-calendar-surface',
         'flex flex-col min-h-0',
         !isSameMonth(date, currentDate) && 'text-muted-foreground',
         !transparentMode && !cellBgStyle && isPast && isSameMonth(date, currentDate) && 'bg-muted/65 text-muted-foreground',
-        !transparentMode && !cellBgStyle && isToday(date) && 'bg-calendar-today',
-        isToday(date) && !(cards && enableDnd && droppable.isOver) && 'ring-2 ring-inset ring-ring',
+        !transparentMode && !cellBgStyle && today && 'bg-calendar-today',
+        today && !(cards && enableDnd && droppable.isOver) && 'ring-2 ring-inset ring-ring',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-lg',
       )}
       style={cellBgStyle}
     >
       <div className="px-1 pt-1 mb-0.5">
-        <span className={cn('wall-calendar-day-number text-sm font-medium', isToday(date) && 'font-bold text-foreground')}>
+        <span className={cn('wall-calendar-day-number text-sm font-medium', today && 'font-bold text-foreground')}>
           {format(date, 'd')}
         </span>
       </div>
+
+      <SpanningEventRows
+        date={date}
+        rowDates={rowDates}
+        events={spanningEvents}
+        onEventClick={onEventClick}
+      />
 
       {cards ? (
         <DayCardsCell
@@ -231,7 +279,7 @@ function MonthDayCell({
                 : inlineTimedEventStyle(event.color)
               }
             >
-              {event.allDay ? event.title : `• ${format(event.startTime, 'h:mm a')} ${event.title}`}
+              {event.allDay ? event.title : `• ${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`}
             </li>
           ))}
         </ul>
@@ -263,6 +311,7 @@ function DayCardsCell({
   onEventClick: (event: CalendarEvent) => void;
   onItemClick?: (ref: OverlayItemRef) => void;
 }) {
+  const { displayTimezone } = useTimeFormat();
   const overlayItemCount = bucket ? bucket.meals.length + bucket.chores.length + bucket.tasks.length : 0;
   // Reserve ~22px for the popover trigger; each overlay row is ~24px (sm card)
   // plus the cell's 4px gap-1 separator. 20px under-reserved enough that event
@@ -303,7 +352,16 @@ function DayCardsCell({
             e.stopPropagation();
             onEventClick(event);
           }}
-          className="wall-month-event-card w-full text-left border-border bg-calendar-surface text-[12px] px-1 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight"
+          className={cn(
+            'wall-month-event-card w-full text-left border-border bg-calendar-surface text-[12px] px-1 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight',
+            isCalendarEventPast(
+              event.startTime,
+              event.endTime,
+              event.allDay,
+              new Date(),
+              displayTimezone,
+            ) && 'opacity-55 saturate-[0.65]',
+          )}
           style={{ borderLeft: `3px solid ${event.color}`, '--wall-event-color': event.color } as React.CSSProperties}
         >
           <span className="font-medium text-foreground">{event.title}</span>

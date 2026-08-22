@@ -11,7 +11,6 @@ import {
   subMonths,
   isSameMonth,
   isSameDay,
-  isToday,
   isBefore,
   startOfDay,
 } from 'date-fns';
@@ -22,6 +21,10 @@ import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import type { CalendarEvent } from '@/types/calendar';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
+import { useTimeFormat } from '@/components/providers';
+import { SpanningEventRows } from './cells';
+import { eventOccursOnDisplayDay, eventSpansMultipleDisplayDays, formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
+import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 
 export interface ThreeMonthViewProps {
   currentDate: Date;
@@ -48,6 +51,8 @@ function MiniMonth({
   isCenter: boolean;
   bordered?: boolean;
 }) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
+  const displayNow = toDisplayDate(new Date(), displayTimezone);
   const { weekStartsOn } = useWeekStartsOn();
   const dayNames = [...ALL_DAY_NAMES.slice(weekStartsOn), ...ALL_DAY_NAMES.slice(0, weekStartsOn)];
   const bgOverride = useWidgetBgOverride();
@@ -68,6 +73,18 @@ function MiniMonth({
   for (let i = 0; i < days.length; i += 7) {
     weeks.push(days.slice(i, i + 7));
   }
+  // Scope the wide event list to this mini-month's visible grid once, so the
+  // spanning filter and the per-day filter below iterate ~40 events, not thousands.
+  const scopedEvents = eventsOverlappingRange(events, calendarStart, calendarEnd);
+  const spanningEvents = scopedEvents
+    .filter((event) => eventSpansMultipleDisplayDays(
+      event.startTime,
+      event.endTime,
+      event.allDay,
+      displayTimezone,
+    ))
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime() || a.title.localeCompare(b.title));
+  const spanningEventSet = new Set(spanningEvents);
 
   return (
     <div className={cn(
@@ -92,19 +109,32 @@ function MiniMonth({
 
       {/* Day grid — fills remaining space */}
       <div className="flex-1 flex flex-col gap-px px-1 pb-1">
-        {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="flex-1 grid grid-cols-7 gap-px min-h-0">
-            {week.map((date, dayIndex) => {
+        {weeks.map((week, weekIndex) => {
+          const visibleRowDates = week.filter((date) => isSameMonth(date, month));
+          const rowSpanningEvents = spanningEvents.filter((event) => visibleRowDates.some((rowDate) =>
+            eventOccursOnDisplayDay(
+              event.startTime,
+              event.endTime,
+              event.allDay,
+              rowDate,
+              displayTimezone,
+            )));
+
+          return (
+            <div key={weekIndex} className="flex-1 grid grid-cols-7 gap-px min-h-0">
+              {week.map((date, dayIndex) => {
               const inMonth = isSameMonth(date, month);
-              const today = isToday(date);
-              const isPast = isBefore(date, startOfDay(new Date())) && !today;
-              const dayStart = startOfDay(date);
-              const dayEvents = events
-                .filter((e) =>
-                  e.allDay
-                    ? e.startTime <= dayStart && e.endTime > dayStart
-                    : isSameDay(e.startTime, date)
-                )
+              const today = isSameDay(date, displayNow);
+              const isPast = isBefore(date, startOfDay(displayNow)) && !today;
+              const dayEvents = scopedEvents
+                .filter((event) => !spanningEventSet.has(event))
+                .filter((event) => eventOccursOnDisplayDay(
+                  event.startTime,
+                  event.endTime,
+                  event.allDay,
+                  date,
+                  displayTimezone,
+                ))
                 .sort((a, b) => {
                   if (a.allDay && !b.allDay) return -1;
                   if (!a.allDay && b.allDay) return 1;
@@ -116,7 +146,7 @@ function MiniMonth({
                   key={dayIndex}
                   onClick={() => onDateClick(date)}
                   className={cn(
-                    'flex flex-col rounded text-xs cursor-pointer overflow-hidden p-0.5',
+                    'relative flex flex-col rounded text-xs cursor-pointer overflow-visible p-0.5',
                     bordered && 'border border-border',
                     !transparentMode && 'bg-calendar-surface',
                     !inMonth && 'text-muted-foreground',
@@ -131,6 +161,16 @@ function MiniMonth({
                   )}>
                     {format(date, 'd')}
                   </span>
+                  {inMonth && (
+                    <SpanningEventRows
+                      date={date}
+                      rowDates={visibleRowDates}
+                      events={rowSpanningEvents}
+                      onEventClick={onEventClick}
+                      compact
+                      gap="1px"
+                    />
+                  )}
                   {/* Event list — scrollable within day cell */}
                   {inMonth && dayEvents.length > 0 && (
                     <ul className="flex-1 overflow-y-auto space-y-px mt-0.5 scrollbar-thin list-none m-0 p-0">
@@ -147,16 +187,17 @@ function MiniMonth({
                             : inlineTimedEventStyle(event.color)
                           }
                         >
-                          {event.allDay ? event.title : `• ${event.title}`}
+                          {event.allDay ? event.title : `• ${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`}
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
               );
-            })}
-          </div>
-        ))}
+              })}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
