@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, createContext } from 'react';
-import { addDays, addWeeks, addMonths, subDays, subWeeks, subMonths, startOfWeek } from 'date-fns';
+import { addDays, addWeeks, addMonths, subDays, subWeeks, subMonths } from 'date-fns';
 import type { OverlayFlags } from '@/lib/hooks/useDayBucketsForRange';
+import { useTimeFormat } from '@/components/providers';
+import { toDisplayDate } from '@/lib/utils/timeFormat';
 
 /**
  * Scopes CalendarWidget preference storage. Empty string = the shared keys used
@@ -124,7 +126,12 @@ export function useCalendarWidgetPrefs(
   // Non-empty scope suffixes every storage key so the screensaver calendar
   // keeps preferences independent of the dashboard calendar.
   const suffix = scope ? ':' + scope : '';
+  const { displayTimezone } = useTimeFormat();
   const [currentDate, setCurrentDate] = useState(() => new Date());
+
+  useEffect(() => {
+    setCurrentDate(toDisplayDate(new Date(), displayTimezone));
+  }, [displayTimezone]);
   const [widgetBordered, setWidgetBordered] = useState(
     () =>
       typeof window !== 'undefined' &&
@@ -201,7 +208,10 @@ export function useCalendarWidgetPrefs(
   const viewUnavailable = viewType !== effectiveView;
 
   // Navigation
-  const goToToday = useCallback(() => setCurrentDate(new Date()), []);
+  const goToToday = useCallback(
+    () => setCurrentDate(toDisplayDate(new Date(), displayTimezone)),
+    [displayTimezone],
+  );
   const goToPrevious = useCallback(() => {
     setCurrentDate((d) => {
       switch (resolvedView) {

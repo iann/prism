@@ -97,6 +97,8 @@ function useLocalDayStartMs(): number {
 
   return dayStartMs;
 }
+import { useTimeFormat } from '@/components/providers';
+import { formatDisplayHour, formatDisplayTime } from '@/lib/utils/timeFormat';
 
 /**
  * WEATHER DATA TYPES
@@ -337,6 +339,8 @@ function isSunAboveHorizon(sunrise?: Date, sunset?: Date, nowMs = Date.now()): b
 
 export interface WeatherData {
   location: string;
+  /** IANA timezone of the weather location, when supplied by the provider. */
+  timezone?: string;
   current: CurrentWeather;
   forecast: ForecastDay[];
   /** Currently active watches, warnings, advisories, or similar alerts. */
@@ -633,7 +637,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
         {/* HOURLY FORECAST */}
         {showHourly && weatherData.hourly && weatherData.hourly.length > 0 && (
           <div className="border-t border-border/45 pt-4">
-            <HourlyTimeline hourly={weatherData.hourly} units={units} />
+            <HourlyTimeline hourly={weatherData.hourly} units={units} timezone={weatherData.timezone} />
           </div>
         )}
 
@@ -668,6 +672,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
                   moonrise={weatherData.moonrise}
                   moonset={weatherData.moonset}
                   moonPhase={weatherData.moonPhase}
+                  timezone={weatherData.timezone}
                 />
               </div>
             )}
@@ -1125,7 +1130,8 @@ function ConditionBandLabel({
  * while retaining the useful at-a-glance time, condition, temperatures, and
  * precipitation chance.
  */
-function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: WeatherUnits }) {
+function HourlyTimeline({ hourly, units, timezone }: { hourly: HourlyForecast[]; units: WeatherUnits; timezone?: string }) {
+  const { timeFormat } = useTimeFormat();
   const nowMs = Date.now();
 
   const upcoming = React.useMemo(() =>
@@ -1161,10 +1167,12 @@ function HourlyTimeline({ hourly, units }: { hourly: HourlyForecast[]; units: We
     return bands;
   }, []);
 
-  const formatHour = (date: Date) => date
-    .toLocaleTimeString([], { hour: 'numeric', hour12: true })
-    .replace(' ', '')
-    .toLowerCase();
+  const formatHour = (date: Date) => formatDisplayHour(
+    date,
+    timeFormat,
+    { compact: true },
+    timezone,
+  ).toLowerCase();
   const formatTemperature = (temperature: number) => units.temperature === 'C'
     ? Math.round((temperature - 32) * 5 / 9)
     : Math.round(temperature);
@@ -1617,6 +1625,7 @@ function SunriseSunsetArc({
   moonrise,
   moonset,
   moonPhase,
+  timezone,
 }: {
   sunrise: Date;
   sunset: Date;
@@ -1625,7 +1634,9 @@ function SunriseSunsetArc({
   moonrise?: Date;
   moonset?: Date;
   moonPhase?: number;
+  timezone?: string;
 }) {
+  const { timeFormat } = useTimeFormat();
   const [width, setWidth] = React.useState(220);
   const containerRef = React.useRef<HTMLDivElement>(null);
   // Unique gradient ID so multiple weather widgets on a page (e.g., dashboard
@@ -1805,8 +1816,6 @@ function SunriseSunsetArc({
   const MOON_COLOR = 'hsl(var(--weather-temp-freezing))';
   const MOON_MUTED = 'hsl(var(--weather-temp-cold))';
 
-  const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-
   // Pick a sun-dot color that matches where it sits on the altitude gradient
   // — red near the horizon, amber high in the sky. Bucketed (rather than
   // smoothly interpolated) for legibility against a small dot.
@@ -1925,7 +1934,7 @@ function SunriseSunsetArc({
       <div className="flex items-center justify-between gap-3 text-[11px] tabular-nums pt-0.5 whitespace-nowrap">
         <span className="flex items-center gap-3">
           <span className="flex items-center gap-1" style={{ color: SUN_COLOR }} title="Sunrise">
-            <Sunrise className="h-3 w-3" />{fmtTime(sunrise)}
+            <Sunrise className="h-3 w-3" />{formatDisplayTime(sunrise, timeFormat, {}, timezone)}
           </span>
           {inWindow(sunRiseFrac) && inWindow(sunSetFrac) && (() => {
             const dayMsSpan = sunset.getTime() - sunrise.getTime();
@@ -1934,19 +1943,19 @@ function SunriseSunsetArc({
             return <span className="font-medium opacity-80" style={{ color: SUN_COLOR }}>{h}h {m}m</span>;
           })()}
           <span className="flex items-center gap-1" style={{ color: SUN_COLOR }} title="Sunset">
-            <Sunset className="h-3 w-3" />{fmtTime(sunset)}
+            <Sunset className="h-3 w-3" />{formatDisplayTime(sunset, timeFormat, {}, timezone)}
           </span>
         </span>
         {(moonrise || moonset) && (
           <span className="flex items-center gap-3" style={{ color: MOON_COLOR }}>
             {moonrise && (
               <span className="flex items-center gap-1" title="Moonrise">
-                <MoonGlyph phase={moonPhase ?? 0} size={11} /><span className="opacity-70">↑</span>{fmtTime(moonrise)}
+                <MoonGlyph phase={moonPhase ?? 0} size={11} /><span className="opacity-70">↑</span>{formatDisplayTime(moonrise, timeFormat, {}, timezone)}
               </span>
             )}
             {moonset && (
               <span className="flex items-center gap-1" title="Moonset">
-                {!moonrise && <MoonGlyph phase={moonPhase ?? 0} size={11} />}<span className="opacity-70">↓</span>{fmtTime(moonset)}
+                {!moonrise && <MoonGlyph phase={moonPhase ?? 0} size={11} />}<span className="opacity-70">↓</span>{formatDisplayTime(moonset, timeFormat, {}, timezone)}
               </span>
             )}
           </span>

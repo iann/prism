@@ -14,6 +14,7 @@ import { AuthProvider } from './AuthProvider';
 import { FamilyProvider } from './FamilyProvider';
 import { AppVersionChecker } from './AppVersionChecker';
 import { GlobalInputProvider, useGlobalInput } from '@/lib/hooks/useGlobalInput';
+import { TimeFormatProvider } from './TimeFormatProvider';
 
 // simple-keyboard accesses browser globals at module load — must be client-only
 const VirtualKeyboard = dynamic(
@@ -53,10 +54,12 @@ export function Providers({ children }: ProvidersProps) {
       <AppVersionChecker />
       <FamilyProvider>
         <AuthProvider>
-          <GlobalInputProvider>
-            {children}
-            <OptionalInputUi />
-          </GlobalInputProvider>
+          <TimeFormatProvider>
+            <GlobalInputProvider>
+              {children}
+              <OptionalInputUi />
+            </GlobalInputProvider>
+          </TimeFormatProvider>
         </AuthProvider>
       </FamilyProvider>
     </ThemeProvider>
