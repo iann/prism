@@ -32,6 +32,8 @@ jobs:
     # pull_request_target triggers above, but a schedule or workflow_dispatch
     # trigger carries no `repository` object and would skip the job.
     if: github.event.repository.fork == false
+    # Keep the guard at job scope so fork PRs skip before the action or secrets
+    # are evaluated.
     runs-on: ubuntu-latest
     steps:
       - name: CLA Assistant
