@@ -4,6 +4,36 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+## [1.17.2] – 2026-08-27
+
+### Fixed
+- **The weather widget now shows the location you actually chose.** Setting a location in *Settings → General* updated the forecast but not the name above it, so the widget kept displaying whatever place was in the install's environment file — Springfield, on a default install. The forecast data was correct the whole time, which made it look like the setting had done nothing at all. The name and the forecast now always come from the same place. If you upgrade and still see the old name for a few minutes, that's the cached forecast expiring; changing your location clears it immediately.
+
+## [1.17.1] – 2026-08-25
+
+### Fixed
+- **A birthday on the day itself no longer disappears from the widget.** The next occurrence was worked out against the current time rather than the start of the day, so a birthday falling today always compared as already past, rolled forward a year, and was then filtered out of the 30-day window — meaning the one day it mattered most was the one day it wasn't shown. Today's entries now appear at the top of the list, counted as 0 days, and are highlighted in green.
+
+### Added
+- **Choose the interface language.** A new **Language** option under *Settings → Appearance* switches Prism's wording, starting with German (Deutsch) alongside English. Navigation is fully translated and the Birthdays widget is done; the rest of the app follows in stages, and anything not yet translated simply stays in English rather than breaking. Dates and numbers automatically follow the language you pick. Whether the clock shows 12- or 24-hour time stays a separate choice under *Settings → General*, so you can mix the two however you like. Translations are plain files anyone can correct or extend — see the [Languages guide](features/LANGUAGES.md).
+
+## [1.17.0] – 2026-08-23
+
+### Integrations
+- **Connect Google Calendar on a Home Assistant / LAN-only install — no public URL required.** If Prism only runs on your local network (the Home Assistant add-on, or bare Docker on a private IP), Google refuses to accept your address as an OAuth redirect, so the normal **Connect** button can't finish. There's now a **"Connect without a public URL (advanced)"** option under *Settings → Integrations → Google*: you generate a refresh token with Google's OAuth Playground and paste it in for full two-way calendar sync — the sign-in stays entirely on Google's own domain, with no reverse proxy or tunnel needed. The in-app instructions walk through the whole setup end-to-end — creating the project, publishing the consent screen to Production (so the connection doesn't expire after 7 days), and generating the token — all under a single Google account.
+
+## [1.16.2] – 2026-08-23
+
+### Integrations
+- **Connect Google Calendar without a public URL.** For installs that only run on your local network (Home Assistant add-on, LAN-only Docker) — where Google refuses to register a private address as an OAuth redirect URI — you can now connect Google Calendar by pasting a refresh token you generate with Google's OAuth Playground, under Settings → Integrations → Google → "Connect without a public URL (advanced)." It's full two-way read/write, needs no public URL or reverse proxy, and the sign-in stays on Google's own domain.
+
+## [1.16.1] – 2026-08-22
+
+### Calendar
+- **Faster view switching and month navigation.** Flipping between calendar views and advancing the month (especially 3-month) is much snappier, and switching no longer briefly freezes the display while the new view renders. Each view now scopes its work to just the dates on screen instead of scanning the whole event history every time.
+- **The "hide hours" setting now sticks.** It is stored in the database instead of per-browser, so it survives updates and stays consistent across your devices.
+- **The Manage calendars window no longer scrolls sideways** and now uses more of the screen width on large displays.
+
 ## [1.16.0] – 2026-08-21
 
 ### Display

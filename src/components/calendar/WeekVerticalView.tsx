@@ -26,6 +26,7 @@ import {
   isCalendarEventPast,
   toDisplayDate,
 } from '@/lib/utils/timeFormat';
+import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 
 export interface WeekVerticalViewProps {
   currentDate: Date;
@@ -74,6 +75,8 @@ export function WeekVerticalView({
   const cellBgStyle = cellBg ? { backgroundColor: hexToRgba(cellBg, cellBgOpacity) } : undefined;
   const weekStart = startOfWeek(currentDate, { weekStartsOn });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  // Scope the wide event list to this week once; passed into each day row.
+  const scopedEvents = eventsOverlappingRange(events, weekStart, addDays(weekStart, 7));
   const now = toDisplayDate(new Date(), displayTimezone);
   const today = startOfDay(now);
 
@@ -128,7 +131,7 @@ export function WeekVerticalView({
           key={day.toISOString()}
           day={day}
           today={today}
-          events={events}
+          events={scopedEvents}
           displayGroups={displayGroups}
           getEventsForGroup={getEventsForGroup}
           bordered={bordered}

@@ -10,6 +10,7 @@
 import * as React from 'react';
 import dynamic from 'next/dynamic';
 import { ThemeProvider } from './ThemeProvider';
+import { LocaleProvider } from './LocaleProvider';
 import { AuthProvider } from './AuthProvider';
 import { FamilyProvider } from './FamilyProvider';
 import { AppVersionChecker } from './AppVersionChecker';
@@ -52,16 +53,18 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <ThemeProvider defaultTheme="system">
       <AppVersionChecker />
-      <FamilyProvider>
-        <AuthProvider>
-          <TimeFormatProvider>
-            <GlobalInputProvider>
-              {children}
-              <OptionalInputUi />
-            </GlobalInputProvider>
-          </TimeFormatProvider>
-        </AuthProvider>
-      </FamilyProvider>
+      <LocaleProvider>
+        <FamilyProvider>
+          <AuthProvider>
+            <TimeFormatProvider>
+              <GlobalInputProvider>
+                {children}
+                <OptionalInputUi />
+              </GlobalInputProvider>
+            </TimeFormatProvider>
+          </AuthProvider>
+        </FamilyProvider>
+      </LocaleProvider>
     </ThemeProvider>
   );
 }
