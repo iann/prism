@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTimeFormat } from '@/components/providers';
+import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { WidgetContainer } from './WidgetContainer';
 import { ClockGreeting } from './ClockGreeting';
 
@@ -25,11 +27,15 @@ export function millisecondsUntilNextClockTick(showSeconds: boolean, now = Date.
 export const ClockWidget = React.memo(function ClockWidget({
   showGreeting = true,
   showSeconds = false,
-  format24Hour = false,
+  format24Hour,
   showDate = true,
   size = 'medium',
   className,
 }: ClockWidgetProps) {
+  const { timeFormat: globalTimeFormat, displayTimezone } = useTimeFormat();
+  const effectiveTimeFormat = format24Hour === undefined
+    ? globalTimeFormat
+    : format24Hour ? '24h' : '12h';
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   useEffect(() => {
@@ -49,14 +55,9 @@ export const ClockWidget = React.memo(function ClockWidget({
     };
   }, [showSeconds]);
 
-  const timeFormat = format24Hour
-    ? showSeconds ? 'HH:mm:ss' : 'HH:mm'
-    : showSeconds ? 'h:mm:ss a' : 'h:mm a';
-
   const dateFormat = 'EEEE, MMMM d';
-
-  const timeString = format(currentTime, timeFormat);
-  const dateString = format(currentTime, dateFormat);
+  const timeString = formatDisplayTime(currentTime, effectiveTimeFormat, { showSeconds }, displayTimezone);
+  const dateString = format(toDisplayDate(currentTime, displayTimezone), dateFormat);
 
   const timeStyles = {
     small: 'text-3xl',

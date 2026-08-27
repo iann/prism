@@ -10,10 +10,12 @@
 import * as React from 'react';
 import dynamic from 'next/dynamic';
 import { ThemeProvider } from './ThemeProvider';
+import { LocaleProvider } from './LocaleProvider';
 import { AuthProvider } from './AuthProvider';
 import { FamilyProvider } from './FamilyProvider';
 import { AppVersionChecker } from './AppVersionChecker';
 import { GlobalInputProvider, useGlobalInput } from '@/lib/hooks/useGlobalInput';
+import { TimeFormatProvider } from './TimeFormatProvider';
 
 // simple-keyboard accesses browser globals at module load — must be client-only
 const VirtualKeyboard = dynamic(
@@ -51,14 +53,18 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <ThemeProvider defaultTheme="system">
       <AppVersionChecker />
-      <FamilyProvider>
-        <AuthProvider>
-          <GlobalInputProvider>
-            {children}
-            <OptionalInputUi />
-          </GlobalInputProvider>
-        </AuthProvider>
-      </FamilyProvider>
+      <LocaleProvider>
+        <FamilyProvider>
+          <AuthProvider>
+            <TimeFormatProvider>
+              <GlobalInputProvider>
+                {children}
+                <OptionalInputUi />
+              </GlobalInputProvider>
+            </TimeFormatProvider>
+          </AuthProvider>
+        </FamilyProvider>
+      </LocaleProvider>
     </ThemeProvider>
   );
 }

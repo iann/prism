@@ -2,15 +2,30 @@
  * @jest-environment jsdom
  */
 
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen, type RenderOptions } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { AgendaView } from '@/components/calendar/AgendaView';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from '@/components/calendar/eventStyles';
 import { WeatherCard } from '@/components/dashboard/MobileCards';
+import { TimeFormatProvider } from '@/components/providers';
 import { Card } from '@/components/ui/card';
 import type { CalendarEvent } from '@/types/calendar';
+import type { ReactElement } from 'react';
+
+const render = (ui: ReactElement, options?: RenderOptions) =>
+  rtlRender(ui, { wrapper: TimeFormatProvider, ...options });
+
+beforeAll(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ settings: {} }) }),
+  ) as unknown as typeof fetch;
+});
+
+afterAll(() => {
+  delete (global as { fetch?: unknown }).fetch;
+});
 
 function expectSoftCardSurface(element: Element) {
   expect(element.classList.contains('bg-card')).toBe(true);
@@ -134,7 +149,7 @@ describe('surface class contracts', () => {
       </DndContext>
     );
 
-    const title = screen.getByText(event.title);
+    const title = screen.getAllByText(event.title)[0]!;
     const eventRow = title.closest('button');
     expect(eventRow).not.toBeNull();
     expect(title.classList.contains('text-white')).toBe(false);
@@ -208,7 +223,7 @@ describe('surface class contracts', () => {
       expect(source).toMatch(/ring-(?:1|2) ring-inset ring-ring/);
     }
     expect(month).toContain("(cards || bordered) && 'border border-border'");
-    expect(month).toContain("'cursor-pointer overflow-hidden rounded-md'");
+    expect(month).toContain("'cursor-pointer overflow-visible rounded-md'");
   });
 
   it('uses semantic active calendar accents and current-color filter dots', () => {
@@ -264,6 +279,8 @@ describe('surface class contracts', () => {
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
+      // Month-view weekday divider is decorative.
+      'src/components/calendar/MonthView.tsx:border-border/70',
       // Calendar planning-group divider is decorative.
       'src/components/calendar/cells/DayColumn.tsx:border-border/40',
       'src/components/dashboard/MobileCards.tsx:border-border/55',
@@ -291,7 +308,7 @@ describe('surface class contracts', () => {
     ]);
   });
 
-  it('allowlists only redundant avatar initials and decorative glyphs below 12px', () => {
+  it('allowlists only redundant, decorative, and compact calendar text below 12px', () => {
     const subTwelveText = collectProductionClasses(
       /(?:^|[\s'"])(?<className>text-\[(?:8|9|10|11)px\])(?=$|[\s'"])/gm
     );
@@ -311,6 +328,9 @@ describe('surface class contracts', () => {
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinList.tsx:text-[10px]',
+      // Compact multi-day event bars need a small label to fit their fixed row.
+      'src/components/calendar/cells/InlineCalendarEvent.tsx:text-[8px]',
+      'src/components/calendar/cells/SpanningEventRows.tsx:text-[8px]',
       // Compact metadata and screen-size labels in the community gallery.
       'src/components/layout/CommunityGallery.tsx:text-[10px]',
       'src/components/layout/CommunityGallery.tsx:text-[11px]',

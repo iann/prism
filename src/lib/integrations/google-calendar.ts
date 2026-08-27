@@ -159,8 +159,13 @@ export class TokenRevokedError extends Error {
 /**
  * Refresh access token using refresh token
  */
-export async function refreshAccessToken(refreshToken: string): Promise<GoogleTokens> {
-  const { clientId, clientSecret } = await getConfig();
+export async function refreshAccessToken(
+  refreshToken: string,
+  credentialsOverride?: { clientId: string; clientSecret: string },
+): Promise<GoogleTokens> {
+  // The manual-token flow validates a pasted refresh token against pasted, not-
+  // yet-stored credentials; every other caller uses the stored config.
+  const { clientId, clientSecret } = credentialsOverride ?? (await getConfig());
 
   const response = await fetch(GOOGLE_TOKEN_URL, {
     method: 'POST',
@@ -330,7 +335,7 @@ export async function updateCalendarEvent(
   }>
 ): Promise<GoogleCalendarEvent> {
   const response = await fetch(
-    `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     {
       method: 'PATCH',
       headers: {
@@ -358,7 +363,7 @@ export async function deleteCalendarEvent(
   eventId: string
 ): Promise<void> {
   const response = await fetch(
-    `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     {
       method: 'DELETE',
       headers: {
@@ -371,6 +376,44 @@ export async function deleteCalendarEvent(
     const error = await response.text();
     throw new Error(`Failed to delete event: ${error}`);
   }
+}
+
+/**
+ * Convert Prism's stored start/end instants into Google's all-day wire format:
+ * date-only strings with an EXCLUSIVE end date (the day after the last day).
+ * Handles both Google-style exclusive-midnight ends and Prism's legacy
+ * inclusive 23:59:59 ends, and guards against Google rejecting a zero-length
+ * range by coercing malformed/legacy rows to a single day.
+ */
+export function toGoogleAllDayRange(startTime: Date, endTime: Date): {
+  start: { date: string };
+  end: { date: string };
+} {
+  const dateOnly = (date: Date) => date.toISOString().slice(0, 10);
+  const addUtcDay = (date: string) => {
+    const value = new Date(`${date}T00:00:00.000Z`);
+    value.setUTCDate(value.getUTCDate() + 1);
+    return dateOnly(value);
+  };
+
+  const startDate = dateOnly(startTime);
+  const endIsExclusiveMidnight = endTime.getTime() > startTime.getTime()
+    && endTime.getUTCHours() === 0
+    && endTime.getUTCMinutes() === 0
+    && endTime.getUTCSeconds() === 0
+    && endTime.getUTCMilliseconds() === 0;
+  let endDate = endIsExclusiveMidnight
+    ? dateOnly(endTime)
+    : addUtcDay(dateOnly(endTime));
+
+  // Google rejects zero-length all-day ranges. Keep malformed/legacy local
+  // rows editable by coercing them to a single-day event.
+  if (endDate <= startDate) endDate = addUtcDay(startDate);
+
+  return {
+    start: { date: startDate },
+    end: { date: endDate },
+  };
 }
 
 /**
@@ -397,9 +440,11 @@ export function convertGoogleEventToInternal(
   let endTime: Date;
 
   if (isAllDay) {
-    // All-day events use date strings (YYYY-MM-DD)
-    startTime = new Date(googleEvent.start.date + 'T00:00:00');
-    endTime = new Date(googleEvent.end.date + 'T00:00:00');
+    // All-day events use date strings (YYYY-MM-DD). Parse them as UTC-floating
+    // midnight so the calendar date never shifts across timezones (a New Year's
+    // Day event stays on Jan 1 whether the display is in Chicago or London).
+    startTime = new Date(googleEvent.start.date + 'T00:00:00Z');
+    endTime = new Date(googleEvent.end.date + 'T00:00:00Z');
   } else {
     startTime = new Date(googleEvent.start.dateTime!);
     endTime = new Date(googleEvent.end.dateTime!);

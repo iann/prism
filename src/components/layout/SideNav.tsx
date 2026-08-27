@@ -30,6 +30,7 @@ import { usePathname } from 'next/navigation';
 import { HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PrismIcon } from '@/components/ui/PrismIcon';
+import { useTranslations } from 'next-intl';
 import { ALL_NAV_ITEMS } from '@/lib/constants/navItems';
 import { useHiddenPages } from '@/lib/hooks/useHiddenPages';
 import { contrastText } from '@/lib/utils/color';
@@ -78,6 +79,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
   const pathname = usePathname();
   const { filterNavItems } = useHiddenPages();
   const navItems = filterNavItems(ALL_NAV_ITEMS);
+  const t = useTranslations('common');
   const [expanded, setExpanded] = React.useState(false);
   const asideRef = React.useRef<HTMLElement>(null);
 
@@ -158,7 +160,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                   <Link
                     href={item.href}
                     prefetch={false}
-                    aria-label={item.label}
+                    aria-label={t(item.i18nKey)}
                     className={cn(
                       'wall-nav-item',
                       active && 'wall-nav-item-active',
@@ -175,7 +177,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                   >
                     <Icon className="wall-nav-icon h-5 w-5 flex-shrink-0" aria-hidden="true" />
                     {expanded && <span className="whitespace-nowrap">
-                      {item.label}
+                      {t(item.i18nKey)}
                     </span>}
                   </Link>
                 </li>
