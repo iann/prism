@@ -20,6 +20,15 @@ permissions:
 
 jobs:
   cla:
+    # Never run in a fork. Workflow files travel with a fork, so without this
+    # guard the bot fires inside contributors' own repos: it walks the commit
+    # authors of their private PRs (including upstream authors picked up by a
+    # routine master sync) and nags each one to sign a CLA they aren't party
+    # to. Signing there can't work either, since CLA_PAT only exists here.
+    #
+    # Test the repository's fork flag rather than its name so a rename or
+    # transfer to an organization cannot silently disable the bot here.
+    if: github.event.repository.fork == false
     runs-on: ubuntu-latest
     steps:
       - name: CLA Assistant
