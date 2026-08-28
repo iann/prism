@@ -806,6 +806,7 @@ function CurrentConditions({
 }) {
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
+  const showFeelsLike = temp !== feels;
   const temperatureTrend = getTemperatureTrend(hourly);
   const uvIndexTrend = weather.uvIndex === undefined
     ? null
@@ -857,7 +858,9 @@ function CurrentConditions({
             </div>
           </div>
         </div>
-        <div className="text-lg leading-6 text-muted-foreground">Feels like {feels}</div>
+        {showFeelsLike && (
+          <div className="text-lg leading-6 text-muted-foreground">Feels like {feels}</div>
+        )}
         {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
           <div
             className="mt-2 flex items-center gap-1.5 text-[13px] text-muted-foreground"
@@ -1207,6 +1210,9 @@ function HourlyTimeline({ hourly, units, timezone }: { hourly: HourlyForecast[];
         >
           {samples.map((hour, index) => {
             const label = conditionLabel(hour.condition, hour.precipIntensity);
+            const temperature = formatTemperature(hour.temp);
+            const feelsLike = formatTemperature(hour.feelsLike);
+            const showFeelsLike = temperature !== feelsLike;
 
             return (
               <div
@@ -1217,7 +1223,7 @@ function HourlyTimeline({ hourly, units, timezone }: { hourly: HourlyForecast[];
                   index > 0 && 'border-l border-border/35',
                   index === 0 && 'bg-foreground/[0.05]'
                 )}
-                aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}, ${label}, ${formatTemperature(hour.temp)} degrees, feels like ${formatTemperature(hour.feelsLike)} degrees${hour.precipProbability !== undefined ? `, ${Math.round(hour.precipProbability)} percent chance of rain` : ''}`}
+                aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}, ${label}, ${temperature} degrees${showFeelsLike ? `, feels like ${feelsLike} degrees` : ''}${hour.precipProbability !== undefined ? `, ${Math.round(hour.precipProbability)} percent chance of rain` : ''}`}
               >
                 {index === 0 && (
                   <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-400 dark:bg-amber-300" aria-hidden />
@@ -1228,9 +1234,12 @@ function HourlyTimeline({ hourly, units, timezone }: { hourly: HourlyForecast[];
                 <WeatherIcon condition={hour.condition} className={`my-0.5 h-5 w-5 ${conditionIconClass(hour.condition)}`} />
                 <span
                   className="text-[15px] font-semibold leading-none tabular-nums text-foreground"
-                  title="Actual temperature | feels-like temperature"
+                  title={showFeelsLike ? 'Actual temperature | feels-like temperature' : 'Temperature'}
                 >
-                  {formatTemperature(hour.temp)}° <span className="text-muted-foreground/70" aria-hidden>|</span> {formatTemperature(hour.feelsLike)}°
+                  {temperature}°
+                  {showFeelsLike && (
+                    <> <span className="text-muted-foreground/70" aria-hidden>|</span> {feelsLike}°</>
+                  )}
                 </span>
                 {hour.precipProbability !== undefined && (
                   <span
