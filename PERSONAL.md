@@ -691,6 +691,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: 0d5ff4e1, 9595dee6
 
+83. **Hide redundant matching feels-like temperatures**
+
+    Omits the feels-like label and duplicate value when the displayed current
+    and hourly temperatures match after rounding.
+
+    Commit: 41cb120c
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
