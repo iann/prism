@@ -282,6 +282,19 @@ describe('hourly timeline', () => {
     expect(firstSample.textContent).toContain('20%');
   });
 
+  it('hides hourly feels-like temperatures when the displayed values match', () => {
+    const hourly = makeHourlyForecast('sunny', 73).map((hour) => ({
+      ...hour,
+      feelsLike: hour.temp,
+    }));
+    render(<WeatherWidget data={makeWeatherData({ hourly })} />);
+
+    const firstSample = screen.getAllByTestId('hourly-sample')[0]!;
+    expect(firstSample.textContent).toContain('73°');
+    expect(firstSample.textContent).not.toContain('|');
+    expect(firstSample.getAttribute('aria-label')).not.toContain('feels like');
+  });
+
   it('converts hourly temps to °C when useCelsius=true', () => {
     // 32°F → 0°C
     const data = makeWeatherData({ hourly: makeHourlyForecast('sunny', 32) });
@@ -675,6 +688,16 @@ describe('current conditions', () => {
     });
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText(/Feels like 60°/)).not.toBeNull();
+  });
+
+  it('hides the current feels-like temperature when the displayed values match', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, temperature: 72.4, feelsLike: 72.2 },
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-current-temperature').textContent).toContain('72°');
+    expect(screen.queryByText(/Feels like/)).toBeNull();
   });
 
   it('renders humidity percentage', () => {
