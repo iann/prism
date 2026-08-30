@@ -1,5 +1,13 @@
 import { db } from '@/lib/db/client';
 import { calendarSources, events, tasks, taskLists, dismissedEvents, settings } from '@/lib/db/schema';
+import { decideDeletionReview } from '@/lib/services/taskDeletionReview';
+
+/**
+ * How long a CalDAV task must have been absent before it is flagged. Matches
+ * the provider task sync: one missed or partial response cannot flag anything
+ * on its own.
+ */
+const CALDAV_MISSING_GRACE_MS = 6 * 60 * 1000;
 import { eq, and, gte, lte, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY } from '@/lib/constants';
 import {
@@ -1155,6 +1163,9 @@ export async function syncCalDAVTasks(
         externalUpdatedAt: new Date(),
         lastSynced: new Date(),
         updatedAt: new Date(),
+        // Present again, so it is not missing. Clearing here is what makes a
+        // single bad response self-healing rather than leaving a flag behind.
+        pendingDeletion: null,
       };
 
       if (existing) {
@@ -1166,16 +1177,38 @@ export async function syncCalDAVTasks(
       synced++;
     }
 
-    // Mirror upstream deletions: any caldav-prefixed task for this source
-    // that wasn't in the fetch round-trips out of Prism too. Also catches
-    // existing placeholder rows that pre-date the title filter above.
+    // Upstream deletions are held for review rather than applied. This used to
+    // delete outright, which is unrecoverable and silent: `realTasks` is a
+    // FILTERED list, so a change to that filter — or a CalDAV server having a
+    // bad day — wiped every task from this source with no undo and nothing
+    // said. Same treatment the provider task sources got, for the same reason.
     const allLocal = await db.query.tasks.findMany({
       where: sql`${tasks.externalId} LIKE ${`caldav:${source.id}:%`}`,
-      columns: { id: true, externalId: true },
+      columns: { id: true, externalId: true, lastSynced: true, pendingDeletion: true },
     });
-    const stale = allLocal.filter(t => t.externalId && !seenExternalIds.has(t.externalId));
-    if (stale.length > 0) {
-      await db.delete(tasks).where(inArray(tasks.id, stale.map(t => t.id)));
+    const missing = allLocal.filter(t => t.externalId && !seenExternalIds.has(t.externalId));
+
+    const nowTs = Date.now();
+    const flaggable = missing.filter(
+      t => t.lastSynced && nowTs - t.lastSynced.getTime() > CALDAV_MISSING_GRACE_MS,
+    );
+    const review = decideDeletionReview({
+      syncedCount: allLocal.length,
+      missingCount: flaggable.length,
+    });
+
+    if (review.guardTripped) {
+      // Said out loud rather than withheld quietly: a guard that silently
+      // does nothing is its own mystery.
+      console.error(
+        `[Sync] ${review.withheld} CalDAV tasks missing at once — too many to be a normal ` +
+        'change, so none were touched. Check the connection, then sync again.',
+      );
+    } else if (review.flag) {
+      const toFlag = flaggable.filter(t => !t.pendingDeletion).map(t => t.id);
+      if (toFlag.length > 0) {
+        await db.update(tasks).set({ pendingDeletion: new Date() }).where(inArray(tasks.id, toFlag));
+      }
     }
 
     // Refresh the source's health signal on success. For task-only sources

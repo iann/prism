@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useAwayMode } from '@/lib/hooks/useAwayMode';
 import { useBabysitterMode } from '@/lib/hooks/useBabysitterMode';
 import { useIdleDetection } from '@/lib/hooks/useIdleDetection';
+import { useIdleLogout } from '@/lib/hooks/useIdleLogout';
 
 const Screensaver = dynamic(
   () => import('@/components/screensaver/Screensaver').then(m => ({ default: m.Screensaver })),
@@ -22,6 +23,9 @@ export function LazyOverlays() {
   const { isIdle } = useIdleDetection();
   const { isAway, toggle: toggleAway } = useAwayMode();
   const { isActive: babysitterActive, toggle: toggleBabysitter } = useBabysitterMode();
+  // Mounted here because this component is already in the root layout, so the
+  // check runs on every page rather than only on the dashboard.
+  useIdleLogout();
 
   return (
     <>

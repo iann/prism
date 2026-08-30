@@ -16,6 +16,7 @@
 import * as React from 'react';
 import SunCalc from 'suncalc';
 import { Droplets } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import type { ForecastDay, WeatherUnits, WeatherCondition } from './WeatherWidget';
 
 // ---------------------------------------------------------------------------
@@ -108,11 +109,22 @@ function MoonGlyph({ phase, size = 14, color = 'currentColor' }: { phase: number
   );
 }
 
+function localizeDayName(dayName: string, locale: string): string {
+  const dayIndex = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dayName);
+  if (dayIndex < 0) return dayName;
+  return new Date(Date.UTC(2024, 0, 7 + dayIndex)).toLocaleDateString(locale, {
+    weekday: 'short',
+    timeZone: 'UTC',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // DayHeader — the exported component
 // ---------------------------------------------------------------------------
 
 export function DayHeader({ days, units }: { days: ForecastDay[]; units: WeatherUnits }) {
+  const t = useTranslations('weather');
+  const locale = useLocale();
   const now = new Date();
   const todayLocalStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -129,7 +141,7 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
         const d = new Date(day.date);
         const dayLocalStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
         const isToday = dayLocalStr === todayLocalStr;
-        const label = isToday ? 'TODAY' : day.dayName.toUpperCase();
+        const label = isToday ? t('today') : localizeDayName(day.dayName, locale).toUpperCase();
 
         const leftPct  = ((day.low  - globalMin) / span) * 100;
         const widthPct = ((day.high - day.low)   / span) * 100;
