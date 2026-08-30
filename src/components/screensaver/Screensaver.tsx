@@ -131,7 +131,9 @@ function ScreensaverGrid() {
       ),
     [layout]
   );
-  const data = useDashboardData(visibleWidgets);
+  // The screensaver layout is fixed while mounted, so do not defer-enable
+  // domains for widgets that will never be rendered by this overlay.
+  const data = useDashboardData(visibleWidgets, { deferRest: false });
   const widgetProps = useMemo(
     () =>
       buildWidgetProps(

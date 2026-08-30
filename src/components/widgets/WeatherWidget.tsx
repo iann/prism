@@ -50,6 +50,7 @@ import { getTemperatureTrend } from '@/lib/weather/temperatureTrend';
 import { getUvIndexTrend, type UvIndexTrend } from '@/lib/weather/uvIndexTrend';
 import { WidgetContainer } from './WidgetContainer';
 import { DayHeader } from './WeatherForecastBar';
+import { useTranslations } from 'next-intl';
 
 const SUN_PATH_SAMPLES = 48;
 const MIDNIGHT_ROLLOVER_BUFFER_MS = 50;
@@ -135,6 +136,8 @@ export interface CurrentWeather {
   /** Optional visibility in miles (imperial) or kilometers (metric). */
   visibility?: number;
   description: string;
+  /** Stable i18n key when the provider supplies generated condition text. */
+  descriptionKey?: string;
   airQuality?: AirQuality;
 }
 
@@ -804,6 +807,7 @@ function CurrentConditions({
   sunrise?: Date;
   sunset?: Date;
 }) {
+  const t = useTranslations('weather');
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
   const showFeelsLike = temp !== feels;
@@ -855,6 +859,11 @@ function CurrentConditions({
                   &amp; {temperatureTrend}
                 </span>
               )}
+            </div>
+            <div className="mt-1 text-sm capitalize text-muted-foreground">
+              {weather.descriptionKey && typeof t.has === 'function' && t.has(`conditions.${weather.descriptionKey}`)
+                ? t(`conditions.${weather.descriptionKey}`)
+                : weather.description}
             </div>
           </div>
         </div>

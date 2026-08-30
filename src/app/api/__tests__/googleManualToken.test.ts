@@ -161,12 +161,15 @@ describe('POST /api/integrations/google/manual-token — validation & mapping', 
     expect(body.error).toBe('invalid_client');
   });
 
-  it('400 missing_calendar_scope when the token lacks calendar access', async () => {
+  // The route no longer requires Calendar specifically: a token is accepted if
+  // it covers ANY supported capability (Calendar, Tasks or Gmail), so the
+  // failure case is now "covers none of them". See #310.
+  it('400 no_supported_scope when the token covers none of the supported APIs', async () => {
     mockRefresh.mockResolvedValue({ access_token: 'at', expires_in: 3600, scope: 'openid email', token_type: 'Bearer' });
     const res = await POST(req(goodBody));
     const body = await res.json();
     expect(res.status).toBe(400);
-    expect(body.error).toBe('missing_calendar_scope');
+    expect(body.error).toBe('no_supported_scope');
     expect(mockStore).not.toHaveBeenCalled();
   });
 });
@@ -177,7 +180,14 @@ describe('POST /api/integrations/google/manual-token — success', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ ok: true, calendarCount: 2, accountEmail: 'user@example.com' });
+    expect(body).toEqual({
+      ok: true,
+      capabilities: ['calendar'],
+      enabled: 'Calendar',
+      needsTaskListSelection: false,
+      calendarCount: 2,
+      accountEmail: 'user@example.com',
+    });
     expectNoLeak(JSON.stringify(body));
 
     // Exactly one refresh + one store.
@@ -213,5 +223,57 @@ describe('POST /api/integrations/google/manual-token — success', () => {
     });
     await POST(req(goodBody));
     expect(order).toEqual(['creds', 'store']);
+  });
+});
+
+describe('POST /api/integrations/google/manual-token — read-only calendar', () => {
+  const READONLY = 'https://www.googleapis.com/auth/calendar.readonly openid email';
+
+  beforeEach(() => {
+    mockRefresh.mockResolvedValue({
+      access_token: 'at_plain',
+      expires_in: 3600,
+      scope: READONLY,
+      token_type: 'Bearer',
+    });
+  });
+
+  it('connects rather than rejecting, and reports read-only', async () => {
+    const res = await POST(req(goodBody));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.capabilities).toEqual(['calendarReadonly']);
+    expect(body.enabled).toBe('Calendar (read-only)');
+    expect(body.calendarCount).toBe(2);
+  });
+
+  it('tells the store the token cannot write, so no calendar offers an event form', async () => {
+    // The whole point of the flag: per-calendar accessRole describes the
+    // ACCOUNT's rights, so without this an owned calendar would still show in
+    // the event modal and fail on submit.
+    await POST(req(goodBody));
+    expect(mockStore).toHaveBeenCalledTimes(1);
+    expect(mockStore.mock.calls[0][0].readOnly).toBe(true);
+  });
+
+  it('does not set the read-only flag for a full-access token', async () => {
+    mockRefresh.mockResolvedValue({
+      access_token: 'at_plain',
+      expires_in: 3600,
+      scope: 'https://www.googleapis.com/auth/calendar openid email',
+      token_type: 'Bearer',
+    });
+    await POST(req(goodBody));
+    expect(mockStore.mock.calls[0][0].readOnly).toBe(false);
+  });
+
+  it('still records the calendar count in the audit log', async () => {
+    // Regression: the summary keyed off 'calendar' alone, so read-only
+    // connections logged no count while full ones did.
+    await POST(req(goodBody));
+    const summary = mockLogActivity.mock.calls[0][0].summary as string;
+    expect(summary).toContain('2 calendars');
+    expect(summary).toContain('read-only');
   });
 });
