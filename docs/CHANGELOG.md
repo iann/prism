@@ -4,6 +4,55 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+### Fixed
+- **Prism no longer offers a Google sign-in button that cannot work.** Google refuses a private address as a sign-in redirect, so on a home-network-only install the button sent you to Google and Google turned you away in its own words, with nothing on the Prism side explaining why. Where the address you are using cannot work, Prism now says so, names the ways round it — reopen Prism on a public https address or on localhost, or paste a token instead — and opens the paste-a-token section for you. On a public address nothing changes.
+- **The backups page put its most-used button last.** *Clear Cache & Reload* now sits above the list of backups rather than below it, and the list shows the five most recent with the rest behind a *Show older backups* toggle. Nothing is deleted; the list simply no longer grows until it pushes everything else off the screen.
+
+## [1.19.0] – 2026-08-29
+
+### Added
+- **Tasks removed in Google or Microsoft are now held for your review instead of disappearing.** When a task you sync stops being listed by the other app, Prism no longer deletes it. It stays put and a *Review* button appears on the Tasks page, where you choose to delete it or keep it as a local task. If an unusual number vanish at once — the shape of an outage rather than someone ticking things off — nothing is flagged at all and the sync says why, so a bad connection cannot quietly empty your list. A task that comes back on its own clears itself with no action from you.
+- **Tasks can be deleted from the Tasks page.** There was previously no delete anywhere in the task list or its edit window; you could only mark something complete. Both now have one.
+- **A read-only Google calendar can be connected on its own.** See 1.18.3; this release extends the same idea to task sources.
+
+### Fixed
+- **Deleting a task in Prism now removes it from the app it syncs with.** It previously vanished locally and came back within about five minutes, with nothing to explain why.
+- **Google Tasks could not be connected without a public web address.** Two separate faults: the connection read its credentials from a place they are not stored when Prism is set up through the app rather than a configuration file, and after pasting a token there was no way to reach the screen that picks which lists to show. The first also meant that, where the connection did work, it stopped about an hour later and reported only that credentials were missing.
+- **Apple Reminders tasks removed on the server are held for review too**, rather than deleted outright.
+- **The Tasks page kept its own settings.** Grouping, sorting and *show completed* survive a refresh now. The list filter does too, but is forgotten once the display has been idle a while, so walking up to a sleeping screen gives you the whole list back rather than a filtered one you do not remember setting.
+- **The task list filter said "No List" where it meant "All".** Choosing the obvious-looking option emptied the screen, and clearing the filter was only possible by unticking everything. There is now an explicit *All*, with the old option renamed *Unassigned*.
+- **The Tasks page stopped updating for child profiles.** It was repeatedly attempting a sync only a parent is allowed to run, and failing silently.
+- **A child asked to review a removed task was refused without being told why.**
+- **Weather and Kroger API keys could be overwritten without signing in.** Both now require an authenticated parent, matching the equivalent Google and Microsoft settings.
+
+## [1.18.3] – 2026-08-28
+
+### Added
+- **A read-only Google calendar can now be connected on its own.** Pasting a token that covers only `calendar.readonly` used to be refused. It now connects, and its calendars appear in Prism exactly like an iCal subscription you have subscribed to: the events show up, and Prism will not try to write to them. These calendars are not offered when you add an event, so you cannot fill in a form that was never going to save. To create events from Prism, include the `calendar.events` line as well when you generate the token; the setup screen shows both.
+
+### Fixed
+- **A Google calendar Prism could not write to no longer offers to add events to it.** Whether a calendar accepted new events was decided from your permissions on that calendar in Google, rather than from what the token itself was allowed to do. A calendar you own therefore looked writable even when the connection was read-only, and an event typed into it was saved locally with a vague warning that it "could not be synced". Now a read-only connection is treated as read-only everywhere, and a save that fails for this reason says so plainly instead of suggesting you try again.
+
+## [1.18.2] – 2026-08-28
+
+### Added
+- **Google Tasks and bus-tracking Gmail can now be connected without a public web address.** Prism has supported Google Tasks as a task source for a while, but connecting it required Google's browser sign-in, which needs a public HTTPS address that a home-network-only install does not have. The same paste-a-token method already used for Google Calendar now covers Tasks and Gmail too, and one token can carry all three. You choose which: in Google's OAuth Playground you paste only the lines for the parts you want, so a token can cover your calendar and tasks while leaving your email alone. Prism tells you afterwards exactly what the token enabled. The exact lines to paste are shown in *Settings → Integrations → Google*. Note that a token cannot gain access later, so to add something you generate a fresh one with the extra line included.
+
+## [1.18.1] – 2026-08-28
+
+### Fixed
+- **A misconfigured encryption key is now reported clearly instead of surfacing later as a broken integration.** If the `ENCRYPTION_KEY` in your `.env` was missing, left as the example placeholder, or otherwise malformed, Prism started and looked completely healthy — nothing encrypts until an integration first stores a credential. The problem only appeared later, as an unexplained failure when connecting Google Calendar, iCloud, bus tracking or photo sources, which pointed at those integrations rather than at the key. Prism now checks the key when it starts and prints a clear message saying what is wrong and how to generate a valid one, and connecting an account will tell you the key is at fault rather than blaming your credentials. The example `.env` no longer ships placeholder values for secrets, since a placeholder looks configured when it isn't.
+
+## [1.18.0] – 2026-08-28
+
+### Added
+- **The clock and weather widget now speak the language you picked, and the German wording has been corrected by a native speaker.** Choosing Deutsch previously left the day of the week, the weather conditions and the "today" label in English. Those now follow the selected language, along with corrections to the existing German throughout, contributed off the back of [#289](https://github.com/sandydargoport/prism/issues/289). Catalogues are also checked automatically now, so a language can no longer drift out of step with English without the tests noticing.
+- **Birthdays are found on any calendar you use, not just two specific Google ones.** Prism previously only picked up birthdays from Google's contacts calendar and from a calendar that happened to be named "Friends & Family", which worked if you kept one and did nothing at all otherwise. It now reads them from every calendar you've connected — Google, iCloud, an iCal subscription, or a calendar you created inside Prism. That last one is the answer to "how do I add a birthday Prism can't find": make an **all-day** event with the person's name and the word *birthday* in the title, and it appears on the next sync. Add the year in brackets, like `Grandma's Birthday (1948)`, to show their age. Anniversaries work the same way with the word *anniversary*, and anything else you want to remember is picked up if it's all-day, repeats yearly, and has a year in the title. Deleting a birthday now sticks too, rather than reappearing on the next sync. Read-only calendars you subscribe to (school terms, public holidays) are skipped on purpose, so "No School — Martin Luther King's Birthday" doesn't become a family birthday, and titles like "birthday party" or "prep for Sam's birthday" are ignored because they describe the celebration rather than the day. Titles are recognised in English and German. Full details in the [Birthdays & Milestones](features/BIRTHDAYS.md) guide.
+
+### Fixed
+- **Input and Bus Tracking settings now actually save.** Turning off the on-screen keyboard, changing any of the barcode scanner options, or setting the bus Gmail label appeared to work and then quietly reverted, because those pages were sending their save in a form the settings API rejects. Nothing was written and no error was shown; the Bus Tracking page went as far as reporting "Gmail label saved" while saving nothing. Both pages now save correctly and will tell you if a save ever fails. Reported in [#298](https://github.com/sandydargoport/prism/issues/298). If you use a tablet where Prism's own keyboard appears on top of the system one, turning the keyboard off under *Settings → Input* now works and stays off.
+- **A failed Google token connection no longer blames your token when the problem is ours.** When connecting Google Calendar with a pasted refresh token, anything unexpected going wrong on Prism's side reported the same message as a genuinely bad token, sending people off to generate a new one that was never the issue. Prism now says plainly when the failure is on its side and points at the log line to quote if you report it.
+
 ## [1.17.2] – 2026-08-27
 
 ### Fixed

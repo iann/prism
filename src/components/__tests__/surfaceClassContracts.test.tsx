@@ -322,6 +322,7 @@ describe('surface class contracts', () => {
       'src/app/chores/ChoreItem.tsx:text-[8px]',
       'src/app/chores/ChoreItem.tsx:text-[8px]',
       'src/app/meals/MealsView.tsx:text-[8px]',
+      'src/app/settings/sections/integrations/cards/GoogleManualTokenForm.tsx:text-[11px]',
       'src/app/tasks/TaskItem.tsx:text-[8px]',
       // Decorative selected-state check glyphs.
       'src/app/travel/components/InlineChildAdd.tsx:text-[10px]',

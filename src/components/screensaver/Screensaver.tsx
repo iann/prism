@@ -124,6 +124,10 @@ export function Screensaver() {
 
 function ScreensaverGrid() {
   const layout = useMemo(() => loadScreensaverLayout(), []);
+  // The screensaver's widget set is fixed for as long as this overlay is
+  // mounted. Fetch only the domains it draws; deferring the rest would undo
+  // the gating shortly after mount while the dashboard underneath is already
+  // fetching its own data.
   const visibleWidgets = useMemo(
     () =>
       new Set(
@@ -131,7 +135,7 @@ function ScreensaverGrid() {
       ),
     [layout]
   );
-  const data = useDashboardData(visibleWidgets);
+  const data = useDashboardData(visibleWidgets, { deferRest: false });
   const widgetProps = useMemo(
     () =>
       buildWidgetProps(

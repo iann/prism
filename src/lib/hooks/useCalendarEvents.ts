@@ -12,6 +12,7 @@ import type { CalendarEvent } from '@/types/calendar';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
+import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 import { useDistinctState } from './useDistinctState';
 
 interface UseCalendarEventsOptions {
@@ -104,6 +105,7 @@ export function useCalendarEvents(
   // The request URL doubles as the cache key. When an explicit range is given
   // it wins; otherwise fall back to the today-anchored daysToShow window.
   // Stable across remounts within the same day (deps are primitives).
+  const dateKey = useLocalDateKey();
   const rangeStartMs = rangeStart?.getTime();
   const rangeEndMs = rangeEnd?.getTime();
   const cacheKey = useMemo(() => {
@@ -118,7 +120,10 @@ export function useCalendarEvents(
       endDate = endOfDay(addDays(today, daysToShow));
     }
     return `/api/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&limit=${limit}`;
-  }, [daysToShow, rangeStartMs, rangeEndMs, limit]);
+    // Roll the today-anchored request window at local midnight. Explicit
+    // ranges are unaffected, but keeping dateKey here is harmless and makes
+    // this hook safe for wall displays that stay mounted for weeks.
+  }, [daysToShow, rangeStartMs, rangeEndMs, limit, dateKey]);
 
   const cached = navCacheGet<CalendarEvent[]>(cacheKey);
   const [events, setEvents] = useState<CalendarEvent[]>(() => cached ?? []);

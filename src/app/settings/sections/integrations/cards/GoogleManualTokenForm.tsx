@@ -5,6 +5,46 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
+import { GOOGLE_CAPABILITIES, type GoogleCapability } from '@/lib/integrations/googleManualScopes';
+
+/**
+ * The capabilities a user can ask for by pasting scopes, in the order shown.
+ *
+ * Only the prose lives here — the scope lines themselves come from
+ * GOOGLE_CAPABILITIES, which is also what validates the resulting token. That
+ * is deliberate: these instructions and that check used to be separate copies,
+ * and #312 changed one without the other.
+ *
+ * 'calendarReadonly' is described inside the Calendar entry rather than listed
+ * as its own bullet, because it is a weaker version of the same thing, not a
+ * fourth feature to choose.
+ */
+const PASTEABLE: Array<{ key: GoogleCapability; blurb: string; note?: React.ReactNode }> = [
+  {
+    key: 'calendar',
+    blurb: 'two-way sync. Both lines:',
+    note: (
+      <>
+        The{' '}
+        <code>{GOOGLE_CAPABILITIES.calendarReadonly.playgroundScopes.join(' ')}</code> line on its
+        own also works and gives you read-only calendars: their events show in Prism, but they are
+        not offered when you add an event.
+      </>
+    ),
+  },
+  { key: 'tasks', blurb: 'Google Tasks as a task source:' },
+  {
+    key: 'gmail',
+    blurb: 'bus tracking only:',
+    note: (
+      <>
+        Bus tracking marks the transport emails it has read, which needs <code>modify</code>.{' '}
+        <code>gmail.readonly</code> also works if you would rather it never wrote anything, but then
+        those emails stay unread in your inbox.
+      </>
+    ),
+  },
+];
 
 /**
  * Connect Google Calendar without a public URL by pasting a refresh token
@@ -14,6 +54,13 @@ import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
  *
  * Write-only: the secret and refresh token are never read back to the UI.
  */
+/**
+ * Where the Google Tasks list picker lives. Matches the redirect the browser
+ * OAuth callback issues, so both paths land in the same place.
+ */
+const TASK_LIST_PICKER_URL =
+  '/settings?section=integrations&selectGoogleTasksList=true&newConnection=true#google-tasks';
+
 export function GoogleManualTokenForm({ onSaved }: { onSaved?: () => void }) {
   const { confirm, dialogProps } = useConfirmDialog();
   const [clientId, setClientId] = React.useState('');
@@ -61,15 +108,41 @@ export function GoogleManualTokenForm({ onSaved }: { onSaved?: () => void }) {
       }
 
       const data = await res.json();
+      // Report what the token actually covered, not just that it worked. The
+      // scopes are chosen in the Playground, so someone who meant to include
+      // Tasks and forgot to tick it would otherwise see a success message and
+      // then wonder why no tasks appeared.
+      const parts: string[] = [];
+      if (data.capabilities?.includes('calendar')) {
+        parts.push(`${data.calendarCount ?? 0} calendar${data.calendarCount === 1 ? '' : 's'} imported`);
+      }
+      if (data.capabilities?.includes('calendarReadonly')) {
+        parts.push(
+          `${data.calendarCount ?? 0} calendar${data.calendarCount === 1 ? '' : 's'} imported, ` +
+          'read-only (Prism cannot add events to them)',
+        );
+      }
+      if (data.capabilities?.includes('gmail')) parts.push('Gmail connected for bus tracking');
+      if (data.needsTaskListSelection) parts.push('choose which task lists to show');
       toast({
-        title: 'Google Calendar connected',
-        description: `${data.calendarCount ?? 0} calendar${data.calendarCount === 1 ? '' : 's'} imported.`,
+        title: `Google connected: ${data.enabled ?? 'Calendar'}`,
+        description: parts.join(' · ') || undefined,
         variant: 'success',
       });
       // Clear the sensitive fields; they're never hydrated from the server.
       setClientSecret('');
       setRefreshToken('');
       onSaved?.();
+
+      // Tasks tokens are parked in Redis for five minutes and spent by the
+      // list picker, which only opens from these query params — the browser
+      // callback redirects to exactly this URL. Without navigating here the
+      // token expires unspent and Tasks silently never connects, which is the
+      // whole feature for a LAN-only install. Told the user to "choose which
+      // lists" and then leaving them no way to get there is not a fix.
+      if (data.needsTaskListSelection) {
+        window.location.href = TASK_LIST_PICKER_URL;
+      }
     } catch (err) {
       toast({
         title: 'Could not connect',
@@ -105,6 +178,36 @@ export function GoogleManualTokenForm({ onSaved }: { onSaved?: () => void }) {
         Do all of this signed into a <span className="underline">single</span> Google account — the one
         whose calendars you want — ideally in a private/incognito window, so you never mix up accounts.
       </p>
+
+        <p className="text-xs text-muted-foreground">
+          One token can cover more than the calendar. The Playground&apos;s API list is long, so use the
+          <strong> Input your own scopes</strong> box at the top of Step 1 and paste the lines you want,
+          space-separated. Paste only what you want Prism to use:
+        </p>
+        <ul className="list-disc space-y-1.5 pl-5 text-xs text-muted-foreground">
+          {PASTEABLE.map(({ key, blurb, note }) => (
+            <li key={key}>
+              <strong>{GOOGLE_CAPABILITIES[key].label}</strong> &mdash; {blurb}
+              <code className="mt-0.5 block break-all text-[11px]">
+                {GOOGLE_CAPABILITIES[key].playgroundScopes.join(' ')}
+              </code>
+              {note ? <span className="mt-0.5 block">{note}</span> : null}
+            </li>
+          ))}
+        </ul>
+        <p className="text-xs text-muted-foreground">
+          Leave one out and Prism simply will not enable it. A token cannot gain a scope later, so to add
+          one afterwards you generate a new token with the extra scope included and paste it here again.
+        </p>
+        <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+          <li><strong>Google Calendar API v3</strong> &mdash; two-way calendar sync</li>
+          <li><strong>Tasks API v1</strong> &mdash; Google Tasks as a task source</li>
+          <li><strong>Gmail API v1</strong> &mdash; bus tracking only, which reads transport emails</li>
+        </ul>
+        <p className="text-xs text-muted-foreground">
+          Leave one out and Prism simply will not enable it. A token cannot gain a scope later, so to add
+          one afterwards you generate a new token with the extra scope ticked and paste it here again.
+        </p>
 
       <ol className="list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
         <li>
@@ -147,8 +250,7 @@ export function GoogleManualTokenForm({ onSaved }: { onSaved?: () => void }) {
           Client ID and Secret.
         </li>
         <li>
-          Step 1: enter the scope{' '}
-          <code className="rounded bg-muted px-1">https://www.googleapis.com/auth/calendar</code> →{' '}
+          Step 1: enter the scopes you chose above &rarr;{' '}
           <span className="font-medium">Authorize APIs</span> → sign in → if warned the app isn&apos;t
           verified, choose <span className="font-medium">Advanced → proceed</span> (expected for your own
           app) → <span className="font-medium">Allow</span>.

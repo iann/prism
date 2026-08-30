@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
+import { useLocale } from 'next-intl';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTimeFormat } from '@/components/providers';
@@ -33,6 +34,7 @@ export const ClockWidget = React.memo(function ClockWidget({
   className,
 }: ClockWidgetProps) {
   const { timeFormat: globalTimeFormat, displayTimezone } = useTimeFormat();
+  const locale = useLocale();
   const effectiveTimeFormat = format24Hour === undefined
     ? globalTimeFormat
     : format24Hour ? '24h' : '12h';
@@ -55,9 +57,13 @@ export const ClockWidget = React.memo(function ClockWidget({
     };
   }, [showSeconds]);
 
-  const dateFormat = 'EEEE, MMMM d';
   const timeString = formatDisplayTime(currentTime, effectiveTimeFormat, { showSeconds }, displayTimezone);
-  const dateString = format(toDisplayDate(currentTime, displayTimezone), dateFormat);
+  // Intl keeps the weekday/month order correct for the active locale.
+  const dateString = toDisplayDate(currentTime, displayTimezone).toLocaleDateString(locale, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 
   const timeStyles = {
     small: 'text-3xl',

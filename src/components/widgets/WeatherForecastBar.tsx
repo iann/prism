@@ -16,6 +16,8 @@
 import * as React from 'react';
 import SunCalc from 'suncalc';
 import { Droplets } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
 import type { ForecastDay, WeatherUnits, WeatherCondition } from './WeatherWidget';
 
 // ---------------------------------------------------------------------------
@@ -53,6 +55,15 @@ function tempToColor(fahrenheit: number): string {
 
 function toFahrenheitForColor(value: number, units: WeatherUnits): number {
   return units.temperature === 'C' ? value * 9 / 5 + 32 : value;
+}
+
+function localizeDayName(dayName: string, locale: string): string {
+  const idx = DAYS_SHORT_ARRAY.indexOf(dayName as (typeof DAYS_SHORT_ARRAY)[number]);
+  if (idx < 0) return dayName;
+  return new Date(Date.UTC(2024, 0, 7 + idx)).toLocaleDateString(locale, {
+    weekday: 'short',
+    timeZone: 'UTC',
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -113,6 +124,8 @@ function MoonGlyph({ phase, size = 14, color = 'currentColor' }: { phase: number
 // ---------------------------------------------------------------------------
 
 export function DayHeader({ days, units }: { days: ForecastDay[]; units: WeatherUnits }) {
+  const t = useTranslations('weather');
+  const locale = useLocale();
   const now = new Date();
   const todayLocalStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -129,7 +142,7 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
         const d = new Date(day.date);
         const dayLocalStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
         const isToday = dayLocalStr === todayLocalStr;
-        const label = isToday ? 'TODAY' : day.dayName.toUpperCase();
+        const label = isToday ? t('today') : localizeDayName(day.dayName, locale).toUpperCase();
 
         const leftPct  = ((day.low  - globalMin) / span) * 100;
         const widthPct = ((day.high - day.low)   / span) * 100;

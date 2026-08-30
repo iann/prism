@@ -134,7 +134,9 @@ export interface CurrentWeather {
   dewPoint?: number;
   /** Optional visibility in miles (imperial) or kilometers (metric). */
   visibility?: number;
+  /** Stable provider key for localising generated condition descriptions. */
   description: string;
+  descriptionKey?: string;
   airQuality?: AirQuality;
 }
 
