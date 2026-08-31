@@ -698,6 +698,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 41cb120c
 
+84. **Timed current-weather summaries**
+
+    Replaces the standalone current feels-like row with a concise,
+    location-time-aware summary such as rain this afternoon followed by
+    clouds tonight, then appends the current feels-like temperature only when
+    its displayed value differs from the actual temperature.
+
+    Commit: 721a6144
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

@@ -410,24 +410,18 @@ describe('openmeteo.fetchWeatherData', () => {
     }
   });
 
-  it('buckets day-part periods by the location timezone, not container UTC (M-WEATHER)', async () => {
-    // Pin the clock so absolute Chicago hours are deterministic. now = 11:00Z
-    // = 06:00 CDT, so an 08:00-Chicago (13:00Z) and a 14:00-Chicago (19:00Z)
-    // hour both fall inside the (now-1h, now+12h] window. Fake only the Date
-    // clock; leave timer fns real (the fetch path uses none).
+  it('builds all local-day periods from the full provider set in the response timezone', async () => {
     jest.useFakeTimers({
       now: new Date('2026-07-15T11:00:00Z').getTime(),
       doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask', 'nextTick'],
     });
     try {
       const response = buildResponse('America/Chicago');
-      // 08:00 Chicago → 13:00Z (UTC hour 13 = "Afternoon" under the old bug).
-      // 14:00 Chicago → 19:00Z (UTC hour 19 = "Evening" under the old bug).
-      response.hourly.time = ['2026-07-15T08:00', '2026-07-15T14:00'];
-      response.hourly.temperature_2m = [50, 80];
-      response.hourly.precipitation_probability = [0, 0];
-      response.hourly.precipitation = [0, 0];
-      response.hourly.weather_code = [0, 0];
+      response.hourly.time = ['2026-07-15T08:00', '2026-07-15T14:00', '2026-07-15T22:00'];
+      response.hourly.temperature_2m = [10, 20, 15];
+      response.hourly.precipitation_probability = [10, 40, 80];
+      response.hourly.precipitation = [0, 1, 2];
+      response.hourly.weather_code = [0, 61, 71];
 
       jest.spyOn(global, 'fetch' as never).mockResolvedValue({
         ok: true,
@@ -435,14 +429,35 @@ describe('openmeteo.fetchWeatherData', () => {
       } as never);
 
       const { fetchWeatherData } = await import('../openmeteo');
-      const result = await fetchWeatherData();
+      const result = await fetchWeatherData(undefined, {
+        units: { temperature: 'C', windSpeed: 'km/h', precipitation: 'mm' },
+      });
 
       const byLabel = Object.fromEntries((result.periods ?? []).map((p) => [p.label, p]));
-      // Correct (location-TZ) bucketing: 08:00 → Morning, 14:00 → Afternoon.
-      expect(byLabel.Morn?.temp).toBe(50);
-      expect(byLabel.Aft?.temp).toBe(80);
-      // The old UTC bucketing would have pushed 19:00Z into an Evening period.
-      expect(byLabel.Eve).toBeUndefined();
+      expect(result.timezone).toBe('America/Chicago');
+      expect(byLabel.Morn).toMatchObject({
+        period: 'morning',
+        dateKey: '2026-07-15',
+        temp: 10,
+        condition: 'sunny',
+      });
+      expect(byLabel.Aft).toMatchObject({ period: 'afternoon', temp: 20, condition: 'rainy' });
+      expect(byLabel.Eve).toMatchObject({
+        period: 'evening',
+        temp: 15,
+        condition: 'snowy',
+        precipProbability: 80,
+      });
+      expect(
+        result.hourly?.some(
+          (hour) =>
+            new Intl.DateTimeFormat('en-US', {
+              timeZone: 'America/Chicago',
+              hour: 'numeric',
+              hourCycle: 'h23',
+            }).format(hour.time) === '22'
+        )
+      ).toBe(false);
     } finally {
       jest.useRealTimers();
     }

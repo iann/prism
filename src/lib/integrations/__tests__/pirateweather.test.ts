@@ -492,6 +492,50 @@ describe('hourly forecast', () => {
   });
 });
 
+describe('forecast periods', () => {
+  it('uses the full hourly set and the response IANA timezone', async () => {
+    const morning = SEC(Date.UTC(2026, 4, 1, 13, 0, 0));
+    const afternoon = SEC(Date.UTC(2026, 4, 1, 19, 0, 0));
+    const evening = SEC(Date.UTC(2026, 4, 2, 4, 0, 0));
+    const fetchSpy = mockFetch(
+      buildResponse({
+        timezone: 'America/Chicago',
+        hourlyData: [
+          hourly(morning, { temperature: 10, precipProbability: 0.1 }),
+          hourly(afternoon, { icon: 'rain', temperature: 20, precipProbability: 0.4 }),
+          hourly(evening, { icon: 'snow', temperature: 15, precipProbability: 0.8 }),
+        ],
+      })
+    );
+
+    const { fetchWeatherData } = await import('../pirateweather');
+    const result = await fetchWeatherData(undefined, {
+      units: { temperature: 'C', windSpeed: 'km/h', precipitation: 'mm' },
+    });
+
+    const byLabel = Object.fromEntries(
+      (result.periods ?? []).map((period) => [period.label, period])
+    );
+    expect(fetchSpy.mock.calls[0]?.[0]).toContain('units=ca');
+    expect(result.timezone).toBe('America/Chicago');
+    expect(byLabel.Morn).toMatchObject({
+      period: 'morning',
+      dateKey: '2026-05-01',
+      temp: 10,
+      condition: 'sunny',
+    });
+    expect(byLabel.Aft).toMatchObject({ period: 'afternoon', temp: 20, condition: 'rainy' });
+    expect(byLabel.Eve).toMatchObject({
+      period: 'evening',
+      temp: 15,
+      condition: 'snowy',
+      precipProbability: 80,
+    });
+    expect(result.hourly?.some((hour) => hour.time.getTime() === morning * 1000)).toBe(false);
+    expect(result.hourly?.some((hour) => hour.time.getTime() === evening * 1000)).toBe(false);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Sunrise / sunset
 // ---------------------------------------------------------------------------

@@ -21,12 +21,12 @@ import type {
   WeatherCondition,
   CurrentWeather,
   ForecastDay,
-  ForecastPeriod,
   HourlyForecast,
   MinutelyData,
 } from '@/components/widgets/WeatherWidget';
 import type { LocationParam, WeatherOptions } from './weather';
 import { getMoonData } from './moon';
+import { buildForecastPeriods } from '@/lib/weather/forecastPeriods';
 
 // ---------------------------------------------------------------------------
 // Pirate Weather (Dark Sky-compatible) response types
@@ -235,23 +235,23 @@ export async function fetchWeatherData(
       };
     });
 
-  // ── Hourly: next 24 hours ─────────────────────────────────────────────────
+  // Map the full provider set before clipping the visible timeline. Period
+  // summaries need every available hour from the location's current day.
   const nowMs = Date.now();
   const cutoff = nowMs + 12 * 3_600_000;
-  const hourlyData: HourlyForecast[] = hourly.data
-    .filter((h) => {
-      const t = h.time * 1000;
-      return t > nowMs - 3_600_000 && t <= cutoff;
-    })
-    .map((h) => ({
-      time: new Date(h.time * 1000),
-      condition: mapIcon(h.icon),
-      temp: Math.round(h.temperature),
-      feelsLike: Math.round(h.apparentTemperature ?? h.temperature),
-      uvIndex: h.uvIndex === undefined ? undefined : Math.round(h.uvIndex * 10) / 10,
-      precipProbability: Math.round(h.precipProbability * 100),
-      precipIntensity: h.precipIntensity,
-    }));
+  const providerHourly: HourlyForecast[] = hourly.data.map((h) => ({
+    time: new Date(h.time * 1000),
+    condition: mapIcon(h.icon),
+    temp: Math.round(h.temperature),
+    feelsLike: Math.round(h.apparentTemperature ?? h.temperature),
+    uvIndex: h.uvIndex === undefined ? undefined : Math.round(h.uvIndex * 10) / 10,
+    precipProbability: Math.round(h.precipProbability * 100),
+    precipIntensity: h.precipIntensity,
+  }));
+  const hourlyData = providerHourly.filter((h) => {
+    const t = h.time.getTime();
+    return t > nowMs - 3_600_000 && t <= cutoff;
+  });
 
   // Override the currently-active hour with observed current conditions.
   // Use currently.precipIntensity for intensity so the label reflects reality.
@@ -268,32 +268,7 @@ export async function fetchWeatherData(
       : h
   );
 
-  // ── Periods (Morning / Afternoon / Evening) ───────────────────────────────
-  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
-  const periodDefs = [
-    { label: 'Morn', minHour: 6, maxHour: 12 },
-    { label: 'Aft', minHour: 12, maxHour: 18 },
-    { label: 'Eve', minHour: 18, maxHour: 24 },
-  ];
-  const periods: ForecastPeriod[] = [];
-  for (const def of periodDefs) {
-    const matching = hourly.data.filter((h) => {
-      const d = new Date(h.time * 1000);
-      return (
-        d.toLocaleDateString('en-CA') === todayStr &&
-        d.getHours() >= def.minHour &&
-        d.getHours() < def.maxHour
-      );
-    });
-    if (matching.length > 0) {
-      const avgTemp = matching.reduce((s, h) => s + h.temperature, 0) / matching.length;
-      periods.push({
-        label: def.label,
-        temp: Math.round(avgTemp),
-        condition: mapIcon(matching[0]!.icon),
-      });
-    }
-  }
+  const periods = buildForecastPeriods(providerHourly, { timeZone: timezone }, nowMs);
 
   // ── Minutely precipitation data ───────────────────────────────────────────
   const minutelyData: MinutelyData[] | undefined = minutely?.data;
