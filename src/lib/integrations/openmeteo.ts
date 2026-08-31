@@ -32,12 +32,12 @@ import type {
   WeatherUnits,
   CurrentWeather,
   ForecastDay,
-  ForecastPeriod,
   HourlyForecast,
 } from '@/components/widgets/WeatherWidget';
 import type { LocationParam, WeatherOptions } from './weather';
 import { getMoonData } from './moon';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
+import { buildForecastPeriods } from '@/lib/weather/forecastPeriods';
 
 function defaultImperialUnits(): WeatherUnits {
   return { temperature: 'F', windSpeed: 'mph', precipitation: 'in' };
@@ -346,10 +346,11 @@ export async function fetchWeatherData(
       };
     });
 
-  // ── Hourly: next 24 hours ─────────────────────────────────────────────────
+  // Map the full provider set before clipping the visible timeline. Period
+  // summaries need every available hour from the location's current day.
   const nowMs = Date.now();
   const cutoff = nowMs + 12 * 3_600_000;
-  const hourlyData: HourlyForecast[] = hourly.time
+  const providerHourly: HourlyForecast[] = hourly.time
     .map((t, i) => ({
       // Same wall-clock-in-location issue as sunrise above — pass through
       // zonedTimeToUtc so the absolute instant is right for the user's browser.
@@ -362,11 +363,11 @@ export async function fetchWeatherData(
         : Math.round(hourly.uv_index[i]! * 10) / 10,
       precipProbability: Math.round(hourly.precipitation_probability?.[i] ?? 0),
       precipIntensity: hourly.precipitation[i] ?? 0,
-    }))
-    .filter((h) => {
-      const t = h.time.getTime();
-      return t > nowMs - 3_600_000 && t <= cutoff;
-    });
+    }));
+  const hourlyData = providerHourly.filter((h) => {
+    const t = h.time.getTime();
+    return t > nowMs - 3_600_000 && t <= cutoff;
+  });
 
   // Override the currently-active hour with observed current conditions —
   // matches the pattern in openweather.ts and pirateweather.ts.
@@ -383,43 +384,7 @@ export async function fetchWeatherData(
       : h,
   );
 
-  // ── Periods (Morning / Afternoon / Evening) ───────────────────────────────
-  // Bucket by the *location's* timezone, not the container's runtime TZ (UTC).
-  // h.time is a correct UTC instant; getHours()/toLocaleDateString() would read
-  // it in UTC, so e.g. Chicago 8am (13:00 UTC) fell into "Afternoon" and late
-  // evening hours rolled to the wrong calendar day and dropped. Intl formatters
-  // pinned to `timezone` give the local hour/date. `todayLocalStr` (already the
-  // location-TZ date, computed above) is the correct "today" anchor.
-  const hourInTz = new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone,
-    hour: '2-digit',
-    hourCycle: 'h23',
-  });
-  const dateInTz = new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
-  const periodDefs = [
-    { label: 'Morn', minHour: 6, maxHour: 12 },
-    { label: 'Aft', minHour: 12, maxHour: 18 },
-    { label: 'Eve', minHour: 18, maxHour: 24 },
-  ];
-  const periods: ForecastPeriod[] = [];
-  for (const def of periodDefs) {
-    const matching = hourlyData.filter((h) => {
-      const localHour = parseInt(hourInTz.format(h.time), 10);
-      return (
-        dateInTz.format(h.time) === todayLocalStr &&
-        localHour >= def.minHour &&
-        localHour < def.maxHour
-      );
-    });
-    if (matching.length > 0) {
-      const avgTemp = matching.reduce((s, h) => s + h.temp, 0) / matching.length;
-      periods.push({
-        label: def.label,
-        temp: Math.round(avgTemp),
-        condition: matching[0]!.condition,
-      });
-    }
-  }
+  const periods = buildForecastPeriods(providerHourly, { timeZone: timezone }, nowMs);
 
   // ── Moon (local computation — Open-Meteo doesn't expose moon data) ────────
   const moon = getMoonData(config.lat, config.lon);

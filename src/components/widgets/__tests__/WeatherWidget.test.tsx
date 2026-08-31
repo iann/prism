@@ -682,22 +682,84 @@ describe('current conditions', () => {
     expect(stats.queryByText(/7:48/)).toBeNull();
   });
 
-  it('renders the "feels like" temperature', () => {
+  it('always renders a weather summary', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, temperature: 68, feelsLike: 68 },
+      hourly: [],
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe('Mostly sunny today.');
+  });
+
+  it('appends the current feels-like temperature when display values differ', () => {
     const data = makeWeatherData({
       current: { ...makeWeatherData().current, feelsLike: 60 },
     });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText(/Feels like 60°/)).not.toBeNull();
+
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe(
+      'Mostly sunny today. Feels like 60° now.',
+    );
   });
 
-  it('hides the current feels-like temperature when the displayed values match', () => {
+  it('omits feels-like copy when the displayed values match', () => {
     const data = makeWeatherData({
       current: { ...makeWeatherData().current, temperature: 72.4, feelsLike: 72.2 },
     });
     render(<WeatherWidget data={data} />);
 
     expect(screen.getByTestId('weather-current-temperature').textContent).toContain('72°');
-    expect(screen.queryByText(/Feels like/)).toBeNull();
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe('Mostly sunny today.');
+    expect(screen.getByTestId('weather-day-summary').textContent).not.toContain('Feels like');
+  });
+
+  it('formats metric current and feels-like temperatures as Celsius', () => {
+    const data = makeWeatherData({
+      units: { temperature: 'C', windSpeed: 'km/h', precipitation: 'mm' },
+      current: {
+        ...makeWeatherData().current,
+        temperature: 20,
+        feelsLike: 16,
+        condition: 'cloudy',
+      },
+      hourly: [],
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-current-temperature').textContent).toContain('20°C');
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe(
+      'Mostly cloudy today. Feels like 16°C now.',
+    );
+  });
+
+  it('uses provider periods with an OpenWeather fixed offset', () => {
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-05-01T02:00:00Z'));
+    try {
+      const data = makeWeatherData({
+        timezoneOffsetSeconds: -4 * 60 * 60,
+        current: {
+          ...makeWeatherData().current,
+          temperature: 68,
+          feelsLike: 68,
+          condition: 'snowy',
+        },
+        hourly: [],
+        periods: [
+          {
+            label: 'Eve',
+            period: 'evening',
+            temp: 55,
+            condition: 'snowy',
+          },
+        ],
+      });
+      render(<WeatherWidget data={data} />);
+
+      expect(screen.getByTestId('weather-day-summary').textContent).toBe('Snow tonight.');
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('renders humidity percentage', () => {

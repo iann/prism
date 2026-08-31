@@ -46,7 +46,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
+import type { ForecastPeriod } from '@/lib/weather/forecastPeriods';
 import { getTemperatureTrend } from '@/lib/weather/temperatureTrend';
+import { formatWeatherSummary } from '@/lib/weather/weatherSummary';
 import { getUvIndexTrend, type UvIndexTrend } from '@/lib/weather/uvIndexTrend';
 import { WidgetContainer } from './WidgetContainer';
 import { DayHeader } from './WeatherForecastBar';
@@ -113,6 +115,8 @@ export type WeatherCondition =
   | 'snowy'
   | 'stormy';
 
+export type { ForecastPeriod } from '@/lib/weather/forecastPeriods';
+
 export interface AirQuality {
   pm25?: number;
   pm10?: number;
@@ -178,12 +182,6 @@ export interface HourlyForecast {
   uvIndex?: number;
   precipProbability?: number; // 0–100
   precipIntensity?: number;   // in/hr or mm/hr, according to WeatherUnits
-}
-
-export interface ForecastPeriod {
-  label: string;
-  temp: number;
-  condition: WeatherCondition;
 }
 
 /** One minute of precipitation data from the minutely forecast. */
@@ -344,6 +342,8 @@ export interface WeatherData {
   location: string;
   /** IANA timezone of the weather location, when supplied by the provider. */
   timezone?: string;
+  /** Fixed UTC offset for providers that do not supply an IANA timezone. */
+  timezoneOffsetSeconds?: number;
   current: CurrentWeather;
   forecast: ForecastDay[];
   /** Currently active watches, warnings, advisories, or similar alerts. */
@@ -628,6 +628,9 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           weather={weatherData.current}
           units={units}
           hourly={weatherData.hourly}
+          periods={weatherData.periods}
+          timezone={weatherData.timezone}
+          timezoneOffsetSeconds={weatherData.timezoneOffsetSeconds}
           currentSource={weatherData.currentSource}
           sunrise={weatherData.sunrise}
           sunset={weatherData.sunset}
@@ -796,6 +799,9 @@ function CurrentConditions({
   weather,
   units,
   hourly,
+  periods,
+  timezone,
+  timezoneOffsetSeconds,
   currentSource,
   sunrise,
   sunset,
@@ -803,6 +809,9 @@ function CurrentConditions({
   weather: CurrentWeather;
   units: WeatherUnits;
   hourly?: HourlyForecast[];
+  periods?: ForecastPeriod[];
+  timezone?: string;
+  timezoneOffsetSeconds?: number;
   currentSource?: WeatherCurrentSource;
   sunrise?: Date;
   sunset?: Date;
@@ -811,6 +820,19 @@ function CurrentConditions({
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
   const showFeelsLike = temp !== feels;
+  const weatherSummary = formatWeatherSummary(
+    {
+      currentCondition: weather.condition,
+      periods,
+      hourly,
+      timeZone: timezone,
+      utcOffsetSeconds: timezoneOffsetSeconds,
+    },
+    (key, values) => t(key, values),
+  );
+  const daySummary = showFeelsLike
+    ? `${weatherSummary} ${t('summary.feelsLikeNow', { temperature: feels })}`
+    : weatherSummary;
   const temperatureTrend = getTemperatureTrend(hourly);
   const uvIndexTrend = weather.uvIndex === undefined
     ? null
@@ -867,9 +889,12 @@ function CurrentConditions({
             </div>
           </div>
         </div>
-        {showFeelsLike && (
-          <div className="text-lg leading-6 text-muted-foreground">Feels like {feels}</div>
-        )}
+        <div
+          data-testid="weather-day-summary"
+          className="whitespace-normal break-words text-lg leading-6 text-muted-foreground"
+        >
+          {daySummary}
+        </div>
         {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
           <div
             className="mt-2 flex items-center gap-1.5 text-[13px] text-muted-foreground"

@@ -57,6 +57,25 @@
       "snowShowers": "Schneeschauer",
       "thunderstorm": "Gewitter",
       "cloudy": "Bewölkt"
+    },
+    "summary": {
+      "conditions": {
+        "sunny": "überwiegend sonnig",
+        "partly-cloudy": "teilweise bewölkt",
+        "cloudy": "überwiegend bewölkt",
+        "rainy": "Regen",
+        "snowy": "Schnee",
+        "stormy": "Gewitter"
+      },
+      "periods": {
+        "morning": "heute Morgen",
+        "afternoon": "heute Nachmittag",
+        "evening": "heute Abend"
+      },
+      "singleTimed": "{condition} {period}.",
+      "singleToday": "heute {condition}.",
+      "transition": "{first} {firstPeriod}, später {second} {secondPeriod}.",
+      "feelsLikeNow": "Aktuell gefühlt {temperature}."
     }
   }
 }

@@ -57,6 +57,25 @@
       "snowShowers": "Snow showers",
       "thunderstorm": "Thunderstorm",
       "cloudy": "Cloudy"
+    },
+    "summary": {
+      "conditions": {
+        "sunny": "mostly sunny",
+        "partly-cloudy": "partly cloudy",
+        "cloudy": "mostly cloudy",
+        "rainy": "rain",
+        "snowy": "snow",
+        "stormy": "storms"
+      },
+      "periods": {
+        "morning": "this morning",
+        "afternoon": "this afternoon",
+        "evening": "tonight"
+      },
+      "singleTimed": "{condition} {period}.",
+      "singleToday": "{condition} today.",
+      "transition": "{first} {firstPeriod}, then {second} {secondPeriod}.",
+      "feelsLikeNow": "Feels like {temperature} now."
     }
   }
 }
