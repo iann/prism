@@ -39,6 +39,8 @@ describe('WeatherRadarWidget', () => {
     expect(radar.className).toContain('rounded-xl');
     expect(screen.queryByTestId('widget-container')).toBeNull();
     expect(screen.getByTestId('weather-radar-map').className).toContain('overflow-clip');
+    expect(iframe.className).toContain('h-full');
+    expect(iframe.className).not.toContain('h-[calc(100%+8rem)]');
     expect(iframe.getAttribute('src')).toContain('/api/weather/windy/embed2.html');
     expect(iframe.getAttribute('src')).toContain('lat=41.7181');
     expect(iframe.getAttribute('src')).toContain('lon=-87.6298');
