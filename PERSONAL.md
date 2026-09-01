@@ -716,6 +716,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 07690743
 
+86. **Aligned all-day calendar event lanes**
+
+    Lets non-overlapping single-day all-day events reuse the same horizontal
+    lanes as multi-day bars, while keeping overlapping events in separate
+    lanes. Multi-day labels now use the same readable text size as the other
+    all-day event labels across month, multi-week, and three-month views.
+
+    Commit: 9bd63425
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
