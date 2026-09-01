@@ -24,7 +24,7 @@ import { useIdleLogoutSetting, IDLE_LOGOUT_OPTIONS } from '@/lib/hooks/useIdleLo
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useAwayModeTimeout } from '@/lib/hooks/useAwayModeTimeout';
 import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
-import { APP_THEME_IDS, appThemes } from '@/lib/themes/appThemes';
+import { appThemes, isAppThemeId } from '@/lib/themes/appThemes';
 import {
   MAX_SUNSET_OFFSET_MINUTES,
   MIN_SUNSET_OFFSET_MINUTES,
@@ -53,8 +53,10 @@ export function DisplaySection() {
     sunsetOffsetMinutes,
     setSunsetOffsetMinutes,
     colorTheme,
-    setColorTheme,
     resolvedTheme,
+    palette: activePalette,
+    palettes,
+    setPalette,
   } = useTheme();
   const { seasonalTheme, setSeasonalTheme, palette } = useSeasonalTheme();
   const [sunsetOffsetInput, setSunsetOffsetInput] = useState(String(sunsetOffsetMinutes));
@@ -90,16 +92,21 @@ export function DisplaySection() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {APP_THEME_IDS.map((id) => {
-            const preset = appThemes[id];
+          {palettes.map((preset) => {
             const colors = preset[resolvedTheme];
-            const selected = colorTheme === id;
+            const personalColors = isAppThemeId(preset.id) ? appThemes[preset.id][resolvedTheme] : null;
+            const previewColor = (token: string) =>
+              personalColors?.[`--${token}`] ?? colors[token as keyof typeof colors] ?? '0 0% 50%';
+            const swatches = personalColors
+              ? ['widget-calendar', 'widget-planning', 'widget-family', 'widget-info']
+              : ['background', 'card', 'primary', 'accent'];
+            const selected = activePalette.id === preset.id || colorTheme === preset.id;
             return (
               <button
                 type="button"
-                key={id}
+                key={preset.id}
                 aria-pressed={selected}
-                onClick={() => setColorTheme(id)}
+                onClick={() => setPalette(preset.id)}
                 className={cn(
                   'rounded-xl border p-3 text-left transition-all',
                   selected
@@ -110,20 +117,15 @@ export function DisplaySection() {
                 <div
                   className="mb-3 flex h-14 items-end gap-1.5 rounded-lg border p-2"
                   style={{
-                    backgroundColor: `hsl(${colors['--background']})`,
-                    borderColor: `hsl(${colors['--border']})`,
+                    backgroundColor: `hsl(${previewColor('background')})`,
+                    borderColor: `hsl(${previewColor('border')})`,
                   }}
                 >
-                  {[
-                    '--widget-calendar',
-                    '--widget-planning',
-                    '--widget-family',
-                    '--widget-info',
-                  ].map((token) => (
+                  {swatches.map((token) => (
                     <span
                       key={token}
                       className="h-8 flex-1 rounded-sm"
-                      style={{ backgroundColor: `hsl(${colors[token as keyof typeof colors]})` }}
+                      style={{ backgroundColor: `hsl(${previewColor(token)})` }}
                     />
                   ))}
                 </div>
@@ -222,6 +224,7 @@ export function DisplaySection() {
               </span>
             </div>
           </div>
+
         </CardContent>
       </Card>
 

@@ -9,6 +9,8 @@ import type { AuthResult } from '@/lib/auth';
 import { logError } from '@/lib/utils/logError';
 import { PIN_LENGTH_SETTING_KEY } from '@/lib/constants';
 import { isSetupComplete } from '@/lib/setup';
+import { getBuiltinTheme } from '@/lib/themes/appThemes';
+import { isInstallableTheme } from '@/lib/themes/tokens';
 
 export async function GET() {
   const auth = await getDisplayAuth();
@@ -70,6 +72,42 @@ export async function PATCH(request: NextRequest) {
       auth = authResult;
       const forbidden = requireRole(auth, 'canModifySettings');
       if (forbidden) return forbidden;
+    }
+
+    // Per-key validation. This endpoint otherwise accepts any shape for any
+    // key, and the theme row is read on the server and rendered into a <style>
+    // element in the root layout — so an unchecked value there is not a bad
+    // setting, it is markup in the page. Never trust the row on the render
+    // path; refuse it on the way in as well.
+    if (body.key === 'theme') {
+      const value = (body.value ?? {}) as { paletteId?: unknown; installed?: unknown };
+
+      // Installed themes are stored inline so a display without a network can
+      // still render what it was left on. That means arbitrary colour values
+      // reach a <style> element rendered on the server, so they are checked
+      // here rather than trusted because they came from our own gallery.
+      const installed = value.installed;
+      if (installed !== undefined) {
+        if (!Array.isArray(installed) || installed.length > 40) {
+          return NextResponse.json({ error: 'Invalid installed themes' }, { status: 400 });
+        }
+        if (!installed.every(isInstallableTheme)) {
+          return NextResponse.json({ error: 'Invalid installed theme' }, { status: 400 });
+        }
+      }
+
+      // The chosen palette must be one that exists — built in, or one of the
+      // installed themes in this same write.
+      const paletteId = value.paletteId;
+      if (paletteId !== undefined) {
+        const known =
+          typeof paletteId === 'string' &&
+          (Boolean(getBuiltinTheme(paletteId)) ||
+            (Array.isArray(installed) && installed.some((t) => (t as { id?: unknown }).id === paletteId)));
+        if (!known) {
+          return NextResponse.json({ error: 'Unknown palette' }, { status: 400 });
+        }
+      }
     }
 
     const [existing] = await db
