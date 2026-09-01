@@ -61,6 +61,7 @@
     "summary": {
       "conditions": {
         "sunny": "mostly sunny",
+        "sunnyNight": "mostly clear",
         "partly-cloudy": "partly cloudy",
         "cloudy": "mostly cloudy",
         "rainy": "rain",

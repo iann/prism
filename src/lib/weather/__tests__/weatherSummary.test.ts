@@ -6,6 +6,7 @@ const NOW = Date.parse('2026-08-31T11:00:00Z'); // 7:00 AM in New York
 
 const messages: Record<string, string> = {
   'summary.conditions.sunny': 'mostly sunny',
+  'summary.conditions.sunnyNight': 'mostly clear',
   'summary.conditions.partly-cloudy': 'partly cloudy',
   'summary.conditions.cloudy': 'mostly cloudy',
   'summary.conditions.rainy': 'rain',
@@ -80,6 +81,20 @@ describe('formatWeatherSummary', () => {
         translate
       )
     ).toBe('Rain this morning, then mostly cloudy this afternoon.');
+  });
+
+  it('uses clear wording for sunny conditions in the evening', () => {
+    expect(
+      formatWeatherSummary(
+        {
+          currentCondition: 'sunny',
+          periods: [period('evening', 'sunny')],
+          timeZone: 'America/New_York',
+          nowMs: Date.parse('2026-08-31T23:00:00Z'),
+        },
+        translate
+      )
+    ).toBe('Mostly clear tonight.');
   });
 
   it('suppresses day parts that have already ended at the location', () => {

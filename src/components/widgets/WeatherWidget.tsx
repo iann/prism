@@ -882,18 +882,16 @@ function CurrentConditions({
                 </span>
               )}
             </div>
-            <div className="mt-1 text-sm capitalize text-muted-foreground">
-              {weather.descriptionKey && typeof t.has === 'function' && t.has(`conditions.${weather.descriptionKey}`)
-                ? t(`conditions.${weather.descriptionKey}`)
-                : weather.description}
+            {/* The timed summary is the condition line. Rendering the provider's
+                current description here as well repeats copy such as
+                "Partly cloudy" / "Partly cloudy tonight." */}
+            <div
+              data-testid="weather-day-summary"
+              className="mt-1 whitespace-normal break-words text-lg leading-6 text-muted-foreground"
+            >
+              {daySummary}
             </div>
           </div>
-        </div>
-        <div
-          data-testid="weather-day-summary"
-          className="whitespace-normal break-words text-lg leading-6 text-muted-foreground"
-        >
-          {daySummary}
         </div>
         {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
           <div
