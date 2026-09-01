@@ -85,8 +85,8 @@ export function MultiWeekView({
   // Scope the wide event list to the visible weeks once, so the spanning +
   // per-day filters iterate the local slice instead of thousands of events.
   const scopedEvents = eventsOverlappingRange(events, weekStart, addDays(weekStart, weekCount * 7));
-  const spanningEvents = scopedEvents
-    .filter((event) => eventSpansMultipleDisplayDays(
+  const eventRowEvents = scopedEvents
+    .filter((event) => event.allDay || eventSpansMultipleDisplayDays(
       event.startTime,
       event.endTime,
       event.allDay,
@@ -114,7 +114,7 @@ export function MultiWeekView({
         style={{ gridTemplateRows: `repeat(${weekCount}, ${rowSizing})` }}
       >
         {weeks.map((week, wIdx) => {
-          const rowSpanningEvents = spanningEvents.filter((event) => week.some((rowDate) =>
+          const rowEventEvents = eventRowEvents.filter((event) => week.some((rowDate) =>
             eventOccursOnDisplayDay(
               event.startTime,
               event.endTime,
@@ -134,7 +134,7 @@ export function MultiWeekView({
                   key={dIdx}
                   date={date}
                   rowDates={week}
-                  spanningEvents={rowSpanningEvents}
+                  spanningEvents={rowEventEvents}
                   events={scopedEvents}
                   onEventClick={onEventClick}
                   compact={compact}

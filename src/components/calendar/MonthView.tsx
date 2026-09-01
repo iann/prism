@@ -83,15 +83,15 @@ export function MonthView({
   // Scope the wide event list to this month grid's visible range once, so the
   // spanning + per-day filters iterate ~40 events instead of thousands.
   const scopedEvents = eventsOverlappingRange(events, calendarStart, calendarEnd);
-  const spanningEvents = scopedEvents
-    .filter((event) => eventSpansMultipleDisplayDays(
+  const eventRowEvents = scopedEvents
+    .filter((event) => event.allDay || eventSpansMultipleDisplayDays(
       event.startTime,
       event.endTime,
       event.allDay,
       displayTimezone,
     ))
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime() || a.title.localeCompare(b.title));
-  const spanningEventSet = new Set(spanningEvents);
+  const eventRowEventSet = new Set(eventRowEvents);
 
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden">
@@ -123,7 +123,7 @@ export function MonthView({
         {days.map((date, index) => {
           const weekStartIndex = Math.floor(index / 7) * 7;
           const rowDates = days.slice(weekStartIndex, weekStartIndex + 7);
-          const rowSpanningEvents = spanningEvents.filter((event) => rowDates.some((rowDate) =>
+          const rowEventEvents = eventRowEvents.filter((event) => rowDates.some((rowDate) =>
             eventOccursOnDisplayDay(
               event.startTime,
               event.endTime,
@@ -132,7 +132,7 @@ export function MonthView({
               displayTimezone,
             )));
           const dayEvents = scopedEvents
-            .filter((event) => !spanningEventSet.has(event))
+            .filter((event) => !eventRowEventSet.has(event))
             .filter((event) => eventOccursOnDisplayDay(
               event.startTime,
               event.endTime,
@@ -154,7 +154,7 @@ export function MonthView({
               date={date}
               dayEvents={dayEvents}
               rowDates={rowDates}
-              spanningEvents={rowSpanningEvents}
+              spanningEvents={rowEventEvents}
               bucket={bucketsByDate?.get(format(date, 'yyyy-MM-dd'))}
               cards={cards}
               enableDnd={enableDnd}
