@@ -759,6 +759,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: edd116b6
 
+91. **Dismissible precipitation radar controls**
+
+    Adds a transparent 48px close target to the desktop radar overlay that
+    hides the radar for two hours per browser, and removes Windy’s animation
+    speed controls from the timeline.
+
+    Commit: 7410a131
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
