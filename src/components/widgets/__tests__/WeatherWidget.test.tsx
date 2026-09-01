@@ -668,6 +668,40 @@ describe('current conditions', () => {
     expect(within(screen.getByTestId('weather-current-stats')).queryByText('Partly cloudy')).toBeNull();
   });
 
+  it('uses the timed summary as the only condition line beneath the temperature', () => {
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-05-01T02:00:00Z'));
+    try {
+      const data = makeWeatherData({
+        timezoneOffsetSeconds: -4 * 60 * 60,
+        current: {
+          ...makeWeatherData().current,
+          temperature: 68,
+          feelsLike: 68,
+          condition: 'partly-cloudy',
+          description: 'Partly cloudy',
+        },
+        hourly: [],
+        periods: [
+          {
+            label: 'Eve',
+            period: 'evening',
+            temp: 55,
+            condition: 'partly-cloudy',
+          },
+        ],
+      });
+      render(<WeatherWidget data={data} />);
+
+      const temperature = screen.getByTestId('weather-current-temperature');
+      const summary = screen.getByTestId('weather-day-summary');
+      expect(summary.textContent).toBe('Partly cloudy tonight.');
+      expect(summary.parentElement).toBe(temperature.parentElement);
+      expect(screen.queryByText('Partly cloudy', { exact: true })).toBeNull();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
     const data = makeWeatherData({
       sunrise: new Date(2026, 6, 17, 6, 27),

@@ -115,7 +115,10 @@ export function formatWeatherSummary(
                 : mostSalient
             ),
         ];
-  const condition = (value: WeatherCondition) => translate(`summary.conditions.${value}`);
+  const condition = (value: WeatherCondition, period?: ForecastPeriodKey) => {
+    const key = value === 'sunny' && period === 'evening' ? 'sunnyNight' : value;
+    return translate(`summary.conditions.${key}`);
+  };
   const timing = (value: ForecastPeriodKey) => translate(`summary.periods.${value}`);
 
   if (clauses.length === 0) {
@@ -131,7 +134,7 @@ export function formatWeatherSummary(
     const key = available.length > 1 ? 'summary.singleToday' : 'summary.singleTimed';
     return capitalizeSentence(
       translate(key, {
-        condition: condition(clause.condition),
+        condition: condition(clause.condition, clause.period),
         period: timing(clause.period),
       })
     );
@@ -139,9 +142,9 @@ export function formatWeatherSummary(
 
   return capitalizeSentence(
     translate('summary.transition', {
-      first: condition(clauses[0]!.condition),
+      first: condition(clauses[0]!.condition, clauses[0]!.period),
       firstPeriod: timing(clauses[0]!.period),
-      second: condition(clauses[1]!.condition),
+      second: condition(clauses[1]!.condition, clauses[1]!.period),
       secondPeriod: timing(clauses[1]!.period),
     })
   );

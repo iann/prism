@@ -61,6 +61,7 @@
     "summary": {
       "conditions": {
         "sunny": "überwiegend sonnig",
+        "sunnyNight": "überwiegend klar",
         "partly-cloudy": "teilweise bewölkt",
         "cloudy": "überwiegend bewölkt",
         "rainy": "Regen",
