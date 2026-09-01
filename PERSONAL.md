@@ -734,6 +734,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 7b5aade2
 
+88. **Conditional desktop precipitation radar**
+
+    Shows a borderless Windy precipitation radar over the dashboard when
+    precipitation is active, recent, or expected within a two-hour window. The
+    radar is proxied through the app, centered around Boston, and mounted only
+    on full desktop views.
+
+    Commit: 61eacdf3
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
