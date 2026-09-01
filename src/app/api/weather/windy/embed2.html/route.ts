@@ -12,6 +12,7 @@ const WINDY_QUERY_KEYS = [
   'overlay',
   'product',
   'level',
+  'play',
   'menu',
   'calendar',
   'lat',

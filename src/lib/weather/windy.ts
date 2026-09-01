@@ -15,6 +15,7 @@ export function buildWindyEmbedUrl(lat: number, lon: number): string {
     ['overlay', 'radar'],
     ['product', 'radar'],
     ['level', 'surface'],
+    ['play', '1'],
     ['menu', ''],
     ['calendar', ''],
     ['lat', coordinate(lat - WINDY_MAP_SOUTHWARD_OFFSET)],

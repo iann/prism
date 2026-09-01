@@ -11,6 +11,7 @@ describe('buildWindyEmbedUrl', () => {
     expect(url.searchParams.get('overlay')).toBe('radar');
     expect(url.searchParams.get('product')).toBe('radar');
     expect(url.searchParams.get('level')).toBe('surface');
+    expect(url.searchParams.get('play')).toBe('1');
     expect(url.searchParams.get('menu')).toBe('');
     expect(url.searchParams.get('calendar')).toBe('');
     expect(url.searchParams.get('lat')).toBe('42.3');
