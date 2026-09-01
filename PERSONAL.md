@@ -743,6 +743,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 61eacdf3
 
+89. **Autoplaying precipitation radar**
+
+    Starts the proxied Windy precipitation radar automatically when the
+    conditional desktop overlay appears, including the playback parameter
+    through the backend allowlist.
+
+    Commit: e6fa11a0
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
