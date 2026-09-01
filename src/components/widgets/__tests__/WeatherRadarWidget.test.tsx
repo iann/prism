@@ -1,9 +1,11 @@
 /** @jest-environment jsdom */
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { WeatherData } from '../WeatherWidget';
 
 import { WeatherRadarWidget } from '../WeatherRadarWidget';
+
+const RADAR_DISMISSED_UNTIL_KEY = 'prism:weather-radar-dismissed-until';
 
 function makeWeather(overrides: Partial<WeatherData> = {}): WeatherData {
   return {
@@ -27,6 +29,10 @@ function makeWeather(overrides: Partial<WeatherData> = {}): WeatherData {
 }
 
 describe('WeatherRadarWidget', () => {
+  beforeEach(() => {
+    localStorage.removeItem(RADAR_DISMISSED_UNTIL_KEY);
+  });
+
   it('renders the Windy iframe when precipitation is active', () => {
     render(<WeatherRadarWidget data={makeWeather()} bottomOffset={96} />);
 
@@ -48,13 +54,36 @@ describe('WeatherRadarWidget', () => {
     expect(iframe.getAttribute('src')).not.toContain('detailLat=');
   });
 
+  it('hides the radar for two hours when the close icon is clicked', () => {
+    render(<WeatherRadarWidget data={makeWeather()} />);
+
+    const closeButton = screen.getByRole('button', { name: 'Close weather radar' });
+    expect(closeButton.className).toContain('h-12');
+    expect(closeButton.className).toContain('w-12');
+
+    fireEvent.click(closeButton);
+
+    expect(screen.queryByTestId('weather-radar-widget')).toBeNull();
+    expect(Number(localStorage.getItem(RADAR_DISMISSED_UNTIL_KEY))).toBeGreaterThan(
+      Date.now() + 2 * 60 * 60 * 1000 - 1000,
+    );
+  });
+
+  it('honors an active radar dismissal after a remount', () => {
+    localStorage.setItem(RADAR_DISMISSED_UNTIL_KEY, String(Date.now() + 60 * 60 * 1000));
+
+    render(<WeatherRadarWidget data={makeWeather()} />);
+
+    expect(screen.queryByTestId('weather-radar-widget')).toBeNull();
+  });
+
   it('stays hidden when the weather is dry', () => {
     render(
       <WeatherRadarWidget
         data={makeWeather({
           current: { ...makeWeather().current, condition: 'sunny' },
         })}
-      />
+      />,
     );
 
     expect(screen.queryByTestId('weather-radar-widget')).toBeNull();
