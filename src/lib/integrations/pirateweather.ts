@@ -250,7 +250,9 @@ export async function fetchWeatherData(
   }));
   const hourlyData = providerHourly.filter((h) => {
     const t = h.time.getTime();
-    return t > nowMs - 3_600_000 && t <= cutoff;
+    // Retain two hours of history so the dashboard can surface precipitation
+    // that just ended, as well as the next twelve hours of forecast.
+    return t > nowMs - 2 * 3_600_000 && t <= cutoff;
   });
 
   // Override the currently-active hour with observed current conditions.
