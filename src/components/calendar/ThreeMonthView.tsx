@@ -76,15 +76,15 @@ function MiniMonth({
   // Scope the wide event list to this mini-month's visible grid once, so the
   // spanning filter and the per-day filter below iterate ~40 events, not thousands.
   const scopedEvents = eventsOverlappingRange(events, calendarStart, calendarEnd);
-  const spanningEvents = scopedEvents
-    .filter((event) => eventSpansMultipleDisplayDays(
+  const eventRowEvents = scopedEvents
+    .filter((event) => event.allDay || eventSpansMultipleDisplayDays(
       event.startTime,
       event.endTime,
       event.allDay,
       displayTimezone,
     ))
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime() || a.title.localeCompare(b.title));
-  const spanningEventSet = new Set(spanningEvents);
+  const eventRowEventSet = new Set(eventRowEvents);
 
   return (
     <div className={cn(
@@ -111,7 +111,7 @@ function MiniMonth({
       <div className="flex-1 flex flex-col gap-px px-1 pb-1">
         {weeks.map((week, weekIndex) => {
           const visibleRowDates = week.filter((date) => isSameMonth(date, month));
-          const rowSpanningEvents = spanningEvents.filter((event) => visibleRowDates.some((rowDate) =>
+          const rowEventEvents = eventRowEvents.filter((event) => visibleRowDates.some((rowDate) =>
             eventOccursOnDisplayDay(
               event.startTime,
               event.endTime,
@@ -127,7 +127,7 @@ function MiniMonth({
               const today = isSameDay(date, displayNow);
               const isPast = isBefore(date, startOfDay(displayNow)) && !today;
               const dayEvents = scopedEvents
-                .filter((event) => !spanningEventSet.has(event))
+                .filter((event) => !eventRowEventSet.has(event))
                 .filter((event) => eventOccursOnDisplayDay(
                   event.startTime,
                   event.endTime,
@@ -165,7 +165,7 @@ function MiniMonth({
                     <SpanningEventRows
                       date={date}
                       rowDates={visibleRowDates}
-                      events={rowSpanningEvents}
+                      events={rowEventEvents}
                       onEventClick={onEventClick}
                       compact
                       gap="1px"

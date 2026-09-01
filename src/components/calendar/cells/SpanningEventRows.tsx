@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { contrastText } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
 import { useTimeFormat } from '@/components/providers';
+import { layoutCalendarEventRows } from '@/lib/utils/calendarEventRows';
 import {
   eventOccursOnDisplayDay,
   eventStartsOnDisplayDay,
@@ -22,10 +23,14 @@ export type SpanningEventRowsProps = {
 };
 
 /**
- * Renders the slice of each multi-day event that crosses this day cell.
- * A continuing slice covers only the gap after its own cell. Adjacent slices
- * therefore meet without overlapping, which keeps translucent/muted bars from
- * producing darker seams at day boundaries.
+ * Renders one shared lane for each group of overlapping all-day or multi-day
+ * events. A continuing slice covers only the gap after its own cell. Adjacent
+ * slices therefore meet without overlapping, which keeps translucent/muted
+ * bars from producing darker seams at day boundaries.
+ *
+ * `events` includes one-day all-day events as well as events that span display
+ * days. Keeping them in the same lane layout prevents a one-day event from
+ * being pushed below every spanning event in the week.
  */
 export function SpanningEventRows({
   date,
@@ -41,13 +46,20 @@ export function SpanningEventRows({
 
   const occurs = (event: CalendarEvent, target: Date) =>
     eventOccursOnDisplayDay(event.startTime, event.endTime, event.allDay, target, displayTimezone);
+  const eventRows = layoutCalendarEventRows(events, rowDates, displayTimezone);
+  const rowHeight = 'h-5';
 
   return (
     <div
       data-spanning-events
       className={cn('relative z-20 flex shrink-0 flex-col', compact ? 'gap-px' : 'gap-0.5')}
     >
-      {events.map((event) => {
+      {eventRows.map((row, rowIndex) => {
+        const event = row.find((candidate) => occurs(candidate, date));
+        if (!event) {
+          return <div key={`empty-${rowIndex}`} data-event-row={rowIndex} aria-hidden className={rowHeight} />;
+        }
+
         const active = occurs(event, date);
         const continuesFromPrevious = active && occurs(event, addDays(date, -1));
         const continuesToNext = active && occurs(event, addDays(date, 1));
@@ -61,9 +73,6 @@ export function SpanningEventRows({
           new Date(),
           displayTimezone
         );
-        const rowHeight = compact ? 'h-3.5' : 'h-5';
-
-        if (!active) return <div key={event.id} aria-hidden className={rowHeight} />;
 
         const startsToday = eventStartsOnDisplayDay(
           event.startTime,
@@ -77,8 +86,9 @@ export function SpanningEventRows({
 
         return (
           <button
-            key={event.id}
+            key={`${event.id}-${rowIndex}`}
             type="button"
+            data-event-row={rowIndex}
             title={label}
             onClick={(clickEvent) => {
               clickEvent.stopPropagation();
@@ -87,7 +97,9 @@ export function SpanningEventRows({
             className={cn(
               'relative z-20 block w-full truncate text-left font-medium leading-tight hover:brightness-95',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seasonal-accent',
-              compact ? 'h-3.5 px-0.5 text-[8px]' : 'h-5 px-1 text-xs',
+              rowHeight,
+              compact ? 'px-0.5' : 'px-1',
+              'text-xs',
               !continuesFromPrevious && 'rounded-l-md',
               !continuesToNext && 'rounded-r-md',
               continuesBeforeRow && (compact ? 'pl-1.5' : 'pl-2'),

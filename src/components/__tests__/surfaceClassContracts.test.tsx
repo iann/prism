@@ -330,9 +330,6 @@ describe('surface class contracts', () => {
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinList.tsx:text-[10px]',
-      // Compact multi-day event bars need a small label to fit their fixed row.
-      'src/components/calendar/cells/InlineCalendarEvent.tsx:text-[8px]',
-      'src/components/calendar/cells/SpanningEventRows.tsx:text-[8px]',
       // Compact metadata and screen-size labels in the community gallery.
       'src/components/layout/CommunityGallery.tsx:text-[10px]',
       'src/components/layout/CommunityGallery.tsx:text-[11px]',
