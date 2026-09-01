@@ -172,6 +172,37 @@ describe('SpanningEventRows', () => {
     expect(lastDay.querySelector('[data-event-row="1"]')).toBeNull();
   });
 
+  it('shares the spanning lane with a non-overlapping timed one-day event', () => {
+    const timedEvent: CalendarEvent = {
+      ...event,
+      id: 'gretchen',
+      title: 'Gretchen @ 3pm',
+      allDay: false,
+      startTime: new Date('2026-08-09T15:00:00.000Z'),
+      endTime: new Date('2026-08-09T16:00:00.000Z'),
+    };
+    const rowDates = [new Date(2026, 7, 9), new Date(2026, 7, 10)];
+
+    const { container } = render(
+      <div>
+        {rowDates.map((date) => (
+          <SpanningEventRows
+            key={date.toISOString()}
+            date={date}
+            rowDates={rowDates}
+            events={[timedEvent, event]}
+            onEventClick={() => {}}
+          />
+        ))}
+      </div>
+    );
+
+    const rows = container.querySelectorAll('[data-spanning-events]');
+    expect(rows[0]!.querySelector('[data-event-row="0"]')?.textContent).toContain('Gretchen @ 3pm');
+    expect(rows[1]!.querySelector('[data-event-row="0"]')?.textContent).toBe('Family trip');
+    expect(rows[1]!.querySelector('[data-event-row="1"]')).toBeNull();
+  });
+
   it('keeps compact event labels at the same readable text size', () => {
     const { getByRole } = render(
       <SpanningEventRows
@@ -191,6 +222,7 @@ describe('SpanningEventRows', () => {
     expect(button.className).toContain('text-xs');
     expect(button.className).not.toContain('text-[8px]');
     expect(button.className).toContain('h-5');
+    expect(button.className).toContain('items-center');
   });
 });
 

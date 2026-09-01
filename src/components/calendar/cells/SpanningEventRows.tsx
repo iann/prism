@@ -6,8 +6,10 @@ import { contrastText } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
 import { useTimeFormat } from '@/components/providers';
 import { layoutCalendarEventRows } from '@/lib/utils/calendarEventRows';
+import { inlineTimedEventStyle } from '../eventStyles';
 import {
   eventOccursOnDisplayDay,
+  eventSpansMultipleDisplayDays,
   eventStartsOnDisplayDay,
   formatDisplayTime,
   isCalendarEventPast,
@@ -23,14 +25,14 @@ export type SpanningEventRowsProps = {
 };
 
 /**
- * Renders one shared lane for each group of overlapping all-day or multi-day
- * events. A continuing slice covers only the gap after its own cell. Adjacent
- * slices therefore meet without overlapping, which keeps translucent/muted
- * bars from producing darker seams at day boundaries.
+ * Renders one shared lane for each group of overlapping calendar events. A
+ * continuing slice covers only the gap after its own cell. Adjacent slices
+ * therefore meet without overlapping, which keeps translucent/muted bars from
+ * producing darker seams at day boundaries.
  *
- * `events` includes one-day all-day events as well as events that span display
- * days. Keeping them in the same lane layout prevents a one-day event from
- * being pushed below every spanning event in the week.
+ * All visible events share this layout, including timed one-day events. Keeping
+ * them in the same lane layout prevents a one-day event from being pushed below
+ * every spanning event in the week.
  */
 export function SpanningEventRows({
   date,
@@ -83,6 +85,12 @@ export function SpanningEventRows({
         const label = !event.allDay && startsToday
           ? `${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`
           : event.title;
+        const filledEvent = event.allDay || eventSpansMultipleDisplayDays(
+          event.startTime,
+          event.endTime,
+          false,
+          displayTimezone,
+        );
 
         return (
           <button
@@ -95,20 +103,21 @@ export function SpanningEventRows({
               onEventClick(event);
             }}
             className={cn(
-              'relative z-20 block w-full truncate text-left font-medium leading-tight hover:brightness-95',
+              'relative z-20 flex w-full items-center truncate text-left font-medium leading-tight hover:brightness-95',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seasonal-accent',
               rowHeight,
-              compact ? 'px-0.5' : 'px-1',
+              compact ? 'px-1' : 'px-2',
               'text-xs',
               !continuesFromPrevious && 'rounded-l-md',
               !continuesToNext && 'rounded-r-md',
-              continuesBeforeRow && (compact ? 'pl-1.5' : 'pl-2'),
-              continuesAfterRow && (compact ? 'pr-1.5' : 'pr-2'),
+              continuesBeforeRow && 'pl-2',
+              continuesAfterRow && 'pr-2',
               past && 'opacity-55 saturate-[0.65]'
             )}
             style={{
-              backgroundColor: event.color,
-              color: past ? contrastText(event.color) : '#fff',
+              ...(filledEvent
+                ? { backgroundColor: event.color, color: past ? contrastText(event.color) : '#fff' }
+                : inlineTimedEventStyle(event.color)),
               width: continuesWithinRow ? `calc(100% + ${gap})` : '100%',
               clipPath:
                 continuesBeforeRow && continuesAfterRow
@@ -120,7 +129,9 @@ export function SpanningEventRows({
                       : undefined,
             }}
           >
-            {(!continuesFromPrevious || column === 0) && label}
+            {(!continuesFromPrevious || column === 0) && (
+              <span className="min-w-0 truncate">{label}</span>
+            )}
           </button>
         );
       })}

@@ -20,7 +20,7 @@ import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 import { SpanningEventRows } from './cells';
 import { useTimeFormat } from '@/components/providers';
-import { eventOccursOnDisplayDay, eventSpansMultipleDisplayDays, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
+import { eventOccursOnDisplayDay, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 
 export interface MultiWeekViewProps {
@@ -82,17 +82,10 @@ export function MultiWeekView({
     weeks.push(hideWeekends ? row.filter((d) => d.getDay() !== 0 && d.getDay() !== 6) : row);
   }
   const colCount = hideWeekends ? 5 : 7;
-  // Scope the wide event list to the visible weeks once, so the spanning +
+  // Scope the wide event list to the visible weeks once, so the shared-lane +
   // per-day filters iterate the local slice instead of thousands of events.
   const scopedEvents = eventsOverlappingRange(events, weekStart, addDays(weekStart, weekCount * 7));
-  const eventRowEvents = scopedEvents
-    .filter((event) => event.allDay || eventSpansMultipleDisplayDays(
-      event.startTime,
-      event.endTime,
-      event.allDay,
-      displayTimezone,
-    ))
-    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime() || a.title.localeCompare(b.title));
+  const eventRowEvents = scopedEvents;
 
   // In inline mode, rows size to content (events list scrolls). In cards mode
   // with multiple weeks, rows are equal-height (`1fr`) so dynamic capacity has
@@ -375,8 +368,8 @@ function DayCell({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
                 className={cn(
-                  'w-full text-left rounded truncate hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all',
-                  compact ? 'text-xs px-0.5 py-px' : 'text-xs px-1 py-0.5',
+                  'flex w-full items-center text-left rounded truncate hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all',
+                  compact ? 'text-xs px-1 py-px' : 'text-xs px-2 py-0.5',
                 )}
                 style={event.allDay
                   ? inlineAllDayEventStyle(event.color)

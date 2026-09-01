@@ -23,7 +23,7 @@ import type { CalendarEvent } from '@/types/calendar';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 import { useTimeFormat } from '@/components/providers';
 import { SpanningEventRows } from './cells';
-import { eventOccursOnDisplayDay, eventSpansMultipleDisplayDays, formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
+import { eventOccursOnDisplayDay, formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 
 export interface ThreeMonthViewProps {
@@ -74,16 +74,9 @@ function MiniMonth({
     weeks.push(days.slice(i, i + 7));
   }
   // Scope the wide event list to this mini-month's visible grid once, so the
-  // spanning filter and the per-day filter below iterate ~40 events, not thousands.
+  // shared-lane filter and the per-day filter below iterate ~40 events, not thousands.
   const scopedEvents = eventsOverlappingRange(events, calendarStart, calendarEnd);
-  const eventRowEvents = scopedEvents
-    .filter((event) => event.allDay || eventSpansMultipleDisplayDays(
-      event.startTime,
-      event.endTime,
-      event.allDay,
-      displayTimezone,
-    ))
-    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime() || a.title.localeCompare(b.title));
+  const eventRowEvents = scopedEvents;
   const eventRowEventSet = new Set(eventRowEvents);
 
   return (
@@ -181,7 +174,7 @@ function MiniMonth({
                             e.stopPropagation();
                             onEventClick(event);
                           }}
-                          className="text-[12px] leading-tight px-0.5 rounded truncate cursor-pointer hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all"
+                          className="flex items-center text-[12px] leading-tight px-1 rounded truncate cursor-pointer hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all"
                           style={event.allDay
                             ? inlineAllDayEventStyle(event.color)
                             : inlineTimedEventStyle(event.color)

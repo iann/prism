@@ -2,11 +2,11 @@ import type { CalendarEvent } from '@/types/calendar';
 import { eventOccursOnDisplayDay } from './timeFormat';
 
 /**
- * Arrange all-day and multi-day calendar events into shared horizontal lanes.
+ * Arrange calendar events into shared horizontal lanes.
  *
  * Events that do not occupy the same displayed day can share a lane. This is
- * what lets a one-day all-day event sit alongside a multi-day bar instead of
- * being pushed below the entire row of spanning events.
+ * what lets a one-day event sit alongside a multi-day bar instead of being
+ * pushed below the entire row of spanning events.
  */
 export function layoutCalendarEventRows(
   events: CalendarEvent[],

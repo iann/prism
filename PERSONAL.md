@@ -725,6 +725,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 9bd63425
 
+87. **Unified calendar event lanes and spacing**
+
+    Places timed single-day events, such as Gretchen, in the same shared lane
+    allocator as multi-day events, such as Camping, so they stay aligned across
+    day boundaries. Calendar item labels now use vertical centering and a
+    larger left inset in the compact views.
+
+    Commit: 7b5aade2
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
