@@ -24,7 +24,7 @@ import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 import { CardHeightProbe, DayOverflowPopover, DroppableOverlayCell, SpanningEventRows, useDayDroppable, type OverlayItemRef } from './cells';
 import { useTimeFormat } from '@/components/providers';
-import { eventOccursOnDisplayDay, eventSpansMultipleDisplayDays, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
+import { eventOccursOnDisplayDay, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 
 export interface MonthViewProps {
@@ -81,16 +81,9 @@ export function MonthView({
   const numWeeks = Math.ceil(days.length / 7);
   const dayNames = [...DAYS_SHORT_ARRAY.slice(weekStartsOn), ...DAYS_SHORT_ARRAY.slice(0, weekStartsOn)];
   // Scope the wide event list to this month grid's visible range once, so the
-  // spanning + per-day filters iterate ~40 events instead of thousands.
+  // shared-lane + per-day filters iterate ~40 events instead of thousands.
   const scopedEvents = eventsOverlappingRange(events, calendarStart, calendarEnd);
-  const eventRowEvents = scopedEvents
-    .filter((event) => event.allDay || eventSpansMultipleDisplayDays(
-      event.startTime,
-      event.endTime,
-      event.allDay,
-      displayTimezone,
-    ))
-    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime() || a.title.localeCompare(b.title));
+  const eventRowEvents = scopedEvents;
   const eventRowEventSet = new Set(eventRowEvents);
 
   return (
@@ -271,7 +264,7 @@ function MonthDayCell({
                 onEventClick(event);
               }}
               className={cn(
-                'wall-inline-event-card text-xs px-1 rounded truncate cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
+                'wall-inline-event-card flex items-center text-xs px-2 rounded truncate cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
                 event.allDay ? 'py-px' : 'py-0.5'
               )}
               style={event.allDay
@@ -353,7 +346,7 @@ function DayCardsCell({
             onEventClick(event);
           }}
           className={cn(
-            'wall-month-event-card w-full text-left border-border bg-calendar-surface text-[12px] px-1 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight',
+            'wall-month-event-card flex w-full items-center text-left border-border bg-calendar-surface text-[12px] px-2 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight',
             isCalendarEventPast(
               event.startTime,
               event.endTime,

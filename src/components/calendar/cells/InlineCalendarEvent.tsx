@@ -44,11 +44,11 @@ export function InlineCalendarEvent({
         onClick(event);
       }}
       className={cn(
-        'w-full min-w-0 truncate rounded text-left font-medium transition-[background-color,filter,opacity]',
+        'flex w-full min-w-0 items-center truncate rounded text-left font-medium transition-[background-color,filter,opacity]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-seasonal-accent',
-        compact ? 'px-0.5 py-px' : 'px-1 py-0.5',
+        compact ? 'px-1 py-px' : 'px-2 py-0.5',
         'text-xs leading-tight',
-        event.allDay ? 'block hover:brightness-95' : 'flex items-center gap-1 hover:bg-accent/60',
+        event.allDay ? 'hover:brightness-95' : 'gap-1 hover:bg-accent/60',
         past && 'opacity-55 saturate-[0.65]',
         className
       )}

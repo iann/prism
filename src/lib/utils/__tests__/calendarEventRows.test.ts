@@ -16,6 +16,13 @@ function event(id: string, startDay: number, endDay: number): CalendarEvent {
   };
 }
 
+function timedEvent(id: string, startDay: number, endDay: number): CalendarEvent {
+  return {
+    ...event(id, startDay, endDay),
+    allDay: false,
+  };
+}
+
 describe('layoutCalendarEventRows', () => {
   it('shares a lane with one-day events when their dates do not overlap', () => {
     const rows = layoutCalendarEventRows([
@@ -38,6 +45,17 @@ describe('layoutCalendarEventRows', () => {
     expect(rows.map((row) => row.map((item) => item.id))).toEqual([
       ['trip', 'birthday'],
       ['appointment'],
+    ]);
+  });
+
+  it('shares a lane between a timed one-day event and a later spanning event', () => {
+    const rows = layoutCalendarEventRows([
+      timedEvent('gretchen', 10, 11),
+      event('camping', 11, 13),
+    ], rowDates);
+
+    expect(rows.map((row) => row.map((item) => item.id))).toEqual([
+      ['gretchen', 'camping'],
     ]);
   });
 });
