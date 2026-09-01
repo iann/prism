@@ -40,7 +40,7 @@ export const WeatherRadarWidget = React.memo(function WeatherRadarWidget({
         <iframe
           title="Windy precipitation map"
           src={buildWindyEmbedUrl(data.lat, data.lon)}
-          className="block h-[calc(100%+8rem)] w-full flex-none border-0"
+          className="block h-full w-full flex-none border-0"
           loading="lazy"
           allowFullScreen
         />
