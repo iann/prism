@@ -751,6 +751,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: e6fa11a0
 
+90. **Visible radar timeline**
+
+    Keeps Windy’s playback timeline inside the square radar overlay so the
+    animation controls remain visible while the map stays borderless and
+    rounded.
+
+    Commit: edd116b6
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
