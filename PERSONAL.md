@@ -707,6 +707,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 721a6144
 
+85. **Unified weather summary condition line**
+
+    Uses the timed summary as the single condition line beneath the current
+    temperature so matching current-condition text is not repeated, and uses
+    “mostly clear” instead of “mostly sunny” for sunny evening and nighttime
+    periods.
+
+    Commit: 07690743
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
