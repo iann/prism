@@ -52,8 +52,10 @@ function buildSecurityHeaders() {
     "media-src 'self' blob:",
     // PWA service worker
     "worker-src 'self' blob:",
-    // Prism never loads external frames
-    "frame-src 'none'",
+    // Windy is used for the conditional dashboard precipitation map.
+    // The radar may be served by the local Windy proxy as well as directly
+    // from Windy while older cached dashboard markup is still in use.
+    "frame-src 'self' https://embed.windy.com",
     // Block all plugin content (Flash, etc.)
     "object-src 'none'",
     // Prevent base tag injection attacks
@@ -87,4 +89,28 @@ function buildSecurityHeaders() {
   return headers;
 }
 
-module.exports = { buildSecurityHeaders };
+function buildWindyProxyHeaders() {
+  const windySources = 'https://*.windy.com https://windy.com';
+  const csp = [
+    `default-src 'self' ${windySources} data: blob:`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${windySources}`,
+    `style-src 'self' 'unsafe-inline' ${windySources}`,
+    `img-src 'self' ${windySources} https: data: blob:`,
+    `font-src 'self' ${windySources} https: data:`,
+    "connect-src 'self' https: wss:",
+    `worker-src 'self' ${windySources} blob:`,
+    `frame-src 'self' ${windySources}`,
+    'base-uri https://embed.windy.com',
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+  ].join('; ');
+
+  return [
+    { key: 'Content-Security-Policy', value: csp },
+    { key: 'X-Content-Type-Options', value: 'nosniff' },
+    { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+    { key: 'X-DNS-Prefetch-Control', value: 'off' },
+  ];
+}
+
+module.exports = { buildSecurityHeaders, buildWindyProxyHeaders };

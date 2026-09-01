@@ -402,8 +402,8 @@ describe('7-day forecast — day boundaries', () => {
 // ---------------------------------------------------------------------------
 
 describe('hourly forecast', () => {
-  it('only returns items within [now − 1 h, now + 12 h]', async () => {
-    const tooOld      = SEC(MOCK_NOW - 2 * 3_600_000);  // 2 h ago — excluded
+  it('only returns items within [now − 2 h, now + 12 h]', async () => {
+    const tooOld      = SEC(MOCK_NOW - 3 * 3_600_000);  // 3 h ago — excluded
     const recentStart = SEC(MOCK_NOW - 30 * 60_000);     // 30 min ago — included
     const current     = SEC(MOCK_NOW);
     const future6h    = SEC(MOCK_NOW + 6 * 3_600_000);

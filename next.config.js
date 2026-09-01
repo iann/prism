@@ -1,4 +1,4 @@
-const { buildSecurityHeaders } = require('./src/lib/utils/securityHeaders');
+const { buildSecurityHeaders, buildWindyProxyHeaders } = require('./src/lib/utils/securityHeaders');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -108,7 +108,11 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: '/api/weather/windy/:path*',
+        headers: buildWindyProxyHeaders(),
+      },
+      {
+        source: '/((?!api/weather/windy(?:/|$)).*)',
         headers: buildSecurityHeaders(),
       },
     ];

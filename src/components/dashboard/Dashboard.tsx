@@ -12,6 +12,7 @@ import { GRID_COLS } from '@/lib/constants/grid';
 import { useScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
 import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
+import { useIsFullDesktop } from '@/lib/hooks/useIsFullDesktop';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useTaskLists } from '@/lib/hooks/useTaskLists';
 import { useRecipes } from '@/lib/hooks/useRecipes';
@@ -51,6 +52,7 @@ const MealModal = lazy(() =>
   import('@/app/meals/MealsView').then((m) => ({ default: m.MealModal }))
 );
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
+import { WeatherRadarWidget } from '@/components/widgets/WeatherRadarWidget';
 import { renderScreensaverPreview } from '@/components/screensaver/ScreensaverWidgetPreview';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { WidgetErrorBoundary } from '@/components/dashboard/WidgetErrorBoundary';
@@ -128,7 +130,14 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
 
   const [visibleWidgets, setVisibleWidgets] = useState(readCachedVisibleWidgets);
 
-  const data = useDashboardData(visibleWidgets);
+  // The conditional radar is not a saved layout widget, but it still needs
+  // the shared weather stream when a user has removed the normal Weather tile.
+  const dataWidgets = useMemo(() => {
+    const next = new Set(visibleWidgets);
+    next.add('weather');
+    return next;
+  }, [visibleWidgets]);
+  const data = useDashboardData(dataWidgets);
 
   const [showAddMessage, setShowAddMessage] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -177,6 +186,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   // Detect portrait nav to offset grid height (nav covers bottom 80px + safe area)
   const deviceOrientation = useOrientation();
   const isMobile = useIsMobile();
+  const isFullDesktop = useIsFullDesktop();
   const { uiHidden } = useAutoHideUI();
   const hasPortraitNav = !isMobile && deviceOrientation === 'portrait';
   // Only reserve bottom space when nav is actually visible (not auto-hidden)
@@ -487,6 +497,10 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     );
   }, []);
 
+  const weatherRadar = isFullDesktop && !layout.isEditing ? (
+    <WeatherRadarWidget data={data.weather.data} bottomOffset={bottomOffset} />
+  ) : null;
+
   if (isMobile) {
     return (
       <AppShell
@@ -642,6 +656,8 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
             </WidgetErrorBoundary>
           )}
         </LCARSFrame>
+
+        {weatherRadar}
 
         {showAddTask && (
           <AddTaskModal
