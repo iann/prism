@@ -16,6 +16,7 @@ import { FamilyProvider } from './FamilyProvider';
 import { AppVersionChecker } from './AppVersionChecker';
 import { GlobalInputProvider, useGlobalInput } from '@/lib/hooks/useGlobalInput';
 import { TimeFormatProvider } from './TimeFormatProvider';
+import type { Theme } from '@/lib/themes/tokens';
 
 // simple-keyboard accesses browser globals at module load — must be client-only
 const VirtualKeyboard = dynamic(
@@ -29,6 +30,8 @@ const KeyboardToggleButton = dynamic(
 
 interface ProvidersProps {
   children: React.ReactNode;
+  initialPalette?: Theme;
+  initialPaletteIsExplicit?: boolean;
 }
 
 function OptionalInputUi() {
@@ -49,9 +52,21 @@ function OptionalInputUi() {
  * Wraps the application with all necessary providers.
  * AuthProvider must be inside ThemeProvider since QuickPinModal uses styled components.
  */
-export function Providers({ children }: ProvidersProps) {
+export function Providers({
+  children,
+  initialPalette,
+  initialPaletteIsExplicit = false,
+}: ProvidersProps) {
+  // No defaultTheme override here. It was 'light' to mask the flash before the
+  // stored preference loaded, which also meant a stored 'system' setting was
+  // ignored on first render. The blocking script in the root layout now sets
+  // the class before paint, so the mask is no longer needed.
   return (
-    <ThemeProvider defaultTheme="system">
+    <ThemeProvider
+      defaultTheme="system"
+      initialPalette={initialPalette}
+      initialPaletteIsExplicit={initialPaletteIsExplicit}
+    >
       <AppVersionChecker />
       <LocaleProvider>
         <FamilyProvider>

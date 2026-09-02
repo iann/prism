@@ -767,6 +767,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 7410a131
 
+92. **Persistent theme palette and first-paint consistency**
+
+    Preserves installed palettes when settings change, keeps the server and
+    client palette selection aligned during hydration, and includes trusted
+    app-theme widget tokens in the initial server-rendered CSS.
+
+    Commit: 14ec62b6
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

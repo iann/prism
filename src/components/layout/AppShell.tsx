@@ -141,7 +141,7 @@ export function AppShell({
   return (
     <div
       className={cn(
-        'relative min-h-screen',
+        'relative min-h-[var(--app-vh,100vh)]',
         !isLCARS && 'wall-display',
         isLCARS && 'lcars-shell',
         (!showWallpaper || isLCARS) && 'bg-background'
@@ -172,7 +172,7 @@ export function AppShell({
       <main
         style={lcarsMainStyle}
         className={cn(
-          'min-h-screen',
+          'min-h-[var(--app-vh,100vh)]',
           !isLCARS && 'wall-main',
           isLCARS && 'lcars-main',
           // Snap margin/padding when nav hides — animating layout properties causes

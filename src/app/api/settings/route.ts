@@ -9,6 +9,12 @@ import type { AuthResult } from '@/lib/auth';
 import { logError } from '@/lib/utils/logError';
 import { PIN_LENGTH_SETTING_KEY } from '@/lib/constants';
 import { isSetupComplete } from '@/lib/setup';
+import { getBuiltinTheme } from '@/lib/themes/appThemes';
+import { isInstallableTheme } from '@/lib/themes/tokens';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 export async function GET() {
   const auth = await getDisplayAuth();
@@ -77,15 +83,63 @@ export async function PATCH(request: NextRequest) {
       .from(settings)
       .where(eq(settings.key, body.key));
 
+    let valueToStore = body.value;
+
+    // Per-key validation. This endpoint otherwise accepts any shape for any
+    // key, and the theme row is read on the server and rendered into a <style>
+    // element in the root layout — so an unchecked value there is not a bad
+    // setting, it is markup in the page. Never trust the row on the render
+    // path; refuse it on the way in as well.
+    if (body.key === 'theme') {
+      const value = isRecord(body.value) ? body.value : {};
+      const previous = isRecord(existing?.value) ? existing.value : {};
+      const previousInstalled = Array.isArray(previous.installed)
+        ? previous.installed.filter(isInstallableTheme)
+        : undefined;
+      const installed = value.installed !== undefined ? value.installed : previousInstalled;
+
+      // Installed themes are stored inline so a display without a network can
+      // still render what it was left on. That means arbitrary colour values
+      // reach a <style> element rendered on the server, so they are checked
+      // here rather than trusted because they came from our own gallery.
+      if (installed !== undefined) {
+        if (!Array.isArray(installed) || installed.length > 40) {
+          return NextResponse.json({ error: 'Invalid installed themes' }, { status: 400 });
+        }
+        if (!installed.every(isInstallableTheme)) {
+          return NextResponse.json({ error: 'Invalid installed theme' }, { status: 400 });
+        }
+      }
+
+      // The chosen palette must be one that exists — built in, or one of the
+      // installed themes already stored or included in this write. Updating
+      // brightness or selecting a built-in palette must not erase the gallery
+      // list that other displays depend on.
+      const paletteId = value.paletteId;
+      if (paletteId !== undefined) {
+        const known =
+          typeof paletteId === 'string' &&
+          (Boolean(getBuiltinTheme(paletteId)) ||
+            (Array.isArray(installed) && installed.some((t) => (t as { id?: unknown }).id === paletteId)));
+        if (!known) {
+          return NextResponse.json({ error: 'Unknown palette' }, { status: 400 });
+        }
+      }
+
+      if (isRecord(body.value) && value.installed === undefined && installed !== undefined) {
+        valueToStore = { ...value, installed };
+      }
+    }
+
     if (existing) {
       await db
         .update(settings)
-        .set({ value: body.value, updatedAt: new Date() })
+        .set({ value: valueToStore, updatedAt: new Date() })
         .where(eq(settings.key, body.key));
     } else {
       await db
         .insert(settings)
-        .values({ key: body.key, value: body.value });
+        .values({ key: body.key, value: valueToStore });
     }
 
     if (auth) {
@@ -102,7 +156,7 @@ export async function PATCH(request: NextRequest) {
       await invalidateEntity('weather');
     }
 
-    return NextResponse.json({ key: body.key, value: body.value });
+    return NextResponse.json({ key: body.key, value: valueToStore });
   } catch (error) {
     logError('Error updating setting:', error);
     return NextResponse.json(

@@ -4,6 +4,35 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+### Fixed
+- **Text keeps up with the screen on large panels.** The dashboard's widgets already grow to fill whatever screen they are on, but the text stopped growing at 1920 wide. On a 4K panel that meant boxes four times the area holding text of exactly the same size — and since a 4K and a 1080p panel of the same measurement are the same size in the room, that text was physically half as big to read. It now scales with the screen. Nothing changes at 1920 or below.
+
+### Fixed
+- **A theme installed from the gallery no longer flashes the default palette on every load.** Built-in palettes were drawn correctly from the first frame, but a theme you installed yourself was not: the page rendered in Prism's own colours and only corrected itself a moment later. The same fix that stopped built-in themes flashing now covers installed ones.
+- **The dashboard no longer shifts as it finishes loading.** Prism ships a stand-in font whose letter widths are matched to the real one, so that text does not jump when the real font arrives. It was being built and then skipped over, so every cold start nudged the whole layout by a few percent as it settled. Most noticeable on a wall display, which reloads on its own.
+- **Pages that remember a view no longer redraw themselves on every load.** Restoring a saved grouping or filter made the browser throw away the page it had just been sent and build it again, so a display briefly showed the ungrouped list before settling. Nothing looked broken, which is why it went unnoticed. Tasks was affected as well as the pages above.
+- **Chores, Messages, Meals and Wishes remember how you left them.** Grouping, sorting and show/hide choices survive a reload, the way the Tasks page already did — set Chores to group by person once and it stays that way. Filters are treated differently on purpose: they are kept across a refresh but forgotten once the display has sat idle, so nobody walks up to a board that is silently hiding most of it with no memory of why.
+- **Prism now credits the work it is built on.** The emoji artwork is licensed in a way that requires attribution from anyone who passes it on, and Prism was not giving any. There is now a NOTICE file and a Credits page covering the emoji graphics and both bundled typefaces, and they ship inside the container image rather than only living in the source repository.
+- **Prism no longer downloads ~4 MB of emoji font up front.** The offline cache was told to fetch every font in the build the moment it installed, including all ten chunks of the colour-emoji fallback — undoing the careful arrangement that only fetches the emoji ranges a screen actually draws. Emoji are unchanged; they now arrive when something needs them. First load drops from about 4 MB of fonts to about 210 KB.
+- **The per-display *Font Scale* setting is now called *Text size*.** It only ever set how large the dashboard reads from where the screen is viewed, and the old name described the mechanism rather than the decision. Nothing about your displays changes — the setting keeps its value, it is only labelled more plainly, and it now says out loud that larger text means fewer rows fit.
+- **Turning up the display text size no longer pushes the dashboard off the screen.** The setting made text bigger and the board taller in equal measure, so at 150% the bottom widget was simply below the edge of the screen — on a display nobody can scroll. The dashboard now re-fits itself as the text grows: fewer rows, all of them on screen. Nobody's saved scale changes, and a display that was overflowing stops.
+- **Text is the right size again on a display with no mouse or touchscreen.** Prism picks its text size from what it can tell about the screen it is on, and a display with no pointing device attached — a Pi or a streaming stick driving a wall panel — fell through to the size meant for a phone held at arm's length. That is the one kind of screen guaranteed to be read from across a room, and it was getting nearly the smallest text Prism has. It now scales up with the screen the way a touchscreen already did. If you turned the text size up under *Settings → Displays* to work around this, you will want to bring it back down.
+
+## [1.21.0] – 2026-08-31
+
+### Added
+- **Colour themes.** Prism has had light and dark; it now has palettes. Five to start — Prism, Clay, Harvest, Snow Day and Arcade — chosen under *Settings → Appearance*. The palette applies to every screen in the house, while light and dark stay per-screen, because one is a decision about how the home looks and the other is about the room a particular screen is in. Every palette is checked for readability before it can ship: Prism is read from across a kitchen, often by someone who is not wearing their glasses.
+- **Groundwork for sharing themes.** Themes are plain colour values, which means they can be passed between households the way dashboard layouts already are. Two ways to share one, and they differ in what happens to your work: through the gallery it stays yours, or as a contribution it ships with Prism for everyone. Neither is better. The submission side of this is not finished yet; what is here is the part that has to be right first.
+
+### Fixed
+- **A security fix in the layout submission workflow.** A submitted layout name was passed to a command line without being quoted, so a carefully chosen name could run commands on the machine that processes submissions. Anyone with a GitHub account more than a week old could have reached it. Nothing suggests this was used; it was found while reviewing whether the same workflow could handle themes. If you run a fork with community submissions enabled, take this update.
+- **The theme no longer flashes on load.** Opening Prism showed the light palette for a moment before settling on your actual choice. Unnoticeable on a laptop, obvious on a wall display that reloads by itself. It also meant a saved "match my system" preference was ignored for the first moment of every page.
+
+## [1.20.1] – 2026-08-31
+
+### Fixed
+- **Immich photos display in Firefox and other browsers that cannot decode HEIC.** Lightbox, screensaver, and wallpaper were proxying the iPhone original (`image/heic`). Prism now asks Immich for a web-safe full-size JPEG/WebP (falling back to the preview), converts leftover HEIC with sharp, and ignores previously cached originals. Thanks to Brian Adams.
+
 ## [1.20.0] – 2026-08-30
 
 ### Added
