@@ -6,7 +6,7 @@
  * that matter most are the ones proving a hostile value cannot become CSS.
  */
 import { THEME_TOKENS, isValidTokenValue, isValidTokenSet } from '../tokens';
-import { BUILTIN_THEMES, getBuiltinTheme, DEFAULT_THEME_ID } from '../appThemes';
+import { appThemes, BUILTIN_THEMES, getBuiltinTheme, DEFAULT_THEME_ID } from '../appThemes';
 import { applyThemeVars, clearThemeVars, themeCss, themeTokens } from '../applyTheme';
 import { checkContrast, checkThemeContrast } from '../contrast';
 
@@ -114,10 +114,22 @@ describe('applyThemeVars', () => {
 
 describe('themeCss', () => {
   it('emits both modes', () => {
-    const css = themeCss(BUILTIN_THEMES[0]!);
+    const theme = BUILTIN_THEMES.find((candidate) => candidate.id === 'clay')!;
+    const css = themeCss(theme);
     expect(css).toContain(':root{');
     expect(css).toContain('.dark{');
-    expect(css).toContain('--background:0 0% 100%');
+    expect(css).toContain(`--background:${theme.light.background}`);
+  });
+
+  it('includes extended tokens for trusted app themes during server rendering', () => {
+    const css = themeCss(getBuiltinTheme('kitchen-calm')!);
+
+    expect(css).toContain(
+      `--widget-calendar:${appThemes['kitchen-calm'].light['--widget-calendar']}`
+    );
+    expect(css).toContain(
+      `--weather-temp-warm:${appThemes['kitchen-calm'].dark['--weather-temp-warm']}`
+    );
   });
 
   it('cannot be escaped out of, even by a crafted value', () => {

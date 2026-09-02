@@ -6,6 +6,12 @@ import { isInstallableTheme, type Theme } from './tokens';
 
 const THEME_SETTING_KEY = 'theme';
 
+export type ServerThemeResult = {
+  theme: Theme;
+  /** Whether the palette came from an explicit persisted paletteId. */
+  persisted: boolean;
+};
+
 /**
  * The palette to render on the server, so the first paint is already correct.
  *
@@ -19,14 +25,14 @@ const THEME_SETTING_KEY = 'theme';
  * unavailable should cost the wrong colours for one paint, not a blank page —
  * the same trade the per-display font scale already makes.
  */
-export async function getServerTheme(): Promise<Theme> {
+export async function getServerTheme(): Promise<ServerThemeResult> {
   const fallback = getBuiltinTheme(DEFAULT_THEME_ID) ?? BUILTIN_THEMES[0]!;
   try {
     const [row] = await db.select().from(settings).where(eq(settings.key, THEME_SETTING_KEY));
     const value = row?.value as { paletteId?: unknown; installed?: unknown } | undefined;
-    if (typeof value?.paletteId !== 'string') return fallback;
+    if (typeof value?.paletteId !== 'string') return { theme: fallback, persisted: false };
     const builtin = getBuiltinTheme(value.paletteId);
-    if (builtin) return builtin;
+    if (builtin) return { theme: builtin, persisted: true };
     // Gallery themes live under `installed`, which this never consulted: an
     // installed palette rendered as the default server-side and was only
     // corrected at mount, so every reload flashed the wrong colours — the exact
@@ -36,8 +42,9 @@ export async function getServerTheme(): Promise<Theme> {
     const installed = Array.isArray(value.installed)
       ? (value.installed as unknown[]).filter(isInstallableTheme)
       : [];
-    return installed.find((t) => t.id === value.paletteId) ?? fallback;
+    const installedTheme = installed.find((t) => t.id === value.paletteId);
+    return { theme: installedTheme ?? fallback, persisted: installedTheme !== undefined };
   } catch {
-    return fallback;
+    return { theme: fallback, persisted: false };
   }
 }

@@ -239,7 +239,7 @@ export default async function RootLayout({
   // already the right palette. A wall display reloads on its own; a flash of
   // the default colours on every reload is the most visible thing about
   // theming, and it reads as a fault.
-  const theme = await getServerTheme();
+  const { theme, persisted: hasPersistedPalette } = await getServerTheme();
 
   return (
     <html
@@ -300,7 +300,7 @@ export default async function RootLayout({
           Wrap children with application providers (theme, auth, etc.)
         */}
         <ErrorBoundary>
-          <Providers>
+          <Providers initialPalette={theme} initialPaletteIsExplicit={hasPersistedPalette}>
             <DemoBanner />
             {children}
             <LazyOverlays />

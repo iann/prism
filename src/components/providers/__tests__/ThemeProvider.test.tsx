@@ -4,7 +4,7 @@
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ThemeProvider, useTheme } from '../ThemeProvider';
-import { applyAppTheme } from '@/lib/themes/appThemes';
+import { applyAppTheme, getBuiltinTheme } from '@/lib/themes/appThemes';
 import { useWeather } from '@/lib/hooks/useWeather';
 
 jest.mock('@/lib/hooks/useSeasonalTheme', () => ({
@@ -84,6 +84,40 @@ function dispatchSystemThemeChange(matches: boolean) {
   const event = { matches } as MediaQueryListEvent;
   for (const listener of mediaQueryListeners) listener(event);
 }
+
+describe('ThemeProvider server palette handoff', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.className = '';
+    document.documentElement.removeAttribute('data-color-theme');
+    mockApplyAppTheme.mockClear();
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: jest.fn().mockReturnValue({
+        matches: false,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      }),
+    });
+  });
+
+  it('uses the explicit server palette before effects run and ignores a stale local palette', async () => {
+    localStorage.setItem('prism-color-theme', 'lcars');
+    const serverPalette = getBuiltinTheme('kitchen-calm')!;
+
+    render(
+      <ThemeProvider initialPalette={serverPalette} initialPaletteIsExplicit>
+        <ThemeProbe />
+      </ThemeProvider>
+    );
+
+    expect(screen.getByTestId('color-theme').textContent).toBe('kitchen-calm');
+
+    await waitFor(() => {
+      expect(mockApplyAppTheme).toHaveBeenCalledWith('kitchen-calm', 'light');
+    });
+  });
+});
 
 describe('ThemeProvider LCARS behavior', () => {
   beforeEach(() => {

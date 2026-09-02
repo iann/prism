@@ -120,18 +120,29 @@ type ViewTransitionDocument = Document & {
 interface ThemeProviderProps {
   children: React.ReactNode;
   defaultTheme?: ThemeMode;
+  /** Palette selected by the server, used to keep hydration and first paint aligned. */
+  initialPalette?: Theme;
+  /** Legacy local palette preferences are safe to use only without a stored server palette. */
+  initialPaletteIsExplicit?: boolean;
 }
 
-export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProviderProps) {
+export function ThemeProvider({
+  children,
+  defaultTheme = 'system',
+  initialPalette,
+  initialPaletteIsExplicit = false,
+}: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>(defaultTheme);
   const [sunsetOffsetMinutes, setSunsetOffsetState] = useState(0);
-  const [colorTheme, setColorThemeState] = useState<string>(DEFAULT_COLOR_THEME);
+  const [colorTheme, setColorThemeState] = useState<string>(
+    () => initialPalette?.id ?? DEFAULT_COLOR_THEME,
+  );
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
   const [solarTick, setSolarTick] = useState(0);
   const [installedThemes, setInstalledThemes] = useState<Theme[]>([]);
   const [palette, setPaletteState] = useState<Theme>(
-    () => getBuiltinTheme(DEFAULT_THEME_ID) ?? BUILTIN_THEMES[0]!,
+    () => initialPalette ?? getBuiltinTheme(DEFAULT_THEME_ID) ?? BUILTIN_THEMES[0]!,
   );
   const hasAppliedThemeRef = useRef(false);
   const previousAppliedThemeRef = useRef<{
@@ -147,8 +158,11 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
   });
 
   // Load display-local brightness and legacy named-palette preferences first.
-  // The database palette, when present, is then loaded below as the household
-  // source of truth for the gallery-compatible setting.
+  // An explicit server palette is already in the initial state and is the
+  // household source of truth, so a stale local preference must not flash over
+  // it while the settings request is in flight. If no palette has ever been
+  // persisted, retain the pre-gallery local preference for backwards
+  // compatibility and let the settings request reconcile it if available.
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
     if (stored && ['light', 'dark', 'system', 'sunset'].includes(stored)) {
@@ -160,15 +174,17 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
       setSunsetOffsetState(normalizeSunsetOffsetMinutes(storedSunsetOffset));
     }
 
-    const storedColorTheme = localStorage.getItem(COLOR_THEME_STORAGE_KEY);
-    const storedPalette = storedColorTheme ? getBuiltinTheme(storedColorTheme) : undefined;
-    if (storedColorTheme && (isAppThemeId(storedColorTheme) || storedPalette)) {
-      setColorThemeState(storedColorTheme);
-      if (storedPalette) setPaletteState(storedPalette);
+    if (!initialPaletteIsExplicit) {
+      const storedColorTheme = localStorage.getItem(COLOR_THEME_STORAGE_KEY);
+      const storedPalette = storedColorTheme ? getBuiltinTheme(storedColorTheme) : undefined;
+      if (storedColorTheme && (isAppThemeId(storedColorTheme) || storedPalette)) {
+        setColorThemeState(storedColorTheme);
+        if (storedPalette) setPaletteState(storedPalette);
+      }
     }
 
     setMounted(true);
-  }, []);
+  }, [initialPaletteIsExplicit]);
 
   // Read installed themes and the household palette once. Stored themes are
   // validated again immediately before they can reach the CSS writer.

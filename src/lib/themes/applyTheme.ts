@@ -2,6 +2,7 @@
  * Turning a theme into CSS, on the client and on the server.
  */
 import { THEME_TOKENS, isValidTokenValue, type Theme, type ThemeTokens } from './tokens';
+import { appThemes, isAppThemeId } from './appThemes';
 
 export type ResolvedMode = 'light' | 'dark';
 
@@ -46,14 +47,31 @@ export function clearThemeVars(root: HTMLElement): void {
  * closing tag in a value would end the block and begin markup. There is no CSP
  * in this app to catch that.
  *
- * The shape of this function is the guarantee. Anything not in THEME_TOKENS
- * cannot appear in the output, whatever the input contains.
+ * The shape of this function is the guarantee for external themes: anything
+ * not in THEME_TOKENS cannot appear in their output, whatever the input
+ * contains. Static app themes are the one intentional exception; their
+ * extended widget and weather properties come from this source file rather
+ * than from the theme payload, so they can be safely included for first paint.
  */
 export function themeCss(theme: Theme): string {
-  const block = (tokens: ThemeTokens) =>
-    THEME_TOKENS.filter((t) => isValidTokenValue(tokens[t]))
-      .map((t) => `--${t}:${tokens[t]}`)
-      .join(';');
+  const block = (tokens: ThemeTokens, trustedAppTokens?: Record<`--${string}`, string>) => {
+    const properties = new Map<string, string>();
 
-  return `:root{${block(theme.light)}}.dark{${block(theme.dark)}}`;
+    for (const token of THEME_TOKENS) {
+      if (isValidTokenValue(tokens[token])) properties.set(`--${token}`, tokens[token]);
+    }
+
+    // These keys and values are compiled into Prism. Do not replace this with
+    // Object.entries(tokens) for gallery data: this CSS string is rendered in
+    // a style element, while the client path is protected by the CSSOM.
+    for (const [property, value] of Object.entries(trustedAppTokens ?? {})) {
+      if (isValidTokenValue(value)) properties.set(property, value);
+    }
+
+    return Array.from(properties, ([property, value]) => `${property}:${value}`).join(';');
+  };
+
+  const appTheme = isAppThemeId(theme.id) ? appThemes[theme.id] : undefined;
+
+  return `:root{${block(theme.light, appTheme?.light)}}.dark{${block(theme.dark, appTheme?.dark)}}`;
 }
