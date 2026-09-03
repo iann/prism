@@ -501,10 +501,11 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
 
   const floatingCards = isFullDesktop && !layout.isEditing ? (
     <FloatingCardStack bottomOffset={bottomOffset}>
+      {/* FloatingCardStack flows right-to-left, so radar stays at the right edge. */}
+      <WeatherRadarWidget data={data.weather.data} />
       <AppleTvPlaybackCard
         enabled={layout.activeLayout?.floatingCardSettings?.appleTvPlayback?.enabled ?? true}
       />
-      <WeatherRadarWidget data={data.weather.data} />
     </FloatingCardStack>
   ) : null;
 
