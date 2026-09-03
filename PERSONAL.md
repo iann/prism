@@ -775,6 +775,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 14ec62b6
 
+93. **Deduplicated matching weather day summaries**
+
+    Uses “mostly cloudy today” when the timed summary would otherwise repeat
+    the same condition for the morning and evening.
+
+    Commit: ae392e8e
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
