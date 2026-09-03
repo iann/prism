@@ -121,6 +121,17 @@ export function formatWeatherSummary(
   };
   const timing = (value: ForecastPeriodKey) => translate(`summary.periods.${value}`);
 
+  // The salience cap can select the same condition at both ends when a less
+  // impactful middle-period change is omitted. That is not a transition, so
+  // describe the shared condition across the whole day.
+  if (clauses.length === 2 && clauses[0]!.condition === clauses[1]!.condition) {
+    return capitalizeSentence(
+      translate('summary.singleToday', {
+        condition: condition(clauses[0]!.condition),
+      })
+    );
+  }
+
   if (clauses.length === 0) {
     return capitalizeSentence(
       translate('summary.singleToday', {

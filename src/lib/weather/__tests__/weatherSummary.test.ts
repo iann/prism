@@ -176,6 +176,24 @@ describe('formatWeatherSummary', () => {
     expect(first.split(', then ')).toHaveLength(2);
   });
 
+  it('uses day-level wording when the capped summary repeats the same condition', () => {
+    expect(
+      formatWeatherSummary(
+        {
+          currentCondition: 'cloudy',
+          periods: [
+            period('morning', 'cloudy'),
+            period('afternoon', 'partly-cloudy'),
+            period('evening', 'cloudy'),
+          ],
+          timeZone: 'America/New_York',
+          nowMs: NOW,
+        },
+        translate
+      )
+    ).toBe('Mostly cloudy today.');
+  });
+
   it.each([
     ['Morn', NOW, 'this morning'],
     ['Aft', Date.parse('2026-08-31T17:00:00Z'), 'this afternoon'],
