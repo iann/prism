@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { contrastText } from '@/lib/utils/color';
-import { useFamily } from '@/components/providers';
+import { useFamily, useTimeFormat } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { AddEventModal } from '@/components/modals';
@@ -65,6 +65,7 @@ import { TaskModal } from '@/app/tasks/TaskModal';
 import { useChoreModals } from '@/app/chores/useChoreModals';
 import type { OverlayItemRef } from '@/components/calendar/cells';
 import type { Chore, Task, Meal } from '@/types';
+import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 
 const MEAL_TYPE_ORDER = { breakfast: 0, lunch: 1, snack: 2, dinner: 3 } as const;
 const EMPTY_EVENTS: CalendarEvent[] = [];
@@ -360,8 +361,8 @@ export function CalendarView() {
   }, [isMobile, viewType, setViewType]);
 
   return (
-    <PageWrapper>
-      <div className="h-screen flex flex-col">
+    <PageWrapper className="wall-calendar-page">
+      <div className="wall-calendar-stage h-screen flex flex-col">
         <SubpageHeader
           icon={!isMobile ? <Calendar className="h-5 w-5 text-primary" /> : undefined}
           title={getDateRangeTitle()}
@@ -382,10 +383,10 @@ export function CalendarView() {
               <>
                 <Button variant="outline" size="sm" onClick={goToToday} className="h-9">Today</Button>
                 <div className="flex items-center gap-1">
-                  <Button variant="outline" size="icon" onClick={goToPrevious} aria-label="Previous" className="h-9 w-9">
+                  <Button variant="outline" size="icon" onClick={goToPrevious} aria-label="Previous" className="wall-calendar-date-nav h-9 w-9">
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
-                  <Button variant="outline" size="icon" onClick={goToNext} aria-label="Next" className="h-9 w-9">
+                  <Button variant="outline" size="icon" onClick={goToNext} aria-label="Next" className="wall-calendar-date-nav h-9 w-9">
                     <ChevronRight className="h-5 w-5" />
                   </Button>
                 </div>
@@ -451,7 +452,7 @@ export function CalendarView() {
               variant={selectedCalendarIds.has('all') ? 'default' : 'outline'}
               size="sm"
               onClick={() => toggleCalendar('all')}
-              className="h-7 text-xs"
+              className="h-7 text-sm"
             >
               All
             </Button>
@@ -463,7 +464,7 @@ export function CalendarView() {
                   variant={isSelected ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => toggleCalendar(group.id)}
-                  className={cn('h-7 text-xs gap-1.5', isSelected && 'border-transparent')}
+                  className={cn('h-7 text-sm gap-1.5', isSelected && 'border-transparent')}
                   style={isSelected ? { backgroundColor: group.color, color: contrastText(group.color) } : undefined}
                 >
                   <span
@@ -489,7 +490,7 @@ export function CalendarView() {
           </FilterBar>
         )}
 
-        <div ref={swipeRef} className="flex-1 overflow-hidden p-4 min-h-0">
+        <div ref={swipeRef} className="wall-calendar-content flex-1 overflow-hidden p-4 min-h-0">
           {loading && (
             <div className="h-full flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -545,6 +546,7 @@ export function CalendarView() {
                   bucketsByDate={overlaysActive ? filteredBucketsByDate : undefined}
                   enableDnd={overlaysActive}
                   onItemClick={handleOverlayItemClick}
+                  showMonthHeader={false}
                 />
               )}
               {viewType === 'week' && (
@@ -752,6 +754,7 @@ function EventDetailModal({ event, onClose, onEdit, onDeleted }: {
   onEdit: () => void;
   onDeleted: () => void;
 }) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const { confirm, dialogProps } = useConfirmDialog();
 
   const handleDelete = async () => {
@@ -775,8 +778,8 @@ function EventDetailModal({ event, onClose, onEdit, onDeleted }: {
         <h2 className="text-xl font-bold mb-2">{event.title}</h2>
         <p className="text-sm text-muted-foreground mb-1">
           {event.allDay
-            ? format(event.startTime, 'EEEE, MMMM d')
-            : `${format(event.startTime, 'EEEE, MMMM d')} at ${format(event.startTime, 'h:mm a')}`}
+            ? format(toDisplayDate(event.startTime, displayTimezone), 'EEEE, MMMM d')
+            : `${format(toDisplayDate(event.startTime, displayTimezone), 'EEEE, MMMM d')} at ${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)}`}
         </p>
         {event.location && <p className="text-sm text-muted-foreground mb-4">{event.location}</p>}
         <p className="text-xs text-muted-foreground">{event.calendarName}</p>
@@ -822,6 +825,7 @@ function CalendarDragPreview({
   events: CalendarEvent[];
   mealColor: string;
 }) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const colon = dragId.indexOf(':');
   if (colon === -1) return null;
   const variant = dragId.slice(0, colon) as 'meal' | 'chore' | 'task' | 'event';
@@ -838,7 +842,7 @@ function CalendarDragPreview({
           layout="column"
           stripeColor={ev.color}
           title={ev.title}
-          timeLabel={ev.allDay ? 'All day' : new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(ev.startTime)}
+          timeLabel={ev.allDay ? 'All day' : formatDisplayTime(ev.startTime, timeFormat, {}, displayTimezone)}
           subtitle={ev.location || ev.calendarName}
         />
       </div>

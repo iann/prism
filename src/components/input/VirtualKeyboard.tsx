@@ -202,15 +202,25 @@ export function VirtualKeyboard() {
       style={{
         height: '38vh', minHeight: 320, maxHeight: 480,
         display: visible ? undefined : 'none',
+        // A Radix *modal* dialog (e.g. the Add-Message compose box) sets
+        // pointer-events:none on everything outside its content. This keyboard
+        // portals to <body>, outside the dialog, so without this it becomes
+        // inert — taps fall straight through to the dialog backdrop and close it
+        // instead of typing. Force interactivity so keys work over a modal.
+        pointerEvents: 'auto',
       }}
-      onPointerDown={e => { e.stopPropagation(); e.preventDefault(); }}
-      // simple-keyboard stops the pointerdown before it reaches this container,
-      // so the preventDefault above never runs and the active input loses focus
-      // on any key tap (Shift/symbols) — the global focusout handler then reads
-      // that as "done" and hides the keyboard. The mousedown still bubbles here;
-      // preventing its default keeps focus on the input so tapping keys no longer
-      // dismisses the keyboard. (#125)
-      onMouseDown={e => { e.preventDefault(); }}
+      // Keep focus on the active input when a key is tapped. simple-keyboard
+      // swallows the BUBBLING pointerdown before it reaches this container, so
+      // the old bubble-phase preventDefault never ran on touch — the first tap
+      // blurred the input, the global focusout handler hid the keyboard, and the
+      // character was lost (mouse worked only because a bubbling mousedown still
+      // arrived). Preventing default in the CAPTURE phase runs BEFORE
+      // simple-keyboard's own handler, so it reliably stops the blur on touch and
+      // mouse alike. simple-keyboard still receives the event (preventDefault
+      // cancels only the focus/compat-event default, not propagation), so the key
+      // press still registers. (#125)
+      onPointerDownCapture={e => { e.preventDefault(); }}
+      onMouseDownCapture={e => { e.preventDefault(); }}
     >
       <div
         ref={containerRef}

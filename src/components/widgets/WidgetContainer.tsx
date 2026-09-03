@@ -34,6 +34,7 @@
 'use client';
 
 import * as React from 'react';
+import { Emoji } from '@/components/ui/Emoji';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
@@ -293,6 +294,7 @@ export function WidgetContainer({
   return (
     <Card
       className={cn(
+        'wall-widget-container',
         // Grid sizing
         sizeClasses[size],
         // Full height within grid cell
@@ -417,17 +419,17 @@ export function WidgetContainer({
     >
       {/* WIDGET HEADER */}
       {showHeader && title && (
-        <CardHeader className="flex flex-shrink-0 flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="wall-widget-header flex flex-shrink-0 flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center gap-2">
             {/* Icon */}
             {icon && <span className="text-seasonal-accent">{icon}</span>}
             {/* Title - clickable link if titleHref provided */}
             {titleHref ? (
               <Link href={titleHref} prefetch={false} className="hover:underline">
-                <CardTitle className="text-base font-medium">{title}</CardTitle>
+                <CardTitle className="wall-widget-title text-lg font-semibold tracking-[-0.01em]">{title}</CardTitle>
               </Link>
             ) : (
-              <CardTitle className="text-base font-medium">{title}</CardTitle>
+              <CardTitle className="wall-widget-title text-lg font-semibold tracking-[-0.01em]">{title}</CardTitle>
             )}
           </div>
           {/* Action buttons */}
@@ -438,6 +440,7 @@ export function WidgetContainer({
       {/* WIDGET CONTENT */}
       <CardContent
         className={cn(
+          'wall-widget-content',
           // Fill remaining space; min-h-0 prevents grid row overflow
           'flex min-h-0 flex-col',
           // Clip content overflow (individual widgets use ScrollArea for scrolling)
@@ -488,8 +491,8 @@ function WidgetLoading() {
 function WidgetError({ message }: { message: string }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
-      <div className="mb-2 text-4xl text-destructive">⚠️</div>
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <div className="mb-2 text-4xl text-destructive"><Emoji e="⚠️" /></div>
+      <p className="max-w-[28rem] text-base leading-6 text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -522,7 +525,7 @@ export function WidgetEmpty({
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-4 text-center">
       {icon && <div className="text-4xl text-muted-foreground">{icon}</div>}
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="max-w-[28rem] text-base leading-6 text-muted-foreground">{message}</p>
       {action}
     </div>
   );

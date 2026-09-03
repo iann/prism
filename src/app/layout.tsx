@@ -42,9 +42,9 @@ import '@fontsource/noto-color-emoji/index.css';
 // Next.js types for metadata
 import type { Metadata, Viewport } from 'next';
 
-// Inter font from Google Fonts (loaded by Next.js for performance)
+// DM Sans from Google Fonts (loaded by Next.js for performance)
 // Next.js automatically optimizes font loading to prevent layout shift
-import { Inter } from 'next/font/google';
+import { DM_Sans } from 'next/font/google';
 
 // Providers (theme, auth, etc.)
 import { Providers } from '@/components/providers';
@@ -59,27 +59,31 @@ import { DemoBanner } from '@/components/layout/DemoBanner';
 
 // Toast notifications
 import { Toaster } from '@/components/ui/toaster';
+import { getServerTheme } from '@/lib/themes/serverTheme';
+import { themeCss } from '@/lib/themes/applyTheme';
 
 
 /**
  * FONT CONFIGURATION
- * We use Inter, a highly readable sans-serif font designed for screens.
+ * DM Sans gives the wall display a friendlier, more open rhythm than a
+ * desktop-first UI font while remaining highly legible at distance.
  *
  * Configuration options:
  * - subsets: Which character sets to include (latin for English)
  * - variable: CSS variable name for using the font in Tailwind
  * - display: 'swap' shows fallback font immediately, then swaps when loaded
  *
- * WHY INTER:
- * - Designed specifically for computer screens
- * - Excellent readability at all sizes
+ * WHY DM SANS:
+ * - Friendly geometry without decorative quirks
+ * - Clear numerals and punctuation for dates and weather
+ * - Comfortable rhythm at large display sizes
  * - Open source and free to use
- * - Supports many languages
  */
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-dm-sans',
   display: 'swap',
+  weight: ['400', '500', '600', '700'],
 });
 
 
@@ -226,23 +230,50 @@ export const viewport: Viewport = {
  * - Can't use hooks or browser APIs directly
  * - For client-side features, wrap in a Client Component
  */
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Rendered here rather than applied on the client, so the first paint is
+  // already the right palette. A wall display reloads on its own; a flash of
+  // the default colours on every reload is the most visible thing about
+  // theming, and it reads as a fault.
+  const { theme, persisted: hasPersistedPalette } = await getServerTheme();
+
   return (
     <html
       lang="en"
+      data-color-theme={theme.id === 'daybook' ? undefined : theme.id}
       // Suppress hydration warnings from browser extensions
       // that might modify the HTML (password managers, etc.)
       suppressHydrationWarning
     >
+      <head>
+        {/*
+          Two things have to be right before the first paint: which palette,
+          and whether it is the light or dark half of it. The palette comes
+          from the server above. The light/dark choice lives in localStorage,
+          which the server cannot read — hence the blocking script, which sets
+          the class the stylesheet below keys on. Both are tiny and neither
+          fetches anything.
+
+          themeCss builds its output from an allowlist of property names and
+          re-checks every value, so nothing from a stored palette can escape
+          this element. There is no CSP here to catch it if it could.
+        */}
+        <style id="prism-theme" dangerouslySetInnerHTML={{ __html: themeCss(theme) }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('prism-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})()`,
+          }}
+        />
+      </head>
       {/*
         The body element with our font applied.
 
         CLASSES EXPLAINED:
-        - inter.variable: Adds CSS variable for Inter font
+        - dmSans.variable: Adds CSS variable for DM Sans
         - font-sans: Uses our sans-serif font stack
         - antialiased: Smooth font rendering
         - bg-background: Background color from theme
@@ -255,7 +286,7 @@ export default function RootLayout({
       */}
       <body
         className={`
-          ${inter.variable}
+          ${dmSans.variable}
           font-sans
           antialiased
           bg-background
@@ -269,7 +300,7 @@ export default function RootLayout({
           Wrap children with application providers (theme, auth, etc.)
         */}
         <ErrorBoundary>
-          <Providers>
+          <Providers initialPalette={theme} initialPaletteIsExplicit={hasPersistedPalette}>
             <DemoBanner />
             {children}
             <LazyOverlays />

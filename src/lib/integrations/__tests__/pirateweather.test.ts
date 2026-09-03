@@ -65,6 +65,7 @@ function daily(dt: number, overrides: Partial<{
 function hourly(dt: number, overrides: Partial<{
   icon: string;
   temperature: number;
+  uvIndex: number;
   precipProbability: number;
   precipIntensity: number;
 }> = {}) {
@@ -72,6 +73,7 @@ function hourly(dt: number, overrides: Partial<{
     time: dt,
     icon: overrides.icon ?? 'clear-day',
     temperature: overrides.temperature ?? 68,
+    uvIndex: overrides.uvIndex,
     precipProbability: overrides.precipProbability ?? 0,
     precipIntensity: overrides.precipIntensity ?? 0,
   };
@@ -132,6 +134,18 @@ describe('URL construction', () => {
     const url = spy.mock.calls[0]![0] as string;
     expect(url).toContain('/40.7128,-74.006?');
     expect(url).not.toContain('41.8781');
+  });
+
+  it('preserves a coordinate location display name', async () => {
+    mockFetch(buildResponse());
+    const { fetchWeatherData } = await import('../pirateweather');
+    const result = await fetchWeatherData({
+      lat: 42.46,
+      lon: -71.06,
+      displayName: 'Melrose, Massachusetts, US',
+    });
+
+    expect(result.location).toBe('Melrose, Massachusetts, US');
   });
 
   it('falls back to env coordinates when no LocationParam provided', async () => {
@@ -388,8 +402,8 @@ describe('7-day forecast — day boundaries', () => {
 // ---------------------------------------------------------------------------
 
 describe('hourly forecast', () => {
-  it('only returns items within [now − 1 h, now + 12 h]', async () => {
-    const tooOld      = SEC(MOCK_NOW - 2 * 3_600_000);  // 2 h ago — excluded
+  it('only returns items within [now − 2 h, now + 12 h]', async () => {
+    const tooOld      = SEC(MOCK_NOW - 3 * 3_600_000);  // 3 h ago — excluded
     const recentStart = SEC(MOCK_NOW - 30 * 60_000);     // 30 min ago — included
     const current     = SEC(MOCK_NOW);
     const future6h    = SEC(MOCK_NOW + 6 * 3_600_000);
@@ -464,6 +478,61 @@ describe('hourly forecast', () => {
     const h = result.hourly![0];
     expect(h?.precipProbability).toBe(40);
     expect(h?.precipIntensity).toBe(0.02);
+  });
+
+  it('includes hourly UV index values for trend display', async () => {
+    const slot = SEC(MOCK_NOW + 3_600_000);
+    mockFetch(buildResponse({
+      hourlyData: [hourly(slot, { uvIndex: 7.5 })],
+    }));
+    const { fetchWeatherData } = await import('../pirateweather');
+    const result = await fetchWeatherData();
+
+    expect(result.hourly?.[0]?.uvIndex).toBe(7.5);
+  });
+});
+
+describe('forecast periods', () => {
+  it('uses the full hourly set and the response IANA timezone', async () => {
+    const morning = SEC(Date.UTC(2026, 4, 1, 13, 0, 0));
+    const afternoon = SEC(Date.UTC(2026, 4, 1, 19, 0, 0));
+    const evening = SEC(Date.UTC(2026, 4, 2, 4, 0, 0));
+    const fetchSpy = mockFetch(
+      buildResponse({
+        timezone: 'America/Chicago',
+        hourlyData: [
+          hourly(morning, { temperature: 10, precipProbability: 0.1 }),
+          hourly(afternoon, { icon: 'rain', temperature: 20, precipProbability: 0.4 }),
+          hourly(evening, { icon: 'snow', temperature: 15, precipProbability: 0.8 }),
+        ],
+      })
+    );
+
+    const { fetchWeatherData } = await import('../pirateweather');
+    const result = await fetchWeatherData(undefined, {
+      units: { temperature: 'C', windSpeed: 'km/h', precipitation: 'mm' },
+    });
+
+    const byLabel = Object.fromEntries(
+      (result.periods ?? []).map((period) => [period.label, period])
+    );
+    expect(fetchSpy.mock.calls[0]?.[0]).toContain('units=ca');
+    expect(result.timezone).toBe('America/Chicago');
+    expect(byLabel.Morn).toMatchObject({
+      period: 'morning',
+      dateKey: '2026-05-01',
+      temp: 10,
+      condition: 'sunny',
+    });
+    expect(byLabel.Aft).toMatchObject({ period: 'afternoon', temp: 20, condition: 'rainy' });
+    expect(byLabel.Eve).toMatchObject({
+      period: 'evening',
+      temp: 15,
+      condition: 'snowy',
+      precipProbability: 80,
+    });
+    expect(result.hourly?.some((hour) => hour.time.getTime() === morning * 1000)).toBe(false);
+    expect(result.hourly?.some((hour) => hour.time.getTime() === evening * 1000)).toBe(false);
   });
 });
 

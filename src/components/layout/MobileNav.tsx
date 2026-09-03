@@ -7,12 +7,14 @@
  */
 
 'use client';
+import { Emoji } from '@/components/ui/Emoji';
 
 import * as React from 'react';
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   ShoppingCart,
   CheckSquare,
@@ -36,12 +38,8 @@ import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { contrastText } from '@/lib/utils/color';
 import { useHiddenPages } from '@/lib/hooks/useHiddenPages';
+import type { NavItem } from '@/lib/constants/navItems';
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
 
 export interface MobileNavProps {
   user?: {
@@ -58,20 +56,21 @@ export interface MobileNavProps {
 // Primary items shown in bottom bar (most used for companion app)
 // Note: Chores and Goals removed from mobile - these are kiosk-focused features
 const primaryItems: NavItem[] = [
-  { label: 'Shopping', href: '/shopping', icon: ShoppingCart },
-  { label: 'Tasks', href: '/tasks', icon: CheckSquare },
-  { label: 'Meals', href: '/meals', icon: UtensilsCrossed },
-  { label: 'Messages', href: '/messages', icon: MessageSquare },
+  { label: 'Shopping', i18nKey: 'nav.shopping', href: '/shopping', icon: ShoppingCart },
+  { label: 'Tasks', i18nKey: 'nav.tasks', href: '/tasks', icon: CheckSquare },
+  { label: 'Meals', i18nKey: 'nav.meals', href: '/meals', icon: UtensilsCrossed },
+  { label: 'Messages', i18nKey: 'nav.messages', href: '/messages', icon: MessageSquare },
 ];
 
 // Secondary items shown in "More" menu
 const secondaryItems: NavItem[] = [
-  { label: 'Recipes', href: '/recipes', icon: ChefHat },
-  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Recipes', i18nKey: 'nav.recipes', href: '/recipes', icon: ChefHat },
+  { label: 'Settings', i18nKey: 'nav.settings', href: '/settings', icon: Settings },
 ];
 
 export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps) {
   const pathname = usePathname();
+  const t = useTranslations('common');
   const [showMore, setShowMore] = useState(false);
   const { theme, setTheme } = useTheme();
   const { isPageHidden } = useHiddenPages();
@@ -124,7 +123,7 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
                   )}
                 >
                   <Icon className="h-5 w-5" />
-                  <span className="text-xs">{item.label}</span>
+                  <span className="text-xs">{t(item.i18nKey)}</span>
                 </Link>
               );
             })}
@@ -165,7 +164,7 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
                     style={{ backgroundColor: user.color || '#6B7280', color: contrastText(user.color || '#6B7280') }}
                   >
                     {user.avatarUrl?.startsWith('emoji:') ? (
-                      <span className="text-sm">{user.avatarUrl.slice(6)}</span>
+                      <span className="text-sm"><Emoji e={user.avatarUrl.slice(6)} /></span>
                     ) : user.avatarUrl ? (
                       <Image
                         src={user.avatarUrl}
@@ -221,7 +220,7 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
                 )}
               >
                 <Icon className={cn('h-6 w-6', isActive && 'stroke-[2.5]')} />
-                <span className="text-[12px] font-medium">{item.label}</span>
+                <span className="text-[12px] font-medium">{t(item.i18nKey)}</span>
               </Link>
             );
           })}

@@ -22,6 +22,8 @@ interface WeekItemCardProps {
   subtitle?: string;
   /** Strike-through and dim, for completed/cooked items */
   muted?: boolean;
+  /** Dim without marking complete, for items whose time has passed. */
+  subdued?: boolean;
   /** Diagonal-stripe overlay for items awaiting parent approval. */
   pendingApproval?: boolean;
   /** Click handler — opens detail modal in caller */
@@ -108,6 +110,7 @@ export function WeekItemCard({
   timeLabel,
   subtitle,
   muted,
+  subdued,
   pendingApproval,
   onClick,
   ariaLabel,
@@ -140,6 +143,7 @@ export function WeekItemCard({
     transform: CSS.Translate.toString(draggable.transform),
     touchAction: dragId ? 'none' : undefined,
     zIndex: draggable.isDragging ? 50 : undefined,
+    ['--wall-event-color' as string]: stripeColor,
   };
 
   // For row layout, render: [stripe][time][title][subtitle aside]
@@ -156,6 +160,7 @@ export function WeekItemCard({
         {...(dragId ? draggable.listeners : {})}
         {...(dragId ? draggable.attributes : {})}
         className={cn(
+          'wall-event-card',
           'group relative flex w-full items-center gap-2',
           'overflow-hidden rounded-md',
           'bg-calendar-surface',
@@ -166,6 +171,7 @@ export function WeekItemCard({
           dragId && 'cursor-grab active:cursor-grabbing',
           draggable.isDragging && 'opacity-60 ring-2 ring-seasonal-accent shadow-xl',
           muted && 'opacity-60',
+          subdued && 'opacity-55 saturate-[0.65]',
           styles.padding,
         )}
       >
@@ -204,6 +210,7 @@ export function WeekItemCard({
       {...(dragId ? draggable.listeners : {})}
       {...(dragId ? draggable.attributes : {})}
       className={cn(
+        'wall-event-card',
         'group relative flex w-full items-stretch gap-2',
         'overflow-hidden rounded-md',
         'bg-calendar-surface',
@@ -214,6 +221,7 @@ export function WeekItemCard({
         dragId && 'cursor-grab active:cursor-grabbing',
         draggable.isDragging && 'opacity-60 ring-2 ring-seasonal-accent shadow-xl',
         muted && 'opacity-60',
+        subdued && 'opacity-55 saturate-[0.65]',
       )}
     >
       {pendingApproval && (

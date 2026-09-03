@@ -3,13 +3,32 @@
   "version": 2,
   "mode": "screensaver",
   "name": "Minimal",
-  "description": "Clock and weather, top-right corner",
+  "description": "A small clock + weather accent in the corner — the photo is everything else.",
   "author": "Prism",
-  "tags": ["minimal", "clean"],
-  "screenSizes": ["1366x768", "1920x1080", "2560x1440", "3840x2160"],
+  "tags": [
+    "minimal",
+    "ambient"
+  ],
+  "screenSizes": [
+    "1920x1080",
+    "2560x1440",
+    "3840x2160"
+  ],
   "orientation": "landscape",
   "widgets": [
-    { "i": "clock", "x": 8, "y": 0, "w": 4, "h": 3 },
-    { "i": "weather", "x": 8, "y": 3, "w": 4, "h": 2 }
+    {
+      "i": "clock",
+      "x": 4,
+      "y": 4,
+      "w": 15,
+      "h": 6
+    },
+    {
+      "i": "weather",
+      "x": 4,
+      "y": 11,
+      "w": 15,
+      "h": 6
+    }
   ]
 }

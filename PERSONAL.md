@@ -200,7 +200,589 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: d276d02, 9e6ad24
 
-20. **Home Assistant Apple TV floating playback card**
+20. **Sunset dark-mode offset**
+
+    Added a persisted Appearance setting that starts dark mode before or after
+    sunset by a configurable number of minutes, while keeping the sunrise
+    transition unchanged.
+
+    Commit: 7df2fda
+
+21. **Readable inline agenda event colors**
+
+    Fixed inline agenda event titles inheriting the calendar color's
+    contrast-aware text instead of forcing white text onto light event colors
+    such as orange.
+
+    Commit: afd2f33
+
+22. **Calibrated animated rain chart**
+
+    Calibrated the precipitation scale against the Melrose rain reading,
+    normalized Pirate Weather's imperial precipitation values, and replaced
+    the compact bars with a smooth Dark Sky-inspired animated wave.
+
+    Commit: 45635c6
+
+23. **Dark Sky-style precipitation chart presentation**
+
+    Refined the rain chart around the supplied reference with a next-hour
+    header, location and temperature context, upper intensity guides,
+    turquoise fill, and a stronger wavy outline.
+
+    Commit: cf33b96
+
+24. **Nonlinear precipitation intensity scale**
+
+    Added a square-root rain-rate mapping with a 7.62 mm/hr heavy-rain
+    ceiling, preserving headroom for moderate showers while keeping light
+    rain visible.
+
+    Commit: b4a5636
+
+25. **Theme-native precipitation chart header**
+
+    Kept the Dark Sky-inspired chart treatment while returning its header to
+    the widget’s compact theme hierarchy and removing redundant location and
+    temperature details.
+
+    Commit: 315ed86
+
+26. **Theme-aware precipitation wave colors**
+
+    Audited the rain chart across every light and dark preset, then tied its
+    wave, fill, and highlight colors to the active theme tokens for better
+    integration with Prism, Claude, Kitchen Calm, Herb Garden, Warm Clay,
+    Soft Slate, and LCARS.
+
+    Commit: bb689f6
+
+27. **Blue forecast variation for precipitation**
+
+    Added a softly animated companion trace to communicate forecast
+    uncertainty, and introduced theme-specific blue precipitation tokens for
+    the wave, fill, and timing message across all light and dark presets.
+
+    Commit: 2dd6b11
+
+28. **Evenly spaced precipitation intensity guides**
+
+    Kept the nonlinear rain-rate scale while giving the heavy, medium, and
+    light visual guides equal spacing for a more predictable chart grid.
+
+    Commit: 37e8626
+
+29. **Smoothed animated precipitation waves**
+
+    Smoothed short-lived forecast spikes before plotting the spline and added
+    synchronized low-amplitude wave motion to the area edge and highlight.
+
+    Commit: b52d998
+
+30. **Locally morphing precipitation wave**
+
+    Added deterministic local jitter and smooth SVG path morphing so the rain
+    wave moves up and down across its shape instead of only translating as a
+    single block.
+
+    Commit: f6b6b3c
+
+31. **Symmetric five-percent precipitation variation**
+
+    Tuned the forecast-uncertainty trace to vary smoothly on both sides of the
+    primary signal by approximately ±5% of the chart height.
+
+    Commit: 6afa2d1
+
+32. **Softer rain-wave undulation**
+
+    Replaced the dense local wobble with a few broad, low-amplitude rises and
+    falls so the main precipitation edge reads as a smooth undulating line.
+
+    Commit: 621f9db
+
+33. **Visible but restrained wave motion**
+
+    Kept the lower-frequency contour while increasing its controlled amplitude
+    enough for the smooth up-and-down movement to remain legible on the chart.
+
+    Commit: b7b95ae
+
+34. **Removed precipitation ripple sweep**
+
+    Removed the right-to-left moving highlight and dash sweep, leaving the
+    chart’s smooth undulation and static forecast-variation trace unobstructed.
+
+    Commit: 37bbd20
+
+35. **Removed remaining rain dash motion**
+
+    Removed the primary line’s initial dash-offset draw and the uncertainty
+    trace’s dashed styling so no precipitation layer sweeps horizontally.
+
+    Commit: 8a60b62
+
+36. **More frequent bounded rain undulations**
+
+    Increased the number of smooth rises and falls while clamping both sample
+    and Bézier control points to the chart band so the wave cannot cross below
+    the precipitation baseline.
+
+    Commit: a64f801
+
+37. **Faster rain-wave cycle**
+
+    Shortened the synchronized undulation, fill breathing, and forecast-
+    variation cycle from 4.8 seconds to 3.2 seconds.
+
+    Commit: 56bd9e3
+
+38. **Rain animation retained in performance mode**
+
+    Keeps the precipitation wave visibly undulating in performance mode while
+    continuing to respect the operating system’s reduced-motion preference.
+
+    Commit: 89fc295
+
+39. **More visible wall-distance rain variation**
+
+    Increased the smooth wave amplitude and strengthened the companion
+    forecast trace so precipitation movement registers more clearly on the
+    wall-mounted dashboard without changing the ±5% uncertainty model.
+
+    Commit: ceb3995
+
+40. **Faster precipitation refresh cadence**
+
+    Polls weather data on the client every 2.5 minutes, including Performance
+    Mode, while refreshing Pirate Weather’s provider cache every 5 minutes.
+
+    Commit: 24381bb
+
+41. **Readable synced form and travel labels**
+
+    Kept Microsoft credential help text and travel park/photo labels at the
+    shared 12px minimum so meaningful small text remains legible on wall
+    displays and satisfies the surface readability contract.
+
+    Commit: 01c9389
+
+42. **Cleaner weather location and celestial details**
+
+    Shows weather locations as a city and state abbreviation without postal
+    codes, carries saved location labels through coordinate-based providers,
+    and removes duplicate sunrise, sunset, and moon-phase details from the
+    current-conditions stats.
+
+    Commit: bfa6f2b
+
+43. **Larger, cleaner weather current conditions**
+
+    Removed the weather location label, enlarged the actual and feels-like
+    temperatures, stacked them together, and moved the current condition into
+    the right-side stats column.
+
+    Commit: 4a95bd1
+
+44. **Weather location in the stats footer**
+
+    Restored the ZIP-free city/state location label at the bottom of the
+    weather widget’s right-side stats column.
+
+    Commit: c81f69f
+
+45. **Simplified weather temperature labels**
+
+    Drops the Fahrenheit suffix from imperial widget temperatures while
+    retaining the degree symbol and preserving explicit Celsius labels.
+
+    Commit: 5fe3427
+
+46. **AirGradient-first local weather readings**
+
+    Uses the configured AirGradient monitor for current temperature, humidity,
+    and PM2.5 readings, recalculates feels-like from local conditions, and
+    falls back to Pirate Weather with a red source indicator when the monitor
+    cannot be reached.
+
+    Commit: c4ba702
+
+47. **Minute-by-minute local weather polling**
+
+    Refreshes weather data every minute so the dashboard picks up new
+    AirGradient readings without waiting for the provider cache to expire.
+
+    Commit: f5a1642
+
+48. **Readable PM2.5 air-quality status**
+
+    Adds an EPA/AirNow-style, color-coded air-quality badge beside the local
+    PM2.5 value, with familiar Good, Moderate, and unhealthy-level labels.
+
+    Commit: 475060b
+
+49. **Air-quality badge placement refinement**
+
+    Moves the PM2.5 status badge directly beneath the feels-like temperature
+    so the current conditions read as one cohesive local-weather stack.
+
+    Commit: c0283b6
+
+50. **Self-labeled air-quality badge**
+
+    Labels the status pill “Air quality: [category]” so its meaning is clear
+    without relying on the surrounding PM2.5 number.
+
+    Commit: 73dde0d
+
+51. **Compact air-quality label**
+
+    Shortens the status pill to “Air: [category]” while retaining the full
+    accessible label and tooltip.
+
+    Commit: a1ca278
+
+52. **Theme-aware air-quality colors**
+
+    Gives every air-quality category contrast-tuned light and dark badge
+    colors so the status remains legible across the dashboard themes.
+
+    Commit: de74194
+
+53. **Vibrant air-quality badges**
+
+    Increases the badge fills, outlines, and status-dot intensity so current
+    air-quality categories pop more clearly at a glance.
+
+    Commit: 236d19c
+
+54. **Aggressive air-quality colors**
+
+    Uses saturated solid badge fills, high-contrast text, and category-colored
+    shadows for an unmistakable air-quality signal.
+
+    Commit: 4702a92
+
+55. **Balanced vibrant air-quality colors**
+
+    Softens the aggressive treatment back to vivid translucent fills with
+    strong outlines and bright status dots.
+
+    Commit: 6eac14a
+
+56. **Synchronized current timeline temperature**
+
+    Forces the timeline's “Now” temperature to match the main reading from
+    either AirGradient or the Pirate Weather fallback, including cached data.
+
+    Commit: 18b4658
+
+57. **Readable compact weather labels**
+
+    Raises compact weather headings, air-quality badges, and PM2.5 metadata
+    to the readable `text-xs` size and updates the surface contract.
+
+    Commit: 19bb010
+
+58. **Simplified hourly timeline tiles**
+
+    Removes repeated condition text from each timeline tile so the condition
+    ribbon above is the single visual summary.
+
+    Commit: 51d7658
+
+59. **Expanded weather header metrics**
+
+    Removes the redundant current-condition label and adds wind gusts, UV
+    index, dew point, and visibility to the weather header.
+
+    Commit: 3ba976c
+
+60. **Aligned humidity and dew point**
+
+    Places humidity and dew point on the same compact weather-header row.
+
+    Commit: 2289699
+
+61. **Expanded hourly weather tiles**
+
+    Adds each timeline tile's feels-like temperature and precipitation chance,
+    with provider data kept in sync for the current hour.
+
+    Commit: f538ea6
+
+62. **Compact hourly temperature pairing**
+
+    Places each timeline tile's actual and feels-like temperatures on one line
+    with a pipe separator.
+
+    Commit: 8320d8e
+
+63. **Near-term temperature trend label**
+
+    Adds “& rising” or “& falling” to the current temperature when the nearest
+    forecast point in the next 90 minutes changes the displayed value, and
+    omits the suffix when the reading is steady or no near-term point exists.
+
+    Commit: bcffbf9a
+
+63. **Roomier hourly timeline spacing**
+
+    Adds a little more vertical breathing room between the timeline tile
+    lines for easier reading at a glance.
+
+    Commit: a25ea66
+
+64. **AM/PM hourly weather labels**
+
+    Forces the weather timeline tile times to use compact 12-hour labels such
+    as `11am` and `3pm` instead of inheriting a browser locale's 24-hour
+    format.
+
+    Commit: 9bcc577
+
+65. **Compact daylight UV risk indicator**
+
+    Adds a daylight-only UV line with a warning dot for Moderate and above,
+    a persistent High-and-above pulse in Performance Mode, and compact aligned
+    current-weather header spacing.
+
+    Commit: 314bdd8
+
+66. **Active weather advisories and warnings**
+
+    Fetches active National Weather Service alerts for the configured weather
+    coordinates, caches them separately from the forecast, and shows compact
+    severity-colored advisory or warning banners in the weather widget.
+
+    Commit: 4dddcc7
+
+67. **Incremental Skylight-inspired wall-display foundation**
+
+    Refines shared buttons, cards, dialogs, inputs, selects, switches,
+    navigation surfaces, mobile dashboard cards, widget shells, typography,
+    weather indicators, and calendar controls around a warm, touch-first
+    family display language while preserving the existing calendar,
+    navigation, data, and integration behavior. Restores the Daybook
+    powder-blue/paper palette as the default across light and dark modes,
+    including its weather color ramp.
+
+    Commits: 01c2027, d0c84df, df24ce8, fb4a5b3
+
+68. **Removed hard-coded AirGradient LAN address**
+
+    Keeps the AirGradient monitor configurable through `AIRGRADIENT_URL`,
+    uses a neutral hostname in public defaults, and derives the weather cache
+    key from the configured runtime target so no private network address is
+    committed.
+
+    Commit: dbf4e4e
+
+69. **Daybook cross-screen surface alignment**
+
+    Extends the incremental wall-display treatment through the expanded
+    calendar, shared subpage headers and filters, month cells, family event
+    cards, and touch controls so the dashboard and secondary household
+    screens share the same cool paper, quiet surfaces, and restrained color
+    rhythm in both light and dark modes.
+
+    Commit: c91903e
+
+70. **Softer portrait wall-display refinement**
+
+    Rebalances the Daybook wall presentation with warmer semantic surfaces,
+    quieter borders, more generous portrait spacing, touch-sized calendar
+    chips, and compact-weather handling that preserves the existing data and
+    interaction behavior.
+
+    Commit: f46c43b
+
+71. **Runtime display font-scale settings**
+
+    Keeps per-dashboard font scaling live in production by reading saved
+    values at request time, while hardening the debounced Settings save path
+    against failed responses, stale slider requests, and unmounts.
+
+    Commit: a81bb25c
+
+72. **Collapsed hidden dashboard navigation spacing**
+
+    Removes the wall-display header's retained minimum height and vertical
+    padding when navigation auto-hides, keeping dashboard content aligned with
+    the same 12px top and side inset as the grid.
+
+    Commit: 61e3ef2e
+
+73. **Centered weather fallback indicator**
+
+    Centers the Pirate Weather fallback dot against the numeric temperature,
+    before the near-term “& rising/falling” trend label.
+
+    Commit: dd20f304
+
+74. **Simplified weather UV indicator**
+
+    Removes the weather location from the widget header, keeps the UV label in
+    the shared stats color, and shows the risk-colored dot only at UV 5 or
+    higher.
+
+    Commit: e42a55df
+
+75. **Directional weather UV indicator**
+
+    Replaces the UV warning dot with a matching colored up or down chevron
+    when the near-term forecast shows UV increasing or decreasing, while
+    retaining the dot for steady or unavailable trends.
+
+    Commit: 2c0a1b35
+
+77. **Burnished-gold Daybook dark palette**
+
+    Keeps the dark wall-display surfaces in calm slate, then restores a
+    restrained warm yellow-gold for sunny weather, selected states, and the
+    secondary chart cue. The current weather icon and condition bands share
+    the gold treatment, while warning and temperature colors retain their
+    semantic roles.
+
+    Commits: 9f188c95, f08714d6
+
+78. **Balanced calendar name filters**
+
+    Aligns the full calendar's Family and member filter labels with the
+    dashboard chips and shared person filters, using readable 14px text
+    inside the existing wall-display touch targets.
+
+    Commit: b079bd80
+
+79. **Balanced meal planner filters**
+
+    Aligns the Breakfast, Lunch, Dinner, and Snack filters with the
+    wall-display filter sizing used by calendar and person controls:
+    readable 14px labels inside the existing 44px touch targets.
+
+    Commit: 2343aa95
+
+80. **Consistent wall-display secondary controls**
+
+    Normalizes the remaining wall-display touch targets across calendar,
+    meals, shopping, chores, tasks, goals, messages, Weekend, and Travel,
+    including navigation arrows, inline actions, reorder controls, filters,
+    map controls, and accessible labels.
+
+    Commit: e0b89a59
+
+81. **Customizable portrait bottom navigation**
+
+    Added a compact default route set for portrait displays, a Features
+    setting for enabling or disabling individual bottom-bar routes, and a
+    responsive layout that fits the compact set while retaining horizontal
+    scrolling for larger selections.
+
+    Commits: 53b30e50, daec6705
+
+82. **Forecast-based temperature trend direction**
+
+    Bases “& rising” or “& falling” on the direction between the next two
+    future weather-provider samples instead of comparing a sensor-backed
+    current reading with one forecast point. The label now requires the
+    actual and feels-like forecasts to agree; otherwise it is omitted. The
+    timeline’s “Now” tile still uses the local reading when available, and
+    the lookahead includes three-hour provider intervals.
+
+    Commits: 0d5ff4e1, 9595dee6
+
+83. **Hide redundant matching feels-like temperatures**
+
+    Omits the feels-like label and duplicate value when the displayed current
+    and hourly temperatures match after rounding.
+
+    Commit: 41cb120c
+
+84. **Timed current-weather summaries**
+
+    Replaces the standalone current feels-like row with a concise,
+    location-time-aware summary such as rain this afternoon followed by
+    clouds tonight, then appends the current feels-like temperature only when
+    its displayed value differs from the actual temperature.
+
+    Commit: 721a6144
+
+85. **Unified weather summary condition line**
+
+    Uses the timed summary as the single condition line beneath the current
+    temperature so matching current-condition text is not repeated, and uses
+    “mostly clear” instead of “mostly sunny” for sunny evening and nighttime
+    periods.
+
+    Commit: 07690743
+
+86. **Aligned all-day calendar event lanes**
+
+    Lets non-overlapping single-day all-day events reuse the same horizontal
+    lanes as multi-day bars, while keeping overlapping events in separate
+    lanes. Multi-day labels now use the same readable text size as the other
+    all-day event labels across month, multi-week, and three-month views.
+
+    Commit: 9bd63425
+
+87. **Unified calendar event lanes and spacing**
+
+    Places timed single-day events, such as Gretchen, in the same shared lane
+    allocator as multi-day events, such as Camping, so they stay aligned across
+    day boundaries. Calendar item labels now use vertical centering and a
+    larger left inset in the compact views.
+
+    Commit: 7b5aade2
+
+88. **Conditional desktop precipitation radar**
+
+    Shows a borderless Windy precipitation radar over the dashboard when
+    precipitation is active, recent, or expected within a two-hour window. The
+    radar is proxied through the app, centered around Boston, and mounted only
+    on full desktop views.
+
+    Commit: 61eacdf3
+
+89. **Autoplaying precipitation radar**
+
+    Starts the proxied Windy precipitation radar automatically when the
+    conditional desktop overlay appears, including the playback parameter
+    through the backend allowlist.
+
+    Commit: e6fa11a0
+
+90. **Visible radar timeline**
+
+    Keeps Windy’s playback timeline inside the square radar overlay so the
+    animation controls remain visible while the map stays borderless and
+    rounded.
+
+    Commit: edd116b6
+
+91. **Dismissible precipitation radar controls**
+
+    Adds a transparent 48px close target to the desktop radar overlay that
+    hides the radar for two hours per browser, and removes Windy’s animation
+    speed controls from the timeline.
+
+    Commit: 7410a131
+
+92. **Persistent theme palette and first-paint consistency**
+
+    Preserves installed palettes when settings change, keeps the server and
+    client palette selection aligned during hydration, and includes trusted
+    app-theme widget tokens in the initial server-rendered CSS.
+
+    Commit: 14ec62b6
+
+93. **Deduplicated matching weather day summaries**
+
+    Uses “mostly cloudy today” when the timed summary would otherwise repeat
+    the same condition for the morning and evening.
+
+    Commit: ae392e8e
+
+94. **Home Assistant Apple TV floating playback card**
 
     Added a configurable full-desktop floating card backed by Home Assistant,
     with entity discovery/manual entry, media artwork and metadata, a live
@@ -215,6 +797,9 @@ upstream-sync-only commits are omitted unless they changed behavior.
 These are retained for historical context but should not be described as the
 current UI behavior:
 
+- The broad Skylight wall-display overhaul (14ad7c4) was rolled back by
+  8eaa353 after interaction regressions; its visual direction is retained as
+  reference for the incremental foundation in item 67.
 - The hourly weather view moved through the original merry-timeline strip
   (0d61d7d, f9c3521, cd94137), including width, screensaver, tracker-line,
   and red-current-indicator fixes (30a1d8e, 29e264f, d5a5bc9, 91538c9),
@@ -223,6 +808,8 @@ current UI behavior:
   aa5491c, and e115bd0.
 - The precipitation view moved through line, SVG-area, and bar-chart forms;
   the current form is the bar chart described in item 4.
+- Item 76, the first cool sea-glass Daybook dark-palette pass (9f188c95), was
+  replaced by the burnished-gold treatment in item 77 after visual review.
 - The Podman-specific local-services notes were retired after the development
   environment moved to OrbStack.
 

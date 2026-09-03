@@ -1,5 +1,12 @@
+import {
+  THEME_TOKENS,
+  type Theme as GalleryTheme,
+  type ThemeTokens as GalleryThemeTokens,
+} from './tokens';
+
 export const APP_THEME_IDS = [
   'prism',
+  'daybook',
   'claude',
   'kitchen-calm',
   'herb-garden',
@@ -36,6 +43,7 @@ const prismWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '28 95% 48%',
   '--weather-temp-hot': '9 90% 48%',
   '--weather-temp-very-hot': '348 78% 48%',
+  '--weather-precipitation': '205 80% 48%',
 };
 
 const prismWeatherDark: ThemeTokens = {
@@ -47,6 +55,36 @@ const prismWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '28 96% 63%',
   '--weather-temp-hot': '9 92% 64%',
   '--weather-temp-very-hot': '348 86% 68%',
+  '--weather-precipitation': '205 86% 66%',
+};
+
+/**
+ * Daybook keeps weather in the same visual family as its paper-planner
+ * surfaces: powder blue and blue-green for cold air, sage for comfortable
+ * weather, then butter and coral for warmth.
+ */
+const daybookWeatherLight: ThemeTokens = {
+  '--weather-temp-very-cold': '211 70% 45%',
+  '--weather-temp-freezing': '198 68% 43%',
+  '--weather-temp-cold': '184 58% 40%',
+  '--weather-temp-cool': '151 52% 38%',
+  '--weather-temp-mild': '45 78% 43%',
+  '--weather-temp-warm': '28 80% 45%',
+  '--weather-temp-hot': '10 72% 48%',
+  '--weather-temp-very-hot': '350 58% 48%',
+  '--weather-precipitation': '202 68% 43%',
+};
+
+const daybookWeatherDark: ThemeTokens = {
+  '--weather-temp-very-cold': '211 76% 71%',
+  '--weather-temp-freezing': '198 76% 69%',
+  '--weather-temp-cold': '184 66% 65%',
+  '--weather-temp-cool': '151 60% 63%',
+  '--weather-temp-mild': '45 86% 70%',
+  '--weather-temp-warm': '28 88% 69%',
+  '--weather-temp-hot': '10 80% 71%',
+  '--weather-temp-very-hot': '350 68% 73%',
+  '--weather-precipitation': '202 76% 70%',
 };
 
 const kitchenWeatherLight: ThemeTokens = {
@@ -58,6 +96,7 @@ const kitchenWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '28 78% 49%',
   '--weather-temp-hot': '12 74% 51%',
   '--weather-temp-very-hot': '350 65% 48%',
+  '--weather-precipitation': '198 70% 46%',
 };
 
 const kitchenWeatherDark: ThemeTokens = {
@@ -69,6 +108,7 @@ const kitchenWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '28 84% 64%',
   '--weather-temp-hot': '12 80% 65%',
   '--weather-temp-very-hot': '350 76% 68%',
+  '--weather-precipitation': '198 78% 65%',
 };
 
 const herbWeatherLight: ThemeTokens = {
@@ -80,6 +120,7 @@ const herbWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '31 83% 48%',
   '--weather-temp-hot': '16 78% 50%',
   '--weather-temp-very-hot': '5 70% 48%',
+  '--weather-precipitation': '202 68% 46%',
 };
 
 const herbWeatherDark: ThemeTokens = {
@@ -91,6 +132,7 @@ const herbWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '31 89% 65%',
   '--weather-temp-hot': '16 86% 66%',
   '--weather-temp-very-hot': '5 78% 68%',
+  '--weather-precipitation': '202 78% 65%',
 };
 
 const warmClayWeatherLight: ThemeTokens = {
@@ -102,6 +144,7 @@ const warmClayWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '31 88% 49%',
   '--weather-temp-hot': '14 82% 50%',
   '--weather-temp-very-hot': '350 70% 49%',
+  '--weather-precipitation': '205 68% 47%',
 };
 
 const warmClayWeatherDark: ThemeTokens = {
@@ -113,6 +156,7 @@ const warmClayWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '31 94% 64%',
   '--weather-temp-hot': '14 90% 65%',
   '--weather-temp-very-hot': '350 80% 68%',
+  '--weather-precipitation': '205 78% 65%',
 };
 
 const softSlateWeatherLight: ThemeTokens = {
@@ -124,6 +168,7 @@ const softSlateWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '29 94% 48%',
   '--weather-temp-hot': '10 89% 49%',
   '--weather-temp-very-hot': '348 78% 48%',
+  '--weather-precipitation': '199 78% 45%',
 };
 
 const softSlateWeatherDark: ThemeTokens = {
@@ -135,6 +180,7 @@ const softSlateWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '29 96% 64%',
   '--weather-temp-hot': '10 92% 65%',
   '--weather-temp-very-hot': '348 86% 68%',
+  '--weather-precipitation': '199 84% 66%',
 };
 
 const prismLight: ThemeTokens = {
@@ -205,6 +251,81 @@ const prismDark: ThemeTokens = {
   '--widget-info': '222 47% 15%',
 };
 
+/**
+ * Daybook is the compact color-system layer for the Skylight-inspired
+ * surface pass: cool paper, charcoal ink, teal actions, burnished-gold emphasis, and
+ * concentrated family colors inside events and status treatments.
+ */
+const daybookLight: ThemeTokens = {
+  ...prismLight,
+  ...daybookWeatherLight,
+  '--background': '210 24% 82%',
+  '--foreground': '222 20% 16%',
+  '--card': '0 0% 100%',
+  '--card-foreground': '222 20% 16%',
+  '--popover': '0 0% 100%',
+  '--popover-foreground': '222 20% 16%',
+  '--primary': '199 65% 39%',
+  '--primary-foreground': '0 0% 100%',
+  '--secondary': '204 28% 90%',
+  '--secondary-foreground': '222 20% 16%',
+  '--muted': '214 24% 92%',
+  '--muted-foreground': '218 16% 30%',
+  '--accent': '42 88% 75%',
+  '--accent-foreground': '222 20% 16%',
+  '--destructive': '6 70% 30%',
+  '--destructive-foreground': '0 0% 100%',
+  '--border': '214 18% 40%',
+  '--input': '214 20% 40%',
+  '--ring': '199 65% 32%',
+  '--chart-1': '10 70% 53%',
+  '--chart-2': '198 65% 46%',
+  '--chart-3': '145 45% 42%',
+  '--chart-4': '42 78% 46%',
+  '--chart-5': '279 35% 50%',
+  '--calendar-surface': '0 0% 100%',
+  '--calendar-today': '43 80% 86%',
+  '--widget-calendar': '210 24% 82%',
+  '--widget-planning': '210 24% 82%',
+  '--widget-family': '210 24% 82%',
+  '--widget-info': '210 24% 82%',
+};
+
+const daybookDark: ThemeTokens = {
+  ...prismDark,
+  ...daybookWeatherDark,
+  '--background': '220 22% 13%',
+  '--foreground': '210 24% 93%',
+  '--card': '220 18% 20%',
+  '--card-foreground': '210 24% 93%',
+  '--popover': '220 18% 24%',
+  '--popover-foreground': '210 24% 93%',
+  '--primary': '198 65% 68%',
+  '--primary-foreground': '220 22% 13%',
+  '--secondary': '215 17% 28%',
+  '--secondary-foreground': '210 24% 93%',
+  '--muted': '218 15% 24%',
+  '--muted-foreground': '211 18% 77%',
+  '--accent': '39 56% 30%',
+  '--accent-foreground': '42 86% 93%',
+  '--destructive': '6 76% 75%',
+  '--destructive-foreground': '6 40% 15%',
+  '--border': '215 15% 58%',
+  '--input': '214 18% 60%',
+  '--ring': '198 65% 74%',
+  '--chart-1': '10 76% 72%',
+  '--chart-2': '198 75% 72%',
+  '--chart-3': '145 55% 67%',
+  '--chart-4': '39 82% 72%',
+  '--chart-5': '279 55% 76%',
+  '--calendar-surface': '220 17% 22%',
+  '--calendar-today': '39 58% 24%',
+  '--widget-calendar': '220 22% 13%',
+  '--widget-planning': '220 22% 13%',
+  '--widget-family': '220 22% 13%',
+  '--widget-info': '220 22% 13%',
+};
+
 const claudeWeatherLight: ThemeTokens = {
   '--weather-temp-very-cold': '213 82% 48%',
   '--weather-temp-freezing': '199 85% 47%',
@@ -214,6 +335,7 @@ const claudeWeatherLight: ThemeTokens = {
   '--weather-temp-warm': '26 84% 47%',
   '--weather-temp-hot': '8 80% 47%',
   '--weather-temp-very-hot': '348 70% 48%',
+  '--weather-precipitation': '203 68% 47%',
 };
 
 const claudeWeatherDark: ThemeTokens = {
@@ -225,6 +347,7 @@ const claudeWeatherDark: ThemeTokens = {
   '--weather-temp-warm': '26 91% 65%',
   '--weather-temp-hot': '8 88% 66%',
   '--weather-temp-very-hot': '348 80% 70%',
+  '--weather-precipitation': '203 78% 66%',
 };
 
 /**
@@ -316,6 +439,7 @@ const lcars: ThemeTokens = {
   '--weather-temp-warm': '26 95% 65%',
   '--weather-temp-hot': '6 90% 66%',
   '--weather-temp-very-hot': '335 85% 68%',
+  '--weather-precipitation': '218 62% 66%',
   '--background': '240 11% 3%',
   '--foreground': '42 38% 94%',
   '--card': '252 16% 8%',
@@ -355,6 +479,13 @@ export const appThemes: Record<AppThemeId, AppTheme> = {
     description: 'The original crisp, neutral Prism palette.',
     light: prismLight,
     dark: prismDark,
+  },
+  daybook: {
+    id: 'daybook',
+    name: 'Daybook',
+    description: 'Cool paper, charcoal ink, teal actions, and family color chips.',
+    light: daybookLight,
+    dark: daybookDark,
   },
   claude: {
     id: 'claude',
@@ -651,4 +782,300 @@ export function applyAppTheme(themeId: AppThemeId, variant: AppThemeVariant) {
   for (const [property, value] of Object.entries(tokens)) {
     root.style.setProperty(property, value);
   }
+}
+
+function toGalleryTokens(tokens: ThemeTokens): GalleryThemeTokens {
+  const result = {} as GalleryThemeTokens;
+  for (const token of THEME_TOKENS) {
+    result[token] = tokens[`--${token}`]!;
+  }
+  return result;
+}
+
+function toGalleryTheme(theme: AppTheme): GalleryTheme {
+  return {
+    id: theme.id,
+    name: theme.name,
+    description: theme.description,
+    light: toGalleryTokens(theme.light),
+    dark: toGalleryTokens(theme.dark),
+  };
+}
+
+/**
+ * Themes that ship with Prism.
+ *
+ * `prism` carries the original gallery values, while the personal default is
+ * `daybook`, whose extended widget and weather tokens are kept intact above.
+ */
+export const DEFAULT_THEME_ID = 'daybook';
+
+const PRISM: GalleryTheme = {
+  id: 'prism',
+  name: 'Prism',
+  description: 'The original. Cool blues on a clean surface.',
+  light: {
+    background: '0 0% 100%',
+    foreground: '222 47% 11%',
+    card: '0 0% 100%',
+    'card-foreground': '222 47% 11%',
+    popover: '0 0% 100%',
+    'popover-foreground': '222 47% 11%',
+    primary: '222 47% 31%',
+    'primary-foreground': '210 40% 98%',
+    secondary: '210 40% 96%',
+    'secondary-foreground': '222 47% 11%',
+    muted: '210 40% 96%',
+    'muted-foreground': '215 16% 47%',
+    accent: '210 40% 96%',
+    'accent-foreground': '222 47% 11%',
+    destructive: '0 84% 60%',
+    'destructive-foreground': '210 40% 98%',
+    border: '214 32% 91%',
+    input: '214 32% 91%',
+    ring: '222 47% 31%',
+  },
+  dark: {
+    background: '222 47% 11%',
+    foreground: '210 40% 98%',
+    card: '222 47% 15%',
+    'card-foreground': '210 40% 98%',
+    popover: '222 47% 15%',
+    'popover-foreground': '210 40% 98%',
+    primary: '210 40% 98%',
+    'primary-foreground': '222 47% 11%',
+    secondary: '217 33% 17%',
+    'secondary-foreground': '210 40% 98%',
+    muted: '217 33% 17%',
+    'muted-foreground': '215 20% 65%',
+    accent: '217 33% 17%',
+    'accent-foreground': '210 40% 98%',
+    destructive: '0 62% 30%',
+    'destructive-foreground': '210 40% 98%',
+    border: '217 33% 25%',
+    input: '217 33% 25%',
+    ring: '212 95% 68%',
+  },
+};
+
+/**
+ * Warm, low-contrast neutrals. Built as a second theme mainly to prove the
+ * mechanism works on something that is not a tint of the default — if only
+ * `prism` existed, nothing would exercise the swap.
+ */
+const CLAY: GalleryTheme = {
+  id: 'clay',
+  name: 'Clay',
+  description: 'Warm earth tones. Easier on the eyes in a bright kitchen.',
+  light: {
+    background: '30 25% 97%',
+    foreground: '25 20% 18%',
+    card: '30 30% 99%',
+    'card-foreground': '25 20% 18%',
+    popover: '30 30% 99%',
+    'popover-foreground': '25 20% 18%',
+    primary: '18 42% 38%',
+    'primary-foreground': '30 30% 98%',
+    secondary: '30 20% 92%',
+    'secondary-foreground': '25 20% 18%',
+    muted: '30 20% 92%',
+    'muted-foreground': '25 12% 45%',
+    accent: '30 20% 90%',
+    'accent-foreground': '25 20% 18%',
+    destructive: '4 70% 47%',
+    'destructive-foreground': '30 30% 98%',
+    border: '30 18% 86%',
+    input: '30 18% 86%',
+    ring: '18 42% 38%',
+  },
+  dark: {
+    background: '25 18% 12%',
+    foreground: '30 20% 94%',
+    card: '25 18% 16%',
+    'card-foreground': '30 20% 94%',
+    popover: '25 18% 16%',
+    'popover-foreground': '30 20% 94%',
+    primary: '22 55% 62%',
+    'primary-foreground': '25 18% 12%',
+    secondary: '25 14% 22%',
+    'secondary-foreground': '30 20% 94%',
+    muted: '25 14% 22%',
+    'muted-foreground': '30 12% 65%',
+    accent: '25 14% 24%',
+    'accent-foreground': '30 20% 94%',
+    destructive: '4 55% 42%',
+    'destructive-foreground': '30 20% 94%',
+    border: '25 14% 28%',
+    input: '25 14% 28%',
+    ring: '22 55% 62%',
+  },
+};
+
+
+/**
+ * Seasonal, and named after a feeling rather than anything anyone owns. The
+ * naming matters as much as the colours: a palette called after a franchise is
+ * installed for the name, and that is the part that attracts a takedown.
+ */
+const HARVEST: GalleryTheme = {
+  id: 'harvest',
+  name: 'Harvest',
+  description: 'Late autumn. Amber, bark and a low sun.',
+  light: {
+    background: '38 40% 97%',
+    foreground: '25 35% 16%',
+    card: '38 45% 99%',
+    'card-foreground': '25 35% 16%',
+    popover: '38 45% 99%',
+    'popover-foreground': '25 35% 16%',
+    primary: '24 62% 33%',
+    'primary-foreground': '38 45% 98%',
+    secondary: '36 35% 90%',
+    'secondary-foreground': '25 35% 16%',
+    muted: '36 30% 91%',
+    'muted-foreground': '28 20% 38%',
+    accent: '30 45% 86%',
+    'accent-foreground': '25 35% 16%',
+    destructive: '0 65% 40%',
+    'destructive-foreground': '38 45% 98%',
+    border: '34 28% 82%',
+    input: '34 28% 82%',
+    ring: '24 62% 33%',
+  },
+  dark: {
+    background: '26 24% 10%',
+    foreground: '38 30% 93%',
+    card: '26 22% 14%',
+    'card-foreground': '38 30% 93%',
+    popover: '26 22% 14%',
+    'popover-foreground': '38 30% 93%',
+    primary: '32 70% 60%',
+    'primary-foreground': '26 24% 10%',
+    secondary: '26 18% 20%',
+    'secondary-foreground': '38 30% 93%',
+    muted: '26 18% 20%',
+    'muted-foreground': '36 18% 68%',
+    accent: '26 20% 24%',
+    'accent-foreground': '38 30% 93%',
+    destructive: '0 55% 45%',
+    'destructive-foreground': '38 30% 93%',
+    border: '26 16% 26%',
+    input: '26 16% 26%',
+    ring: '32 70% 60%',
+  },
+};
+
+const SNOW_DAY: GalleryTheme = {
+  id: 'snow-day',
+  name: 'Snow Day',
+  description: 'Cold light and pale blue. Quiet, and easy to read.',
+  light: {
+    background: '205 40% 98%',
+    foreground: '215 40% 15%',
+    card: '0 0% 100%',
+    'card-foreground': '215 40% 15%',
+    popover: '0 0% 100%',
+    'popover-foreground': '215 40% 15%',
+    primary: '205 60% 32%',
+    'primary-foreground': '205 40% 98%',
+    secondary: '205 35% 92%',
+    'secondary-foreground': '215 40% 15%',
+    muted: '205 30% 93%',
+    'muted-foreground': '212 20% 40%',
+    accent: '198 45% 88%',
+    'accent-foreground': '215 40% 15%',
+    destructive: '355 65% 42%',
+    'destructive-foreground': '205 40% 98%',
+    border: '205 25% 85%',
+    input: '205 25% 85%',
+    ring: '205 60% 32%',
+  },
+  dark: {
+    background: '215 40% 10%',
+    foreground: '205 35% 95%',
+    card: '215 36% 14%',
+    'card-foreground': '205 35% 95%',
+    popover: '215 36% 14%',
+    'popover-foreground': '205 35% 95%',
+    primary: '199 75% 65%',
+    'primary-foreground': '215 40% 10%',
+    secondary: '215 28% 20%',
+    'secondary-foreground': '205 35% 95%',
+    muted: '215 28% 20%',
+    'muted-foreground': '205 20% 70%',
+    accent: '215 30% 24%',
+    'accent-foreground': '205 35% 95%',
+    destructive: '355 55% 48%',
+    'destructive-foreground': '205 35% 95%',
+    border: '215 24% 27%',
+    input: '215 24% 27%',
+    ring: '199 75% 65%',
+  },
+};
+
+/**
+ * The look of a 16-bit console, not any particular one. Saturated primaries on
+ * near-black, which is what the hardware of the era could actually produce —
+ * a period, like Art Deco, rather than anyone's property. No franchise name,
+ * no character colours, no logo.
+ */
+const ARCADE: GalleryTheme = {
+  id: 'arcade',
+  name: 'Arcade',
+  description: 'Sixteen-bit console. Saturated primaries on near-black.',
+  light: {
+    background: '240 20% 96%',
+    foreground: '245 45% 14%',
+    card: '0 0% 100%',
+    'card-foreground': '245 45% 14%',
+    popover: '0 0% 100%',
+    'popover-foreground': '245 45% 14%',
+    primary: '265 62% 40%',
+    'primary-foreground': '240 25% 98%',
+    secondary: '240 25% 90%',
+    'secondary-foreground': '245 45% 14%',
+    muted: '240 20% 91%',
+    'muted-foreground': '245 18% 38%',
+    accent: '190 55% 84%',
+    'accent-foreground': '245 45% 14%',
+    destructive: '350 70% 42%',
+    'destructive-foreground': '240 25% 98%',
+    border: '240 18% 84%',
+    input: '240 18% 84%',
+    ring: '265 62% 40%',
+  },
+  dark: {
+    background: '248 45% 8%',
+    foreground: '190 60% 92%',
+    card: '248 40% 13%',
+    'card-foreground': '190 60% 92%',
+    popover: '248 40% 13%',
+    'popover-foreground': '190 60% 92%',
+    primary: '285 85% 70%',
+    'primary-foreground': '248 45% 8%',
+    secondary: '248 32% 19%',
+    'secondary-foreground': '190 60% 92%',
+    muted: '248 32% 19%',
+    'muted-foreground': '210 25% 70%',
+    accent: '175 70% 45%',
+    'accent-foreground': '248 45% 8%',
+    destructive: '350 75% 55%',
+    'destructive-foreground': '248 45% 8%',
+    border: '248 28% 26%',
+    input: '248 28% 26%',
+    ring: '285 85% 70%',
+  },
+};
+
+export const BUILTIN_THEMES: GalleryTheme[] = [
+  PRISM,
+  CLAY,
+  HARVEST,
+  SNOW_DAY,
+  ARCADE,
+  ...APP_THEME_IDS.filter((id) => id !== 'prism').map((id) => toGalleryTheme(appThemes[id])),
+];
+
+export function getBuiltinTheme(id: string): GalleryTheme | undefined {
+  return BUILTIN_THEMES.find((t) => t.id === id);
 }

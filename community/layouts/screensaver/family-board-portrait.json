@@ -1,0 +1,40 @@
+{
+  "type": "prism-layout",
+  "version": 2,
+  "mode": "screensaver",
+  "name": "Family Board",
+  "description": "A calendar hero, a tall upcoming-events spine, and a small clock.",
+  "author": "Prism",
+  "tags": [
+    "family",
+    "calendar"
+  ],
+  "screenSizes": [
+    "1080x1920",
+    "1440x2560"
+  ],
+  "orientation": "portrait",
+  "widgets": [
+    {
+      "i": "calendar",
+      "x": 2,
+      "y": 3,
+      "w": 32,
+      "h": 26
+    },
+    {
+      "i": "birthdays",
+      "x": 2,
+      "y": 31,
+      "w": 15,
+      "h": 30
+    },
+    {
+      "i": "clock",
+      "x": 18,
+      "y": 31,
+      "w": 16,
+      "h": 7
+    }
+  ]
+}

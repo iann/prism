@@ -1,12 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { format, isSameDay, isToday, isTomorrow, startOfDay } from 'date-fns';
+import { format, isSameDay, startOfDay } from 'date-fns';
 import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import { WeekItemCard, type WeekItemSize, type WeekItemLayout } from './WeekItemCard';
 import { weatherIcon } from './weatherIcon';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
+import { useTimeFormat } from '@/components/providers';
+import { formatDisplayTime, toDisplayDate, type TimeFormat } from '@/lib/utils/timeFormat';
 
 const PRIORITY_COLORS = {
   high: '#ef4444',
@@ -38,16 +40,17 @@ function mealStripeColor(meal: {
   return meal.cookedBy?.color || meal.createdBy?.color || MEAL_FALLBACK_COLOR;
 }
 
-function dayLabel(date: Date): string {
-  if (isToday(date)) return 'Today';
-  if (isTomorrow(date)) return 'Tomorrow';
+function dayLabel(date: Date, displayTimezone: string): string {
+  const displayNow = toDisplayDate(new Date(), displayTimezone);
+  if (isSameDay(date, displayNow)) return 'Today';
+  if (isSameDay(date, new Date(displayNow.getFullYear(), displayNow.getMonth(), displayNow.getDate() + 1))) return 'Tomorrow';
   return format(date, 'EEEE');
 }
 
-function timeLabel(start: Date, end: Date, allDay: boolean): string | undefined {
+function timeLabel(start: Date, end: Date, allDay: boolean, timeFormat: TimeFormat, displayTimezone: string): string | undefined {
   if (allDay) return 'All day';
-  const startStr = format(start, 'h:mm a');
-  if (!isSameDay(start, end)) return startStr;
+  const startStr = formatDisplayTime(start, timeFormat, {}, displayTimezone);
+  if (!isSameDay(toDisplayDate(start, displayTimezone), toDisplayDate(end, displayTimezone))) return startStr;
   return startStr;
 }
 
@@ -147,8 +150,9 @@ export function DayColumn({
   disableDrop = false,
   className,
 }: DayColumnProps) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const flags = { ...ALL_OVERLAYS, ...overlays };
-  const today = isToday(bucket.date);
+  const today = isSameDay(bucket.date, toDisplayDate(new Date(), displayTimezone));
   const droppableId = format(bucket.date, 'yyyy-MM-dd');
   const droppable = useDroppable({ id: droppableId, disabled: disableDrop });
   const profile = SIZE_PROFILES[size];
@@ -192,7 +196,7 @@ export function DayColumn({
                 : 'text-muted-foreground',
             )}
           >
-            {dayLabel(bucket.date)}
+            {dayLabel(bucket.date, displayTimezone)}
           </span>
         </div>
         {profile.showWeather && bucket.weather && (
@@ -204,22 +208,6 @@ export function DayColumn({
           </div>
         )}
       </div>
-
-      {showMeals &&
-        bucket.meals.map((meal) => (
-          <WeekItemCard
-            key={`meal-${meal.id}`}
-            variant="meal"
-            size={profile.itemSize}
-            layout={itemLayout}
-            stripeColor={mealStripeColor(meal)}
-            title={meal.name}
-            timeLabel={meal.mealType}
-            subtitle={meal.cookedBy?.name ? `Cooked by ${meal.cookedBy.name}` : undefined}
-            muted={Boolean(meal.cookedAt)}
-            dragId={disableDrop ? undefined : `meal:${meal.id}`}
-          />
-        ))}
 
       {showAllDay &&
         bucket.allDayEvents.map((event) => (
@@ -244,10 +232,17 @@ export function DayColumn({
             layout={itemLayout}
             stripeColor={event.color}
             title={event.title}
-            timeLabel={timeLabel(event.startTime, event.endTime, false)}
+            timeLabel={timeLabel(event.startTime, event.endTime, false, timeFormat, displayTimezone)}
             subtitle={event.location || event.calendarName}
           />
         ))}
+
+      {/* Skylight-style: events lead; the day's meals/chores/tasks form a
+          delineated planning group below, separated by a thin divider, with
+          meals pinned to the very bottom of the cell. */}
+      {(showChores || showTasks || showMeals) && (showAllDay || showTimed) && (
+        <div className="my-0.5 shrink-0 border-t border-border/40" aria-hidden />
+      )}
 
       {showChores &&
         bucket.chores.map((chore) => (
@@ -276,6 +271,22 @@ export function DayColumn({
             subtitle={task.assignedTo?.name}
             muted={task.completed}
             dragId={disableDrop ? undefined : `task:${task.id}`}
+          />
+        ))}
+
+      {showMeals &&
+        bucket.meals.map((meal) => (
+          <WeekItemCard
+            key={`meal-${meal.id}`}
+            variant="meal"
+            size={profile.itemSize}
+            layout={itemLayout}
+            stripeColor={mealStripeColor(meal)}
+            title={meal.name}
+            timeLabel={meal.mealType}
+            subtitle={meal.cookedBy?.name ? `Cooked by ${meal.cookedBy.name}` : undefined}
+            muted={Boolean(meal.cookedAt)}
+            dragId={disableDrop ? undefined : `meal:${meal.id}`}
           />
         ))}
 

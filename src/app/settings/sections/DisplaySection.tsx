@@ -4,19 +4,32 @@ import { useState, useEffect, useCallback } from 'react';
 import { Sun, Moon, Monitor, Sunset } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/components/providers';
+import { useAppLocale, APP_LOCALES } from '@/components/providers/LocaleProvider';
 import { useSeasonalTheme } from '@/lib/hooks/useSeasonalTheme';
 import { MONTH_NAMES, seasonalPalettes } from '@/lib/themes/seasonalThemes';
-import { useWallpaperSettings, useAutoOrientationSetting, useScreensaverInterval } from '@/components/layout/WallpaperBackground';
+import {
+  useWallpaperSettings,
+  useAutoOrientationSetting,
+  useScreensaverInterval,
+} from '@/components/layout/WallpaperBackground';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import { useOrientationOverride } from '../SettingsView';
 import { useScreensaverTimeout } from '@/lib/hooks/useScreensaverTimeout';
+import { useIdleLogoutSetting, IDLE_LOGOUT_OPTIONS } from '@/lib/hooks/useIdleLogout';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useAwayModeTimeout } from '@/lib/hooks/useAwayModeTimeout';
 import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
-import { APP_THEME_IDS, appThemes } from '@/lib/themes/appThemes';
+import { appThemes, isAppThemeId } from '@/lib/themes/appThemes';
+import {
+  MAX_SUNSET_OFFSET_MINUTES,
+  MIN_SUNSET_OFFSET_MINUTES,
+  normalizeSunsetOffsetMinutes,
+} from '@/lib/themes/sunsetTheme';
 
 function getCurrentMonthNum(): number {
   return new Date().getMonth() + 1;
@@ -25,21 +38,35 @@ function getCurrentMonthNum(): number {
 function SectionDivider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 pt-2">
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+      <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
-      <div className="flex-1 h-px bg-border" />
+      <div className="h-px flex-1 bg-border" />
     </div>
   );
 }
 
 export function DisplaySection() {
-  const { theme, setTheme, colorTheme, setColorTheme, resolvedTheme } = useTheme();
+  const {
+    theme,
+    setTheme,
+    sunsetOffsetMinutes,
+    setSunsetOffsetMinutes,
+    colorTheme,
+    resolvedTheme,
+    palette: activePalette,
+    palettes,
+    setPalette,
+  } = useTheme();
   const { seasonalTheme, setSeasonalTheme, palette } = useSeasonalTheme();
+  const [sunsetOffsetInput, setSunsetOffsetInput] = useState(String(sunsetOffsetMinutes));
+
+  useEffect(() => {
+    setSunsetOffsetInput(String(sunsetOffsetMinutes));
+  }, [sunsetOffsetMinutes]);
 
   const mode: 'auto' | 'manual' | 'off' =
-    seasonalTheme === 'none' ? 'off' :
-    seasonalTheme === 'auto' ? 'auto' : 'manual';
+    seasonalTheme === 'none' ? 'off' : seasonalTheme === 'auto' ? 'auto' : 'manual';
 
   const setMode = (m: 'auto' | 'manual' | 'off') => {
     if (m === 'off') setSeasonalTheme('none');
@@ -51,9 +78,7 @@ export function DisplaySection() {
     <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-bold">Appearance</h2>
-        <p className="text-muted-foreground">
-          Customize how the dashboard looks and behaves
-        </p>
+        <p className="text-muted-foreground">Customize how the dashboard looks and behaves</p>
       </div>
 
       <SectionDivider label="Theme" />
@@ -62,35 +87,52 @@ export function DisplaySection() {
         <CardHeader>
           <CardTitle>Palette</CardTitle>
           <CardDescription>
-            Sets the background, widget surfaces, calendars, controls, borders, and accent colors throughout Prism.
+            Sets the background, widget surfaces, calendars, controls, borders, and accent colors
+            throughout Prism.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {APP_THEME_IDS.map((id) => {
-            const preset = appThemes[id];
+          {palettes.map((preset) => {
             const colors = preset[resolvedTheme];
-            const selected = colorTheme === id;
+            const personalColors = isAppThemeId(preset.id) ? appThemes[preset.id][resolvedTheme] : null;
+            const previewColor = (token: string) =>
+              personalColors?.[`--${token}`] ?? colors[token as keyof typeof colors] ?? '0 0% 50%';
+            const swatches = personalColors
+              ? ['widget-calendar', 'widget-planning', 'widget-family', 'widget-info']
+              : ['background', 'card', 'primary', 'accent'];
+            const selected = activePalette.id === preset.id || colorTheme === preset.id;
             return (
               <button
                 type="button"
-                key={id}
+                key={preset.id}
                 aria-pressed={selected}
-                onClick={() => setColorTheme(id)}
+                onClick={() => setPalette(preset.id)}
                 className={cn(
                   'rounded-xl border p-3 text-left transition-all',
-                  selected ? 'border-primary ring-2 ring-primary/25' : 'border-border hover:border-primary dark:hover:border-primary/50'
+                  selected
+                    ? 'border-primary ring-2 ring-primary/25'
+                    : 'border-border hover:border-primary dark:hover:border-primary/50'
                 )}
               >
                 <div
                   className="mb-3 flex h-14 items-end gap-1.5 rounded-lg border p-2"
-                  style={{ backgroundColor: `hsl(${colors['--background']})`, borderColor: `hsl(${colors['--border']})` }}
+                  style={{
+                    backgroundColor: `hsl(${previewColor('background')})`,
+                    borderColor: `hsl(${previewColor('border')})`,
+                  }}
                 >
-                  {['--widget-calendar', '--widget-planning', '--widget-family', '--widget-info'].map((token) => (
-                    <span key={token} className="h-8 flex-1 rounded-sm" style={{ backgroundColor: `hsl(${colors[token as keyof typeof colors]})` }} />
+                  {swatches.map((token) => (
+                    <span
+                      key={token}
+                      className="h-8 flex-1 rounded-sm"
+                      style={{ backgroundColor: `hsl(${previewColor(token)})` }}
+                    />
                   ))}
                 </div>
                 <span className="block text-sm font-semibold">{preset.name}</span>
-                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{preset.description}</span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                  {preset.description}
+                </span>
               </button>
             );
           })}
@@ -101,7 +143,8 @@ export function DisplaySection() {
         <CardHeader>
           <CardTitle>Brightness</CardTitle>
           <CardDescription>
-            Use a light or dark version of the selected palette, or let Prism follow the sun at your weather location.
+            Use a light or dark version of the selected palette, or let Prism follow the sun at your
+            weather location.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -111,7 +154,7 @@ export function DisplaySection() {
               onClick={() => setTheme('light')}
               className="flex-1"
             >
-              <Sun className="h-4 w-4 mr-2" />
+              <Sun className="mr-2 h-4 w-4" />
               Light
             </Button>
             <Button
@@ -119,7 +162,7 @@ export function DisplaySection() {
               onClick={() => setTheme('dark')}
               className="flex-1"
             >
-              <Moon className="h-4 w-4 mr-2" />
+              <Moon className="mr-2 h-4 w-4" />
               Dark
             </Button>
             <Button
@@ -127,7 +170,7 @@ export function DisplaySection() {
               onClick={() => setTheme('system')}
               className="flex-1"
             >
-              <Monitor className="h-4 w-4 mr-2" />
+              <Monitor className="mr-2 h-4 w-4" />
               System
             </Button>
             <Button
@@ -135,22 +178,60 @@ export function DisplaySection() {
               onClick={() => setTheme('sunset')}
               className="flex-1"
             >
-              <Sunset className="h-4 w-4 mr-2" />
+              <Sunset className="mr-2 h-4 w-4" />
               Sunset
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Sunset mode stays light during the day and switches to dark after sunset, returning to light at sunrise. It uses the location configured under General settings.
+            Sunset mode stays light during the day and switches to dark after sunset, returning to
+            light at sunrise. It uses the location configured under General settings.
           </p>
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-end">
+            <div>
+              <Label htmlFor="sunset-offset">Dark mode offset</Label>
+              <p id="sunset-offset-help" className="mt-1 text-xs text-muted-foreground">
+                Positive values start dark mode after sunset; negative values start it before
+                sunset.
+              </p>
+            </div>
+            <div className="relative">
+              <Input
+                id="sunset-offset"
+                type="number"
+                min={MIN_SUNSET_OFFSET_MINUTES}
+                max={MAX_SUNSET_OFFSET_MINUTES}
+                step={1}
+                value={sunsetOffsetInput}
+                aria-describedby="sunset-offset-help"
+                onChange={(event) => {
+                  setSunsetOffsetInput(event.target.value);
+                }}
+                onBlur={() => {
+                  const value = Number(sunsetOffsetInput);
+                  if (sunsetOffsetInput.trim() === '' || !Number.isFinite(value)) {
+                    setSunsetOffsetInput(String(sunsetOffsetMinutes));
+                    return;
+                  }
+
+                  const normalizedValue = normalizeSunsetOffsetMinutes(value);
+                  setSunsetOffsetInput(String(normalizedValue));
+                  setSunsetOffsetMinutes(normalizedValue);
+                }}
+                className="pr-12"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                min
+              </span>
+            </div>
+          </div>
+
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Seasonal Theme</CardTitle>
-          <CardDescription>
-            Add seasonal color accents to the dashboard
-          </CardDescription>
+          <CardDescription>Add seasonal color accents to the dashboard</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3">
@@ -167,20 +248,20 @@ export function DisplaySection() {
           </div>
 
           {palette && (
-            <div className="flex items-center gap-3 p-3 rounded-md border border-border">
+            <div className="flex items-center gap-3 rounded-md border border-border p-3">
               <div className="flex gap-1.5">
                 <div
-                  className="w-6 h-6 rounded-full"
+                  className="h-6 w-6 rounded-full"
                   style={{ backgroundColor: `hsl(${palette.light.accent})` }}
                   title="Accent"
                 />
                 <div
-                  className="w-6 h-6 rounded-full"
+                  className="h-6 w-6 rounded-full"
                   style={{ backgroundColor: `hsl(${palette.light.highlight})` }}
                   title="Highlight"
                 />
                 <div
-                  className="w-6 h-6 rounded-full border border-border"
+                  className="h-6 w-6 rounded-full border border-border"
                   style={{ backgroundColor: `hsl(${palette.light.subtle})` }}
                   title="Subtle"
                 />
@@ -202,14 +283,14 @@ export function DisplaySection() {
                     key={month}
                     onClick={() => setSeasonalTheme(month)}
                     className={cn(
-                      'flex items-center gap-2 px-3 py-2 rounded-md text-sm border transition-colors',
+                      'flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors',
                       selected
                         ? 'border-foreground bg-accent text-accent-foreground'
                         : 'border-border hover:bg-accent/50'
                     )}
                   >
                     <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      className="h-3 w-3 flex-shrink-0 rounded-full"
                       style={{ backgroundColor: `hsl(${p.light.accent})` }}
                     />
                     {name.slice(0, 3)}
@@ -234,7 +315,59 @@ export function DisplaySection() {
       <TimersCard />
 
       <WeatherUnitsCard />
+
+      <LanguageCard />
     </div>
+  );
+}
+
+function LanguageCard() {
+  const { locale, setLocale } = useAppLocale();
+  const [saving, setSaving] = useState(false);
+
+  const pick = useCallback(
+    async (next: (typeof APP_LOCALES)[number]['value']) => {
+      setSaving(true);
+      try {
+        await setLocale(next);
+      } catch {
+        /* provider reverts on failure */
+      }
+      setSaving(false);
+    },
+    [setLocale],
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Language <span className="text-xs font-normal text-muted-foreground">(early preview)</span></CardTitle>
+        <CardDescription>
+          The dashboard&apos;s display language. English is the default; other languages fall back to English
+          for anything not yet translated. Only part of the UI is translated so far — this is an early preview.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="inline-flex rounded-md border border-input p-0.5" role="radiogroup" aria-label="Language">
+          {APP_LOCALES.map((l) => (
+            <button
+              key={l.value}
+              type="button"
+              role="radio"
+              aria-checked={locale === l.value}
+              disabled={saving}
+              onClick={() => pick(l.value)}
+              className={cn(
+                'px-3 py-1.5 text-sm rounded-sm transition-colors',
+                locale === l.value ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
+              )}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -244,8 +377,8 @@ function WeatherUnitsCard() {
 
   useEffect(() => {
     fetch('/api/settings')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
         const value = data?.settings?.weather as { units?: 'imperial' | 'metric' } | undefined;
         setUnits(value?.units === 'metric' ? 'metric' : 'imperial');
       })
@@ -261,7 +394,9 @@ function WeatherUnitsCard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'weather', value: { units: next } }),
       });
-    } catch { /* ignore — UI already updated optimistically */ }
+    } catch {
+      /* ignore — UI already updated optimistically */
+    }
     setSaving(false);
   }, []);
 
@@ -272,11 +407,16 @@ function WeatherUnitsCard() {
       <CardHeader>
         <CardTitle>Weather units</CardTitle>
         <CardDescription>
-          Imperial shows °F, mph, and inches. Metric shows °C, km/h, and mm. Applies to every place weather is rendered (widget, mobile cards, away mode, babysitter mode).
+          Imperial shows °F, mph, and inches. Metric shows °C, km/h, and mm. Applies to every place
+          weather is rendered (widget, mobile cards, away mode, babysitter mode).
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="inline-flex rounded-md border border-input p-0.5" role="radiogroup" aria-label="Weather units">
+        <div
+          className="inline-flex rounded-md border border-input p-0.5"
+          role="radiogroup"
+          aria-label="Weather units"
+        >
           <button
             type="button"
             role="radio"
@@ -284,8 +424,8 @@ function WeatherUnitsCard() {
             disabled={saving}
             onClick={() => save('imperial')}
             className={cn(
-              'px-3 py-1.5 text-sm rounded-sm transition-colors',
-              units === 'imperial' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
+              'rounded-sm px-3 py-1.5 text-sm transition-colors',
+              units === 'imperial' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
             )}
           >
             Imperial (°F, mph)
@@ -297,8 +437,8 @@ function WeatherUnitsCard() {
             disabled={saving}
             onClick={() => save('metric')}
             className={cn(
-              'px-3 py-1.5 text-sm rounded-sm transition-colors',
-              units === 'metric' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
+              'rounded-sm px-3 py-1.5 text-sm transition-colors',
+              units === 'metric' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
             )}
           >
             Metric (°C, km/h)
@@ -314,6 +454,7 @@ function TimersCard() {
   const { interval: photoInterval, setInterval: setPhotoInterval } = useScreensaverInterval();
   const { autoHideEnabled, setAutoHideEnabled } = useAutoHideUI();
   const { timeout: awayTimeout, setTimeout: setAwayTimeout } = useAwayModeTimeout();
+  const [idleLogout, setIdleLogout] = useIdleLogoutSetting();
 
   return (
     <Card>
@@ -332,7 +473,7 @@ function TimersCard() {
             <select
               value={ssTimeout}
               onChange={(e) => setSsTimeout(Number(e.target.value))}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
+              className="rounded border border-border bg-background px-2 py-1 text-sm"
             >
               <option value={30}>30 seconds</option>
               <option value={60}>1 minute</option>
@@ -343,11 +484,28 @@ function TimersCard() {
             </select>
           </div>
           <div className="flex items-center gap-3 pl-2">
+            <span className="text-sm text-muted-foreground">Sign out after</span>
+            <select
+              value={idleLogout}
+              onChange={(e) => setIdleLogout(Number(e.target.value))}
+              className="border border-border rounded px-2 py-1 text-sm bg-background"
+            >
+              {IDLE_LOGOUT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs text-muted-foreground pl-2">
+            After this long untouched, the display stops being signed in as
+            whoever last used it. The dashboard stays readable; adding or
+            changing anything asks for a PIN. This screen only.
+          </p>
+          <div className="flex items-center gap-3 pl-2">
             <span className="text-sm text-muted-foreground">Rotate photos every</span>
             <select
               value={photoInterval}
               onChange={(e) => setPhotoInterval(Number(e.target.value))}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
+              className="rounded border border-border bg-background px-2 py-1 text-sm"
             >
               <option value={5}>5 seconds</option>
               <option value={10}>10 seconds</option>
@@ -369,7 +527,9 @@ function TimersCard() {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-sm font-medium">Auto-Hide Navigation</h4>
-              <p className="text-xs text-muted-foreground">Hide nav and toolbar after 10s of inactivity</p>
+              <p className="text-xs text-muted-foreground">
+                Hide nav and toolbar after 10s of inactivity
+              </p>
             </div>
             <Switch
               checked={autoHideEnabled}
@@ -391,7 +551,7 @@ function TimersCard() {
             <select
               value={awayTimeout}
               onChange={(e) => setAwayTimeout(Number(e.target.value))}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
+              className="rounded border border-border bg-background px-2 py-1 text-sm"
             >
               <option value={0}>Never (manual only)</option>
               <option value={4}>4 hours</option>
@@ -404,7 +564,7 @@ function TimersCard() {
             </select>
             <span className="text-sm text-muted-foreground">of no interaction</span>
           </div>
-          <p className="text-xs text-muted-foreground pl-2">
+          <p className="pl-2 text-xs text-muted-foreground">
             After the specified idle time, Away Mode activates automatically for privacy.
           </p>
         </div>
@@ -427,14 +587,13 @@ function PerformanceModeCard() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <span className="text-sm font-medium">Enable performance mode</span>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Disables backdrop blur, stretches polling intervals, and shows a single static photo instead of a slideshow. Auto-enabled on devices reporting ≤2 GB RAM or ≤4 CPU cores; you can override it here at any time.
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Disables backdrop blur, stretches polling intervals, and shows a single static photo
+              instead of a slideshow. Auto-enabled on devices reporting ≤2 GB RAM or ≤4 CPU cores;
+              you can override it here at any time.
             </p>
           </div>
-          <Switch
-            checked={enabled}
-            onCheckedChange={setEnabled}
-          />
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
         </div>
       </CardContent>
     </Card>
@@ -449,17 +608,12 @@ function WallpaperSettingsCard() {
     <Card>
       <CardHeader>
         <CardTitle>Background Wallpaper</CardTitle>
-        <CardDescription>
-          Show a rotating photo behind the dashboard
-        </CardDescription>
+        <CardDescription>Show a rotating photo behind the dashboard</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Enable wallpaper</span>
-          <Switch
-            checked={enabled}
-            onCheckedChange={setEnabled}
-          />
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
         </div>
         {enabled && (
           <>
@@ -468,7 +622,7 @@ function WallpaperSettingsCard() {
               <select
                 value={interval}
                 onChange={(e) => setInterval(Number(e.target.value))}
-                className="border border-border rounded px-2 py-1 text-sm bg-background"
+                className="rounded border border-border bg-background px-2 py-1 text-sm"
               >
                 <option value={30}>30 seconds</option>
                 <option value={60}>1 minute</option>
@@ -486,10 +640,7 @@ function WallpaperSettingsCard() {
                   Only show landscape photos on landscape screens and portrait on portrait screens
                 </p>
               </div>
-              <Switch
-                checked={autoOrientation}
-                onCheckedChange={setAutoOrientation}
-              />
+              <Switch checked={autoOrientation} onCheckedChange={setAutoOrientation} />
             </div>
           </>
         )}
@@ -500,8 +651,10 @@ function WallpaperSettingsCard() {
 
 function OrientationCard() {
   const detectedOrientation = useScreenOrientation();
-  const { override: orientationOverride, setOverride: setOrientationOverride } = useOrientationOverride();
-  const effectiveOrientation = orientationOverride === 'auto' ? detectedOrientation : orientationOverride;
+  const { override: orientationOverride, setOverride: setOrientationOverride } =
+    useOrientationOverride();
+  const effectiveOrientation =
+    orientationOverride === 'auto' ? detectedOrientation : orientationOverride;
 
   return (
     <Card>
@@ -526,9 +679,9 @@ function OrientationCard() {
               key={opt}
               onClick={() => setOrientationOverride(opt)}
               className={cn(
-                'px-2.5 py-1 text-xs rounded-md border transition-colors capitalize',
+                'rounded-md border px-2.5 py-1 text-xs capitalize transition-colors',
                 orientationOverride === opt
-                  ? 'bg-primary text-primary-foreground border-primary'
+                  ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border hover:bg-accent/50'
               )}
             >

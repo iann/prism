@@ -52,6 +52,7 @@ const MealModal = lazy(() =>
   import('@/app/meals/MealsView').then((m) => ({ default: m.MealModal }))
 );
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
+import { WeatherRadarWidget } from '@/components/widgets/WeatherRadarWidget';
 import { AppleTvPlaybackCard } from '@/components/widgets/AppleTvPlaybackCard';
 import { FloatingCardStack } from './FloatingCardStack';
 import { renderScreensaverPreview } from '@/components/screensaver/ScreensaverWidgetPreview';
@@ -131,7 +132,14 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
 
   const [visibleWidgets, setVisibleWidgets] = useState(readCachedVisibleWidgets);
 
-  const data = useDashboardData(visibleWidgets);
+  // The conditional radar is not a saved layout widget, but it still needs
+  // the shared weather stream when a user has removed the normal Weather tile.
+  const dataWidgets = useMemo(() => {
+    const next = new Set(visibleWidgets);
+    next.add('weather');
+    return next;
+  }, [visibleWidgets]);
+  const data = useDashboardData(dataWidgets);
 
   const [showAddMessage, setShowAddMessage] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -496,6 +504,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
       <AppleTvPlaybackCard
         enabled={layout.activeLayout?.floatingCardSettings?.appleTvPlayback?.enabled ?? true}
       />
+      <WeatherRadarWidget data={data.weather.data} />
     </FloatingCardStack>
   ) : null;
 

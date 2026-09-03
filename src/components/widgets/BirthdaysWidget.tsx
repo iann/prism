@@ -3,24 +3,29 @@
  * Train platform / arrivals board style widget showing upcoming birthdays,
  * anniversaries, and milestones sourced from Google Calendar.
  *
- * Columns: Event | Type | Yrs | Days Until | Date
+ * Columns: Event | Days Until | Type | Yrs | Date
+ * (Days Until sits right after the name for fast scanning, and is marked
+ * data-keep-color so its urgency coloring survives the screensaver's
+ * force-white text override — see SCREENSAVER_WIDGET_CLASS.)
  *
  */
 
 'use client';
 
 import * as React from 'react';
+import { useTranslations, useLocale } from 'next-intl';
+import { Emoji } from '@/components/ui/Emoji';
 import { cn } from '@/lib/utils';
 import { WidgetContainer, WidgetEmpty } from './WidgetContainer';
 import type { Birthday } from '@/lib/hooks/useBirthdays';
 
-export interface BirthdaysWidgetProps {
+export type BirthdaysWidgetProps = {
   birthdays: Birthday[];
   loading?: boolean;
   error?: string | null;
   maxItems?: number;
   titleHref?: string;
-}
+};
 
 const TYPE_ICONS: Record<string, string> = {
   birthday: '🎂',
@@ -28,9 +33,9 @@ const TYPE_ICONS: Record<string, string> = {
   milestone: '⭐',
 };
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, locale: string): string {
   const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 function daysUntilColor(days: number): string {
@@ -40,12 +45,6 @@ function daysUntilColor(days: number): string {
   return 'text-muted-foreground';
 }
 
-function daysUntilLabel(days: number): string {
-  if (days === 0) return 'Today!';
-  if (days === 1) return '1 day';
-  return `${days} days`;
-}
-
 export const BirthdaysWidget = React.memo(function BirthdaysWidget({
   birthdays,
   loading = false,
@@ -53,35 +52,65 @@ export const BirthdaysWidget = React.memo(function BirthdaysWidget({
   maxItems = 8,
   titleHref,
 }: BirthdaysWidgetProps) {
+  const t = useTranslations('birthdays');
+  const locale = useLocale();
   const items = birthdays.slice(0, maxItems);
+
+  // Show only the whole rows that fit (no scrollbar, no half-cut last row).
+  // Measure the REAL header + row heights from the rendered table rather than
+  // hardcoding them: a fixed estimate under-counts and clips the last row
+  // mid-line once the widget grows tall (e.g. when the navbars auto-hide).
+  // getBoundingClientRect on all three keeps the math in one coordinate space,
+  // so any dashboard transform-scale cancels out.
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const [maxRows, setMaxRows] = React.useState(maxItems);
+  React.useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = el.getBoundingClientRect().height;
+      if (h <= 0) return;
+      const headerEl = el.querySelector('thead');
+      const rowEl = el.querySelector('tbody tr');
+      const headerH = headerEl?.getBoundingClientRect().height ?? 26;
+      const rowH = rowEl?.getBoundingClientRect().height ?? 34;
+      if (rowH <= 0) return;
+      setMaxRows(Math.max(1, Math.floor((h - headerH) / rowH)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [items.length]);
+  const visible = items.slice(0, maxRows);
 
   return (
     <WidgetContainer
-      title="Upcoming Birthdays & Milestones"
-      icon={<span>🎂</span>}
+      title={t('title')}
+      icon={<Emoji e="🎂" />}
       loading={loading}
       error={error}
       titleHref={titleHref}
     >
       {items.length === 0 ? (
         <WidgetEmpty
-          icon={<span>🎂</span>}
-          message="No upcoming birthdays or events"
+          icon={<Emoji e="🎂" />}
+          message={t('empty')}
         />
       ) : (
-        <div className="overflow-auto h-full">
+        <div ref={listRef} className="overflow-hidden h-full">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-xs text-muted-foreground">
-                <th className="text-left py-1 pr-2 font-medium">Event</th>
+                <th className="text-left py-1 pr-2 font-medium">{t('colEvent')}</th>
+                <th className="text-right py-1 px-1 font-medium w-20">{t('colDays')}</th>
                 <th className="py-1 px-1 font-medium w-8"></th>
-                <th className="text-right py-1 px-1 font-medium w-10">Yrs</th>
-                <th className="text-right py-1 px-1 font-medium w-20">Days</th>
-                <th className="text-right py-1 pl-2 font-medium w-16">Date</th>
+                <th className="text-right py-1 px-1 font-medium w-10">{t('colYears')}</th>
+                <th className="text-right py-1 pl-2 font-medium w-16">{t('colDate')}</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {visible.map((item) => (
                 <tr
                   key={item.id}
                   className={cn(
@@ -93,21 +122,24 @@ export const BirthdaysWidget = React.memo(function BirthdaysWidget({
                     {item.name}
                     {item.daysUntil === 0 && (
                       <span className="ml-1.5 text-[12px] bg-primary text-primary-foreground px-1 py-0.5 rounded">
-                        TODAY
+                        {t('todayBadge')}
                       </span>
                     )}
                   </td>
+                  <td
+                    data-keep-color
+                    className={cn('py-1.5 px-1 text-right tabular-nums', daysUntilColor(item.daysUntil))}
+                  >
+                    {t('daysUntil', { days: item.daysUntil })}
+                  </td>
                   <td className="py-1.5 px-1 text-center">
-                    {TYPE_ICONS[item.eventType] || '⭐'}
+                    <Emoji e={TYPE_ICONS[item.eventType] || '⭐'} />
                   </td>
                   <td className="py-1.5 px-1 text-right text-muted-foreground tabular-nums">
                     {item.age != null ? item.age : ''}
                   </td>
-                  <td className={cn('py-1.5 px-1 text-right tabular-nums', daysUntilColor(item.daysUntil))}>
-                    {daysUntilLabel(item.daysUntil)}
-                  </td>
                   <td className="py-1.5 pl-2 text-right text-muted-foreground whitespace-nowrap">
-                    {formatDate(item.nextBirthday)}
+                    {formatDate(item.nextBirthday, locale)}
                   </td>
                 </tr>
               ))}

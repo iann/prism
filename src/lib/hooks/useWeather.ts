@@ -10,11 +10,20 @@ interface UseWeatherOptions {
   enabled?: boolean;
 }
 
+const WEATHER_REFRESH_INTERVAL_MS = 60 * 1000;
+
 function transformWeather(json: unknown): WeatherData {
   const raw = json as {
     lastUpdated: string;
-    forecast: Array<{ date: string; dayName: string; high: number; low: number; condition: string }>;
+    forecast: Array<{
+      date: string;
+      dayName: string;
+      high: number;
+      low: number;
+      condition: string;
+    }>;
     hourly?: Array<{ time: string; condition: string; temp: number }>;
+    alerts?: Array<{ start?: string; end?: string }>;
     sunrise?: string;
     sunset?: string;
     moonrise?: string;
@@ -32,19 +41,27 @@ function transformWeather(json: unknown): WeatherData {
       ...h,
       time: new Date(h.time),
     })),
-    sunrise:  raw.sunrise  ? new Date(raw.sunrise)  : undefined,
-    sunset:   raw.sunset   ? new Date(raw.sunset)   : undefined,
+    alerts: raw.alerts?.map((alert) => ({
+      ...alert,
+      start: alert.start ? new Date(alert.start) : undefined,
+      end: alert.end ? new Date(alert.end) : undefined,
+    })),
+    sunrise: raw.sunrise ? new Date(raw.sunrise) : undefined,
+    sunset: raw.sunset ? new Date(raw.sunset) : undefined,
     moonrise: raw.moonrise ? new Date(raw.moonrise) : undefined,
-    moonset:  raw.moonset  ? new Date(raw.moonset)  : undefined,
+    moonset: raw.moonset ? new Date(raw.moonset) : undefined,
   } as unknown as WeatherData;
 }
 
 export function useWeather(options: UseWeatherOptions = {}) {
-  const { location, refreshInterval = 5 * 60 * 1000, refreshOffsetMs, enabled } = options;
+  const {
+    location,
+    refreshInterval = WEATHER_REFRESH_INTERVAL_MS,
+    refreshOffsetMs,
+    enabled,
+  } = options;
 
-  const url = location
-    ? `/api/weather?location=${encodeURIComponent(location)}`
-    : '/api/weather';
+  const url = location ? `/api/weather?location=${encodeURIComponent(location)}` : '/api/weather';
 
   const { data, loading, error, refresh } = useFetch<WeatherData | null>({
     url,
@@ -53,6 +70,9 @@ export function useWeather(options: UseWeatherOptions = {}) {
     refreshInterval,
     refreshOffsetMs,
     label: 'weather',
+    // Weather stays on its one-minute cadence even in Performance Mode so
+    // local AirGradient readings stay current on the wall.
+    respectPerformanceMode: false,
     enabled,
   });
 

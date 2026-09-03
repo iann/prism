@@ -19,7 +19,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Loader2, MapPin, AlignLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCalendarSources } from '@/lib/hooks';
-import { useAuth } from '@/components/providers';
+import { useAuth, useTimeFormat } from '@/components/providers';
+import { fromDisplayDateTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { toast } from '@/components/ui/use-toast';
 import { TimeDropdown } from './TimeDropdown';
 import {
@@ -116,25 +117,47 @@ const REMINDER_OPTIONS = [
 ];
 
 /** Format date for datetime-local input (YYYY-MM-DDTHH:mm) */
-function formatDateTimeLocal(date: Date | string | undefined): string {
+function formatDateTimeLocal(date: Date | string | undefined, timeZone?: string): string {
   const d = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
-  if (isNaN(d.getTime())) return formatDateTimeLocal(undefined);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
+  if (isNaN(d.getTime())) return formatDateTimeLocal(undefined, timeZone);
+  const displayDate = toDisplayDate(d, timeZone);
+  const year = displayDate.getFullYear();
+  const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+  const day = String(displayDate.getDate()).padStart(2, '0');
+  const hours = String(displayDate.getHours()).padStart(2, '0');
+  const minutes = String(displayDate.getMinutes()).padStart(2, '0');
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 /** Format date for date input (YYYY-MM-DD) */
-function formatDateLocal(date: Date | string | undefined): string {
+function formatDateLocal(date: Date | string | undefined, timeZone?: string): string {
   const d = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
-  if (isNaN(d.getTime())) return formatDateLocal(undefined);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  if (isNaN(d.getTime())) return formatDateLocal(undefined, timeZone);
+  const displayDate = toDisplayDate(d, timeZone);
+  const year = displayDate.getFullYear();
+  const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+  const day = String(displayDate.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+/** Date-only events are floating calendar dates, not timezone-based instants. */
+function formatAllDayDate(date: Date | string | undefined): string {
+  const value = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
+  return value.toISOString().slice(0, 10);
+}
+
+/** Convert Google's exclusive all-day end date to the inclusive form date. */
+function formatAllDayEndDate(start: Date | string, end: Date | string): string {
+  const startValue = typeof start === 'string' ? new Date(start) : start;
+  const endValue = typeof end === 'string' ? new Date(end) : new Date(end.getTime());
+  const isExclusiveMidnight = endValue.getTime() > startValue.getTime()
+    && endValue.getUTCHours() === 0
+    && endValue.getUTCMinutes() === 0
+    && endValue.getUTCSeconds() === 0
+    && endValue.getUTCMilliseconds() === 0;
+
+  if (isExclusiveMidnight) endValue.setUTCDate(endValue.getUTCDate() - 1);
+  return formatAllDayDate(endValue);
 }
 
 /**
@@ -152,6 +175,7 @@ export function AddEventModal({
   // Fetch available calendars
   const { calendars } = useCalendarSources();
   const { activeUser } = useAuth();
+  const { displayTimezone } = useTimeFormat();
 
   // Filter to only writable, non-read-only calendars with showInEventModal enabled
   const writableCalendars = useMemo(() => {
@@ -242,13 +266,17 @@ export function AddEventModal({
       setLocation(event.location || '');
       const isAllDay = event.allDay || false;
       setAllDay(isAllDay);
-      const sd = formatDateLocal(event.startTime);
-      const ed = formatDateLocal(event.endTime);
+      const sd = isAllDay
+        ? formatAllDayDate(event.startTime)
+        : formatDateLocal(event.startTime, displayTimezone);
+      const ed = isAllDay
+        ? formatAllDayEndDate(event.startTime, event.endTime)
+        : formatDateLocal(event.endTime, displayTimezone);
       setStartDate(sd);
       setEndDate(ed);
       if (!isAllDay) {
-        const s = formatDateTimeLocal(event.startTime);
-        const e = formatDateTimeLocal(event.endTime);
+        const s = formatDateTimeLocal(event.startTime, displayTimezone);
+        const e = formatDateTimeLocal(event.endTime, displayTimezone);
         setStartTimeStr(s.split('T')[1] ?? '09:00');
         setEndTimeStr(e.split('T')[1] ?? '10:00');
       } else {
@@ -260,20 +288,21 @@ export function AddEventModal({
       setCalendarSourceId(event.calendarSourceId || defaultCalendarId);
       setShowMore(!!(event.description || event.location || event.reminderMinutes || event.recurrenceRule));
     } else if (open && defaultDate) {
-      const d = formatDateLocal(defaultDate);
+      // Calendar cells are already presentation-only wall dates.
+      const d = format(defaultDate, 'yyyy-MM-dd');
       setStartDate(d);
       setEndDate(d);
       setStartTimeStr('09:00');
       setEndTimeStr('10:00');
     } else if (open) {
-      const today = formatDateLocal(new Date());
+      const today = formatDateLocal(new Date(), displayTimezone);
       setStartDate(today);
       setEndDate(today);
       setStartTimeStr('09:00');
       setEndTimeStr('10:00');
     }
     if (open && !event) setCalendarSourceId(defaultCalendarId);
-  }, [open, event, defaultDate, defaultCalendarId]);
+  }, [open, event, defaultDate, defaultCalendarId, displayTimezone]);
 
   // Reset form when modal closes
   useEffect(() => {
@@ -291,12 +320,14 @@ export function AddEventModal({
     if (!title.trim() || !startDate || !endDate) return;
     if (!allDay && (!startTimeStr || !endTimeStr)) return;
 
+    // All-day values are floating dates. Keep them in UTC so their calendar
+    // date is stable and Google can receive an exclusive end date reliably.
     const startISO = allDay
-      ? new Date(`${startDate}T00:00:00`).toISOString()
-      : new Date(`${startDate}T${startTimeStr}:00`).toISOString();
+      ? `${startDate}T00:00:00.000Z`
+      : fromDisplayDateTime(startDate, startTimeStr, displayTimezone).toISOString();
     const endISO = allDay
-      ? new Date(`${endDate}T23:59:59`).toISOString()
-      : new Date(`${endDate}T${endTimeStr}:00`).toISOString();
+      ? `${endDate}T23:59:59.000Z`
+      : fromDisplayDateTime(endDate, endTimeStr, displayTimezone).toISOString();
 
     if (new Date(endISO) < new Date(startISO)) {
       setError('End must be after start');

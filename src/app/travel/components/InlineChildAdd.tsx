@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { Emoji } from '@/components/ui/Emoji';
 import { Search, Loader2, Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -167,8 +168,8 @@ export function InlineChildAdd({ childType, onAdd }: InlineChildAddProps) {
               onClick={() => handleSelectParkWithGeocode(u.name)}
               className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-accent transition-colors border-b border-border last:border-0 flex items-center gap-1.5"
             >
-              🌲 <span className="font-medium">{u.name}</span>
-              <span className="text-muted-foreground text-[12px] ml-auto">{u.type}</span>
+              <Emoji e="🌲" /> <span className="font-medium">{u.name}</span>
+              <span className="text-muted-foreground text-[10px] ml-auto">{u.type}</span>
             </button>
           )) : (
             <p className="px-2.5 py-2 text-xs text-muted-foreground">No matches</p>

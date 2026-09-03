@@ -21,12 +21,12 @@ import type {
   WeatherCondition,
   CurrentWeather,
   ForecastDay,
-  ForecastPeriod,
   HourlyForecast,
   MinutelyData,
 } from '@/components/widgets/WeatherWidget';
 import type { LocationParam, WeatherOptions } from './weather';
 import { getMoonData } from './moon';
+import { buildForecastPeriods } from '@/lib/weather/forecastPeriods';
 
 // ---------------------------------------------------------------------------
 // Pirate Weather (Dark Sky-compatible) response types
@@ -40,6 +40,10 @@ interface PirateWeatherCurrently {
   apparentTemperature: number;
   humidity: number; // 0–1
   windSpeed: number; // mph (units=us)
+  windGust?: number;
+  uvIndex?: number;
+  dewPoint?: number;
+  visibility?: number;
   precipIntensity: number;
   precipProbability: number;
 }
@@ -49,6 +53,8 @@ interface PirateWeatherHourly {
   icon: string;
   summary?: string;
   temperature: number;
+  apparentTemperature?: number;
+  uvIndex?: number;
   precipProbability: number;
   precipIntensity: number;
 }
@@ -97,6 +103,7 @@ function getConfig(location?: LocationParam) {
   if (typeof location === 'object' && location !== null && 'lat' in location) {
     lat = location.lat;
     lon = location.lon;
+    locationName = location.displayName || locationName;
   } else if (typeof location === 'string' && location.length > 0) {
     locationName = location;
   }
@@ -137,6 +144,8 @@ function mapIcon(icon: string): WeatherCondition {
 // Main fetch function
 // ---------------------------------------------------------------------------
 
+const PIRATE_WEATHER_REVALIDATE_SECONDS = 5 * 60;
+
 /**
  * Fetch complete weather data from Pirate Weather.
  *
@@ -163,7 +172,7 @@ export async function fetchWeatherData(
 
   let response: Response;
   try {
-    response = await fetch(url, { next: { revalidate: 1800 } }); // cache 30 min
+    response = await fetch(url, { next: { revalidate: PIRATE_WEATHER_REVALIDATE_SECONDS } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`Pirate Weather network error: ${msg}`);
@@ -184,6 +193,10 @@ export async function fetchWeatherData(
     condition: mapIcon(currently.icon),
     humidity: Math.round(currently.humidity * 100),
     windSpeed: Math.round(currently.windSpeed),
+    windGust: currently.windGust === undefined ? undefined : Math.round(currently.windGust),
+    uvIndex: currently.uvIndex === undefined ? undefined : Math.round(currently.uvIndex * 10) / 10,
+    dewPoint: currently.dewPoint === undefined ? undefined : Math.round(currently.dewPoint),
+    visibility: currently.visibility === undefined ? undefined : Math.round(currently.visibility * 10) / 10,
     description: currently.summary ?? currently.icon.replace(/-/g, ' '),
   };
 
@@ -222,56 +235,42 @@ export async function fetchWeatherData(
       };
     });
 
-  // ── Hourly: next 24 hours ─────────────────────────────────────────────────
+  // Map the full provider set before clipping the visible timeline. Period
+  // summaries need every available hour from the location's current day.
   const nowMs = Date.now();
   const cutoff = nowMs + 12 * 3_600_000;
-  const hourlyData: HourlyForecast[] = hourly.data
-    .filter((h) => {
-      const t = h.time * 1000;
-      return t > nowMs - 3_600_000 && t <= cutoff;
-    })
-    .map((h) => ({
-      time: new Date(h.time * 1000),
-      condition: mapIcon(h.icon),
-      temp: Math.round(h.temperature),
-      precipProbability: Math.round(h.precipProbability * 100),
-      precipIntensity: h.precipIntensity,
-    }));
+  const providerHourly: HourlyForecast[] = hourly.data.map((h) => ({
+    time: new Date(h.time * 1000),
+    condition: mapIcon(h.icon),
+    temp: Math.round(h.temperature),
+    feelsLike: Math.round(h.apparentTemperature ?? h.temperature),
+    uvIndex: h.uvIndex === undefined ? undefined : Math.round(h.uvIndex * 10) / 10,
+    precipProbability: Math.round(h.precipProbability * 100),
+    precipIntensity: h.precipIntensity,
+  }));
+  const hourlyData = providerHourly.filter((h) => {
+    const t = h.time.getTime();
+    // Retain two hours of history so the dashboard can surface precipitation
+    // that just ended, as well as the next twelve hours of forecast.
+    return t > nowMs - 2 * 3_600_000 && t <= cutoff;
+  });
 
   // Override the currently-active hour with observed current conditions.
   // Use currently.precipIntensity for intensity so the label reflects reality.
   const patchedHourly = hourlyData.map((h) =>
     h.time.getTime() <= nowMs
-      ? { ...h, condition: current.condition, temp: current.temperature, precipIntensity: currently.precipIntensity }
+      ? {
+          ...h,
+          condition: current.condition,
+          temp: current.temperature,
+          feelsLike: current.feelsLike,
+          uvIndex: current.uvIndex,
+          precipIntensity: currently.precipIntensity,
+        }
       : h
   );
 
-  // ── Periods (Morning / Afternoon / Evening) ───────────────────────────────
-  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
-  const periodDefs = [
-    { label: 'Morn', minHour: 6, maxHour: 12 },
-    { label: 'Aft', minHour: 12, maxHour: 18 },
-    { label: 'Eve', minHour: 18, maxHour: 24 },
-  ];
-  const periods: ForecastPeriod[] = [];
-  for (const def of periodDefs) {
-    const matching = hourly.data.filter((h) => {
-      const d = new Date(h.time * 1000);
-      return (
-        d.toLocaleDateString('en-CA') === todayStr &&
-        d.getHours() >= def.minHour &&
-        d.getHours() < def.maxHour
-      );
-    });
-    if (matching.length > 0) {
-      const avgTemp = matching.reduce((s, h) => s + h.temperature, 0) / matching.length;
-      periods.push({
-        label: def.label,
-        temp: Math.round(avgTemp),
-        condition: mapIcon(matching[0]!.icon),
-      });
-    }
-  }
+  const periods = buildForecastPeriods(providerHourly, { timeZone: timezone }, nowMs);
 
   // ── Minutely precipitation data ───────────────────────────────────────────
   const minutelyData: MinutelyData[] | undefined = minutely?.data;
@@ -281,6 +280,7 @@ export async function fetchWeatherData(
 
   return {
     location: config.locationName,
+    timezone,
     units,
     current,
     forecast,

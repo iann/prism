@@ -1,4 +1,4 @@
-const { buildSecurityHeaders } = require('./src/lib/utils/securityHeaders');
+const { buildSecurityHeaders, buildWindyProxyHeaders } = require('./src/lib/utils/securityHeaders');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -77,6 +77,19 @@ const withPWA = require('next-pwa')({
   // kiosk that data outlived the session. Static assets are still handled by
   // next-pwa's precache; dynamic API data is intentionally never cached.
   runtimeCaching: [],
+  // Keep the colour-emoji font OUT of the precache manifest.
+  //
+  // next-pwa builds that manifest from everything in the build, which swept in
+  // all ten Noto Color Emoji chunks — ~3.8 MB downloaded on service-worker
+  // install, on every client, unconditionally. That silently undid the design
+  // in src/app/layout.tsx: the font is split by unicode-range precisely so a
+  // display fetches only the chunks for emoji it actually renders. The CSS did
+  // that correctly and the service worker then grabbed the lot anyway.
+  //
+  // Excluded here rather than removed: the emoji still resolve, they are just
+  // fetched on demand the way the stylesheet already intended. Scoped to the
+  // emoji font by name so ordinary text fonts keep their precache.
+  buildExcludes: [/noto-color-emoji.*\.woff2$/],
 });
 
 /** @type {import('next').NextConfig} */
@@ -108,7 +121,11 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: '/api/weather/windy/:path*',
+        headers: buildWindyProxyHeaders(),
+      },
+      {
+        source: '/((?!api/weather/windy(?:/|$)).*)',
         headers: buildSecurityHeaders(),
       },
     ];

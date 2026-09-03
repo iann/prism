@@ -5,6 +5,8 @@ import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/calendar';
+import { useTimeFormat } from '@/components/providers';
+import { formatDisplayTime, isCalendarEventPast } from '@/lib/utils/timeFormat';
 
 interface DayOverflowPopoverProps {
   /** The date this popover represents — shown in the popover header. */
@@ -28,6 +30,7 @@ export function DayOverflowPopover({
   onEventClick,
   triggerClassName,
 }: DayOverflowPopoverProps) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const [open, setOpen] = React.useState(false);
 
   if (hiddenEvents.length === 0) return null;
@@ -38,9 +41,11 @@ export function DayOverflowPopover({
         <button
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            'block w-full text-left text-[12px] font-medium px-1 py-0.5 rounded',
-            'bg-muted/60 hover:bg-muted text-muted-foreground transition-colors',
-            'min-h-[20px]',
+            // Full-width + a taller min-height so it's an easy touch target on a
+            // wall display while retaining the personal fork's readable text size.
+            'flex w-full items-center text-left text-[12px] font-medium px-2 py-1 rounded',
+            'bg-muted/60 hover:bg-muted active:bg-muted text-muted-foreground transition-colors',
+            'min-h-[28px]',
             triggerClassName,
           )}
         >
@@ -63,12 +68,21 @@ export function DayOverflowPopover({
                   onEventClick(event);
                   setOpen(false);
                 }}
-                className="w-full text-left px-2 py-1 rounded bg-popover hover:bg-accent transition-colors flex items-center gap-2 border border-border"
+                className={cn(
+                  'w-full text-left px-2 py-1 rounded bg-popover hover:bg-accent transition-colors flex items-center gap-2 border border-border',
+                  isCalendarEventPast(
+                    event.startTime,
+                    event.endTime,
+                    event.allDay,
+                    new Date(),
+                    displayTimezone,
+                  ) && 'opacity-55 saturate-[0.65]',
+                )}
                 style={{ borderLeft: `3px solid ${event.color}` }}
               >
                 {!event.allDay && (
                   <span className="text-[12px] text-muted-foreground tabular-nums shrink-0">
-                    {format(event.startTime, 'h:mm a')}
+                    {formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)}
                   </span>
                 )}
                 <span className="text-xs font-medium truncate flex-1 text-foreground">

@@ -1,0 +1,82 @@
+{
+  "common": {
+    "nav": {
+      "dashboard": "Übersicht",
+      "calendar": "Kalender",
+      "tasks": "Aufgaben",
+      "chores": "Hausarbeiten",
+      "goals": "Ziele",
+      "shopping": "Einkaufsliste",
+      "meals": "Essensplan",
+      "recipes": "Rezepte",
+      "messages": "Nachrichten",
+      "photos": "Fotos",
+      "wishes": "Wünsche",
+      "babysitter": "Babysitter",
+      "travel": "Reisen",
+      "weekend": "Wochenendideen",
+      "settings": "Einstellungen"
+    },
+    "actions": {
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "Löschen",
+      "edit": "Bearbeiten",
+      "add": "Hinzufügen",
+      "close": "Schließen",
+      "remove": "Entfernen",
+      "back": "Zurück",
+      "next": "Weiter",
+      "done": "Fertig",
+      "search": "Suchen",
+      "loading": "Wird geladen"
+    }
+  },
+  "birthdays": {
+    "title": "Anstehende Geburtstage & Meilensteine",
+    "empty": "Keine anstehenden Geburtstage oder Meilensteine",
+    "colEvent": "Anlass",
+    "colYears": "Jahre",
+    "colDays": "Tage",
+    "colDate": "Datum",
+    "todayBadge": "HEUTE",
+    "daysUntil": "{days, plural, =0 {Heute!} one {# Tag} other {# Tage}}"
+  },
+  "weather": {
+    "today": "HEUTE",
+    "conditions": {
+      "clearSky": "Klarer Himmel",
+      "mainlyClear": "Überwiegend klar",
+      "partlyCloudy": "Teilweise bewölkt",
+      "overcast": "Bedeckt",
+      "fog": "Nebel",
+      "drizzle": "Nieselregen",
+      "rain": "Regen",
+      "snow": "Schnee",
+      "rainShowers": "Regenschauer",
+      "snowShowers": "Schneeschauer",
+      "thunderstorm": "Gewitter",
+      "cloudy": "Bewölkt"
+    },
+    "summary": {
+      "conditions": {
+        "sunny": "überwiegend sonnig",
+        "sunnyNight": "überwiegend klar",
+        "partly-cloudy": "teilweise bewölkt",
+        "cloudy": "überwiegend bewölkt",
+        "rainy": "Regen",
+        "snowy": "Schnee",
+        "stormy": "Gewitter"
+      },
+      "periods": {
+        "morning": "heute Morgen",
+        "afternoon": "heute Nachmittag",
+        "evening": "heute Abend"
+      },
+      "singleTimed": "{condition} {period}.",
+      "singleToday": "heute {condition}.",
+      "transition": "{first} {firstPeriod}, später {second} {secondPeriod}.",
+      "feelsLikeNow": "Aktuell gefühlt {temperature}."
+    }
+  }
+}

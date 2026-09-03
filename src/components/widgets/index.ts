@@ -31,6 +31,10 @@ export type {
   WeatherCondition,
 } from './WeatherWidget';
 
+// Conditional precipitation radar
+export { WeatherRadarWidget } from './WeatherRadarWidget';
+export type { WeatherRadarWidgetProps } from './WeatherRadarWidget';
+
 // Calendar Widget
 export { CalendarWidget } from './CalendarWidget';
 export type { CalendarWidgetProps, CalendarEvent } from './CalendarWidget';

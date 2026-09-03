@@ -6,11 +6,14 @@ export const metadata = {
   description: 'Your family dashboard - view calendars, tasks, weather, and more.',
 };
 
-// Named dashboards at /d/[slug] wrap their content in a zoom container driven
-// by `layouts.fontScale`. The default dashboard at `/` was missing the same
-// wrapper, so the Display Settings slider had no effect on the main
-// dashboard — fix is to fetch the default layout's fontScale here and apply
-// the same zoom wrapper.
+// The default dashboard reads its per-display font scale from the database.
+// Keep this route dynamic so a change in Settings is reflected without
+// requiring the next Docker build to bake in a new value.
+export const dynamic = 'force-dynamic';
+
+// Both the default and named dashboards wrap their content in a zoom
+// container driven by `layouts.fontScale`. The default route reads the
+// selected layout here; named dashboards do the equivalent in their layout.
 export default async function HomePage() {
   let fontScale = 100;
   try {
@@ -28,7 +31,19 @@ export default async function HomePage() {
       <div id="ssr-placeholder" className="h-screen flex items-center justify-center" aria-hidden="true">
         <h1 className="text-4xl font-bold text-muted-foreground/20">Prism</h1>
       </div>
-      <div style={fontScale !== 100 ? { zoom: fontScale / 100 } : undefined}>
+      {/* `--app-vh` is a viewport height expressed in this subtree's own units.
+          `vh` is relative to the root viewport and `zoom` does not divide it, so
+          every `min-h-screen` inside here would otherwise be one full viewport
+          TALL AND THEN MAGNIFIED, running the dashboard off the bottom of the
+          screen. Children read the variable and fall back to 100vh where it is
+          not set, so unscaled displays and every other page are unaffected. */}
+      <div
+        style={
+          fontScale !== 100
+            ? ({ zoom: fontScale / 100, '--app-vh': `${10000 / fontScale}vh` } as React.CSSProperties)
+            : undefined
+        }
+      >
         <DashboardClient />
       </div>
     </main>

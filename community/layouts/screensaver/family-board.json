@@ -3,16 +3,39 @@
   "version": 2,
   "mode": "screensaver",
   "name": "Family Board",
-  "description": "Tasks and chores across the top, clock + weather + messages on the right",
+  "description": "A calendar hero, a tall upcoming-events accent, and a small clock.",
   "author": "Prism",
-  "tags": ["family", "tasks"],
-  "screenSizes": ["1920x1080", "2560x1440", "3840x2160"],
+  "tags": [
+    "family",
+    "calendar"
+  ],
+  "screenSizes": [
+    "1920x1080",
+    "2560x1440",
+    "3840x2160"
+  ],
   "orientation": "landscape",
   "widgets": [
-    { "i": "tasks", "x": 0, "y": 0, "w": 4, "h": 5 },
-    { "i": "chores", "x": 4, "y": 0, "w": 4, "h": 5 },
-    { "i": "weather", "x": 8, "y": 0, "w": 4, "h": 2 },
-    { "i": "messages", "x": 8, "y": 2, "w": 4, "h": 4 },
-    { "i": "clock", "x": 8, "y": 6, "w": 4, "h": 3 }
+    {
+      "i": "calendar",
+      "x": 2,
+      "y": 3,
+      "w": 24,
+      "h": 21
+    },
+    {
+      "i": "birthdays",
+      "x": 28,
+      "y": 3,
+      "w": 13,
+      "h": 15
+    },
+    {
+      "i": "clock",
+      "x": 28,
+      "y": 19,
+      "w": 13,
+      "h": 5
+    }
   ]
 }

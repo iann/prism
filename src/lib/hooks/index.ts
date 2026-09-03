@@ -26,6 +26,7 @@ export { useIdleDetection } from './useIdleDetection';
 export { useScreenOrientation } from './useScreenOrientation';
 export type { ScreenOrientation } from './useScreenOrientation';
 export { useIsMobile } from './useIsMobile';
+export { useIsFullDesktop } from './useIsFullDesktop';
 export { useSwipeNavigation } from './useSwipeNavigation';
 export { useHiddenPages } from './useHiddenPages';
 export { useCalendarNotes } from './useCalendarNotes';

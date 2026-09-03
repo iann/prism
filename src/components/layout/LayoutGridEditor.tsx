@@ -72,6 +72,15 @@ export function LayoutGridEditor({
   const [measureMode, setMeasureMode] = useState(false);
   const [measureHideNav, setMeasureHideNav] = useState(true);
   const [previewZoneIndex, setPreviewZoneIndex] = useState(0);
+  const [isPortraitViewport, setIsPortraitViewport] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia('(orientation: portrait)');
+    const update = () => setIsPortraitViewport(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -1030,6 +1039,7 @@ export function LayoutGridEditor({
       cols={cols}
       headerOffset={headerOffset}
       bottomOffset={bottomOffset}
+      rowHeightScale={!isEditable && isPortraitViewport && margin === 8 ? 1.3 : 1}
       minVisibleRows={minVisibleRows}
       className={className}
     />

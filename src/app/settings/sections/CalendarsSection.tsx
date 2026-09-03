@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { RemovedItemsManager } from '@/components/settings/RemovedItemsManager';
 import { Switch } from '@/components/ui/switch';
 import { useCalendarSources } from '@/lib/hooks';
 import { useFamily } from '@/components/providers';
@@ -33,6 +34,8 @@ export function CalendarsSection({ onSynced }: { onSynced?: () => void } = {}) {
   // State for editing calendar display names
   const [editingCalendarId, setEditingCalendarId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [removedCalendars, setRemovedCalendars] = useState<Array<{ id: string; name: string }>>([]);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const familyCalendarColor = typeof window !== 'undefined'
     ? localStorage.getItem('prism-family-calendar-color') || '#F59E0B'
@@ -50,6 +53,43 @@ export function CalendarsSection({ onSynced }: { onSynced?: () => void } = {}) {
     }
     fetchGroups();
   }, [calendars]);
+
+  // Load the list of removed (tombstoned) Google calendars so we can offer to
+  // restore them.
+  useEffect(() => {
+    async function fetchRemoved() {
+      try {
+        const res = await fetch('/api/calendars/removed');
+        if (res.ok) {
+          const data = await res.json();
+          setRemovedCalendars(data.removed || []);
+        }
+      } catch { /* ignore */ }
+    }
+    fetchRemoved();
+  }, [calendars]);
+
+  // Restore a removed calendar: clear its tombstone, then re-authenticate Google
+  // so discovery re-adds it (discovery only runs on connect/re-auth).
+  const handleRestoreCalendar = async (id: string) => {
+    setRestoringId(id);
+    try {
+      const res = await fetch('/api/calendars/removed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        setRemovedCalendars((prev) => prev.filter((c) => c.id !== id));
+        const firstGoogle = localCalendars.find((c) => c.provider === 'google');
+        window.location.href = firstGoogle
+          ? `/api/auth/google?reauth=${firstGoogle.id}&returnSection=calendars`
+          : '/api/auth/google?returnSection=calendars';
+      }
+    } finally {
+      setRestoringId(null);
+    }
+  };
 
   useEffect(() => {
     if (calendars.length > 0 && localCalendars.length === 0) {
@@ -457,6 +497,14 @@ export function CalendarsSection({ onSynced }: { onSynced?: () => void } = {}) {
                             </span>
                           </div>
                         )}
+                        {cal.syncErrors?.removedAtSource && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <AlertTriangle className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="text-xs text-muted-foreground">
+                              Removed in Google — auto-disabled here
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -566,12 +614,58 @@ export function CalendarsSection({ onSynced }: { onSynced?: () => void } = {}) {
                       </div>
                     );
                   })()}
+                  {/* Life-events calendar. Optional: birthdays and anniversaries
+                      are detected on every calendar by keyword, and milestones by
+                      shape (recurring + a year). This is for a curated calendar
+                      where EVERY all-day entry is a life event, and it replaces
+                      the old hardcoded "Friends & Family" name match. */}
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+                    <span className="text-xs text-muted-foreground">
+                      Treat every all-day event here as a birthday or milestone
+                    </span>
+                    <Switch
+                      checked={
+                        ((cal as { providerConfig?: Record<string, unknown> }).providerConfig
+                          ?.lifeEventsCalendar) === true
+                      }
+                      onCheckedChange={async () => {
+                        const current = (cal as { providerConfig?: Record<string, unknown> }).providerConfig ?? {};
+                        const newValue = current.lifeEventsCalendar !== true;
+                        setUpdatingCalendar(cal.id);
+                        try {
+                          await fetch(`/api/calendars/${cal.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lifeEventsCalendar: newValue }),
+                          });
+                          setLocalCalendars((prev) =>
+                            prev.map((lc) =>
+                              lc.id === cal.id
+                                ? { ...lc, providerConfig: { ...current, lifeEventsCalendar: newValue } }
+                                : lc
+                            )
+                          );
+                        } catch { /* ignore */ }
+                        setUpdatingCalendar(null);
+                      }}
+                      disabled={updatingCalendar === cal.id}
+                      className="data-[state=checked]:bg-blue-500"
+                    />
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <RemovedItemsManager
+        title="Removed calendars"
+        description="Google calendars you deleted from Prism. Discovery won't re-add them automatically — restore one to bring it back on your next Google sign-in."
+        items={removedCalendars}
+        onRestore={handleRestoreCalendar}
+        restoringId={restoringId}
+      />
 
       {/* Calendar Groups */}
       <Card>
@@ -909,7 +1003,7 @@ function AddIcalSubscriptionCard({ onAdded }: { onAdded: () => void }) {
         </details>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-[1fr_220px_auto]">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px_auto]">
           <Input
             type="url"
             placeholder="webcal://p99-caldav.icloud.com/published/..."

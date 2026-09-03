@@ -32,14 +32,21 @@ import type {
   WeatherUnits,
   CurrentWeather,
   ForecastDay,
-  ForecastPeriod,
   HourlyForecast,
 } from '@/components/widgets/WeatherWidget';
 import type { LocationParam, WeatherOptions } from './weather';
 import { getMoonData } from './moon';
+import { DAYS_SHORT_ARRAY } from '@/lib/constants/days';
+import { buildForecastPeriods } from '@/lib/weather/forecastPeriods';
 
 function defaultImperialUnits(): WeatherUnits {
   return { temperature: 'F', windSpeed: 'mph', precipitation: 'in' };
+}
+
+function visibilityFromMeters(meters: number | undefined, units: WeatherUnits): number | undefined {
+  if (meters === undefined || !Number.isFinite(meters)) return undefined;
+  const value = units.temperature === 'C' ? meters / 1000 : meters / 1609.344;
+  return Math.round(value * 10) / 10;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,6 +59,7 @@ interface OpenMeteoCurrent {
   apparent_temperature: number;
   relative_humidity_2m: number; // 0-100
   wind_speed_10m: number;
+  wind_gusts_10m?: number;
   weather_code: number;
   precipitation: number;
 }
@@ -59,9 +67,13 @@ interface OpenMeteoCurrent {
 interface OpenMeteoHourly {
   time: string[];
   temperature_2m: number[];
+  apparent_temperature?: number[];
   precipitation_probability?: number[];
   precipitation: number[];
   weather_code: number[];
+  uv_index?: number[];
+  dew_point_2m?: number[];
+  visibility?: number[]; // metres
 }
 
 interface OpenMeteoDaily {
@@ -95,6 +107,10 @@ function getConfig(location?: LocationParam) {
   if (typeof location === 'object' && location !== null && 'lat' in location) {
     lat = location.lat;
     lon = location.lon;
+    locationName = location.displayName || locationName;
+    // Open-Meteo returns no place name, so the label has to come from the
+    // caller. Without this the name stayed at the env default forever and a
+    // saved location never showed up in the widget (#295).
   } else if (typeof location === 'string' && location.length > 0) {
     locationName = location;
   }
@@ -116,6 +132,28 @@ function mapWmoCode(code: number): WeatherCondition {
   if (code >= 80 && code <= 82) return 'rainy'; // Rain showers
   if (code >= 85 && code <= 86) return 'snowy'; // Snow showers
   if (code >= 95 && code <= 99) return 'stormy'; // Thunderstorm
+  return 'cloudy';
+}
+
+/**
+ * Stable translation key for a WMO code, mirroring describeWmo()'s buckets.
+ *
+ * Emitted alongside the English `description` so the client can localise the
+ * condition without the server needing to know the viewer's language. Keys
+ * live under the `weather.conditions` namespace in src/i18n/messages/*.json.
+ */
+export function wmoDescriptionKey(code: number): string {
+  if (code === 0) return 'clearSky';
+  if (code === 1) return 'mainlyClear';
+  if (code === 2) return 'partlyCloudy';
+  if (code === 3) return 'overcast';
+  if (code === 45 || code === 48) return 'fog';
+  if (code >= 51 && code <= 55) return 'drizzle';
+  if (code >= 61 && code <= 65) return 'rain';
+  if (code >= 71 && code <= 75) return 'snow';
+  if (code >= 80 && code <= 82) return 'rainShowers';
+  if (code >= 85 && code <= 86) return 'snowShowers';
+  if (code >= 95 && code <= 99) return 'thunderstorm';
   return 'cloudy';
 }
 
@@ -175,7 +213,6 @@ function zonedTimeToUtc(localIso: string, timeZone: string): Date {
 // Main fetch function
 // ---------------------------------------------------------------------------
 
-const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export async function fetchWeatherData(
   location?: LocationParam,
@@ -199,14 +236,19 @@ export async function fetchWeatherData(
       'apparent_temperature',
       'relative_humidity_2m',
       'wind_speed_10m',
+      'wind_gusts_10m',
       'weather_code',
       'precipitation',
     ].join(','),
     hourly: [
       'temperature_2m',
+      'apparent_temperature',
       'precipitation_probability',
       'precipitation',
       'weather_code',
+      'uv_index',
+      'dew_point_2m',
+      'visibility',
     ].join(','),
     daily: [
       'temperature_2m_max',
@@ -236,6 +278,14 @@ export async function fetchWeatherData(
   const data: OpenMeteoResponse = await response.json();
   const { current, hourly, daily, timezone } = data;
 
+  const currentHourKey = current.time.slice(0, 13);
+  const currentHourIndex = hourly.time.findIndex((time) => time.slice(0, 13) === currentHourKey);
+  const currentHourlyValue = <T,>(values?: T[]): T | undefined =>
+    currentHourIndex >= 0 ? values?.[currentHourIndex] : undefined;
+  const currentUvIndex = currentHourlyValue(hourly.uv_index);
+  const currentDewPoint = currentHourlyValue(hourly.dew_point_2m);
+  const currentVisibility = currentHourlyValue(hourly.visibility);
+
   // ── Current conditions ────────────────────────────────────────────────────
   const currentWeather: CurrentWeather = {
     temperature: Math.round(current.temperature_2m),
@@ -243,7 +293,12 @@ export async function fetchWeatherData(
     condition: mapWmoCode(current.weather_code),
     humidity: Math.round(current.relative_humidity_2m),
     windSpeed: Math.round(current.wind_speed_10m),
+    windGust: current.wind_gusts_10m === undefined ? undefined : Math.round(current.wind_gusts_10m),
+    uvIndex: currentUvIndex === undefined ? undefined : Math.round(currentUvIndex * 10) / 10,
+    dewPoint: currentDewPoint === undefined ? undefined : Math.round(currentDewPoint),
+    visibility: visibilityFromMeters(currentVisibility, units),
     description: describeWmo(current.weather_code),
+    descriptionKey: wmoDescriptionKey(current.weather_code),
   };
 
   // ── Sunrise / sunset from today's daily entry ─────────────────────────────
@@ -283,7 +338,7 @@ export async function fetchWeatherData(
         : new Date(dateStr);
       return {
         date,
-        dayName: DAYS_SHORT[date.getUTCDay()] ?? 'Day',
+        dayName: DAYS_SHORT_ARRAY[date.getUTCDay()] ?? 'Day',
         high: Math.round(daily.temperature_2m_max[i] ?? 0),
         low: Math.round(daily.temperature_2m_min[i] ?? 0),
         condition: mapWmoCode(daily.weather_code[i] ?? 0),
@@ -291,23 +346,30 @@ export async function fetchWeatherData(
       };
     });
 
-  // ── Hourly: next 24 hours ─────────────────────────────────────────────────
+  // Map the full provider set before clipping the visible timeline. Period
+  // summaries need every available hour from the location's current day.
   const nowMs = Date.now();
   const cutoff = nowMs + 12 * 3_600_000;
-  const hourlyData: HourlyForecast[] = hourly.time
+  const providerHourly: HourlyForecast[] = hourly.time
     .map((t, i) => ({
       // Same wall-clock-in-location issue as sunrise above — pass through
       // zonedTimeToUtc so the absolute instant is right for the user's browser.
       time: zonedTimeToUtc(t, timezone),
       condition: mapWmoCode(hourly.weather_code[i] ?? 0),
       temp: Math.round(hourly.temperature_2m[i] ?? 0),
+      feelsLike: Math.round(hourly.apparent_temperature?.[i] ?? hourly.temperature_2m[i] ?? 0),
+      uvIndex: hourly.uv_index?.[i] === undefined
+        ? undefined
+        : Math.round(hourly.uv_index[i]! * 10) / 10,
       precipProbability: Math.round(hourly.precipitation_probability?.[i] ?? 0),
       precipIntensity: hourly.precipitation[i] ?? 0,
-    }))
-    .filter((h) => {
-      const t = h.time.getTime();
-      return t > nowMs - 3_600_000 && t <= cutoff;
-    });
+    }));
+  const hourlyData = providerHourly.filter((h) => {
+    const t = h.time.getTime();
+    // Retain two hours of history so the dashboard can surface precipitation
+    // that just ended, as well as the next twelve hours of forecast.
+    return t > nowMs - 2 * 3_600_000 && t <= cutoff;
+  });
 
   // Override the currently-active hour with observed current conditions —
   // matches the pattern in openweather.ts and pirateweather.ts.
@@ -317,54 +379,21 @@ export async function fetchWeatherData(
           ...h,
           condition: currentWeather.condition,
           temp: currentWeather.temperature,
+          feelsLike: currentWeather.feelsLike,
+          uvIndex: currentWeather.uvIndex,
           precipIntensity: current.precipitation,
         }
       : h,
   );
 
-  // ── Periods (Morning / Afternoon / Evening) ───────────────────────────────
-  // Bucket by the *location's* timezone, not the container's runtime TZ (UTC).
-  // h.time is a correct UTC instant; getHours()/toLocaleDateString() would read
-  // it in UTC, so e.g. Chicago 8am (13:00 UTC) fell into "Afternoon" and late
-  // evening hours rolled to the wrong calendar day and dropped. Intl formatters
-  // pinned to `timezone` give the local hour/date. `todayLocalStr` (already the
-  // location-TZ date, computed above) is the correct "today" anchor.
-  const hourInTz = new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone,
-    hour: '2-digit',
-    hourCycle: 'h23',
-  });
-  const dateInTz = new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
-  const periodDefs = [
-    { label: 'Morn', minHour: 6, maxHour: 12 },
-    { label: 'Aft', minHour: 12, maxHour: 18 },
-    { label: 'Eve', minHour: 18, maxHour: 24 },
-  ];
-  const periods: ForecastPeriod[] = [];
-  for (const def of periodDefs) {
-    const matching = hourlyData.filter((h) => {
-      const localHour = parseInt(hourInTz.format(h.time), 10);
-      return (
-        dateInTz.format(h.time) === todayLocalStr &&
-        localHour >= def.minHour &&
-        localHour < def.maxHour
-      );
-    });
-    if (matching.length > 0) {
-      const avgTemp = matching.reduce((s, h) => s + h.temp, 0) / matching.length;
-      periods.push({
-        label: def.label,
-        temp: Math.round(avgTemp),
-        condition: matching[0]!.condition,
-      });
-    }
-  }
+  const periods = buildForecastPeriods(providerHourly, { timeZone: timezone }, nowMs);
 
   // ── Moon (local computation — Open-Meteo doesn't expose moon data) ────────
   const moon = getMoonData(config.lat, config.lon);
 
   return {
     location: config.locationName,
+    timezone,
     units,
     current: currentWeather,
     forecast,

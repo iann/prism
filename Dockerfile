@@ -30,6 +30,12 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Anonymous update-check endpoint (see src/lib/telemetry). Empty by default, so
+# an image built from source phones home to nobody; only the official CI build
+# passes the real URL as a build-arg (Option B). Overridable/disable at runtime
+# via PRISM_TELEMETRY_URL / PRISM_DISABLE_TELEMETRY.
+ARG PRISM_TELEMETRY_URL=""
+ENV PRISM_TELEMETRY_URL=${PRISM_TELEMETRY_URL}
 
 RUN apk add --no-cache postgresql-client chromium nss freetype harfbuzz ca-certificates ttf-freefont
 
@@ -39,6 +45,13 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Third-party notices. The bundled Twemoji artwork is CC-BY 4.0, which — unlike
+# the OFL fonts — genuinely requires attribution from anyone redistributing it.
+# That obligation attaches to the distributed artifact, so the notices have to
+# be in the image; sitting in the repository does not discharge it.
+COPY --from=builder /app/NOTICE ./NOTICE
+COPY --from=builder /app/third-party ./third-party
 
 # Migration runner and SQL files
 COPY --from=builder /app/drizzle ./drizzle

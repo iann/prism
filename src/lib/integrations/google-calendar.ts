@@ -15,19 +15,12 @@
  */
 const GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+import { CALENDAR_BROWSER_SCOPES } from '@/lib/integrations/googleScopes';
+
 const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 
-/**
- * Required scopes for Google Calendar access
- */
-const SCOPES = [
-  'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/calendar.events',
-  // Identify which Google account authorized, for the "Connected as <email>"
-  // label on the Integrations card (#100). Read-only identity scopes.
-  'openid',
-  'email',
-].join(' ');
+/** Required scopes for Google Calendar access. Defined in googleScopes.ts. */
+const SCOPES = CALENDAR_BROWSER_SCOPES;
 
 /**
  * Google Calendar Event from API
@@ -56,6 +49,9 @@ export interface GoogleCalendarEvent {
 /**
  * Google Calendar from API
  */
+/** Settings key holding the tombstones for user-deleted Google calendars. */
+export const DISMISSED_GOOGLE_CALENDARS_KEY = 'dismissedGoogleCalendarIds';
+
 export interface GoogleCalendar {
   id: string;
   summary: string;
@@ -64,6 +60,8 @@ export interface GoogleCalendar {
   foregroundColor?: string;
   primary?: boolean;
   accessRole: string;
+  /** True when the calendar is hidden from the user's Google list view. */
+  hidden?: boolean;
 }
 
 /**
@@ -154,8 +152,13 @@ export class TokenRevokedError extends Error {
 /**
  * Refresh access token using refresh token
  */
-export async function refreshAccessToken(refreshToken: string): Promise<GoogleTokens> {
-  const { clientId, clientSecret } = await getConfig();
+export async function refreshAccessToken(
+  refreshToken: string,
+  credentialsOverride?: { clientId: string; clientSecret: string },
+): Promise<GoogleTokens> {
+  // The manual-token flow validates a pasted refresh token against pasted, not-
+  // yet-stored credentials; every other caller uses the stored config.
+  const { clientId, clientSecret } = credentialsOverride ?? (await getConfig());
 
   const response = await fetch(GOOGLE_TOKEN_URL, {
     method: 'POST',
@@ -186,7 +189,12 @@ export async function refreshAccessToken(refreshToken: string): Promise<GoogleTo
  * Fetch list of calendars
  */
 export async function fetchCalendarList(accessToken: string): Promise<GoogleCalendar[]> {
-  const response = await fetch(`${GOOGLE_CALENDAR_API}/users/me/calendarList`, {
+  // showHidden=true so subscribed calendars you've hidden from your Google list
+  // are still discovered. Prism controls on/off itself (in Manage Calendars),
+  // decoupled from Google's list visibility — so hiding a calendar in Google no
+  // longer makes it vanish from Prism. Newly-discovered hidden calendars are
+  // added disabled by the callers (see enabled: !calendar.hidden).
+  const response = await fetch(`${GOOGLE_CALENDAR_API}/users/me/calendarList?showHidden=true`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -320,7 +328,7 @@ export async function updateCalendarEvent(
   }>
 ): Promise<GoogleCalendarEvent> {
   const response = await fetch(
-    `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     {
       method: 'PATCH',
       headers: {
@@ -348,7 +356,7 @@ export async function deleteCalendarEvent(
   eventId: string
 ): Promise<void> {
   const response = await fetch(
-    `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     {
       method: 'DELETE',
       headers: {
@@ -361,6 +369,44 @@ export async function deleteCalendarEvent(
     const error = await response.text();
     throw new Error(`Failed to delete event: ${error}`);
   }
+}
+
+/**
+ * Convert Prism's stored start/end instants into Google's all-day wire format:
+ * date-only strings with an EXCLUSIVE end date (the day after the last day).
+ * Handles both Google-style exclusive-midnight ends and Prism's legacy
+ * inclusive 23:59:59 ends, and guards against Google rejecting a zero-length
+ * range by coercing malformed/legacy rows to a single day.
+ */
+export function toGoogleAllDayRange(startTime: Date, endTime: Date): {
+  start: { date: string };
+  end: { date: string };
+} {
+  const dateOnly = (date: Date) => date.toISOString().slice(0, 10);
+  const addUtcDay = (date: string) => {
+    const value = new Date(`${date}T00:00:00.000Z`);
+    value.setUTCDate(value.getUTCDate() + 1);
+    return dateOnly(value);
+  };
+
+  const startDate = dateOnly(startTime);
+  const endIsExclusiveMidnight = endTime.getTime() > startTime.getTime()
+    && endTime.getUTCHours() === 0
+    && endTime.getUTCMinutes() === 0
+    && endTime.getUTCSeconds() === 0
+    && endTime.getUTCMilliseconds() === 0;
+  let endDate = endIsExclusiveMidnight
+    ? dateOnly(endTime)
+    : addUtcDay(dateOnly(endTime));
+
+  // Google rejects zero-length all-day ranges. Keep malformed/legacy local
+  // rows editable by coercing them to a single-day event.
+  if (endDate <= startDate) endDate = addUtcDay(startDate);
+
+  return {
+    start: { date: startDate },
+    end: { date: endDate },
+  };
 }
 
 /**
@@ -387,9 +433,11 @@ export function convertGoogleEventToInternal(
   let endTime: Date;
 
   if (isAllDay) {
-    // All-day events use date strings (YYYY-MM-DD)
-    startTime = new Date(googleEvent.start.date + 'T00:00:00');
-    endTime = new Date(googleEvent.end.date + 'T00:00:00');
+    // All-day events use date strings (YYYY-MM-DD). Parse them as UTC-floating
+    // midnight so the calendar date never shifts across timezones (a New Year's
+    // Day event stays on Jan 1 whether the display is in Chicago or London).
+    startTime = new Date(googleEvent.start.date + 'T00:00:00Z');
+    endTime = new Date(googleEvent.end.date + 'T00:00:00Z');
   } else {
     startTime = new Date(googleEvent.start.dateTime!);
     endTime = new Date(googleEvent.end.dateTime!);

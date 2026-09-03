@@ -148,7 +148,7 @@ export const events = pgTable('events', {
 
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
-  location: varchar('location', { length: 255 }),
+  location: text('location'),
 
   startTime: timestamp('start_time').notNull(),
   endTime: timestamp('end_time').notNull(),
@@ -292,6 +292,23 @@ export const tasks = pgTable('tasks', {
   externalId: varchar('external_id', { length: 255 }),
   externalUpdatedAt: timestamp('external_updated_at'),
   lastSynced: timestamp('last_synced'),
+
+  /**
+   * Set when the remote dropped this task and the deletion is awaiting the
+   * user's decision. The task stays visible meanwhile. Mirrors
+   * events.pendingDeletion — see the pending-deletions review route.
+   */
+  pendingDeletion: timestamp('pending_deletion'),
+
+  /**
+   * The user chose to keep this task after the remote deleted it, so the
+   * reconciler must ignore it in both directions.
+   *
+   * Detaching alone is not enough: the reconciler pushes any local task in a
+   * synced list with no external id to the provider, which would recreate a
+   * kept task on the remote it was just deleted from.
+   */
+  syncExempt: boolean('sync_exempt').default(false).notNull(),
 
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -769,6 +786,54 @@ export const birthdays = pgTable('birthdays', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   nameEventTypeIdx: uniqueIndex('birthdays_name_event_type_idx').on(table.name, table.eventType),
+}));
+
+/**
+ * Tombstones for detected birthdays the user deleted. Detection re-reads every
+ * calendar on each sync, so without this a dismissed entry reappears on the
+ * next run and the delete button does nothing that lasts.
+ *
+ * Keyed on the normalised name plus month/day rather than a source event id:
+ * the same person legitimately arrives from several calendars and from CardDAV
+ * contacts, and dismissing them once should hold for all of those. Year is
+ * excluded deliberately — the 1904 unknown-year sentinel means the same person
+ * can arrive with different years from different sources.
+ */
+/**
+ * Synced tasks deleted in Prism, so the reconciler does not re-add them.
+ *
+ * The delete route also removes the task from the provider, which covers the
+ * ordinary case. This exists for when that cannot be relied on: a failed or
+ * unsupported upstream delete, or a remote that still lists the task on the
+ * next run. Without it the task reappears within about five minutes.
+ *
+ * Same shape and purpose as [dismissedEvents] on the calendar side.
+ */
+export const dismissedTasks = pgTable('dismissed_tasks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  taskSourceId: uuid('task_source_id')
+    .notNull()
+    .references(() => taskSources.id, { onDelete: 'cascade' }),
+  externalTaskId: varchar('external_task_id', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  dismissedTasksSourceExternalUnique: uniqueIndex('dismissed_tasks_source_external_unique')
+    .on(table.taskSourceId, table.externalTaskId),
+}));
+
+export const dismissedBirthdays = pgTable('dismissed_birthdays', {
+  id: uuid('id').defaultRandom().primaryKey(),
+
+  /** Lowercased, punctuation-stripped name — matches normalize() in birthday-merge.ts */
+  normalizedName: varchar('normalized_name', { length: 100 }).notNull(),
+  birthMonth: integer('birth_month').notNull(),
+  birthDay: integer('birth_day').notNull(),
+  eventType: varchar('event_type', { length: 20 }).default('birthday').notNull(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  dismissedBirthdayUnique: uniqueIndex('dismissed_birthdays_name_day_type_unique')
+    .on(table.normalizedName, table.birthMonth, table.birthDay, table.eventType),
 }));
 
 
@@ -1259,6 +1324,27 @@ export const photos = pgTable('photos', {
   favoriteIdx: index('photos_favorite_idx').on(table.favorite),
   usageIdx: index('photos_usage_idx').on(table.usage),
   dedupeKeyIdx: index('photos_dedupe_key_idx').on(table.dedupeKey),
+}));
+
+
+/**
+ * Tombstones for synced photos the user removed from Prism. Photo sources are a
+ * one-way pull sync, so a plain delete would re-download the photo on the next
+ * run. The sync skips any (sourceId, externalId) recorded here, so "remove from
+ * Prism" stays removed without ever touching the photo in OneDrive/Immich.
+ * Cascade-deletes with the source. Only synced photos (those with an externalId)
+ * are tombstoned; local uploads have no remote to boomerang from.
+ */
+export const excludedPhotos = pgTable('excluded_photos', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sourceId: uuid('source_id')
+    .notNull()
+    .references(() => photoSources.id, { onDelete: 'cascade' }),
+  externalId: varchar('external_id', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  excludedSourceExternalUnique: uniqueIndex('excluded_photos_source_external_unique')
+    .on(table.sourceId, table.externalId),
 }));
 
 

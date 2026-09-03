@@ -6,8 +6,6 @@ import {
   startOfWeek,
   addDays,
   isSameDay,
-  isToday,
-  isTomorrow,
   isBefore,
   startOfDay,
 } from 'date-fns';
@@ -20,6 +18,10 @@ import { CardHeightProbe, DayOverflowPopover, DroppableOverlayCell, WeekItemCard
 import { useCardCapacity } from '@/lib/hooks/useCardCapacity';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
+import { SpanningEventRows } from './cells';
+import { useTimeFormat } from '@/components/providers';
+import { eventOccursOnDisplayDay, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
+import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 
 export interface MultiWeekViewProps {
   currentDate: Date;
@@ -56,6 +58,7 @@ export function MultiWeekView({
   onItemClick,
 }: MultiWeekViewProps) {
   const { weekStartsOn } = useWeekStartsOn();
+  const { displayTimezone } = useTimeFormat();
   const [cardHeight, setCardHeight] = React.useState<number | undefined>(undefined);
   const cards = displayMode === 'cards';
   const bgOverride = useWidgetBgOverride();
@@ -79,6 +82,10 @@ export function MultiWeekView({
     weeks.push(hideWeekends ? row.filter((d) => d.getDay() !== 0 && d.getDay() !== 6) : row);
   }
   const colCount = hideWeekends ? 5 : 7;
+  // Scope the wide event list to the visible weeks once, so the shared-lane +
+  // per-day filters iterate the local slice instead of thousands of events.
+  const scopedEvents = eventsOverlappingRange(events, weekStart, addDays(weekStart, weekCount * 7));
+  const eventRowEvents = scopedEvents;
 
   // In inline mode, rows size to content (events list scrolls). In cards mode
   // with multiple weeks, rows are equal-height (`1fr`) so dynamic capacity has
@@ -99,32 +106,45 @@ export function MultiWeekView({
         className={cn('grid gap-1 min-h-0', !singleWeek && 'flex-1')}
         style={{ gridTemplateRows: `repeat(${weekCount}, ${rowSizing})` }}
       >
-        {weeks.map((week, wIdx) => (
-          <div
-            key={wIdx}
-            className={cn('grid gap-1', cards && !singleWeek && 'min-h-0 h-full')}
-            style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
-          >
-            {week.map((date, dIdx) => (
-              <DayCell
-                key={dIdx}
-                date={date}
-                events={events}
-                onEventClick={onEventClick}
-                compact={compact}
-                bordered={bordered}
-                cellBgStyle={cellBgStyle}
-                displayMode={displayMode}
-                bucket={bucketsByDate?.get(format(date, 'yyyy-MM-dd'))}
-                enableDnd={enableDnd}
-                cardHeight={cardHeight}
-                mealColor={mealColor}
-                onItemClick={onItemClick}
-                showAll={singleWeek}
-              />
-            ))}
-          </div>
-        ))}
+        {weeks.map((week, wIdx) => {
+          const rowEventEvents = eventRowEvents.filter((event) => week.some((rowDate) =>
+            eventOccursOnDisplayDay(
+              event.startTime,
+              event.endTime,
+              event.allDay,
+              rowDate,
+              displayTimezone,
+            )));
+
+          return (
+            <div
+              key={wIdx}
+              className={cn('grid gap-1', cards && !singleWeek && 'min-h-0 h-full')}
+              style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
+            >
+              {week.map((date, dIdx) => (
+                <DayCell
+                  key={dIdx}
+                  date={date}
+                  rowDates={week}
+                  spanningEvents={rowEventEvents}
+                  events={scopedEvents}
+                  onEventClick={onEventClick}
+                  compact={compact}
+                  bordered={bordered}
+                  cellBgStyle={cellBgStyle}
+                  displayMode={displayMode}
+                  bucket={bucketsByDate?.get(format(date, 'yyyy-MM-dd'))}
+                  enableDnd={enableDnd}
+                  cardHeight={cardHeight}
+                  mealColor={mealColor}
+                  onItemClick={onItemClick}
+                  showAll={singleWeek}
+                />
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -132,6 +152,8 @@ export function MultiWeekView({
 
 function DayCell({
   date,
+  rowDates,
+  spanningEvents,
   events,
   onEventClick,
   compact,
@@ -146,6 +168,8 @@ function DayCell({
   showAll = false,
 }: {
   date: Date;
+  rowDates: Date[];
+  spanningEvents: CalendarEvent[];
   events: CalendarEvent[];
   onEventClick: (event: CalendarEvent) => void;
   compact: boolean;
@@ -162,20 +186,26 @@ function DayCell({
       the row to grow to accommodate the day with the most events. */
   showAll?: boolean;
 }) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const cards = displayMode === 'cards';
   const fallback = compact ? FALLBACK_VISIBLE_CARDS_COMPACT : FALLBACK_VISIBLE_CARDS;
-  const dayStart = startOfDay(date);
-  const dayEvents = events.filter((event) =>
-    event.allDay
-      ? event.startTime <= dayStart && event.endTime > dayStart
-      : isSameDay(event.startTime, date)
-  );
+  const spanningEventSet = new Set(spanningEvents);
+  const dayEvents = events
+    .filter((event) => !spanningEventSet.has(event))
+    .filter((event) => eventOccursOnDisplayDay(
+      event.startTime,
+      event.endTime,
+      event.allDay,
+      date,
+      displayTimezone,
+    ));
   const sorted = [...dayEvents].sort((a, b) => {
     if (a.allDay && !b.allDay) return -1;
     if (!a.allDay && b.allDay) return 1;
     return a.startTime.getTime() - b.startTime.getTime();
   });
-  const isPast = isBefore(date, startOfDay(new Date())) && !isToday(date);
+  const displayNow = toDisplayDate(new Date(), displayTimezone);
+  const isPast = isBefore(date, startOfDay(displayNow)) && !isSameDay(date, displayNow);
 
   // Overlay items render in the same flex container as events (meals at top,
   // chores+tasks at bottom). They are ALWAYS rendered when present, so the
@@ -186,7 +216,7 @@ function DayCell({
   const overlayRowHeight = cardHeight ?? 56;
   const cellGap = 4; // matches `gap-1` between cards in the events container
   const overlayRowsHeight = overlayItemCount * (overlayRowHeight + cellGap);
-  const popoverTriggerHeight = 22; // only present when events actually overflow
+  const popoverTriggerHeight = 28; // only present when events actually overflow
   const { cellRef, fitWithOverflow, fitWithoutOverflow } = useCardCapacity({
     cardHeight,
     headerHeight: overlayRowsHeight,
@@ -216,8 +246,8 @@ function DayCell({
   const visibleEvents = cards ? sorted.slice(0, Math.max(0, visibleCount)) : sorted;
   const hiddenEvents = cards ? sorted.slice(visibleEvents.length) : [];
 
-  const today = isToday(date);
-  const tomorrow = isTomorrow(date);
+  const today = isSameDay(date, displayNow);
+  const tomorrow = isSameDay(date, addDays(displayNow, 1));
   const dayLabel = today
     ? 'Today'
     : tomorrow
@@ -233,7 +263,7 @@ function DayCell({
       ref={cards && enableDnd ? droppable.setNodeRef : undefined}
       data-droppable-day={cards && enableDnd ? droppable.droppableId : undefined}
       className={cn(
-        'flex flex-col rounded-md',
+        'relative flex flex-col overflow-visible rounded-md',
         // In 1W mode (showAll=true) the column sizes to its content. In
         // 2/3/4W modes the cell stretches to fill the equal-height row so
         // the capacity probe has a real target height.
@@ -259,6 +289,7 @@ function DayCell({
         className={cn(
           'shrink-0 flex items-start justify-between gap-1',
           compact ? 'px-1.5 py-1' : 'px-2 py-1.5',
+          isPast && 'text-muted-foreground',
         )}
       >
         <div className="flex items-baseline gap-1.5 min-w-0">
@@ -286,6 +317,14 @@ function DayCell({
         )}
       </div>
 
+      <SpanningEventRows
+        date={date}
+        rowDates={rowDates}
+        events={spanningEvents}
+        onEventClick={onEventClick}
+        compact={compact}
+      />
+
       {/* Cards / events. In cards mode, meals render at the top of the day's
           stack (like all-day events); chores + tasks fall to the bottom. */}
       <div
@@ -295,18 +334,6 @@ function DayCell({
           compact ? 'px-1 pb-1' : 'px-1.5 pb-1.5',
         )}
       >
-        {cards && bucket && bucket.meals.length > 0 && (
-          <DroppableOverlayCell
-            date={date}
-            bucket={bucket}
-            size={cardSize}
-            layout="column"
-            enableDnd={enableDnd}
-            include={{ meals: true, chores: false, tasks: false }}
-            mealColor={mealColor}
-            onItemClick={onItemClick}
-          />
-        )}
         {cards
           ? visibleEvents.map((event) => {
               // Only locally-managed events are safe to drag; external (Google,
@@ -321,27 +348,35 @@ function DayCell({
                   layout="column"
                   stripeColor={event.color}
                   title={event.title}
-                  timeLabel={event.allDay ? 'All day' : format(event.startTime, 'h:mm a')}
+                  timeLabel={event.allDay ? 'All day' : formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)}
                   subtitle={event.location || event.calendarName}
                   onClick={() => onEventClick(event)}
                   dragId={draggable ? `event:${event.id}` : undefined}
+                  subdued={isCalendarEventPast(
+                    event.startTime,
+                    event.endTime,
+                    event.allDay,
+                    new Date(),
+                    displayTimezone,
+                  )}
                 />
               );
             })
           : visibleEvents.map((event) => (
               <button
                 key={event.id}
+                type="button"
                 onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
                 className={cn(
-                  'w-full text-left rounded truncate hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all',
-                  compact ? 'text-xs px-0.5 py-px' : 'text-xs px-1 py-0.5',
+                  'flex w-full items-center text-left rounded truncate hover:opacity-80 hover:ring-1 hover:ring-seasonal-accent/50 transition-all',
+                  compact ? 'text-xs px-1 py-px' : 'text-xs px-2 py-0.5',
                 )}
                 style={event.allDay
                   ? inlineAllDayEventStyle(event.color)
                   : inlineTimedEventStyle(event.color)
                 }
               >
-                {event.allDay ? event.title : `${format(event.startTime, 'h:mm')} ${event.title}`}
+                {event.allDay ? event.title : `${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`}
               </button>
             ))}
         {cards && hiddenEvents.length > 0 && (
@@ -351,16 +386,35 @@ function DayCell({
             onEventClick={onEventClick}
           />
         )}
-        {cards && bucket && (bucket.chores.length > 0 || bucket.tasks.length > 0) && (
-          <DroppableOverlayCell
-            date={date}
-            bucket={bucket}
-            size={cardSize}
-            layout="column"
-            enableDnd={enableDnd}
-            include={{ meals: false, chores: true, tasks: true }}
-            onItemClick={onItemClick}
-          />
+        {/* Skylight-style: events lead; the day's planning group (chores, tasks,
+            then meals) floats to the bottom of the cell (mt-auto) inside a faint
+            theme-aware band that delineates it from the events. */}
+        {cards && bucket && (bucket.meals.length + bucket.chores.length + bucket.tasks.length) > 0 && (
+          <div className="mt-auto flex flex-col gap-1 rounded-md bg-muted/60 p-1.5 ring-1 ring-border/50">
+            {(bucket.chores.length > 0 || bucket.tasks.length > 0) && (
+              <DroppableOverlayCell
+                date={date}
+                bucket={bucket}
+                size={cardSize}
+                layout="column"
+                enableDnd={enableDnd}
+                include={{ meals: false, chores: true, tasks: true }}
+                onItemClick={onItemClick}
+              />
+            )}
+            {bucket.meals.length > 0 && (
+              <DroppableOverlayCell
+                date={date}
+                bucket={bucket}
+                size={cardSize}
+                layout="column"
+                enableDnd={enableDnd}
+                include={{ meals: true, chores: false, tasks: false }}
+                mealColor={mealColor}
+                onItemClick={onItemClick}
+              />
+            )}
+          </div>
         )}
       </div>
     </div>

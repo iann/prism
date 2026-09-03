@@ -1,6 +1,7 @@
 'use client';
 
 import { format, parseISO } from 'date-fns';
+import { Emoji } from '@/components/ui/Emoji';
 import { Plus, MapPin, Star, Search, Globe as GlobeIcon, Calendar, TreePine, Route } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,13 +87,13 @@ export function PinList({
             placeholder="Search places & trips…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-7 h-8 text-sm"
+            className="wall-filter-input pl-7 h-8 text-sm"
           />
         </div>
-        <Button size="sm" onClick={onAddTrip} variant="outline" className="shrink-0 gap-1 h-8 text-xs px-2.5">
+        <Button size="sm" onClick={onAddTrip} variant="outline" className="wall-touch-control-inline shrink-0 gap-1 h-8 text-xs px-2.5">
           <Route className="h-3.5 w-3.5" />Trip
         </Button>
-        <Button size="sm" onClick={onAddPin} className="shrink-0 gap-1 h-8 text-xs px-2.5">
+        <Button size="sm" onClick={onAddPin} className="wall-touch-control-inline shrink-0 gap-1 h-8 text-xs px-2.5">
           <Plus className="h-3.5 w-3.5" />Place
         </Button>
       </div>
@@ -103,7 +104,7 @@ export function PinList({
           {FILTER_TABS.map((tab) => (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
               className={cn(
-                'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors',
+                'wall-filter-control flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors',
                 filter === tab.key
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -126,7 +127,7 @@ export function PinList({
           {GROUP_OPTIONS.map((opt) => (
             <button key={opt.key} onClick={() => setGroupBy(opt.key)}
               className={cn(
-                'px-1.5 py-0.5 rounded text-[12px] font-medium transition-colors',
+                'wall-filter-control px-1.5 py-0.5 rounded text-[12px] font-medium transition-colors',
                 groupBy === opt.key ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -228,7 +229,7 @@ export function PinList({
                               <span className="font-medium text-sm truncate">{pin.name}</span>
                               {pin.isBucketList && <Star className="h-3 w-3 fill-amber-500 text-amber-500 shrink-0" />}
                               {(photoCounts[pin.id] ?? 0) > 0 && (
-                                <span className="text-[12px] text-muted-foreground shrink-0">📷 {photoCounts[pin.id]}</span>
+                                <span className="text-[10px] text-muted-foreground shrink-0"><Emoji e="📷" /> {photoCounts[pin.id]}</span>
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">

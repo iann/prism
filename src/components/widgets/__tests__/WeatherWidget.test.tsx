@@ -7,8 +7,26 @@
  */
 
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, render as rtlRender, screen, within, type RenderOptions } from '@testing-library/react';
 import SunCalc from 'suncalc';
+import { TimeFormatProvider } from '@/components/providers';
+
+// WeatherWidget consumes useTimeFormat(), which requires a TimeFormatProvider
+// ancestor. Wrap every render so the widget mounts the way it does in the app.
+const render = (ui: React.ReactElement, options?: RenderOptions) =>
+  rtlRender(ui, { wrapper: TimeFormatProvider, ...options });
+
+// TimeFormatProvider fetches /api/settings on mount; jsdom has no global fetch,
+// so stub it to a benign empty-settings response (the widget falls back to
+// DEFAULT_TIME_FORMAT / UTC, which is what these assertions expect).
+beforeAll(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ settings: {} }) }),
+  ) as unknown as typeof fetch;
+});
+afterAll(() => {
+  delete (global as { fetch?: unknown }).fetch;
+});
 
 // --- mocks (must precede component import) ---------------------------------
 
@@ -38,8 +56,14 @@ jest.mock('../WidgetContainer', () => ({
 
 // ---------------------------------------------------------------------------
 
-import { WeatherWidget } from '../WeatherWidget';
-import type { WeatherData, ForecastDay, HourlyForecast, WeatherCondition } from '../WeatherWidget';
+import { getAirQualityStatus, getUvIndexStatus, WeatherWidget } from '../WeatherWidget';
+import type {
+  WeatherAlert,
+  WeatherData,
+  ForecastDay,
+  HourlyForecast,
+  WeatherCondition,
+} from '../WeatherWidget';
 
 // ---------------------------------------------------------------------------
 // Test data helpers
@@ -68,11 +92,14 @@ function makeForecastDay(overrides: Partial<ForecastDay> = {}): ForecastDay {
  */
 function makeHourlyForecast(
   conditionOrList: WeatherCondition | WeatherCondition[] = 'sunny',
-  temp = 70
+  tempOrTemps: number | number[] = 70
 ): HourlyForecast[] {
   const conditions: WeatherCondition[] = Array.isArray(conditionOrList)
     ? conditionOrList
     : Array(24).fill(conditionOrList);
+  const temperatures = Array.isArray(tempOrTemps)
+    ? tempOrTemps
+    : Array(24).fill(tempOrTemps);
 
   // Anchor to the top of the current hour
   const base = new Date();
@@ -81,8 +108,21 @@ function makeHourlyForecast(
   return Array.from({ length: 24 }, (_, i) => ({
     time: new Date(base.getTime() + i * 60 * 60_000),
     condition: conditions[i] ?? 'sunny',
-    temp,
+    temp: temperatures[i] ?? temperatures[temperatures.length - 1] ?? 70,
+    feelsLike: (temperatures[i] ?? temperatures[temperatures.length - 1] ?? 70) - 2,
+    precipProbability: 20,
   }));
+}
+
+function makeUvTrendForecast(uvIndex: number): HourlyForecast[] {
+  return [{
+    time: new Date(Date.now() + 60 * 60_000),
+    condition: 'sunny',
+    temp: 70,
+    feelsLike: 68,
+    uvIndex,
+    precipProbability: 0,
+  }];
 }
 
 const DEFAULT_UNITS = {
@@ -177,6 +217,12 @@ describe('hourly timeline', () => {
     expect(screen.queryAllByText('Rain').length).toBeGreaterThan(0);
   });
 
+  it('keeps condition labels in the ribbon instead of repeating them in tiles', () => {
+    render(<WeatherWidget data={makeWeatherData({ hourly: makeHourlyForecast('sunny', 68) })} />);
+    expect(screen.queryByLabelText('Hourly conditions')).not.toBeNull();
+    expect(screen.getAllByTestId('hourly-sample')[0]?.textContent).not.toContain('Clear');
+  });
+
   it('shows the full condition label when the band has room', () => {
     const restoreLayout = mockConditionBandLayout(120, 90);
     try {
@@ -220,6 +266,35 @@ describe('hourly timeline', () => {
     expect(screen.queryAllByText(/73°/).length).toBeGreaterThan(0);
   });
 
+  it('renders hourly times with an am/pm suffix', () => {
+    render(<WeatherWidget data={makeWeatherData()} />);
+
+    const secondSample = screen.getAllByTestId('hourly-sample')[1]!;
+    expect(secondSample.textContent).toMatch(/\d+(am|pm)/i);
+  });
+
+  it('renders hourly feels-like temperatures and precipitation chance', () => {
+    const data = makeWeatherData({ hourly: makeHourlyForecast('sunny', 73) });
+    render(<WeatherWidget data={data} />);
+
+    const firstSample = screen.getAllByTestId('hourly-sample')[0]!;
+    expect(firstSample.textContent).toContain('73° | 71°');
+    expect(firstSample.textContent).toContain('20%');
+  });
+
+  it('hides hourly feels-like temperatures when the displayed values match', () => {
+    const hourly = makeHourlyForecast('sunny', 73).map((hour) => ({
+      ...hour,
+      feelsLike: hour.temp,
+    }));
+    render(<WeatherWidget data={makeWeatherData({ hourly })} />);
+
+    const firstSample = screen.getAllByTestId('hourly-sample')[0]!;
+    expect(firstSample.textContent).toContain('73°');
+    expect(firstSample.textContent).not.toContain('|');
+    expect(firstSample.getAttribute('aria-label')).not.toContain('feels like');
+  });
+
   it('converts hourly temps to °C when useCelsius=true', () => {
     // 32°F → 0°C
     const data = makeWeatherData({ hourly: makeHourlyForecast('sunny', 32) });
@@ -238,8 +313,48 @@ describe('hourly timeline', () => {
   });
 });
 
+describe('active weather alerts', () => {
+  it('renders the active alert event, headline, and severity styling', () => {
+    const alert: WeatherAlert = {
+      id: 'heat-advisory',
+      title: 'Heat Advisory',
+      headline: 'Heat Advisory remains in effect',
+      description: 'Heat index values may become dangerous.',
+      severity: 'moderate',
+      end: (() => {
+        const end = new Date();
+        end.setHours(20, 5, 0, 0);
+        return end;
+      })(),
+    };
+
+    render(<WeatherWidget data={makeWeatherData({ alerts: [alert] })} />);
+
+    expect(screen.getByTestId('weather-alerts').getAttribute('aria-label')).toBe(
+      '1 active weather alert',
+    );
+    expect(screen.getByRole('alert', { name: 'Heat Advisory active weather alert' }).textContent)
+      .toContain('Heat Advisory');
+    expect(screen.getByText('Heat Advisory remains in effect')).not.toBeNull();
+    expect(screen.getByRole('alert').className).toContain('border-orange-500/80');
+    expect(screen.getByRole('alert').textContent).toMatch(/Until 8:05 PM/);
+  });
+
+  it('keeps the banner compact when several alerts are active', () => {
+    const alerts: WeatherAlert[] = [
+      { id: 'one', title: 'Tornado Warning', severity: 'extreme' },
+      { id: 'two', title: 'Flood Watch', severity: 'moderate' },
+      { id: 'three', title: 'Wind Advisory', severity: 'minor' },
+    ];
+
+    render(<WeatherWidget data={makeWeatherData({ alerts })} />);
+
+    expect(screen.getAllByRole('alert')).toHaveLength(2);
+    expect(screen.getByText('+1 more active alert')).not.toBeNull();
+  });
+});
 describe('precipitation notice', () => {
-  it('uses the semantic primary color for the rain icon and message', () => {
+  it('renders a compact themed next-hour header and timing message', () => {
     const minutely = Array.from({ length: 61 }, (_, index) => ({
       time: index * 60,
       precipIntensity: 0.2,
@@ -247,12 +362,99 @@ describe('precipitation notice', () => {
     }));
     const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
 
-    const heading = screen.getByText('Rain next hour');
-    expect(heading.querySelector('svg')?.classList.contains('text-primary')).toBe(true);
+    const header = container.querySelector('[data-precipitation-header]');
+    expect(header?.textContent).toContain('Next hour');
+    expect(header?.textContent).not.toContain('68°');
+    expect(
+      screen.getByText('Raining through the hour').classList.contains('precipitation-wave-message')
+    ).toBe(true);
     expect(screen.getByText('Raining through the hour').classList.contains('text-primary')).toBe(
-      true
+      false
     );
     expect(container.querySelector('.text-blue-400')).toBeNull();
+  });
+
+  it('normalizes imperial rain and calibrates the current point to about 40%', () => {
+    const minutely = [
+      { time: 0, precipIntensity: 0.0583, precipProbability: 0.7 },
+      { time: 60, precipIntensity: 0.08, precipProbability: 0.7 },
+    ];
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    const chart = container.querySelector('[data-precipitation-scale]');
+    const line = container.querySelector('[data-precipitation-line]');
+    expect(chart?.getAttribute('data-precipitation-scale')).toBe('7.62');
+    // 0.0583 in/hr = 1.48 mm/hr, which is ~44% after the square-root curve.
+    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 37\.[0-9]/);
+  });
+
+  it('leaves headroom for a moderate shower instead of clipping it at full scale', () => {
+    const minutely = Array.from({ length: 61 }, (_, index) => ({
+      time: index * 60,
+      precipIntensity: index === 0 ? 0.1343 : 0.12,
+      precipProbability: 0.9,
+    }));
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    const chart = container.querySelector('[data-precipitation-scale]');
+    const line = container.querySelector('[data-precipitation-line]');
+    expect(chart?.getAttribute('data-precipitation-scale')).toBe('7.62');
+    // 0.1343 in/hr = 3.41 mm/hr, which lands around 67% of the height.
+    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 23\.[0-9]/);
+  });
+
+  it('renders the precipitation forecast as a smooth animated wave', () => {
+    const minutely = Array.from({ length: 5 }, (_, index) => ({
+      time: index * 60,
+      precipIntensity: 0.2,
+      precipProbability: 1,
+    }));
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    const guideYs = ['heavy', 'medium', 'light'].map((level) =>
+      Number(container.querySelector(`[data-precipitation-guide="${level}"]`)?.getAttribute('y1'))
+    );
+    expect(guideYs).toHaveLength(3);
+    const heavyToMedium = guideYs[1]! - guideYs[0]!;
+    const mediumToLight = guideYs[2]! - guideYs[1]!;
+    expect(heavyToMedium).toBeCloseTo(mediumToLight);
+    expect(container.querySelector('[data-precipitation-area]')).not.toBeNull();
+    expect(container.querySelector('[data-precipitation-variation]')).not.toBeNull();
+    expect(
+      container
+        .querySelector('[data-precipitation-variation]')
+        ?.getAttribute('data-precipitation-variation-percent')
+    ).toBe('5');
+    expect(container.querySelector('[data-precipitation-line]')).not.toBeNull();
+    expect(container.querySelectorAll('[data-precipitation-jitter-morph]')).toHaveLength(2);
+    expect(
+      Array.from(container.querySelectorAll('[data-precipitation-jitter-morph]')).map((animation) =>
+        animation.getAttribute('dur')
+      )
+    ).toEqual(['3.2s', '3.2s']);
+    expect(container.querySelector('[data-precipitation-line]')?.getAttribute('d')).toContain('C ');
+    expect(container.querySelector('.precipitation-wave-highlight')).toBeNull();
+    expect(container.querySelector('stop')?.getAttribute('stop-color')).toBe(
+      'hsl(var(--weather-precipitation))'
+    );
+    expect(container.querySelector('[data-precipitation-line]')?.getAttribute('stroke')).toBe(
+      'hsl(var(--weather-precipitation))'
+    );
+    const chart = container.querySelector('[data-precipitation-scale]');
+    expect(chart?.getAttribute('data-precipitation-undulation-px')).toBe('4');
+    const linePathNumbers = container
+      .querySelector('[data-precipitation-line]')
+      ?.getAttribute('d')
+      ?.match(/-?\d+(?:\.\d+)?/g)
+      ?.map(Number) ?? [];
+    const lineYValues = linePathNumbers.filter((_, index) => index % 2 === 1);
+    expect(Math.max(...lineYValues)).toBeLessThanOrEqual(
+      Number(chart?.getAttribute('data-precipitation-baseline'))
+    );
+    expect(container.querySelector('[data-precipitation-variation]')?.getAttribute('d')).not.toBe(
+      container.querySelector('[data-precipitation-line]')?.getAttribute('d')
+    );
+    expect(container.querySelectorAll('rect')).toHaveLength(0);
   });
 });
 
@@ -327,10 +529,12 @@ describe('day summary header', () => {
 // ===========================================================================
 
 describe('forecastDays prop', () => {
-  it('defaults to 5 when not specified and 5+ days are available', () => {
+  it('picks the forecast length from the widget height when not specified', () => {
     const data = makeWeatherData();
-    render(<WeatherWidget data={data} />);
+    const { rerender } = render(<WeatherWidget data={data} gridH={17} />);
     expect(screen.queryByText('5-Day Forecast')).not.toBeNull();
+    rerender(<WeatherWidget data={data} gridH={12} />);
+    expect(screen.queryByText('3-Day Forecast')).not.toBeNull();
   });
 
   it('respects an explicit forecastDays value', () => {
@@ -371,12 +575,39 @@ describe('forecastDays prop', () => {
 // ===========================================================================
 
 describe('current conditions', () => {
-  it('renders the current temperature in °F by default', () => {
+  it('renders the current temperature with a degree symbol by default', () => {
     const data = makeWeatherData({
       current: { ...makeWeatherData().current, temperature: 73 },
     });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText('73°F')).not.toBeNull();
+    expect(screen.queryByText('73°')).not.toBeNull();
+  });
+
+  it('shows a red fallback indicator when Pirate Weather is supplying current data', () => {
+    render(<WeatherWidget data={makeWeatherData({ currentSource: 'pirate' })} />);
+
+    expect(screen.getByTestId('weather-fallback-indicator').getAttribute('aria-label'))
+      .toBe('Using Pirate Weather fallback data');
+  });
+
+  it('keeps the fallback indicator centered with the numeric temperature', () => {
+    render(<WeatherWidget data={makeWeatherData({
+      currentSource: 'pirate',
+      hourly: makeHourlyForecast('sunny', [70, 72, 74]),
+    })} />);
+
+    const temperature = screen.getByTestId('weather-current-temperature');
+    const fallbackIndicator = screen.getByTestId('weather-fallback-indicator');
+    const trend = screen.getByTestId('weather-temperature-trend');
+
+    expect(temperature.firstElementChild?.contains(fallbackIndicator)).toBe(true);
+    expect(temperature.firstElementChild?.nextElementSibling).toBe(trend);
+  });
+
+  it('does not show the fallback indicator for the local sensor source', () => {
+    render(<WeatherWidget data={makeWeatherData({ currentSource: 'airgradient' })} />);
+
+    expect(screen.queryByTestId('weather-fallback-indicator')).toBeNull();
   });
 
   it('renders °C suffix when data.units.temperature is C', () => {
@@ -390,27 +621,179 @@ describe('current conditions', () => {
     expect(screen.queryByText('0°C')).not.toBeNull();
   });
 
-  it('renders the weather description', () => {
+  it('adds a rising suffix when future forecast points get warmer', () => {
     const data = makeWeatherData({
-      current: { ...makeWeatherData().current, description: 'Heavy thunderstorm' },
+      current: { ...makeWeatherData().current, temperature: 80 },
+      hourly: makeHourlyForecast('sunny', [70, 72, 74]),
     });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText('Heavy thunderstorm')).not.toBeNull();
+
+    expect(screen.getByTestId('weather-temperature-trend').textContent).toBe('& rising');
   });
 
-  it('renders the location name', () => {
-    const data = makeWeatherData({ location: 'Denver, CO' });
+  it('adds a falling suffix when future forecast points get cooler', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, temperature: 72 },
+      hourly: makeHourlyForecast('sunny', [70, 68, 66]),
+    });
     render(<WeatherWidget data={data} />);
-    // formatLocation returns the city portion only
-    expect(screen.queryByText('Denver')).not.toBeNull();
+
+    expect(screen.getByTestId('weather-temperature-trend').textContent).toBe('& falling');
   });
 
-  it('renders the "feels like" temperature', () => {
+  it('omits the suffix when the next hour is steady', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, temperature: 70 },
+      hourly: makeHourlyForecast('sunny', 70),
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.queryByTestId('weather-temperature-trend')).toBeNull();
+  });
+
+  it('does not render the weather location in the right-side stats', () => {
+    const data = makeWeatherData({ location: 'Denver, Colorado, US 80202' });
+    render(<WeatherWidget data={data} />);
+    const stats = within(screen.getByTestId('weather-current-stats'));
+    expect(stats.queryByText('Denver, CO')).toBeNull();
+    expect(stats.queryByText('80202')).toBeNull();
+  });
+
+  it('does not repeat the current condition in the right-side stats', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, description: 'Partly cloudy' },
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(within(screen.getByTestId('weather-current-stats')).queryByText('Partly cloudy')).toBeNull();
+  });
+
+  it('uses the timed summary as the only condition line beneath the temperature', () => {
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-05-01T02:00:00Z'));
+    try {
+      const data = makeWeatherData({
+        timezoneOffsetSeconds: -4 * 60 * 60,
+        current: {
+          ...makeWeatherData().current,
+          temperature: 68,
+          feelsLike: 68,
+          condition: 'partly-cloudy',
+          description: 'Partly cloudy',
+        },
+        hourly: [],
+        periods: [
+          {
+            label: 'Eve',
+            period: 'evening',
+            temp: 55,
+            condition: 'partly-cloudy',
+          },
+        ],
+      });
+      render(<WeatherWidget data={data} />);
+
+      const temperature = screen.getByTestId('weather-current-temperature');
+      const summary = screen.getByTestId('weather-day-summary');
+      expect(summary.textContent).toBe('Partly cloudy tonight.');
+      expect(summary.parentElement).toBe(temperature.parentElement);
+      expect(screen.queryByText('Partly cloudy', { exact: true })).toBeNull();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
+    const data = makeWeatherData({
+      sunrise: new Date(2026, 6, 17, 6, 27),
+      sunset: new Date(2026, 6, 17, 19, 48),
+      moonPhaseName: 'Waning Gibbous',
+    });
+    render(<WeatherWidget data={data} />);
+
+    const stats = within(screen.getByTestId('weather-current-stats'));
+    expect(stats.queryByText('Waning Gibbous')).toBeNull();
+    expect(stats.queryByText(/6:27/)).toBeNull();
+    expect(stats.queryByText(/7:48/)).toBeNull();
+  });
+
+  it('always renders a weather summary', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, temperature: 68, feelsLike: 68 },
+      hourly: [],
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe('Mostly sunny today.');
+  });
+
+  it('appends the current feels-like temperature when display values differ', () => {
     const data = makeWeatherData({
       current: { ...makeWeatherData().current, feelsLike: 60 },
     });
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText(/Feels like 60°F/)).not.toBeNull();
+
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe(
+      'Mostly sunny today. Feels like 60° now.',
+    );
+  });
+
+  it('omits feels-like copy when the displayed values match', () => {
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, temperature: 72.4, feelsLike: 72.2 },
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-current-temperature').textContent).toContain('72°');
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe('Mostly sunny today.');
+    expect(screen.getByTestId('weather-day-summary').textContent).not.toContain('Feels like');
+  });
+
+  it('formats metric current and feels-like temperatures as Celsius', () => {
+    const data = makeWeatherData({
+      units: { temperature: 'C', windSpeed: 'km/h', precipitation: 'mm' },
+      current: {
+        ...makeWeatherData().current,
+        temperature: 20,
+        feelsLike: 16,
+        condition: 'cloudy',
+      },
+      hourly: [],
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-current-temperature').textContent).toContain('20°C');
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe(
+      'Mostly cloudy today. Feels like 16°C now.',
+    );
+  });
+
+  it('uses provider periods with an OpenWeather fixed offset', () => {
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-05-01T02:00:00Z'));
+    try {
+      const data = makeWeatherData({
+        timezoneOffsetSeconds: -4 * 60 * 60,
+        current: {
+          ...makeWeatherData().current,
+          temperature: 68,
+          feelsLike: 68,
+          condition: 'snowy',
+        },
+        hourly: [],
+        periods: [
+          {
+            label: 'Eve',
+            period: 'evening',
+            temp: 55,
+            condition: 'snowy',
+          },
+        ],
+      });
+      render(<WeatherWidget data={data} />);
+
+      expect(screen.getByTestId('weather-day-summary').textContent).toBe('Snow tonight.');
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('renders humidity percentage', () => {
@@ -428,6 +811,161 @@ describe('current conditions', () => {
     render(<WeatherWidget data={data} />);
     expect(screen.queryByText('15 mph')).not.toBeNull();
   });
+
+  it('renders wind gusts, UV index, dew point, and visibility', () => {
+    const data = makeWeatherData({
+      current: {
+        ...makeWeatherData().current,
+        windSpeed: 15,
+        windGust: 20,
+        uvIndex: 6.5,
+        dewPoint: 62,
+        visibility: 9.5,
+      },
+    });
+    render(<WeatherWidget data={data} />);
+
+    const stats = within(screen.getByTestId('weather-current-stats'));
+    expect(stats.queryByText(/15 mph · Gusts 20 mph/)).not.toBeNull();
+    expect(stats.queryByText('UV 6.5')).not.toBeNull();
+    expect(stats.queryByText('Dew point 62°')).not.toBeNull();
+    expect(stats.queryByText('Visibility 9.5 mi')).not.toBeNull();
+    expect(stats.getByTestId('weather-humidity-dewpoint').textContent).toContain('45%');
+    expect(stats.getByTestId('weather-humidity-dewpoint').textContent).toContain('Dew point 62°');
+
+    const uvLine = screen.getByTestId('uv-index-line');
+    expect(uvLine.textContent).toBe('UV 6.5');
+    expect(uvLine.getAttribute('title')).toBe('UV index 6.5: High');
+    expect(uvLine.getAttribute('aria-label')).toBe('UV index 6.5, High');
+    expect(uvLine.className).not.toContain('text-orange-700');
+    expect(screen.getByTestId('uv-index-dot').className).toContain('bg-orange-500');
+    expect(screen.getByTestId('uv-index-dot').className).toContain('uv-index-dot--pulse');
+    expect(uvLine.querySelector('svg')).toBeNull();
+  });
+
+  it('shows the warning dot at UV 5 and above, but not below the threshold', () => {
+    const { queryByTestId, rerender } = render(
+      <WeatherWidget data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 4.9 } })} />
+    );
+    expect(queryByTestId('uv-index-line')).not.toBeNull();
+    expect(queryByTestId('uv-index-dot')).toBeNull();
+
+    rerender(
+      <WeatherWidget data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 5 } })} />
+    );
+    expect(screen.getByTestId('uv-index-dot').className).toContain('bg-yellow-500');
+  });
+
+  it('uses a risk-colored up chevron when UV is increasing', () => {
+    render(
+      <WeatherWidget
+        data={makeWeatherData({
+          current: { ...makeWeatherData().current, uvIndex: 6.5 },
+          hourly: makeUvTrendForecast(7.5),
+        })}
+      />
+    );
+
+    const chevron = screen.getByTestId('uv-index-up-chevron');
+    expect(chevron.getAttribute('class')).toContain('text-orange-500');
+    expect(screen.queryByTestId('uv-index-dot')).toBeNull();
+    expect(screen.queryByTestId('uv-index-down-chevron')).toBeNull();
+    expect(screen.getByTestId('uv-index-line').getAttribute('aria-label')).toBe(
+      'UV index 6.5, High, increasing'
+    );
+  });
+
+  it('uses a risk-colored down chevron when UV is decreasing', () => {
+    render(
+      <WeatherWidget
+        data={makeWeatherData({
+          current: { ...makeWeatherData().current, uvIndex: 6.5 },
+          hourly: makeUvTrendForecast(5.5),
+        })}
+      />
+    );
+
+    const chevron = screen.getByTestId('uv-index-down-chevron');
+    expect(chevron.getAttribute('class')).toContain('text-orange-500');
+    expect(screen.queryByTestId('uv-index-dot')).toBeNull();
+    expect(screen.queryByTestId('uv-index-up-chevron')).toBeNull();
+    expect(screen.getByTestId('uv-index-line').getAttribute('aria-label')).toBe(
+      'UV index 6.5, High, decreasing'
+    );
+  });
+
+  it('removes the UV line when the sun is below the horizon', () => {
+    const now = Date.now();
+    const data = makeWeatherData({
+      current: { ...makeWeatherData().current, uvIndex: 6.5 },
+      sunrise: new Date(now - 2 * 60 * 60 * 1000),
+      sunset: new Date(now - 60 * 60 * 1000),
+    });
+
+    render(<WeatherWidget data={data} />);
+    expect(screen.queryByTestId('uv-index-line')).toBeNull();
+  });
+
+  it('maps UV index values to the visual risk bands', () => {
+    expect(getUvIndexStatus(2)?.label).toBe('Low');
+    expect(getUvIndexStatus(2.1)?.label).toBe('Moderate');
+    expect(getUvIndexStatus(5.1)?.label).toBe('High');
+    expect(getUvIndexStatus(7.1)?.label).toBe('Very High');
+    expect(getUvIndexStatus(10.1)?.label).toBe('Extreme');
+    expect(getUvIndexStatus(-1)).toBeNull();
+    expect(getUvIndexStatus(Number.NaN)).toBeNull();
+
+    const { getByTestId } = render(
+      <WeatherWidget
+        data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 14 } })}
+      />
+    );
+    expect(getByTestId('uv-index-line').textContent).toBe('UV 14');
+    expect(getByTestId('uv-index-dot').className).toContain('bg-purple-500');
+    expect(getByTestId('uv-index-dot').className).toContain('uv-index-dot--pulse');
+  });
+
+  it('pulses the warning dot at the high and red UV thresholds', () => {
+    render(
+      <WeatherWidget
+        data={makeWeatherData({ current: { ...makeWeatherData().current, uvIndex: 8 } })}
+      />
+    );
+
+    const dot = screen.getByTestId('uv-index-dot');
+    expect(dot.className).toContain('bg-red-500');
+    expect(dot.className).toContain('uv-index-dot--pulse');
+  });
+
+  it('renders the EPA-style air quality badge for the local PM2.5 reading', () => {
+    const data = makeWeatherData({
+      current: {
+        ...makeWeatherData().current,
+        airQuality: { pm25: 27 },
+      },
+    });
+    render(<WeatherWidget data={data} />);
+
+    const badge = screen.getByTestId('air-quality-badge');
+    expect(badge.textContent).toBe('Air: Moderate');
+    expect(badge.getAttribute('aria-label')).toBe('Air quality: Moderate');
+    expect(badge.className).toContain('bg-yellow-200');
+    expect(badge.className).toContain('dark:bg-yellow-400/35');
+    expect(badge.className).toContain('text-yellow-950');
+    expect(badge.querySelector('span')?.className).toContain('bg-yellow-700');
+    expect(badge.querySelector('span')?.className).toContain('dark:bg-yellow-300');
+    expect(screen.queryByText('27 µg/m³')).not.toBeNull();
+    expect(within(screen.getByTestId('weather-current-stats')).queryByTestId('air-quality-badge')).toBeNull();
+  });
+
+  it('uses the published PM2.5 category breakpoints', () => {
+    expect(getAirQualityStatus(9)?.label).toBe('Good');
+    expect(getAirQualityStatus(9.1)?.label).toBe('Moderate');
+    expect(getAirQualityStatus(35.5)?.label).toBe('Unhealthy for Sensitive Groups');
+    expect(getAirQualityStatus(55.5)?.label).toBe('Unhealthy');
+    expect(getAirQualityStatus(125.5)?.label).toBe('Very Unhealthy');
+    expect(getAirQualityStatus(225.5)?.label).toBe('Hazardous');
+  });
 });
 
 // ===========================================================================
@@ -438,7 +976,7 @@ describe('showForecast prop', () => {
   it('renders the forecast section by default', () => {
     const data = makeWeatherData();
     render(<WeatherWidget data={data} />);
-    expect(screen.queryByText('5-Day Forecast')).not.toBeNull();
+    expect(screen.queryByText('3-Day Forecast')).not.toBeNull();
     expect(screen.queryByText(/Next 9 Hours/)).not.toBeNull();
   });
 
@@ -479,16 +1017,6 @@ describe('loading and error states', () => {
 describe('demo data fallback', () => {
   it('renders without errors when no data prop is provided', () => {
     expect(() => render(<WeatherWidget />)).not.toThrow();
-  });
-
-  it('uses demo location when no location or data is provided', () => {
-    render(<WeatherWidget />);
-    expect(screen.queryByText('Melrose')).not.toBeNull();
-  });
-
-  it('shows the passed location in demo mode', () => {
-    render(<WeatherWidget location="Austin, TX" />);
-    expect(screen.queryByText('Austin')).not.toBeNull();
   });
 
   it('renders the hourly timeline with demo data', () => {

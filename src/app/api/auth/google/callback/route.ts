@@ -2,19 +2,22 @@ import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { requireAuth, requireRole } from '@/lib/auth';
 import { db } from '@/lib/db/client';
-import { calendarSources, settings } from '@/lib/db/schema';
+import { calendarSources } from '@/lib/db/schema';
 import { logError } from '@/lib/utils/logError';
 import {
   exchangeCodeForTokens,
   fetchCalendarList,
+  DISMISSED_GOOGLE_CALENDARS_KEY,
 } from '@/lib/integrations/google-calendar';
+import { tombstoneIdSet } from '@/lib/services/settingsTombstone';
 import { encrypt } from '@/lib/utils/crypto';
 import { logActivity } from '@/lib/services/auditLog';
 import { resolveRedirectUri } from '@/lib/integrations/resolveRedirectUri';
 import { fetchGoogleAccountEmail } from '@/lib/integrations/oauth-userinfo';
+import { storeGoogleCalendarConnection } from '@/lib/integrations/googleCalendarStore';
 import { consumeOAuthState } from '@/lib/auth/oauthState';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.APP_URL || process.env.BASE_URL || 'http://localhost:3000';
 
 export async function GET(request: Request) {
   const auth = await requireAuth();
@@ -108,7 +111,13 @@ export async function GET(request: Request) {
         }).where(eq(calendarSources.id, source.id));
       }
 
-      // Update showInEventModal based on current accessRole
+      // Discover calendars added since the initial connect (e.g. one you
+      // subscribed to later). Re-auth previously only refreshed tokens for
+      // known calendars and never picked up new ones, so a newly-subscribed
+      // calendar would never appear. Mirror the fresh-connect path here:
+      // update showInEventModal for existing, and insert genuinely new ones.
+      const reauthDismissedSet = await tombstoneIdSet(DISMISSED_GOOGLE_CALENDARS_KEY);
+
       for (const calendar of reAuthCalendars) {
         const isWritable = calendar.accessRole === 'writer' || calendar.accessRole === 'owner';
         const existing = await db.query.calendarSources.findFirst({
@@ -123,7 +132,27 @@ export async function GET(request: Request) {
             .update(calendarSources)
             .set({ showInEventModal: isWritable, updatedAt: new Date() })
             .where(eq(calendarSources.id, existing.id));
+          continue;
         }
+        // New calendar — skip if the user previously deleted it from Prism.
+        if (reauthDismissedSet.has(calendar.id)) continue;
+        const calendarName = (calendar.summary || 'Untitled Calendar').slice(0, 255);
+        await db.insert(calendarSources).values({
+          userId: auth.userId,
+          provider: 'google',
+          sourceCalendarId: calendar.id,
+          dashboardCalendarName: calendarName,
+          displayName: calendarName,
+          color: calendar.backgroundColor || undefined,
+          // Calendars hidden in the user's Google list come in disabled, so
+          // they're available in Manage Calendars without cluttering the board.
+          enabled: !calendar.hidden,
+          showInEventModal: isWritable,
+          accessToken: encryptedAccessToken,
+          refreshToken: encryptedRefreshToken,
+          tokenExpiresAt,
+          accountEmail,
+        });
       }
 
       logActivity({
@@ -136,66 +165,23 @@ export async function GET(request: Request) {
       return NextResponse.redirect(returnUrlFor(returnSection, 'success=google_reauth'));
     }
 
-    // Fetch calendars using the plaintext token (before we discard it)
-    const calendars = await fetchCalendarList(tokens.access_token);
-
-    // Fetch dismissed Google calendar IDs so we don't recreate user-deleted calendars
-    const [dismissedSetting] = await db.select().from(settings)
-      .where(eq(settings.key, 'dismissedGoogleCalendarIds'));
-    const dismissedIds: string[] = (dismissedSetting?.value as string[]) || [];
-
-    for (const calendar of calendars) {
-      // Skip calendars the user has previously deleted from Prism
-      if (dismissedIds.includes(calendar.id)) continue;
-      const existing = await db.query.calendarSources.findFirst({
-        where: (cs, { and, eq }) =>
-          and(
-            eq(cs.provider, 'google'),
-            eq(cs.sourceCalendarId, calendar.id)
-          ),
-      });
-
-      if (existing) {
-        const prev = (existing.syncErrors as Record<string, unknown>) || {};
-        await db
-          .update(calendarSources)
-          .set({
-            accessToken: encryptedAccessToken,
-            refreshToken: encryptedRefreshToken || existing.refreshToken,
-            tokenExpiresAt,
-            accountEmail: accountEmail ?? undefined,
-            syncErrors: prev.userOverride ? { userOverride: true } : null,
-            updatedAt: new Date(),
-          })
-          .where(eq(calendarSources.id, existing.id));
-      } else {
-        const calendarName = (calendar.summary || 'Untitled Calendar').slice(0, 255);
-        const isWritable = calendar.accessRole === 'writer' || calendar.accessRole === 'owner';
-
-        await db.insert(calendarSources).values({
-          // Owner is the authenticated caller, not a client-supplied state
-          // field (which was previously attacker-controllable).
-          userId: auth.userId,
-          provider: 'google',
-          sourceCalendarId: calendar.id,
-          dashboardCalendarName: calendarName,
-          displayName: calendarName,
-          color: calendar.backgroundColor || undefined,
-          enabled: true,
-          showInEventModal: isWritable,
-          accessToken: encryptedAccessToken,
-          refreshToken: encryptedRefreshToken,
-          tokenExpiresAt,
-          accountEmail,
-        });
-      }
-    }
+    // Store tokens + calendars via the shared helper (identical logic is used by
+    // the manual refresh-token / OAuth Playground path so the two never drift).
+    const result = await storeGoogleCalendarConnection({
+      userId: auth.userId,
+      tokens: {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token ?? null,
+        expiresIn: tokens.expires_in,
+      },
+      accountEmail,
+    });
 
     logActivity({
       userId: auth.userId,
       action: 'create',
       entityType: 'integration',
-      summary: `Connected Google Calendar integration (${calendars.length} calendars)`,
+      summary: `Connected Google Calendar integration (${result.calendarCount} calendars)`,
     });
 
     // Redirect back to settings with success message

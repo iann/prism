@@ -66,6 +66,7 @@ function buildResponse(timezone = 'America/Chicago') {
     hourly: {
       time: [`${today}T10:00`, `${today}T11:00`, `${today}T12:00`],
       temperature_2m: [70, 71, 72],
+      uv_index: [5.5, 6.5, 7.5],
       precipitation_probability: [0, 0, 0],
       precipitation: [0, 0, 0],
       weather_code: [0, 1, 2],
@@ -101,6 +102,38 @@ describe('openmeteo.fetchWeatherData', () => {
     expect(calledUrl).not.toContain('latitude=41.8781'); // env default not used
   });
 
+  it('preserves hourly UV values for trend display', async () => {
+    const timezone = 'America/Chicago';
+    const today = localDate(0, timezone);
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse(`${today}T10:30:00Z`));
+    jest.spyOn(global, 'fetch' as never).mockResolvedValue({
+      ok: true,
+      json: async () => buildResponse(timezone),
+    } as never);
+
+    const { fetchWeatherData } = await import('../openmeteo');
+    const result = await fetchWeatherData();
+
+    expect(result.current.uvIndex).toBe(5.5);
+    expect(result.hourly?.[1]?.uvIndex).toBe(6.5);
+  });
+
+  it('preserves a coordinate location display name', async () => {
+    jest.spyOn(global, 'fetch' as never).mockResolvedValue({
+      ok: true,
+      json: async () => buildResponse(),
+    } as never);
+
+    const { fetchWeatherData } = await import('../openmeteo');
+    const result = await fetchWeatherData({
+      lat: 42.46,
+      lon: -71.06,
+      displayName: 'Melrose, Massachusetts, US',
+    });
+
+    expect(result.location).toBe('Melrose, Massachusetts, US');
+  });
+
   it('falls back to env coordinates when no LocationParam is provided', async () => {
     const fetchSpy = jest
       .spyOn(global, 'fetch' as never)
@@ -115,6 +148,53 @@ describe('openmeteo.fetchWeatherData', () => {
     const calledUrl = fetchSpy.mock.calls[0]![0] as string;
     expect(calledUrl).toContain('latitude=41.8781');
     expect(calledUrl).toContain('longitude=-87.6298');
+  });
+
+  // Regression: #295. Open-Meteo returns no place name of its own, so the label
+  // has to come from the caller. Coordinates were being applied correctly while
+  // the label stayed pinned to WEATHER_LOCATION, so a user who saved Leverkusen
+  // got Leverkusen's forecast under a Springfield heading and reasonably
+  // concluded the setting did nothing. Nothing asserted the label before, which
+  // is why it shipped.
+  it('uses the displayName from the location as the label', async () => {
+    jest.spyOn(global, 'fetch' as never).mockResolvedValue({
+      ok: true,
+      json: async () => buildResponse(),
+    } as never);
+
+    const { fetchWeatherData } = await import('../openmeteo');
+    const result = await fetchWeatherData({
+      lat: 51.0324743,
+      lon: 6.9881194,
+      displayName: 'Leverkusen, Nordrhein-Westfalen, Deutschland',
+    });
+
+    expect(result.location).toBe('Leverkusen, Nordrhein-Westfalen, Deutschland');
+    expect(result.location).not.toBe('Chicago, IL'); // the env fallback
+  });
+
+  it('falls back to the env label only when the location carries none', async () => {
+    jest.spyOn(global, 'fetch' as never).mockResolvedValue({
+      ok: true,
+      json: async () => buildResponse(),
+    } as never);
+
+    const { fetchWeatherData } = await import('../openmeteo');
+    const result = await fetchWeatherData({ lat: 51.0324743, lon: 6.9881194 });
+
+    expect(result.location).toBe('Chicago, IL');
+  });
+
+  it('still accepts a plain string location as the label', async () => {
+    jest.spyOn(global, 'fetch' as never).mockResolvedValue({
+      ok: true,
+      json: async () => buildResponse(),
+    } as never);
+
+    const { fetchWeatherData } = await import('../openmeteo');
+    const result = await fetchWeatherData('Köln, DE');
+
+    expect(result.location).toBe('Köln, DE');
   });
 
   it('requests timezone=auto so daily entries use the location-local date', async () => {
@@ -330,24 +410,18 @@ describe('openmeteo.fetchWeatherData', () => {
     }
   });
 
-  it('buckets day-part periods by the location timezone, not container UTC (M-WEATHER)', async () => {
-    // Pin the clock so absolute Chicago hours are deterministic. now = 11:00Z
-    // = 06:00 CDT, so an 08:00-Chicago (13:00Z) and a 14:00-Chicago (19:00Z)
-    // hour both fall inside the (now-1h, now+12h] window. Fake only the Date
-    // clock; leave timer fns real (the fetch path uses none).
+  it('builds all local-day periods from the full provider set in the response timezone', async () => {
     jest.useFakeTimers({
       now: new Date('2026-07-15T11:00:00Z').getTime(),
       doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask', 'nextTick'],
     });
     try {
       const response = buildResponse('America/Chicago');
-      // 08:00 Chicago → 13:00Z (UTC hour 13 = "Afternoon" under the old bug).
-      // 14:00 Chicago → 19:00Z (UTC hour 19 = "Evening" under the old bug).
-      response.hourly.time = ['2026-07-15T08:00', '2026-07-15T14:00'];
-      response.hourly.temperature_2m = [50, 80];
-      response.hourly.precipitation_probability = [0, 0];
-      response.hourly.precipitation = [0, 0];
-      response.hourly.weather_code = [0, 0];
+      response.hourly.time = ['2026-07-15T08:00', '2026-07-15T14:00', '2026-07-15T22:00'];
+      response.hourly.temperature_2m = [10, 20, 15];
+      response.hourly.precipitation_probability = [10, 40, 80];
+      response.hourly.precipitation = [0, 1, 2];
+      response.hourly.weather_code = [0, 61, 71];
 
       jest.spyOn(global, 'fetch' as never).mockResolvedValue({
         ok: true,
@@ -355,14 +429,35 @@ describe('openmeteo.fetchWeatherData', () => {
       } as never);
 
       const { fetchWeatherData } = await import('../openmeteo');
-      const result = await fetchWeatherData();
+      const result = await fetchWeatherData(undefined, {
+        units: { temperature: 'C', windSpeed: 'km/h', precipitation: 'mm' },
+      });
 
       const byLabel = Object.fromEntries((result.periods ?? []).map((p) => [p.label, p]));
-      // Correct (location-TZ) bucketing: 08:00 → Morning, 14:00 → Afternoon.
-      expect(byLabel.Morn?.temp).toBe(50);
-      expect(byLabel.Aft?.temp).toBe(80);
-      // The old UTC bucketing would have pushed 19:00Z into an Evening period.
-      expect(byLabel.Eve).toBeUndefined();
+      expect(result.timezone).toBe('America/Chicago');
+      expect(byLabel.Morn).toMatchObject({
+        period: 'morning',
+        dateKey: '2026-07-15',
+        temp: 10,
+        condition: 'sunny',
+      });
+      expect(byLabel.Aft).toMatchObject({ period: 'afternoon', temp: 20, condition: 'rainy' });
+      expect(byLabel.Eve).toMatchObject({
+        period: 'evening',
+        temp: 15,
+        condition: 'snowy',
+        precipProbability: 80,
+      });
+      expect(
+        result.hourly?.some(
+          (hour) =>
+            new Intl.DateTimeFormat('en-US', {
+              timeZone: 'America/Chicago',
+              hour: 'numeric',
+              hourCycle: 'h23',
+            }).format(hour.time) === '22'
+        )
+      ).toBe(false);
     } finally {
       jest.useRealTimers();
     }

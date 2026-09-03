@@ -5,7 +5,6 @@ import {
   startOfWeek,
   addDays,
   isSameDay,
-  isToday,
   isBefore,
   startOfDay,
   getWeek,
@@ -16,6 +15,14 @@ import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
 import { useOrientation } from '@/lib/hooks/useOrientation';
 import type { CalendarEvent } from '@/types/calendar';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
+import { useTimeFormat } from '@/components/providers';
+import {
+  eventOccursOnDisplayDay,
+  eventStartsOnDisplayDay,
+  formatDisplayTime,
+  toDisplayDate,
+} from '@/lib/utils/timeFormat';
+import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 
 export interface TwoWeekViewProps {
   currentDate: Date;
@@ -28,6 +35,8 @@ export function TwoWeekView({
   events,
   onEventClick,
 }: TwoWeekViewProps) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
+  const displayNow = toDisplayDate(new Date(), displayTimezone);
   const bgOverride = useWidgetBgOverride();
   const transparentMode = bgOverride?.hasCustomBg === true;
   const weekStart = startOfWeek(currentDate);
@@ -45,14 +54,23 @@ export function TwoWeekView({
   const week1Num = getWeek(week1[0]!);
   const week2Num = getWeek(week2[0]!);
 
+  // Scope the wide event list to the two visible weeks once.
+  const scopedEvents = eventsOverlappingRange(events, weekStart, addDays(weekStart, 14));
   const renderDayCell = (date: Date, compact: boolean = false) => {
-    const dayEvents = events.filter((event) => isSameDay(event.startTime, date));
+    const dayEvents = scopedEvents.filter((event) => eventOccursOnDisplayDay(
+      event.startTime,
+      event.endTime,
+      event.allDay,
+      date,
+      displayTimezone,
+    ));
     const sorted = [...dayEvents].sort((a, b) => {
       if (a.allDay && !b.allDay) return -1;
       if (!a.allDay && b.allDay) return 1;
       return a.startTime.getTime() - b.startTime.getTime();
     });
-    const isPast = isBefore(date, startOfDay(new Date())) && !isToday(date);
+    const today = isSameDay(date, displayNow);
+    const isPast = isBefore(date, startOfDay(displayNow)) && !today;
 
     return (
       <div
@@ -61,8 +79,9 @@ export function TwoWeekView({
           !transparentMode && 'bg-calendar-surface',
           'flex flex-col overflow-hidden',
           !transparentMode && isPast && 'bg-muted/50 text-muted-foreground',
-          !transparentMode && isToday(date) && 'bg-calendar-today',
-          isToday(date) && 'ring-2 ring-inset ring-ring'
+          !transparentMode && today && 'bg-calendar-today',
+          today && 'ring-2 ring-inset ring-ring',
+          today && 'border-primary border-2',
         )}
       >
         {/* Date header */}
@@ -70,12 +89,13 @@ export function TwoWeekView({
           className={cn(
             'shrink-0 px-1',
             compact ? 'py-0.5' : 'py-1',
+            today && 'bg-primary/10'
           )}
         >
           <div className={cn(
             'font-medium flex items-center gap-1',
             compact ? 'text-sm' : 'text-sm',
-            isToday(date) && 'font-bold text-foreground'
+            today && 'font-bold text-foreground'
           )}>
             <span className="font-bold">{format(date, 'd')}</span>
             <span className="text-xs text-muted-foreground">{format(date, 'MMM')}</span>
@@ -97,7 +117,14 @@ export function TwoWeekView({
                 : inlineTimedEventStyle(event.color)
               }
             >
-              {event.allDay ? event.title : `• ${format(event.startTime, 'h:mm')} ${event.title}`}
+              {event.allDay || !eventStartsOnDisplayDay(
+                event.startTime,
+                false,
+                date,
+                displayTimezone,
+              )
+                ? event.title
+                : `• ${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`}
             </button>
           ))}
         </div>

@@ -59,6 +59,34 @@
     --weather-temp-warm: 28 95% 48%;
     --weather-temp-hot: 9 90% 48%;
     --weather-temp-very-hot: 348 78% 48%;
+    --weather-precipitation: 205 80% 48%;
+
+    /* Weather display colors stay vivid and independent of the active home
+     * theme. Theme tokens above still drive the celestial treatment; these
+     * dedicated stops keep forecast bars and condition bands glanceable. */
+    --weather-forecast-very-cold: 207 92% 56%;
+    --weather-forecast-freezing: 193 90% 53%;
+    --weather-forecast-cold: 181 78% 47%;
+    --weather-forecast-cool: 144 58% 43%;
+    --weather-forecast-mild: 47 94% 51%;
+    --weather-forecast-warm: 27 93% 54%;
+    --weather-forecast-hot: 9 88% 55%;
+    --weather-forecast-very-hot: 346 82% 58%;
+    --weather-forecast-precipitation: 201 90% 58%;
+
+    /* Condition colors stay legible when the dashboard surface changes. */
+    --weather-condition-sunny: 43 98% 52%;
+    --weather-condition-partly-cloudy: 201 92% 54%;
+    --weather-condition-cloudy: 215 24% 53%;
+    --weather-condition-rainy: 207 92% 55%;
+    --weather-condition-snowy: 187 74% 50%;
+    --weather-condition-stormy: 266 76% 59%;
+    --weather-condition-surface-sunny: 43 90% 86%;
+    --weather-condition-surface-partly-cloudy: 201 78% 86%;
+    --weather-condition-surface-cloudy: 215 24% 87%;
+    --weather-condition-surface-rainy: 207 78% 86%;
+    --weather-condition-surface-snowy: 187 60% 88%;
+    --weather-condition-surface-stormy: 266 62% 88%;
 
     --seasonal-accent: 222 47% 31%;
     --seasonal-accent-foreground: 210 40% 98%;
@@ -109,6 +137,30 @@
     --weather-temp-warm: 28 96% 63%;
     --weather-temp-hot: 9 92% 64%;
     --weather-temp-very-hot: 348 86% 68%;
+    --weather-precipitation: 205 86% 66%;
+
+    --weather-forecast-very-cold: 207 96% 70%;
+    --weather-forecast-freezing: 193 94% 68%;
+    --weather-forecast-cold: 181 86% 64%;
+    --weather-forecast-cool: 144 70% 62%;
+    --weather-forecast-mild: 47 98% 70%;
+    --weather-forecast-warm: 27 98% 68%;
+    --weather-forecast-hot: 9 95% 69%;
+    --weather-forecast-very-hot: 346 90% 73%;
+    --weather-forecast-precipitation: 201 95% 72%;
+
+    --weather-condition-sunny: 39 88% 68%;
+    --weather-condition-partly-cloudy: 199 80% 72%;
+    --weather-condition-cloudy: 215 28% 72%;
+    --weather-condition-rainy: 207 96% 68%;
+    --weather-condition-snowy: 187 82% 74%;
+    --weather-condition-stormy: 266 82% 74%;
+    --weather-condition-surface-sunny: 39 42% 31%;
+    --weather-condition-surface-partly-cloudy: 199 32% 33%;
+    --weather-condition-surface-cloudy: 215 20% 38%;
+    --weather-condition-surface-rainy: 207 35% 31%;
+    --weather-condition-surface-snowy: 187 30% 35%;
+    --weather-condition-surface-stormy: 266 34% 37%;
 
     --seasonal-accent: 210 40% 98%;
     --seasonal-accent-foreground: 222 47% 11%;
@@ -116,89 +168,91 @@
     --seasonal-subtle: 217 33% 17%;
   }
 
-  /* Kitchen Calm first paint before ThemeProvider restores a saved preset.
-   * Keep this duplicate in sync with appThemes['kitchen-calm'] to avoid a
-   * visible surface and border flash during hydration. */
+  /* Daybook first paint before ThemeProvider restores a saved preset.
+   * Keep this duplicate in sync with appThemes.daybook to avoid a visible
+   * surface and border flash during hydration. */
   :root:not([data-color-theme]) {
-    --background: 42 24% 83%;
-    --foreground: 155 15% 19%;
-    --card: 45 25% 96%;
-    --card-foreground: 155 15% 19%;
-    --popover: 45 30% 96%;
-    --popover-foreground: 155 15% 19%;
-    --primary: 164 24% 32%;
-    --primary-foreground: 45 30% 97%;
-    --secondary: 94 16% 84%;
-    --secondary-foreground: 151 17% 23%;
-    --muted: 41 18% 84%;
-    --muted-foreground: 151 10% 29%;
-    --accent: 96 18% 82%;
-    --accent-foreground: 154 20% 22%;
-    --destructive: 5 50% 42%;
-    --destructive-foreground: 45 30% 97%;
-    --border: 105 12% 49%;
-    --input: 105 12% 40%;
-    --ring: 164 24% 34%;
-    --chart-1: 164 30% 39%;
-    --chart-2: 92 24% 44%;
-    --chart-3: 32 40% 52%;
-    --chart-4: 52 30% 48%;
-    --chart-5: 349 28% 55%;
-    --weather-temp-very-cold: 204 78% 50%;
-    --weather-temp-freezing: 190 79% 47%;
-    --weather-temp-cold: 174 65% 43%;
-    --weather-temp-cool: 143 52% 39%;
-    --weather-temp-mild: 47 76% 45%;
-    --weather-temp-warm: 28 78% 49%;
-    --weather-temp-hot: 12 74% 51%;
-    --weather-temp-very-hot: 350 65% 48%;
-    --calendar-surface: 48 26% 96%;
-    --calendar-today: 91 23% 83%;
-    --widget-calendar: 48 28% 96%;
-    --widget-planning: 91 22% 92%;
-    --widget-family: 27 27% 93%;
-    --widget-info: 78 14% 92%;
+    --background: 210 24% 82%;
+    --foreground: 222 20% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 20% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 20% 16%;
+    --primary: 199 65% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 204 28% 90%;
+    --secondary-foreground: 222 20% 16%;
+    --muted: 214 24% 92%;
+    --muted-foreground: 218 16% 30%;
+    --accent: 42 88% 75%;
+    --accent-foreground: 222 20% 16%;
+    --destructive: 6 70% 30%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 18% 40%;
+    --input: 214 20% 40%;
+    --ring: 199 65% 32%;
+    --chart-1: 10 70% 53%;
+    --chart-2: 198 65% 46%;
+    --chart-3: 145 45% 42%;
+    --chart-4: 42 78% 46%;
+    --chart-5: 279 35% 50%;
+    --weather-temp-very-cold: 211 70% 45%;
+    --weather-temp-freezing: 198 68% 43%;
+    --weather-temp-cold: 184 58% 40%;
+    --weather-temp-cool: 151 52% 38%;
+    --weather-temp-mild: 45 78% 43%;
+    --weather-temp-warm: 28 80% 45%;
+    --weather-temp-hot: 10 72% 48%;
+    --weather-temp-very-hot: 350 58% 48%;
+    --weather-precipitation: 202 68% 43%;
+    --calendar-surface: 0 0% 100%;
+    --calendar-today: 43 80% 86%;
+    --widget-calendar: 210 24% 82%;
+    --widget-planning: 210 24% 82%;
+    --widget-family: 210 24% 82%;
+    --widget-info: 210 24% 82%;
   }
 
   :root.dark:not([data-color-theme]) {
-    --background: 155 13% 14%;
-    --foreground: 47 23% 89%;
-    --card: 153 12% 18%;
-    --card-foreground: 47 23% 89%;
-    --popover: 153 12% 17%;
-    --popover-foreground: 47 23% 89%;
-    --primary: 143 22% 68%;
-    --primary-foreground: 155 18% 14%;
-    --secondary: 151 11% 23%;
-    --secondary-foreground: 47 23% 89%;
-    --muted: 151 10% 22%;
-    --muted-foreground: 55 10% 67%;
-    --accent: 102 13% 27%;
-    --accent-foreground: 47 23% 89%;
-    --destructive: 5 62% 69%;
-    --destructive-foreground: 5 30% 12%;
-    --border: 142 10% 48%;
-    --input: 142 10% 50%;
-    --ring: 143 22% 63%;
-    --chart-1: 151 27% 62%;
-    --chart-2: 91 22% 58%;
-    --chart-3: 34 37% 62%;
-    --chart-4: 52 28% 61%;
-    --chart-5: 350 30% 65%;
-    --weather-temp-very-cold: 204 80% 65%;
-    --weather-temp-freezing: 190 78% 64%;
-    --weather-temp-cold: 174 63% 58%;
-    --weather-temp-cool: 143 55% 58%;
-    --weather-temp-mild: 47 85% 65%;
-    --weather-temp-warm: 28 84% 64%;
-    --weather-temp-hot: 12 80% 65%;
-    --weather-temp-very-hot: 350 76% 68%;
-    --calendar-surface: 153 12% 18%;
-    --calendar-today: 104 12% 25%;
-    --widget-calendar: 153 12% 19%;
-    --widget-planning: 118 10% 20%;
-    --widget-family: 25 12% 20%;
-    --widget-info: 80 9% 20%;
+    --background: 220 22% 13%;
+    --foreground: 210 24% 93%;
+    --card: 220 18% 20%;
+    --card-foreground: 210 24% 93%;
+    --popover: 220 18% 24%;
+    --popover-foreground: 210 24% 93%;
+    --primary: 198 65% 68%;
+    --primary-foreground: 220 22% 13%;
+    --secondary: 215 17% 28%;
+    --secondary-foreground: 210 24% 93%;
+    --muted: 218 15% 24%;
+    --muted-foreground: 211 18% 77%;
+    --accent: 39 56% 30%;
+    --accent-foreground: 42 86% 93%;
+    --destructive: 6 76% 75%;
+    --destructive-foreground: 6 40% 15%;
+    --border: 215 15% 58%;
+    --input: 214 18% 60%;
+    --ring: 198 65% 74%;
+    --chart-1: 10 76% 72%;
+    --chart-2: 198 75% 72%;
+    --chart-3: 145 55% 67%;
+    --chart-4: 39 82% 72%;
+    --chart-5: 279 55% 76%;
+    --weather-temp-very-cold: 211 76% 71%;
+    --weather-temp-freezing: 198 76% 69%;
+    --weather-temp-cold: 184 66% 65%;
+    --weather-temp-cool: 151 60% 63%;
+    --weather-temp-mild: 45 86% 70%;
+    --weather-temp-warm: 28 88% 69%;
+    --weather-temp-hot: 10 80% 71%;
+    --weather-temp-very-hot: 350 68% 73%;
+    --weather-precipitation: 202 76% 70%;
+    --calendar-surface: 220 17% 22%;
+    --calendar-today: 39 58% 24%;
+    --widget-calendar: 220 22% 13%;
+    --widget-planning: 220 22% 13%;
+    --widget-family: 220 22% 13%;
+    --widget-info: 220 22% 13%;
   }
 }
 
@@ -207,37 +261,74 @@
     @apply border-border;
   }
 
+  /* Root size stands in for viewing distance, which CSS cannot measure. The
+     pointer type is the closest proxy available:
+
+       fine   - mouse or trackpad, so someone is sitting at a desk, close up
+       coarse - a touchscreen, typically a wall or counter display
+       none   - no input device at all, which in practice means a kiosk: a Pi
+                or an HDMI stick driving a screen nobody ever touches
+
+     `none` was not handled here and fell through to the 16px base, so the one
+     display class guaranteed to be read from a few feet away got the second
+     smallest size in the ladder. On a 27-32in panel at the 3-4ft a kitchen
+     display is actually read from, that puts the x-height of `text-sm` at
+     roughly 7-9 arcmin: at or below the critical print size where reading
+     speed starts to drop off. Climbing to 22px lifts it to about 9-12.
+     Readable, rather than a squint. It now climbs alongside `coarse`.
+
+     A wall display with a mouse attached still reports `fine` and stays at
+     16px in the personal wall-display rhythm. That case is genuinely
+     indistinguishable from a desk, so it is left to the per-layout font scale
+     in Settings -> Displays. */
   html {
     font-size: 16px;
   }
 
-  /* Desktop/laptop (mouse/trackpad): tighter base matches dashboard UIs */
+  /* Keep the base rhythm comfortable when the app is previewed with a mouse;
+   * wall displays use the larger coarse-pointer steps below. */
   @media (pointer: fine) {
     html {
-      font-size: 14px;
+      font-size: 16px;
     }
   }
 
-  @media (min-width: 768px) and (pointer: coarse) {
+  @media (min-width: 768px) and (pointer: coarse),
+    (min-width: 768px) and (pointer: none) {
     html {
       font-size: 18px;
     }
   }
 
-  @media (min-width: 1024px) and (pointer: coarse) {
+  @media (min-width: 1024px) and (pointer: coarse),
+    (min-width: 1024px) and (pointer: none) {
     html {
       font-size: 20px;
     }
   }
 
-  @media (min-width: 1400px) and (pointer: coarse) {
+  @media (min-width: 1400px) and (pointer: coarse),
+    (min-width: 1400px) and (pointer: none) {
     html {
+      /* Flat, not scaled with the viewport. Making this continuous does fix a
+         real problem — above 1920 the boxes keep growing and the text does not,
+         so a 4K panel draws boxes four times the area holding text of the same
+         size (measured: 142% drift in the text-to-row ratio, 1920 -> 3840).
+         But the screensaver renders the same layout in `containMode`, whose
+         cell size is pure geometry with no root dependency, so a larger root
+         put bigger text into identically sized cells and pushed its content off
+         the screen. Fixing it here without fixing contain mode first trades a
+         subtle problem for a visible one. See PR #360 for the measurements. */
       font-size: 22px;
     }
   }
 
   body {
     @apply bg-background text-foreground;
+    font-kerning: normal;
+    font-feature-settings: 'kern', 'liga', 'clig', 'calt';
+    line-height: 1.45;
+    text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
@@ -350,24 +441,24 @@
 @layer utilities {
   /* Touch targets: Apple HIG 44px minimum — only enforced on touch devices */
   .touch-target {
-    @apply min-h-[32px] min-w-[32px];
+    @apply min-h-[40px] min-w-[40px];
   }
 
   .touch-target-lg {
-    @apply min-h-[36px] min-w-[36px];
+    @apply min-h-[44px] min-w-[44px];
   }
 
   .touch-target-xl {
-    @apply min-h-[44px] min-w-[44px];
+    @apply min-h-[48px] min-w-[48px];
   }
 
   @media (pointer: coarse) {
     .touch-target {
-      @apply min-h-[44px] min-w-[44px];
+      @apply min-h-[48px] min-w-[48px];
     }
 
     .touch-target-lg {
-      @apply min-h-[48px] min-w-[48px];
+      @apply min-h-[52px] min-w-[52px];
     }
 
     .touch-target-xl {
@@ -409,6 +500,23 @@
     @apply flex flex-row items-center gap-4;
   }
 
+  @keyframes uv-index-dot-pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.55;
+      transform: scale(1.5);
+    }
+  }
+
+  .uv-index-dot--pulse {
+    animation: uv-index-dot-pulse 1.8s ease-in-out infinite;
+    transform-origin: center;
+    will-change: opacity, transform;
+  }
+
   /* Respect the OS-level "reduce motion" accessibility preference. Disables
    * animations and collapses transitions site-wide. Standard accessible
    * pattern — keeps a 0.01ms animation-duration so animations still "fire"
@@ -427,6 +535,80 @@
   .no-animations * {
     animation: none !important;
     transition: none !important;
+  }
+
+  /* Dark Sky-inspired precipitation wave. The data path stays static so the
+   * wall display does not spend a JS frame on every minute; CSS handles the
+   * subtle breathing and moving highlight on the compositor instead. */
+  @keyframes precipitation-wave-breathe {
+    0%, 100% {
+      opacity: 0.92;
+      transform: scaleY(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scaleY(1.045);
+    }
+  }
+
+  @keyframes precipitation-wave-sway {
+    0%, 100% {
+      transform: translateY(0) scaleY(1);
+    }
+    50% {
+      transform: translateY(-1.5px) scaleY(1.035);
+    }
+  }
+
+  @keyframes precipitation-wave-variation {
+    0%, 100% {
+      opacity: 0.28;
+      transform: translateY(0);
+    }
+    50% {
+      opacity: 0.56;
+      transform: translateY(-1.4px);
+    }
+  }
+
+  .precipitation-wave-area {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    animation: precipitation-wave-breathe 3.2s ease-in-out infinite;
+  }
+
+  .precipitation-wave-message {
+    color: hsl(var(--weather-precipitation));
+  }
+
+  .precipitation-wave-line {
+    animation: precipitation-wave-sway 3.2s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center bottom;
+  }
+
+  .precipitation-wave-variation {
+    animation: precipitation-wave-variation 3.2s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .precipitation-wave-jitter-morph {
+    /* The SVG path itself morphs between two softly jittered traces. */
+    will-change: d;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .precipitation-wave-area,
+    .precipitation-wave-line,
+    .precipitation-wave-variation,
+    .precipitation-wave-jitter-morph {
+      animation: none;
+    }
+
+    .precipitation-wave-jitter-morph {
+      display: none;
+    }
   }
 
   /* Performance mode: minimum-viable stylesheet. The only CSS effect
@@ -460,6 +642,27 @@
     transition-duration: 0ms !important;
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Keep the precipitation wave readable on the wall display. This is the
+   * one intentionally retained animation in performance mode; the
+   * accessibility-level reduced-motion rule above still takes precedence
+   * whenever the OS requests less motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    html.performance-mode .precipitation-wave-area,
+    html.performance-mode .precipitation-wave-line,
+    html.performance-mode .precipitation-wave-variation {
+      animation-duration: 3.2s !important;
+      animation-iteration-count: infinite !important;
+    }
+
+    /* The UV warning is intentionally retained in performance mode: it is a
+     * small, meaningful status cue rather than decorative motion. */
+    html.performance-mode .uv-index-dot--pulse {
+      animation-duration: 1.8s !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: infinite !important;
+    }
   }
 
   html.performance-mode .shadow-sm,
@@ -742,40 +945,919 @@
   animation: mic-pulse 1s infinite;
 }
 
-/* simple-keyboard theme — scoped to [data-virtual-keyboard] */
+/* simple-keyboard theme — scoped to [data-virtual-keyboard]
+   Selectors include .hg-theme-default so we beat the library stylesheet
+   (same 0,2,0 specificity, and that CSS is imported from VirtualKeyboard
+   so it often loads after globals.css). Without that, idle keys keep the
+   library's background:#fff while inheriting our near-white dark-mode
+   label color — solid blank keys that only show a letter while :active. */
 [data-virtual-keyboard] .hg-theme-default {
   height: 100%;
   background: hsl(var(--background));
   border-radius: 0;
   padding: 8px;
   font-family: inherit;
+  color: hsl(var(--foreground));
 }
-[data-virtual-keyboard] .hg-row {
+
+[data-virtual-keyboard] .hg-theme-default .hg-row {
   margin-bottom: 4px;
 }
-[data-virtual-keyboard] .hg-button {
+
+[data-virtual-keyboard] .hg-theme-default .hg-button,
+[data-virtual-keyboard] .hg-theme-default .hg-button span {
+  color: hsl(var(--secondary-foreground));
+  -webkit-text-fill-color: currentColor;
+}
+
+[data-virtual-keyboard] .hg-theme-default .hg-button {
   height: 52px;
   font-size: 18px;
   background: hsl(var(--secondary));
-  color: hsl(var(--secondary-foreground));
   border-bottom: 2px solid hsl(var(--border));
   border-radius: 6px;
   box-shadow: none;
 }
-[data-virtual-keyboard] .hg-button:hover,
-[data-virtual-keyboard] .hg-button:active {
-  background: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
+
+/* Pressed: .hg-activeButton is what simple-keyboard actually toggles.
+   --accent == --secondary in .dark, so don't use --accent here. */
+[data-virtual-keyboard] .hg-theme-default .hg-button:hover,
+[data-virtual-keyboard] .hg-theme-default .hg-button:active,
+[data-virtual-keyboard] .hg-theme-default .hg-button.hg-activeButton {
+  background: hsl(var(--border));
+  color: hsl(var(--foreground));
+  -webkit-text-fill-color: currentColor;
 }
-[data-virtual-keyboard] .hg-button.key-action {
+
+[data-virtual-keyboard] .hg-theme-default .hg-button.key-action {
   background: hsl(var(--muted));
   font-size: 20px;
 }
-[data-virtual-keyboard] .hg-button.key-space {
+
+.dark [data-virtual-keyboard] .hg-theme-default .hg-button {
+  background: hsl(217 33% 24%);
+}
+
+.dark [data-virtual-keyboard] .hg-theme-default .hg-button.key-action {
+  background: hsl(217 33% 20%);
+}
+
+.dark [data-virtual-keyboard] .hg-theme-default .hg-button:hover,
+.dark [data-virtual-keyboard] .hg-theme-default .hg-button:active,
+.dark [data-virtual-keyboard] .hg-theme-default .hg-button.hg-activeButton {
+  background: hsl(217 33% 34%);
+}
+
+[data-virtual-keyboard] .hg-theme-default .hg-button.key-space {
   flex-grow: 4;
 }
-[data-virtual-keyboard] .hg-button.key-mic,
-[data-virtual-keyboard] .hg-button.key-dismiss {
+
+[data-virtual-keyboard] .hg-theme-default .hg-button.key-mic,
+[data-virtual-keyboard] .hg-theme-default .hg-button.key-dismiss {
   flex-grow: 1;
   font-size: 20px;
+}
+
+/* =========================================================
+   Daybook wall-display surface
+   =========================================================
+
+   This is intentionally a presentation boundary. It gives the existing
+   dashboard and sub-pages the warm paper / dark ink rhythm of Daybook while
+   leaving layout data, routes, integrations, and interaction handlers alone.
+   The active theme still supplies the underlying semantic colors; Daybook
+   uses the chart roles for its concentrated family and navigation accents.
+*/
+
+@layer base {
+  .wall-display {
+    --wall-canvas: var(--background);
+    --wall-surface: var(--background);
+    --wall-surface-raised: var(--card);
+    --wall-surface-muted: var(--secondary);
+    --wall-info-surface: var(--card);
+    --wall-calendar-surface: var(--wall-surface);
+    --wall-ink: var(--foreground);
+    --wall-muted: var(--muted-foreground);
+    --wall-line: var(--border);
+    --wall-coral: var(--chart-1);
+    --wall-mustard: var(--chart-4);
+    --wall-sage: var(--chart-3);
+    --wall-sky: var(--chart-2);
+    --wall-lavender: var(--chart-5);
+    --wall-pink: 342 57% 71%;
+    --wall-teal: var(--primary);
+    --wall-nav-accent: var(--chart-1);
+    --wall-nav-accent-soft: hsl(var(--wall-nav-accent) / 0.16);
+    --wall-font-family: var(--font-dm-sans), 'DM Sans', 'Avenir Next', Avenir, sans-serif;
+    --wall-radius-sm: 0.75rem;
+    --wall-radius-md: 1rem;
+    --wall-radius-lg: 1.15rem;
+    --wall-radius-pill: 999px;
+    --wall-control-sm: 48px;
+    --wall-control-md: 56px;
+    --wall-shadow-soft: 0 5px 16px hsl(var(--foreground) / 0.08);
+
+    /* Daybook keeps the dashboard quiet and lets calendar/member colors do
+       the organizational work inside widgets. */
+    --widget-calendar: var(--wall-surface);
+    --widget-planning: var(--wall-surface);
+    --widget-family: var(--wall-surface);
+    --widget-info: var(--wall-surface);
+
+    /* Weather is deliberately brighter than the active theme so its timeline
+       remains readable in both daylight and the evening palette. */
+    --weather-condition-sunny: 43 98% 52%;
+    --weather-condition-partly-cloudy: 201 92% 54%;
+    --weather-condition-cloudy: 215 24% 53%;
+    --weather-condition-rainy: 207 92% 55%;
+    --weather-condition-snowy: 187 74% 50%;
+    --weather-condition-stormy: 266 76% 59%;
+    --weather-condition-surface-sunny: 43 90% 86%;
+    --weather-condition-surface-partly-cloudy: 201 78% 86%;
+    --weather-condition-surface-cloudy: 215 24% 87%;
+    --weather-condition-surface-rainy: 207 78% 86%;
+    --weather-condition-surface-snowy: 187 60% 88%;
+    --weather-condition-surface-stormy: 266 62% 88%;
+  }
+
+  .dark .wall-display {
+    --wall-shadow-soft: 0 8px 22px hsl(220 22% 6% / 0.28);
+    --weather-condition-sunny: 39 88% 68%;
+    --weather-condition-partly-cloudy: 199 80% 72%;
+    --weather-condition-cloudy: 215 28% 72%;
+    --weather-condition-rainy: 207 96% 68%;
+    --weather-condition-snowy: 187 82% 74%;
+    --weather-condition-stormy: 266 82% 74%;
+    --weather-condition-surface-sunny: 39 42% 31%;
+    --weather-condition-surface-partly-cloudy: 199 32% 33%;
+    --weather-condition-surface-cloudy: 215 20% 38%;
+    --weather-condition-surface-rainy: 207 35% 31%;
+    --weather-condition-surface-snowy: 187 30% 35%;
+    --weather-condition-surface-stormy: 266 34% 37%;
+  }
+
+  /* Daybook's light wall treatment uses warm stone and ivory instead of a cool
+     blue-gray canvas. Keep the calendar close to the canvas so it remains the
+     primary wall surface, while information widgets sit one quiet layer above
+     it. */
+  :root[data-color-theme='daybook'] .wall-display {
+    --wall-canvas: 40 22% 94%;
+    --wall-surface: 40 22% 94%;
+    --wall-surface-raised: 40 30% 99%;
+    --wall-surface-muted: 40 18% 90%;
+    --wall-info-surface: 40 26% 97%;
+    --wall-calendar-surface: 40 18% 94%;
+    --wall-ink: 28 18% 15%;
+    --wall-muted: 30 10% 38%;
+    --wall-line: 32 11% 68%;
+    --wall-teal: 169 30% 39%;
+
+    /* Rebind the semantic utility colors inside the wall shell as well. A
+       widget can still use its existing bg-background/bg-card classes, but
+       those surfaces must belong to the same warm palette as its shell. */
+    --background: var(--wall-canvas);
+    --foreground: var(--wall-ink);
+    --card: var(--wall-surface-raised);
+    --card-foreground: var(--wall-ink);
+    --popover: var(--wall-surface-raised);
+    --popover-foreground: var(--wall-ink);
+    --primary: var(--wall-teal);
+    --primary-foreground: var(--wall-surface-raised);
+    --secondary: var(--wall-surface-muted);
+    --secondary-foreground: var(--wall-ink);
+    --muted: var(--wall-surface-muted);
+    --muted-foreground: var(--wall-muted);
+    --accent: 43 84% 82%;
+    --accent-foreground: var(--wall-ink);
+    --border: var(--wall-line);
+    --input: var(--wall-line);
+    --ring: var(--wall-teal);
+    --calendar-surface: var(--wall-calendar-surface);
+    --calendar-today: 43 80% 86%;
+  }
+
+  :root.dark[data-color-theme='daybook'] .wall-display {
+    --wall-canvas: 220 22% 13%;
+    --wall-surface: 220 22% 13%;
+    --wall-surface-raised: 220 18% 20%;
+    --wall-surface-muted: 215 17% 28%;
+    --wall-info-surface: 220 17% 22%;
+    --wall-calendar-surface: 220 17% 22%;
+    --wall-ink: 210 24% 93%;
+    --wall-muted: 211 18% 77%;
+    --wall-line: 215 15% 58%;
+    --wall-teal: 198 65% 68%;
+
+    --background: var(--wall-canvas);
+    --foreground: var(--wall-ink);
+    --card: var(--wall-surface-raised);
+    --card-foreground: var(--wall-ink);
+    --popover: var(--wall-surface-raised);
+    --popover-foreground: var(--wall-ink);
+    --primary: var(--wall-teal);
+    --primary-foreground: var(--wall-canvas);
+    --secondary: var(--wall-surface-muted);
+    --secondary-foreground: var(--wall-ink);
+    --muted: var(--wall-surface-muted);
+    --muted-foreground: var(--wall-muted);
+    --accent: 39 56% 30%;
+    --accent-foreground: var(--wall-ink);
+    --border: var(--wall-line);
+    --input: var(--wall-line);
+    --ring: var(--wall-teal);
+    --calendar-surface: var(--wall-calendar-surface);
+    --calendar-today: 39 58% 24%;
+  }
+}
+
+@layer utilities {
+  .wall-display {
+    min-height: 100vh;
+    background: hsl(var(--wall-canvas));
+    color: hsl(var(--wall-ink));
+    font-family: var(--wall-font-family);
+  }
+
+  .wall-display .wall-main {
+    min-height: 100vh;
+  }
+
+  .wall-display .wall-card {
+    border-radius: var(--wall-radius-md);
+    border-color: hsl(var(--wall-line) / 0.36);
+    box-shadow: var(--wall-shadow-soft);
+  }
+
+  /* Preset widget shells are quiet outlined areas, matching the Daybook
+     reference instead of a collection of unrelated SaaS cards. Custom
+     layout-editor fills remain authoritative. */
+  .wall-display .wall-widget-container[data-theme-surface='preset'] {
+    background-color: hsl(var(--wall-surface));
+    border: 1px solid hsl(var(--wall-line) / 0.42);
+    border-radius: var(--wall-radius-lg);
+    box-shadow: none;
+  }
+
+  .wall-display [data-theme-widget='clock'] > .wall-widget-container[data-theme-surface='preset'],
+  .wall-display [data-theme-widget='weather'] > .wall-widget-container[data-theme-surface='preset'] {
+    background-color: hsl(var(--wall-info-surface));
+  }
+
+  .wall-display [data-theme-widget='calendar'] > .wall-widget-container[data-theme-surface='preset'] {
+    background-color: hsl(var(--wall-calendar-surface));
+  }
+
+  .wall-display .wall-widget-container[data-theme-surface='custom'] {
+    border-radius: var(--wall-radius-lg);
+  }
+
+  .wall-display .wall-widget-header {
+    padding: 1.05rem 1.3rem 0.65rem;
+  }
+
+  .wall-display .wall-widget-content {
+    padding: 0.65rem 1.3rem 1.35rem;
+  }
+
+  .wall-display .wall-widget-title {
+    letter-spacing: normal;
+    font-weight: 600;
+  }
+
+  .wall-display .wall-dashboard-header {
+    min-height: 56px;
+    background: hsl(var(--wall-surface-raised) / 0.94);
+    padding: 0.45rem 1rem;
+    box-shadow: 0 1px 0 hsl(var(--wall-line) / 0.24);
+  }
+
+  /* The visible header needs a touch-friendly minimum height, but that
+     minimum must not preserve a blank band after auto-hide collapses it. Keep
+     the hidden state aligned with the grid's 12px top/side padding. */
+  .wall-display .wall-dashboard-header[data-chrome-hidden='true'] {
+    min-height: 0;
+    padding-block: 0;
+  }
+
+  .wall-display .wall-header-action {
+    display: inline-flex;
+    min-height: 48px;
+    min-width: 48px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--wall-radius-pill);
+    color: hsl(var(--wall-muted));
+  }
+
+  .wall-display .wall-header-action:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-side-nav {
+    width: 64px;
+    border-right: 0;
+    background: hsl(var(--wall-surface-raised) / 0.96);
+    box-shadow: 4px 0 18px hsl(var(--wall-ink) / 0.05);
+  }
+
+  .wall-display .wall-side-nav-expanded {
+    width: 13rem;
+    box-shadow: 8px 0 24px hsl(var(--wall-ink) / 0.1);
+  }
+
+  .wall-display .wall-side-nav > div:first-child {
+    min-height: 56px;
+  }
+
+  .wall-display .wall-nav-item {
+    min-height: 52px;
+    border-radius: var(--wall-radius-sm);
+    color: hsl(var(--wall-muted));
+    font-weight: 600;
+    transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+  }
+
+  .wall-display .wall-side-nav:not(.wall-side-nav-expanded) .wall-nav-item {
+    width: 48px;
+    margin-inline: auto;
+    padding-inline: 0;
+  }
+
+  .wall-display .wall-nav-item:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-nav-item:active,
+  .wall-display .wall-portrait-nav-item:active {
+    transform: scale(0.97);
+  }
+
+  .wall-display .wall-nav-item-active {
+    background: hsl(var(--wall-nav-accent));
+    color: hsl(var(--wall-surface-raised));
+  }
+
+  .wall-display .wall-nav-item-active .wall-nav-icon {
+    color: currentColor;
+  }
+
+  .wall-display .wall-nav-icon {
+    width: 21px;
+    height: 21px;
+    stroke-width: 2.1;
+  }
+
+  .wall-display .wall-nav-item-expanded {
+    min-height: 52px;
+    width: 100%;
+    justify-content: flex-start;
+    padding-inline: 0.9rem;
+  }
+
+  .wall-display .wall-help-item {
+    min-height: 48px;
+  }
+
+  .wall-display .wall-user-button {
+    min-height: 56px;
+    border-radius: var(--wall-radius-sm);
+  }
+
+  .wall-display .wall-portrait-nav {
+    border-top: 0;
+    background: hsl(var(--wall-surface-raised) / 0.98);
+    box-shadow: 0 -8px 24px hsl(var(--wall-ink) / 0.08);
+  }
+
+  .wall-display .wall-portrait-nav-items {
+    min-height: 5.5rem;
+    height: 5.5rem;
+    justify-content: flex-start;
+    min-width: 0;
+    gap: 0.25rem;
+    padding: 0.45rem 0.75rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .wall-display .wall-portrait-nav-item {
+    min-width: 78px;
+    max-width: 7.5rem;
+    min-height: 72px;
+    flex: 1 0 78px;
+    justify-content: center;
+    border-radius: var(--wall-radius-sm);
+    color: hsl(var(--wall-muted));
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .wall-display .wall-portrait-nav-item > span {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-display .wall-portrait-nav-item:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-portrait-nav-item-active {
+    background: hsl(var(--wall-nav-accent));
+    color: hsl(var(--wall-surface-raised));
+  }
+
+  .wall-display .wall-portrait-nav-item-active svg {
+    color: currentColor;
+  }
+
+  .wall-display .wall-portrait-nav-item-user {
+    border: 0;
+    background: transparent;
+  }
+
+  /* Calendar controls share one baseline and one shape language. The
+     controls remain the same buttons/popovers; this only normalizes their
+     wall-display geometry and selected/pressed feedback. */
+  .wall-display .wall-calendar-controls {
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .wall-display .wall-calendar-controls > button,
+  .wall-display .wall-calendar-controls > div > button {
+    min-height: var(--wall-control-sm);
+    border-radius: var(--wall-radius-sm);
+    border-color: hsl(var(--wall-line) / 0.48);
+  }
+
+  .wall-display .wall-calendar-controls > button:hover,
+  .wall-display .wall-calendar-controls > div > button:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  /* Reusable wall-display control sizes for inline actions and custom filter
+     bars that do not use the shared layout primitives. Keep their compact
+     desktop geometry outside the wall shell, but make every visible action
+     comfortably tappable on the display. */
+  .wall-display .wall-calendar-date-nav {
+    min-width: var(--wall-control-md);
+    width: var(--wall-control-md);
+    min-height: var(--wall-control-md);
+    height: var(--wall-control-md);
+    border-radius: var(--wall-radius-pill);
+  }
+
+  .wall-display .wall-touch-control {
+    min-width: var(--wall-control-sm);
+    width: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    border-radius: var(--wall-radius-sm);
+  }
+
+  .wall-display .wall-touch-control-inline {
+    min-width: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    padding-inline: 0.85rem;
+    border-radius: var(--wall-radius-sm);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .wall-display .wall-filter-control {
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    border-radius: var(--wall-radius-pill);
+    padding-inline: 0.9rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .wall-display .wall-filter-input {
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    font-size: 0.875rem;
+  }
+
+  .wall-display .wall-tab-control {
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .wall-display .wall-map-control {
+    min-width: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    padding-inline: 0.85rem;
+    border-radius: var(--wall-radius-sm);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  /* FilterBar has its own 44px button baseline. Custom wall controls placed
+     inside it still need the larger touch target defined above. */
+  .wall-display .wall-filter-items .wall-touch-control,
+  .wall-display .wall-filter-items .wall-touch-control-inline,
+  .wall-display .wall-filter-items .wall-filter-control {
+    min-height: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+  }
+
+  /* Expanded pages use the same quiet paper rhythm as the dashboard. The
+     route keeps its existing structure; these hooks only give the shared
+     header, filters, and calendar stage one Daybook surface treatment. */
+  .wall-display .wall-subpage-header {
+    border-bottom: 0;
+    background: transparent;
+    padding: 0.8rem 1.2rem 0.45rem;
+  }
+
+  .wall-display .wall-subpage-header-inner {
+    min-height: 4.2rem;
+    gap: 1rem;
+  }
+
+  .wall-display .wall-subpage-title {
+    font-size: clamp(1.35rem, 2vw, 2rem);
+    letter-spacing: -0.018em;
+    line-height: 1.15;
+  }
+
+  .wall-display .wall-subpage-home {
+    min-height: 48px;
+    min-width: 48px;
+    border-radius: var(--wall-radius-pill);
+  }
+
+  .wall-display .wall-subpage-actions {
+    gap: 0.5rem;
+  }
+
+  .wall-display .wall-subpage-actions > button,
+  .wall-display .wall-subpage-actions .wall-view-trigger,
+  .wall-display .wall-subpage-actions .wall-options-trigger {
+    min-height: var(--wall-control-md);
+    border-radius: var(--wall-radius-pill);
+    border-color: hsl(var(--wall-line) / 0.48);
+    background: hsl(var(--wall-surface-raised) / 0.72);
+    box-shadow: none;
+  }
+
+  .wall-display .wall-subpage-actions > button:hover,
+  .wall-display .wall-subpage-actions .wall-view-trigger:hover,
+  .wall-display .wall-subpage-actions .wall-options-trigger:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-subpage-actions > button.bg-primary {
+    background: hsl(var(--wall-teal));
+    border-color: transparent;
+    color: hsl(var(--primary-foreground));
+  }
+
+  .wall-display .wall-filter-bar {
+    max-height: none;
+    overflow: visible;
+    border-bottom: 0;
+    background: transparent;
+    padding: 0.15rem 1.2rem 0.8rem;
+  }
+
+  .wall-display .wall-filter-items {
+    gap: 0.55rem;
+  }
+
+  .wall-display .wall-filter-items > span {
+    color: hsl(var(--wall-muted));
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .wall-display .wall-filter-items > button {
+    min-height: 44px;
+    height: 44px;
+    border-radius: var(--wall-radius-pill);
+    border-color: hsl(var(--wall-line) / 0.48);
+    padding-inline: 0.9rem;
+    box-shadow: none;
+  }
+
+  .wall-display .wall-filter-items button {
+    min-height: 44px;
+    height: 44px;
+    border-radius: var(--wall-radius-pill);
+  }
+
+  .wall-display .wall-filter-items > div > button {
+    padding-inline: 0.9rem;
+  }
+
+  .wall-display .wall-filter-items > button:hover {
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-filter-items > button.bg-primary {
+    border-color: transparent;
+  }
+
+  .wall-display .wall-calendar-chips {
+    gap: 0.65rem;
+    padding-inline: 1.3rem;
+    padding-bottom: 0.9rem;
+  }
+
+  .wall-display .wall-calendar-chips > button {
+    min-height: 48px;
+  }
+
+  .wall-display .wall-family-chip-active {
+    border: 1px solid color-mix(in srgb, var(--wall-family-color) 42%, transparent);
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--wall-surface-raised)) 72%,
+      var(--wall-family-color)
+    ) !important;
+    color: hsl(var(--wall-ink)) !important;
+  }
+
+  .wall-display .wall-family-chip-active:hover {
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--wall-surface-raised)) 60%,
+      var(--wall-family-color)
+    ) !important;
+  }
+
+  .dark .wall-display .wall-family-chip-active {
+    background-color: color-mix(
+      in srgb,
+      hsl(var(--wall-surface-raised)) 46%,
+      var(--wall-family-color)
+    ) !important;
+    color: hsl(var(--wall-ink)) !important;
+  }
+
+  .wall-display .wall-calendar-content {
+    background: transparent;
+    padding: 0.75rem 1.35rem 1.5rem;
+  }
+
+  .wall-display .wall-calendar-content > .h-full {
+    min-height: 0;
+  }
+
+  .wall-display .wall-calendar-month-header {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--wall-radius-sm);
+    background: hsl(var(--wall-teal) / 0.86);
+    box-shadow: none;
+    letter-spacing: 0.01em;
+  }
+
+  .wall-display .wall-calendar-day-labels {
+    gap: 0.4rem;
+  }
+
+  .wall-display .wall-calendar-day-labels > div {
+    padding-block: 0.75rem;
+    color: hsl(var(--wall-muted));
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+  }
+
+  .wall-display .wall-calendar-grid {
+    gap: 0.55rem;
+  }
+
+  .wall-display .wall-calendar-day-cell {
+    min-height: 0;
+    border-color: hsl(var(--wall-line) / 0.3);
+    border-radius: var(--wall-radius-sm);
+    background-color: hsl(var(--wall-calendar-surface));
+    box-shadow: none;
+  }
+
+  .wall-display .wall-calendar-day-cell:hover {
+    border-color: hsl(var(--wall-teal) / 0.55);
+  }
+
+  .wall-display .wall-calendar-day-cell.bg-muted\/65 {
+    background-color: hsl(var(--wall-surface-muted) / 0.65);
+  }
+
+  .wall-display .wall-calendar-day-cell.bg-calendar-today {
+    background-color: hsl(var(--wall-mustard) / 0.2);
+    border-color: hsl(var(--wall-mustard) / 0.7);
+  }
+
+  .wall-display .wall-calendar-day-number {
+    font-size: 1rem;
+  }
+
+  .wall-display .wall-month-event-card {
+    min-height: 36px;
+    border: 0;
+    border-radius: 0.7rem;
+    background: color-mix(in srgb, hsl(var(--wall-surface-raised)) 78%, var(--wall-event-color, hsl(var(--wall-sky))));
+    box-shadow: inset 3px 0 0 var(--wall-event-color, hsl(var(--wall-sky)));
+    padding: 0.35rem 0.65rem;
+  }
+
+  .wall-display .wall-month-event-card:hover {
+    background: color-mix(in srgb, hsl(var(--wall-surface-raised)) 68%, var(--wall-event-color, hsl(var(--wall-sky))));
+  }
+
+  .wall-display .wall-inline-event-card {
+    min-height: 34px;
+    border-radius: 0.7rem;
+    padding: 0.35rem 0.6rem;
+    line-height: 1.45;
+  }
+
+  .wall-display .wall-view-menu {
+    height: var(--wall-control-md);
+  }
+
+  .wall-display .wall-view-trigger {
+    height: var(--wall-control-md);
+  }
+
+  .wall-display .wall-view-cycles {
+    width: calc(var(--wall-control-md) * 2 + 0.25rem);
+    height: var(--wall-control-md);
+    gap: 0.25rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 1fr;
+  }
+
+  .wall-display .wall-view-cycle {
+    min-height: var(--wall-control-md);
+    height: var(--wall-control-md);
+    min-width: 0;
+    border: 0;
+    border-radius: 0.7rem;
+    background: hsl(var(--wall-surface-muted));
+    color: hsl(var(--wall-muted));
+  }
+
+  .wall-display .wall-view-cycle > span {
+    font-size: 1rem;
+  }
+
+  .wall-display .wall-view-cycle:hover {
+    background: hsl(var(--wall-teal) / 0.16);
+    color: hsl(var(--wall-ink));
+  }
+
+  .wall-display .wall-calendar-page .border-border {
+    border-color: hsl(var(--wall-line) / 0.3);
+  }
+
+  .wall-display .wall-calendar-page .shadow-sm,
+  .wall-display .wall-calendar-page .shadow-lg {
+    box-shadow: none;
+  }
+
+  .wall-display [data-widget='Calendar'] .border-border {
+    border-color: hsl(var(--wall-line) / 0.28);
+  }
+
+  .wall-display [data-widget='Calendar'] .shadow-sm {
+    box-shadow: none;
+  }
+
+  .wall-display .wall-event-card {
+    border: 0;
+    border-radius: var(--wall-radius-sm);
+    background: color-mix(in srgb, hsl(var(--wall-surface-raised)) 84%, var(--wall-event-color, hsl(var(--wall-sky))));
+    box-shadow: inset 4px 0 0 var(--wall-event-color, hsl(var(--wall-sky)));
+  }
+
+  .wall-display .wall-event-card:hover {
+    background: color-mix(in srgb, hsl(var(--wall-surface-raised)) 74%, var(--wall-event-color, hsl(var(--wall-sky))));
+  }
+
+  .wall-display input:not([type='hidden']),
+  .wall-display textarea,
+  .wall-display select {
+    min-height: 48px;
+    border-radius: var(--wall-radius-sm);
+    border-color: hsl(var(--wall-line) / 0.48);
+  }
+
+  /* Keep the forecast track colorful and independent from the blue-gray
+     Daybook canvas. */
+  .wall-display [aria-label='Hourly conditions'] {
+    border-color: hsl(var(--wall-line) / 0.42);
+    background: hsl(var(--wall-surface-raised) / 0.14);
+    border-radius: var(--wall-radius-md);
+  }
+
+  .wall-display .maplibregl-ctrl-zoom-in,
+  .wall-display .maplibregl-ctrl-zoom-out {
+    width: var(--wall-control-sm);
+    min-width: var(--wall-control-sm);
+    height: var(--wall-control-sm);
+    min-height: var(--wall-control-sm);
+    font-size: 1.25rem;
+  }
+
+  .weather-condition-band-sunny {
+    background-color: hsl(var(--weather-condition-surface-sunny) / 0.72);
+  }
+
+  .weather-condition-band-partly-cloudy {
+    background-color: hsl(var(--weather-condition-surface-partly-cloudy) / 0.72);
+  }
+
+  .weather-condition-band-cloudy {
+    background-color: hsl(var(--weather-condition-surface-cloudy) / 0.72);
+  }
+
+  .weather-condition-band-rainy {
+    background-color: hsl(var(--weather-condition-surface-rainy) / 0.72);
+  }
+
+  .weather-condition-band-snowy {
+    background-color: hsl(var(--weather-condition-surface-snowy) / 0.72);
+  }
+
+  .weather-condition-band-stormy {
+    background-color: hsl(var(--weather-condition-surface-stormy) / 0.72);
+  }
+
+  .weather-condition-icon-sunny {
+    color: hsl(var(--weather-condition-sunny));
+  }
+
+  .weather-condition-icon-partly-cloudy {
+    color: hsl(var(--weather-condition-partly-cloudy));
+  }
+
+  .weather-condition-icon-cloudy {
+    color: hsl(var(--weather-condition-cloudy));
+  }
+
+  .weather-condition-icon-rainy {
+    color: hsl(var(--weather-condition-rainy));
+  }
+
+  .weather-condition-icon-snowy {
+    color: hsl(var(--weather-condition-snowy));
+  }
+
+  .weather-condition-icon-stormy {
+    color: hsl(var(--weather-condition-stormy));
+  }
+
+  /* The compact portrait card already gives the hourly bar the available
+     glanceable space. Keep the full forecast in the DOM for normal layouts,
+     but avoid exposing an orphaned heading when the wall card cannot fit its
+     daily rows yet. Taller portrait cards keep the complete section. */
+  @media (orientation: portrait) {
+    .wall-display .wall-weather-forecast-compact {
+      display: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wall-display .wall-nav-item,
+  .wall-display .wall-portrait-nav-item,
+  .wall-display .wall-event-card {
+    transition: none;
+  }
+}
+
+/* Dialogs and popovers render through portals, outside AppShell. Keep those
+   surfaces in the same Daybook family without requiring every modal to know
+   about the wall shell. */
+body:has(.wall-display) [role='dialog'],
+body:has(.wall-display) [data-radix-popper-content-wrapper] > * {
+  border-radius: var(--wall-radius-lg, 1.15rem);
+}
+
+body:has(.wall-display) [role='dialog'] input:not([type='hidden']),
+body:has(.wall-display) [role='dialog'] textarea,
+body:has(.wall-display) [role='dialog'] select {
+  min-height: 48px;
+  border-radius: var(--wall-radius-sm, 0.75rem);
 }

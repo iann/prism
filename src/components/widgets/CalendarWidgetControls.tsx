@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -76,8 +76,15 @@ export function CalendarWidgetControls({
 
   return (
     // Layout mirrors the calendar subpage toolbar: Today | < > | view menu |
-    // gear popover. All controls share h-8 so the toolbar reads as one band.
-    <div className="flex items-stretch gap-1" onClick={(e) => e.stopPropagation()}>
+    // gear popover. All controls share a wall-friendly 44px baseline.
+    // data-screensaver-keep: taps on these controls must NOT dismiss the
+    // screensaver overlay, so the view can be changed in place. useIdleDetection
+    // checks for this attribute before dismissing on pointer-down.
+    <div
+      className="wall-calendar-controls flex items-center gap-2"
+      data-screensaver-keep
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Navigation (hidden in agenda-only mode) */}
       {availableViews.length > 1 && resolvedView !== 'agenda' && (
         <>
@@ -86,7 +93,7 @@ export function CalendarWidgetControls({
             size="sm"
             onClick={goToToday}
             className={cn(
-              'h-8 px-2 text-xs',
+              'h-11 px-3 text-sm',
               // The widget toolbar inherits its background from
               // WidgetContainer, which can be transparent over a wallpaper.
               // Without an explicit foreground color, "Today" renders white-
@@ -98,10 +105,10 @@ export function CalendarWidgetControls({
           >
             Today
           </Button>
-          <Button variant="outline" size="icon" onClick={goToPrevious} aria-label="Previous" className="h-8 w-8">
+          <Button variant="outline" size="icon" onClick={goToPrevious} aria-label="Previous" className="rounded-xl">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={goToNext} aria-label="Next" className="h-8 w-8">
+          <Button variant="outline" size="icon" onClick={goToNext} aria-label="Next" className="rounded-xl">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </>
@@ -142,7 +149,7 @@ export function CalendarWidgetControls({
         onOverlaysChange={setOverlays}
         showOverlayRows={showOverlayRows}
         onReset={resetAll}
-        triggerClassName="h-8"
+        triggerClassName="h-11"
       />
     </div>
   );
@@ -179,18 +186,15 @@ function ViewPopover({
   };
 
   return (
-    // Fixed h-8 on the parent + h-full on the trigger + grid-rows-2 (1fr each)
-    // on the triangle stack guarantees the trigger and stack share the same
-    // top AND bottom edges exactly. Same pattern as the calendar page's
-    // ViewMenu, scaled down for the widget toolbar.
-    <div className="inline-flex items-stretch gap-1 h-8">
+    // Keep the view picker and cycle controls on the same 44px touch baseline.
+    <div className="inline-flex items-center gap-1.5 h-11">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
             aria-label="Calendar view"
             className={cn(
-              'inline-flex items-center justify-center gap-1 h-full w-24 px-2 text-xs rounded border border-input bg-background hover:opacity-90',
+              'inline-flex items-center justify-center gap-1 h-full w-28 px-3 text-sm rounded-xl border border-input/70 bg-background hover:bg-accent hover:text-accent-foreground',
               transparentMode && 'bg-transparent border-current/20',
             )}
           >
@@ -198,7 +202,7 @@ function ViewPopover({
             <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-32 p-1">
+        <PopoverContent align="end" className="w-32 p-1 z-[10000]" data-screensaver-keep>
           {VIEW_OPTIONS.map((opt) => {
             const isActive = opt.value === viewType;
             const isAvailable = availableViews.includes(opt.value);
@@ -212,7 +216,7 @@ function ViewPopover({
                   setOpen(false);
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-2 py-1 text-xs',
+                  'flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm',
                   'hover:bg-accent hover:text-accent-foreground transition-colors',
                   isActive ? 'bg-accent/60 text-foreground font-medium' : 'text-muted-foreground',
                   !isAvailable && 'opacity-40 cursor-not-allowed',
@@ -224,24 +228,24 @@ function ViewPopover({
           })}
         </PopoverContent>
       </Popover>
-      <div className="grid grid-rows-2 gap-0.5 w-7 h-full">
+      <div className="inline-flex items-center gap-1.5 h-full">
         <button
           type="button"
           aria-label="Previous view"
           title="Previous view"
           onClick={() => cycle(-1)}
-          className="rounded border border-input hover:bg-accent inline-flex items-center justify-center min-h-0"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-input/70 hover:bg-accent"
         >
-          <span className="block text-[10px] leading-none">▲</span>
+          <ChevronUp className="h-5 w-5" />
         </button>
         <button
           type="button"
           aria-label="Next view"
           title="Next view"
           onClick={() => cycle(1)}
-          className="rounded border border-input hover:bg-accent inline-flex items-center justify-center min-h-0"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-input/70 hover:bg-accent"
         >
-          <span className="block text-[10px] leading-none">▼</span>
+          <ChevronDown className="h-5 w-5" />
         </button>
       </div>
     </div>

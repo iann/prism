@@ -51,15 +51,14 @@ function shortDisplayName(result: NominatimResult): string {
   return [city, state, country].filter(Boolean).join(', ');
 }
 
-/** Like shortDisplayName but appends the postal code, for ZIP lookups. */
+/** Keep ZIP searches focused on the resolved city and region, not the ZIP itself. */
 function postalDisplayName(result: NominatimResult, zip: string): string {
   const a = result.address;
   const city = a?.city ?? a?.town ?? a?.village ?? '';
   const state = a?.state ?? '';
   const country = a?.country_code?.toUpperCase() ?? a?.country ?? '';
   const base = [city, state, country].filter(Boolean).join(', ');
-  const code = a?.postcode ?? zip;
-  return base ? `${base} ${code}` : code;
+  return base || zip;
 }
 
 export async function GET(request: NextRequest) {
@@ -72,7 +71,7 @@ export async function GET(request: NextRequest) {
     const results: LocationCandidate[] = [];
 
     // Postal-code path. A bare number in a fuzzy free-text search returns noisy
-    // matches (e.g. "60062" also hits a Greek municipality), so resolve postal
+    // matches (e.g. a bare US ZIP can also hit a foreign municipality), so resolve postal
     // codes authoritatively and return them directly:
     //  1. OWM's zip endpoint when a key is configured, else
     //  2. a KEYLESS Nominatim *structured* postalcode query (one clean result).
@@ -89,7 +88,7 @@ export async function GET(request: NextRequest) {
           if (res.ok) {
             const data: OWMZipResult = await res.json();
             results.push({
-              displayName: `${data.name}, ${data.country} ${zip}`,
+              displayName: `${data.name}, ${data.country}`,
               lat: data.lat,
               lon: data.lon,
               country: data.country,

@@ -255,7 +255,32 @@ async function seed() {
     },
   ]);
 
-  console.log(`  Created 15 events (10 one-off + 5 recurring)`);
+  // Additional one-off events — fill out the month so week / multi-week /
+  // month calendar views look like a busy family of four. Spread from ~2 weeks
+  // back to ~5 weeks ahead. Colors follow each source (family/Jordan pink,
+  // Alex blue, Emma green, Sophie amber).
+  await db.insert(schema.events).values([
+    // ── Past two weeks ──────────────────────────────────────────────────────
+    { calendarSourceId: calEmma.id,   title: 'Soccer Game',              location: 'Community Park',    startTime: atTime(daysAgo(11), 10, 0), endTime: atTime(daysAgo(11), 11, 30), color: '#10B981', createdBy: jordan.id },
+    { calendarSourceId: calAlex.id,   title: 'Dentist',                  location: "Dr. Smith's Office", startTime: atTime(daysAgo(6), 8, 0),  endTime: atTime(daysAgo(6), 8, 45),  color: '#3B82F6', createdBy: alex.id },
+    { calendarSourceId: calFamily.id, title: "Dinner at Grandma Helen's", startTime: atTime(daysAgo(3), 17, 30), endTime: atTime(daysAgo(3), 20, 0), color: '#EC4899', createdBy: jordan.id },
+    // ── This week and next ──────────────────────────────────────────────────
+    { calendarSourceId: calSophie.id, title: 'Piano Lesson',             startTime: atTime(daysFromNow(2), 16, 0),  endTime: atTime(daysFromNow(2), 16, 45), color: '#F59E0B', createdBy: jordan.id },
+    { calendarSourceId: calEmma.id,   title: 'Art Class',                location: 'Community Center',  startTime: atTime(daysFromNow(3), 16, 0),  endTime: atTime(daysFromNow(3), 17, 0),  color: '#10B981', createdBy: jordan.id },
+    { calendarSourceId: calFamily.id, title: 'No School: Teacher Workday', allDay: true, startTime: atTime(daysFromNow(4), 0, 0), endTime: atTime(daysFromNow(5), 0, 0), color: '#EC4899', createdBy: jordan.id },
+    { calendarSourceId: calFamily.id, title: 'Neighborhood BBQ',         startTime: atTime(daysFromNow(6), 12, 0),  endTime: atTime(daysFromNow(6), 15, 0),  color: '#EC4899', createdBy: alex.id },
+    { calendarSourceId: calSophie.id, title: 'Birthday Party for Lucas', startTime: atTime(daysFromNow(7), 14, 0),  endTime: atTime(daysFromNow(7), 16, 0),  color: '#F59E0B', createdBy: jordan.id },
+    // ── Two to three weeks out ──────────────────────────────────────────────
+    { calendarSourceId: calAlex.id,   title: 'Work Conference',          location: 'Chicago',           allDay: true, startTime: atTime(daysFromNow(9), 0, 0), endTime: atTime(daysFromNow(12), 0, 0), color: '#3B82F6', createdBy: alex.id },
+    { calendarSourceId: calEmma.id,   title: 'Field Trip: Science Museum', allDay: true, startTime: atTime(daysFromNow(11), 0, 0), endTime: atTime(daysFromNow(12), 0, 0), color: '#10B981', createdBy: jordan.id },
+    { calendarSourceId: calFamily.id, title: 'Family Movie Night',       startTime: atTime(daysFromNow(13), 19, 0), endTime: atTime(daysFromNow(13), 21, 0), color: '#EC4899', createdBy: alex.id },
+    // ── A few weeks out ─────────────────────────────────────────────────────
+    { calendarSourceId: calFamily.id, title: 'Beach Trip',               location: 'Coastline',         allDay: true, startTime: atTime(daysFromNow(16), 0, 0), endTime: atTime(daysFromNow(19), 0, 0), color: '#EC4899', createdBy: alex.id },
+    { calendarSourceId: calEmma.id,   title: 'Piano Recital',            location: 'School Auditorium', startTime: atTime(daysFromNow(26), 18, 0), endTime: atTime(daysFromNow(26), 19, 30), color: '#10B981', createdBy: jordan.id },
+    { calendarSourceId: calFamily.id, title: 'Camping Weekend',          location: 'State Park',        allDay: true, startTime: atTime(daysFromNow(34), 0, 0), endTime: atTime(daysFromNow(36), 0, 0), color: '#EC4899', createdBy: alex.id },
+  ]);
+
+  console.log(`  Created 25 events (20 one-off + 5 recurring)`);
 
   // ─── CALENDAR NOTES ───────────────────────────────────────────────────────
   console.log('Creating calendar notes...');
@@ -275,7 +300,7 @@ async function seed() {
     .insert(schema.chores)
     .values([
       { title: 'Empty dishwasher',  description: 'Put away all clean dishes',     category: 'dishes',  assignedTo: emma.id,   frequency: 'daily',  pointValue: 5,  requiresApproval: false, nextDue: ymd(daysFromNow(0)), createdBy: jordan.id },
-      { title: 'Make bed',          description: 'Make your bed before school',   category: 'cleaning', frequency: 'daily',  pointValue: 2,  requiresApproval: false, nextDue: ymd(daysFromNow(0)), createdBy: jordan.id },
+      { title: 'Make bed',          description: 'Make your bed and tidy up',     category: 'cleaning', frequency: 'weekly', pointValue: 2,  requiresApproval: false, nextDue: ymd(daysFromNow(2)), createdBy: jordan.id, startDay: String((NOW.getDay() + 2) % 7) },
       { title: 'Feed the pets',     description: 'Feed the fish and cat',         category: 'pets',     assignedTo: sophie.id, frequency: 'daily',  pointValue: 3,  requiresApproval: false, nextDue: ymd(daysFromNow(0)), createdBy: alex.id },
       { title: 'Clean room',        description: 'Tidy up and vacuum your room',  category: 'cleaning', assignedTo: emma.id,   frequency: 'weekly', pointValue: 10, requiresApproval: true,  nextDue: ymd(daysFromNow(2)), createdBy: jordan.id, startDay: '0' },
       { title: 'Take out trash',    description: 'Curb by 7am Friday',            category: 'trash',    assignedTo: emma.id,   frequency: 'weekly', pointValue: 5,  requiresApproval: false, nextDue: ymd(daysFromNow(((5 - NOW.getDay()) + 7) % 7)), createdBy: alex.id, startDay: '5' },
@@ -672,23 +697,26 @@ async function seed() {
   };
 
   await db.insert(schema.meals).values([
-    // This week
+    // This week — mostly one meal a day (dinner), with a couple of extra
+    // breakfasts/snacks. Enough for the meal planner to read as a real week
+    // without crowding the calendar cards-mode cells.
     { name: 'Pancakes',                  dayOfWeek: 'sunday',    mealType: 'breakfast', weekOf: thisWeek, recipeId: recipePancakes.id, createdBy: alex.id },
-    { name: 'Cereal & fruit',            dayOfWeek: 'monday',    mealType: 'breakfast', weekOf: thisWeek, createdBy: jordan.id },
+    { name: 'Roast Chicken & Veggies',   dayOfWeek: 'sunday',    mealType: 'dinner',    weekOf: thisWeek, createdBy: alex.id },
     { name: 'Spaghetti and Meatballs',   dayOfWeek: 'monday',    mealType: 'dinner',    weekOf: thisWeek, recipeId: recipeSpag.id,     createdBy: jordan.id },
-    { name: 'Taco Tuesday',              dayOfWeek: 'tuesday',   mealType: 'dinner',    weekOf: thisWeek, recipeId: recipeTacos.id,    createdBy: jordan.id }, // ↓ .map adds `date`
+    { name: 'Taco Tuesday',              dayOfWeek: 'tuesday',   mealType: 'dinner',    weekOf: thisWeek, recipeId: recipeTacos.id,    createdBy: jordan.id },
     { name: 'Leftovers',                 dayOfWeek: 'wednesday', mealType: 'dinner',    weekOf: thisWeek, createdBy: alex.id },
+    { name: 'Apple slices',              dayOfWeek: 'wednesday', mealType: 'snack',     weekOf: thisWeek, createdBy: emma.id },
     { name: 'One-Pot Chicken Pasta',     dayOfWeek: 'thursday',  mealType: 'dinner',    weekOf: thisWeek, recipeId: recipePasta.id,    createdBy: alex.id },
     { name: 'Pizza Night',               dayOfWeek: 'friday',    mealType: 'dinner',    weekOf: thisWeek, createdBy: alex.id },
-    { name: 'Apple slices',              dayOfWeek: 'wednesday', mealType: 'snack',     weekOf: thisWeek, createdBy: emma.id },
+    { name: 'Weekend Pancakes',          dayOfWeek: 'saturday',  mealType: 'breakfast', weekOf: thisWeek, recipeId: recipePancakes.id, createdBy: alex.id },
     { name: 'Sheet Pan Meatball Pitas',  dayOfWeek: 'saturday',  mealType: 'dinner',    weekOf: thisWeek, recipeId: recipePita.id,     createdBy: jordan.id },
-    // Next week
+    // Next week — a few dinners so the planner scrolls forward with content.
     { name: 'Pancakes',                  dayOfWeek: 'sunday',    mealType: 'breakfast', weekOf: nextWeekStart, recipeId: recipePancakes.id, createdBy: alex.id },
     { name: 'Grilled Chicken Salad',     dayOfWeek: 'monday',    mealType: 'dinner',    weekOf: nextWeekStart, createdBy: alex.id },
     { name: 'Taco Tuesday',              dayOfWeek: 'tuesday',   mealType: 'dinner',    weekOf: nextWeekStart, recipeId: recipeTacos.id,    createdBy: jordan.id },
   ].map((m) => ({ ...m, date: seedMealDate(m.weekOf, m.dayOfWeek) })) as (typeof schema.meals.$inferInsert)[]);
 
-  console.log(`  Created 12 meal plans across this + next week`);
+  console.log(`  Created 13 meal plans across this + next week`);
 
   // ─── MAINTENANCE REMINDERS ────────────────────────────────────────────────
   console.log('Creating maintenance reminders...');
@@ -720,15 +748,43 @@ async function seed() {
   // ─── GOALS ────────────────────────────────────────────────────────────────
   console.log('Creating goals...');
 
-  await db.insert(schema.goals).values([
-    { name: 'Weekly Allowance', description: 'Earn your weekly spending money',   pointCost: 50,  emoji: '💰', priority: 1, recurring: true,  recurrencePeriod: 'weekly' },
-    { name: 'Ice Cream Trip',   description: 'Family trip to the ice cream shop', pointCost: 100, emoji: '🍦', priority: 2, recurring: false },
-    { name: 'Movie Night Pick', description: 'Pick the movie for family movie night', pointCost: 75, emoji: '🎬', priority: 3, recurring: false },
-    { name: 'New LEGO Set',     description: 'Earn a new LEGO set',               pointCost: 300, emoji: '🧱', priority: 4, recurring: false },
-    { name: 'Sleepover',        description: 'Host a sleepover with friends',     pointCost: 200, emoji: '🛏️', priority: 5, recurring: false },
-  ]);
+  await db
+    .insert(schema.goals)
+    .values([
+      { name: 'Weekly Allowance', description: 'Earn your weekly spending money',   pointCost: 50,  emoji: '💰', priority: 1, recurring: true,  recurrencePeriod: 'weekly' },
+      { name: 'Ice Cream Trip',   description: 'Family trip to the ice cream shop', pointCost: 100, emoji: '🍦', priority: 2, recurring: false },
+      { name: 'Movie Night Pick', description: 'Pick the movie for family movie night', pointCost: 75, emoji: '🎬', priority: 3, recurring: false },
+      { name: 'New LEGO Set',     description: 'Earn a new LEGO set',               pointCost: 300, emoji: '🧱', priority: 4, recurring: false },
+      { name: 'Sleepover',        description: 'Host a sleepover with friends',     pointCost: 200, emoji: '🛏️', priority: 5, recurring: false },
+    ]);
 
   console.log(`  Created 5 goals`);
+
+  // ─── BABYSITTER INFO ──────────────────────────────────────────────────────
+  console.log('Creating babysitter info...');
+
+  await db.insert(schema.babysitterInfo).values([
+    // Emergency contacts
+    { section: 'emergency_contact', sortOrder: 0, content: { name: 'Alex Parker',   relationship: 'Dad (cell)',              phone: '(555) 234-1010', isPrimary: 'true' } },
+    { section: 'emergency_contact', sortOrder: 1, content: { name: 'Jordan Parker', relationship: 'Mom (cell)',              phone: '(555) 234-1011', isPrimary: 'true' } },
+    { section: 'emergency_contact', sortOrder: 2, content: { name: 'Grandma Helen', relationship: 'Grandmother, 5 min away',  phone: '(555) 234-2020', isPrimary: 'false' } },
+    { section: 'emergency_contact', sortOrder: 3, content: { name: 'Poison Control', relationship: '24/7 hotline',            phone: '(800) 222-1222', isPrimary: 'false' } },
+    // House info (WiFi password + door code marked sensitive = PIN to reveal)
+    { section: 'house_info', sortOrder: 0, content: { label: 'Address',         value: '42 Maple Street, Springfield, IL' } },
+    { section: 'house_info', sortOrder: 1, content: { label: 'WiFi Network',    value: 'ParkerFamily' } },
+    { section: 'house_info', sortOrder: 2, content: { label: 'WiFi Password',   value: 'sunflower-2231' }, isSensitive: true },
+    { section: 'house_info', sortOrder: 3, content: { label: 'Front Door Code', value: '4297' }, isSensitive: true },
+    { section: 'house_info', sortOrder: 4, content: { label: 'Trash Day',       value: 'Friday morning, bins by the curb' } },
+    // Children
+    { section: 'child_info', sortOrder: 0, content: { name: 'Emma',   age: '11', allergies: 'None',                                medications: 'None', bedtime: '8:30 PM', notes: 'Reads before lights out. Nightlight stays on.' } },
+    { section: 'child_info', sortOrder: 1, content: { name: 'Sophie', age: '8',  allergies: 'Peanuts (EpiPen in kitchen drawer)', medications: 'None', bedtime: '7:30 PM', notes: 'Needs her stuffed otter to sleep. Story after teeth brushing.' } },
+    // House rules
+    { section: 'house_rule', sortOrder: 0, content: { rule: 'Screens off one hour before bedtime.',                    importance: 'high' } },
+    { section: 'house_rule', sortOrder: 1, content: { rule: 'Snacks are okay from the pantry, no candy after dinner.', importance: 'medium' } },
+    { section: 'house_rule', sortOrder: 2, content: { rule: 'Keep the back door locked and the pool gate closed.',     importance: 'high' } },
+  ]);
+
+  console.log(`  Created 14 babysitter info entries`);
 
   // ─── WISH LISTS (per-member items) ────────────────────────────────────────
   console.log('Creating wish lists...');

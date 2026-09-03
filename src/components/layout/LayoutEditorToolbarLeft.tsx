@@ -48,7 +48,6 @@ interface ToolbarLeftProps {
   onCreateOpen: () => void;
   onRenameOpen: () => void;
 }
-
 const btnClass = 'px-2 py-1.5 text-xs rounded-md whitespace-nowrap transition-colors';
 const moreItemClass = 'w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors';
 
@@ -201,7 +200,7 @@ export function LayoutEditorToolbarLeft({
         width={640}
       >
         <div className="p-3 max-h-[60vh] overflow-auto">
-          <CommunityGallery mode={mode} onApplyLayout={onApplyCommunityLayout} />
+          <CommunityGallery mode={mode} onApplyLayout={onApplyCommunityLayout} currentOrientation={screenGuideOrientation} />
         </div>
       </PopoverButton>
 
@@ -238,4 +237,3 @@ export function LayoutEditorToolbarLeft({
     </div>
   );
 }
-

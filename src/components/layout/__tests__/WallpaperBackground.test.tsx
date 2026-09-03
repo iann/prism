@@ -55,7 +55,7 @@ describe('WallpaperBackground', () => {
 
     expect(mockUsePhotos).toHaveBeenCalledWith(expect.objectContaining({
       enabled: true,
-      limit: 10,
+      limit: 40,
     }));
   });
 });

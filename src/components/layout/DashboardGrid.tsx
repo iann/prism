@@ -148,7 +148,7 @@ export function DashboardLayout({
     <div
       className={cn(
         // Full viewport
-        'min-h-screen w-full',
+        'min-h-[var(--app-vh,100vh)] w-full',
         // Transparent background to allow wallpaper to show through
         // Flex column for header + content
         'flex flex-col',
@@ -211,17 +211,18 @@ export function DashboardHeader({
   const hidden = uiHidden || measureHideChrome;
   return (
     <header className={cn(
+      'wall-dashboard-header',
       // 'relative z-10' is load-bearing: WallpaperBackground is fixed at z-0,
       // and without our own stacking context the toolbar would paint underneath
       // it whenever backdrop-blur is disabled (e.g. perf mode).
       'relative z-10 flex-shrink-0 bg-card dark:bg-card/95 dark:backdrop-blur-sm px-4 transition-all duration-500 ease-in-out overflow-hidden',
       hidden ? 'opacity-0 max-h-0 py-0' : 'max-h-20 py-2 delay-200'
-    )}>
+    )} data-chrome-hidden={hidden ? 'true' : undefined}>
       <div className="flex items-center justify-end gap-2">
         {onEditClick && (
           <button
             onClick={onEditClick}
-            className="p-2 rounded-md hover:bg-accent transition-colors"
+            className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
             aria-label="Edit layout"
           >
             <GridEditIcon />
@@ -230,7 +231,7 @@ export function DashboardHeader({
 
         <button
           onClick={() => window.location.reload()}
-          className="p-2 rounded-md hover:bg-accent transition-colors"
+          className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
           aria-label="Refresh page"
         >
           <RefreshCw className="h-5 w-5" />
@@ -244,7 +245,7 @@ export function DashboardHeader({
           <button
             onMouseDown={(e) => { e.stopPropagation(); }}
             onClick={(e) => { e.stopPropagation(); onScreensaverClick(); }}
-            className="p-2 rounded-md hover:bg-accent transition-colors"
+            className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
             aria-label="Start screensaver"
           >
             <ScreensaverIcon />

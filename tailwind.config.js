@@ -82,7 +82,9 @@ module.exports = {
 
       fontFamily: {
         sans: [
-          'Inter',
+          'var(--font-dm-sans, DM Sans)',
+          'DM Sans',
+          'Inter Fallback',
           'system-ui',
           '-apple-system',
           'BlinkMacSystemFont',

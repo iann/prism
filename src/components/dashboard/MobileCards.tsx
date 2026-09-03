@@ -3,7 +3,7 @@
 import React, { useMemo, createContext, useContext } from 'react';
 import { DAYS_OF_WEEK } from '@/lib/constants/days';
 import type { MobileLayoutMode } from '@/lib/hooks/useMobileLayout';
-import { format, isToday, isTomorrow, startOfWeek } from 'date-fns';
+import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
 import Link from 'next/link';
 import {
   Calendar,
@@ -30,6 +30,8 @@ import type { useDashboardData } from './useDashboardData';
 import type { CalendarEvent } from '@/types/calendar';
 import type { BusRouteStatus, BusPrediction } from '@/lib/hooks/useBusTracking';
 import { getBusStatusColorClass } from '@/components/widgets/busStatusColors';
+import { useTimeFormat } from '@/components/providers';
+import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 
 type DashData = ReturnType<typeof useDashboardData>;
 
@@ -45,7 +47,7 @@ function CardShell({ href, icon, title, count, children }: {
 }) {
   const compact = useContext(LayoutCtx) === 'tiles';
   const inner = (
-    <div className={`bg-card dark:bg-card/85 dark:backdrop-blur-sm rounded-xl border border-border hover:border-primary dark:hover:border-primary/30 transition-colors ${compact ? 'p-3' : 'p-3'}`}>
+    <div className={`wall-card bg-card rounded-xl border border-border/55 shadow-sm hover:border-primary transition-colors ${compact ? 'p-3' : 'p-3'}`}>
       <div className={`flex items-center justify-between ${compact ? '' : 'mb-2'}`}>
         <div className="flex items-center gap-2 min-w-0">
           {icon}
@@ -80,7 +82,7 @@ export function WeatherCard({ data }: { data: DashData['weather'] }) {
     <Cloud className={iconCls} />;
 
   return (
-    <div className="bg-card dark:bg-card/85 dark:backdrop-blur-sm rounded-xl border border-border p-3 flex items-center gap-3">
+    <div className="wall-card bg-card rounded-xl border border-border/55 shadow-sm p-3 flex items-center gap-3">
       {icon}
       <span className="text-2xl font-light tabular-nums">{Math.round(cur.temperature)}°{wd.units.temperature}</span>
       <span className="text-sm text-muted-foreground capitalize">{cur.description}</span>
@@ -89,16 +91,20 @@ export function WeatherCard({ data }: { data: DashData['weather'] }) {
 }
 
 export function ClockCard() {
+  const { timeFormat, displayTimezone } = useTimeFormat();
+  const now = new Date();
+  const displayNow = toDisplayDate(now, displayTimezone);
   return (
-    <div className="bg-card dark:bg-card/85 dark:backdrop-blur-sm rounded-xl border border-border p-3 flex items-center gap-3">
+    <div className="wall-card bg-card rounded-xl border border-border/55 shadow-sm p-3 flex items-center gap-3">
       <Clock className="h-5 w-5 text-muted-foreground" />
-      <span className="text-2xl font-light tabular-nums">{format(new Date(), 'h:mm a')}</span>
-      <span className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, MMM d')}</span>
+      <span className="text-2xl font-light tabular-nums">{formatDisplayTime(now, timeFormat, {}, displayTimezone)}</span>
+      <span className="text-sm text-muted-foreground">{format(displayNow, 'EEEE, MMM d')}</span>
     </div>
   );
 }
 
 export function CalendarCard({ data }: { data: DashData['calendar'] }) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const upcoming = useMemo(() => {
     if (!data.events) return [];
     const now = new Date();
@@ -114,17 +120,21 @@ export function CalendarCard({ data }: { data: DashData['calendar'] }) {
         <p className="text-xs text-muted-foreground">No upcoming events</p>
       ) : (
         <div className="space-y-1">
-          {upcoming.map((e: CalendarEvent) => (
+          {upcoming.map((e: CalendarEvent) => {
+            const displayStart = toDisplayDate(e.startTime, displayTimezone);
+            const displayNow = toDisplayDate(new Date(), displayTimezone);
+            return (
             <div key={e.id} className="flex items-center gap-2 text-xs">
               <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
               <span className="truncate flex-1">{e.title}</span>
               <span className="text-muted-foreground shrink-0">
-                {isToday(e.startTime) ? format(e.startTime, 'h:mm a') :
-                 isTomorrow(e.startTime) ? `Tomorrow ${format(e.startTime, 'h:mm a')}` :
-                 format(e.startTime, 'EEE h:mm a')}
+                {isSameDay(displayStart, displayNow) ? formatDisplayTime(e.startTime, timeFormat, {}, displayTimezone) :
+                 isSameDay(displayStart, addDays(displayNow, 1)) ? `Tomorrow ${formatDisplayTime(e.startTime, timeFormat, {}, displayTimezone)}` :
+                 `${format(displayStart, 'EEE')} ${formatDisplayTime(e.startTime, timeFormat, {}, displayTimezone)}`}
               </span>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </CardShell>

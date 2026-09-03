@@ -2,6 +2,9 @@
 
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
+import { useIdleDetection } from '@/lib/hooks/useIdleDetection';
+import { useAwayMode } from '@/lib/hooks/useAwayMode';
+import { useBabysitterMode } from '@/lib/hooks/useBabysitterMode';
 import { usePhotos } from '@/lib/hooks/usePhotos';
 import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
 import {
@@ -17,7 +20,22 @@ import { useDashboardData } from '@/components/dashboard/useDashboardData';
 import { buildWidgetProps } from '@/components/dashboard/useWidgetProps';
 import { GRID_COLS } from '@/lib/constants/grid';
 import { CssGridDisplay } from '@/components/layout/grid/CssGridDisplay';
+import { CalendarPrefsScopeContext } from '@/lib/hooks/useCalendarWidgetPrefs';
 import { loadScreensaverLayout } from './screensaverStorage';
+import { shouldShowScreensaver } from './shouldShowScreensaver';
+
+/**
+ * Wrapper classes that make any dashboard widget legible as a screensaver
+ * overlay: transparent backgrounds, light borders, forced white text, and a
+ * soft shadow so content remains readable over bright photos.
+ */
+export const SCREENSAVER_WIDGET_CLASS =
+  'h-full w-full ' +
+  '[&_*]:!bg-transparent [&_.bg-card]:!bg-white/10 [&_.border-border]:!border-white/20 ' +
+  // Force white text for legibility over the photo — EXCEPT elements marked
+  // data-keep-color (e.g. the birthdays "days until" urgency coloring), which
+  // keep their own color but still get the shadow.
+  '[&_*:not([data-keep-color])]:!text-white [&_*]:[text-shadow:0_1px_4px_rgba(0,0,0,0.75)]';
 
 // Re-export storage utilities for consumers
 export {
@@ -30,7 +48,20 @@ export {
 } from './screensaverStorage';
 
 export function Screensaver() {
+  const { isIdle: idleNow } = useIdleDetection();
   const { enabled: performanceMode } = usePerformanceMode();
+  // Away and Babysitter are deliberate, someone-chose-this states, and each
+  // puts its own full-screen overlay up. The screensaver is rendered after both
+  // in LazyOverlays, so on an untouched display it simply covered them: a home
+  // left in Away mode showed holiday photos instead of the away screen, and the
+  // babysitter's information disappeared behind them exactly when nobody was
+  // there to touch the screen and bring it back.
+  //
+  // Idleness is the weakest of the three signals — it means only that nobody
+  // has touched anything — so it yields to both.
+  const { isAway } = useAwayMode();
+  const { isActive: isBabysitter } = useBabysitterMode();
+  const isIdle = shouldShowScreensaver({ idle: idleNow, away: isAway, babysitter: isBabysitter });
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: screensaverInterval } = useScreensaverInterval();
@@ -53,7 +84,7 @@ export function Screensaver() {
 
   // Only rotate if no pinned photo and interval is not "never" (0)
   useEffect(() => {
-    if (photos.length <= 1 || pinnedId || screensaverInterval === 0) return;
+    if (!isIdle || photos.length <= 1 || pinnedId || screensaverInterval === 0) return;
     const timer = setInterval(() => {
       setFadingOut(true);
       setTimeout(() => {
@@ -62,12 +93,17 @@ export function Screensaver() {
       }, 1000);
     }, screensaverInterval * 1000);
     return () => clearInterval(timer);
-  }, [photos.length, pinnedId, screensaverInterval]);
+  }, [isIdle, photos.length, pinnedId, screensaverInterval]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isIdle) {
+      const timer = setTimeout(() => setVisible(true), 50);
+      return () => clearTimeout(timer);
+    }
+    setVisible(false);
+  }, [isIdle]);
+
+  if (!isIdle) return null;
 
   // Use pinned photo if set, otherwise use rotating photos
   const src = pinnedId
@@ -82,16 +118,20 @@ export function Screensaver() {
         visible ? 'opacity-100' : 'opacity-0'
       }`}
     >
+      {/* Decorative layers are absolutely positioned, so in CSS paint order they
+          sit ABOVE the (statically-positioned) widget grid and would swallow every
+          tap. pointer-events-none lets taps fall through to the widgets — needed
+          for the calendar view controls to be operable on the screensaver. */}
       {src && (
         <div
-          className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+          className="pointer-events-none absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
           style={{
             backgroundImage: `url(${src})`,
             opacity: fadingOut ? 0 : 1,
           }}
         />
       )}
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="pointer-events-none absolute inset-0 bg-black/40" />
       <ScreensaverGrid />
     </div>
   );
@@ -106,7 +146,9 @@ function ScreensaverGrid() {
       ),
     [layout]
   );
-  const data = useDashboardData(visibleWidgets);
+  // The screensaver layout is fixed while mounted, so do not defer-enable
+  // domains for widgets that will never be rendered by this overlay.
+  const data = useDashboardData(visibleWidgets, { deferRest: false });
   const widgetProps = useMemo(
     () =>
       buildWidgetProps(
@@ -169,25 +211,31 @@ function ScreensaverGrid() {
   // Override renderWidget to inject screensaver text defaults (white text)
   const renderScreensaverWidget = React.useCallback(
     (w: WidgetConfig) => {
-      return renderWidget({
+      const rendered = renderWidget({
         ...w,
         textColor: w.textColor || '#FFFFFF',
         textOpacity: w.textOpacity ?? (w.textColor ? 1 : 0.9),
       });
+      return rendered ? <div className={SCREENSAVER_WIDGET_CLASS}>{rendered}</div> : null;
     },
     [renderWidget]
   );
 
   return (
-    <CssGridDisplay
-      layout={layout}
-      renderWidget={renderScreensaverWidget}
-      margin={4}
-      containerPadding={12}
-      cols={GRID_COLS}
-      fillHeight
-      className="h-full w-full"
-    />
+    // Scope calendar prefs to 'screensaver' so the screensaver's calendar keeps
+    // its own view/display settings, independent of the dashboard calendar.
+    <CalendarPrefsScopeContext.Provider value="screensaver">
+      <CssGridDisplay
+        layout={layout}
+        renderWidget={renderScreensaverWidget}
+        margin={4}
+        containerPadding={12}
+        cols={GRID_COLS}
+        containMode
+        headerOffset={0}
+        className="w-full h-full"
+      />
+    </CalendarPrefsScopeContext.Provider>
   );
 }
 

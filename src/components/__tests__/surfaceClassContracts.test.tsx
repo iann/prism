@@ -2,22 +2,40 @@
  * @jest-environment jsdom
  */
 
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen, type RenderOptions } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { AgendaView } from '@/components/calendar/AgendaView';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from '@/components/calendar/eventStyles';
 import { WeatherCard } from '@/components/dashboard/MobileCards';
+import { TimeFormatProvider } from '@/components/providers';
 import { Card } from '@/components/ui/card';
 import type { CalendarEvent } from '@/types/calendar';
+import type { ReactElement } from 'react';
 
-function expectOpaqueLightTranslucentDark(element: Element) {
+const render = (ui: ReactElement, options?: RenderOptions) =>
+  rtlRender(ui, { wrapper: TimeFormatProvider, ...options });
+
+beforeAll(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ settings: {} }) }),
+  ) as unknown as typeof fetch;
+});
+
+afterAll(() => {
+  delete (global as { fetch?: unknown }).fetch;
+});
+
+function expectSoftCardSurface(element: Element) {
   expect(element.classList.contains('bg-card')).toBe(true);
   expect(element.classList.contains('bg-card/85')).toBe(false);
   expect(element.classList.contains('backdrop-blur-sm')).toBe(false);
-  expect(element.classList.contains('dark:bg-card/85')).toBe(true);
-  expect(element.classList.contains('dark:backdrop-blur-sm')).toBe(true);
+  expect(element.classList.contains('dark:bg-card/85')).toBe(false);
+  expect(element.classList.contains('dark:backdrop-blur-sm')).toBe(false);
+  expect(element.classList.contains('border-border/55')).toBe(true);
+  expect(element.classList.contains('rounded-xl')).toBe(true);
+  expect(element.classList.contains('shadow-sm')).toBe(true);
 }
 
 function expectSemanticCalendarSurface(element: Element) {
@@ -66,7 +84,7 @@ describe('surface class contracts', () => {
   it('keeps the shared Card opaque in light mode and translucent in dark mode', () => {
     const { container } = render(<Card>Card content</Card>);
 
-    expectOpaqueLightTranslucentDark(container.firstElementChild!);
+    expectSoftCardSurface(container.firstElementChild!);
   });
 
   it('uses the same contract for a representative mobile dashboard card', () => {
@@ -83,7 +101,7 @@ describe('surface class contracts', () => {
     };
     const { container } = render(<WeatherCard data={data as never} />);
 
-    expectOpaqueLightTranslucentDark(container.firstElementChild!);
+    expectSoftCardSurface(container.firstElementChild!);
   });
 
   it('keeps calendar event cards opaque with a full light border', () => {
@@ -109,6 +127,33 @@ describe('surface class contracts', () => {
     const eventCard = screen.getByText(event.title).closest('button');
     expect(eventCard).not.toBeNull();
     expectSemanticCalendarSurface(eventCard!);
+  });
+
+  it('inherits contrast ink for light-colored inline agenda events', () => {
+    const startTime = new Date();
+    startTime.setHours(0, 0, 0, 0);
+    const event: CalendarEvent = {
+      id: 'inline-orange-event',
+      title: 'Inline orange event',
+      startTime,
+      endTime: new Date(startTime.getTime() + 24 * 60 * 60_000),
+      allDay: true,
+      color: '#f59e0b',
+      calendarName: 'Family',
+      calendarId: 'family',
+    };
+
+    render(
+      <DndContext>
+        <AgendaView events={[event]} displayMode="inline" onEventClick={() => undefined} />
+      </DndContext>
+    );
+
+    const title = screen.getAllByText(event.title)[0]!;
+    const eventRow = title.closest('button');
+    expect(eventRow).not.toBeNull();
+    expect(title.classList.contains('text-white')).toBe(false);
+    expect(eventRow!.style.color).toBe('rgb(0, 0, 0)');
   });
 
   it('keeps calendar surfaces and borders semantic across modes', () => {
@@ -178,7 +223,7 @@ describe('surface class contracts', () => {
       expect(source).toMatch(/ring-(?:1|2) ring-inset ring-ring/);
     }
     expect(month).toContain("(cards || bordered) && 'border border-border'");
-    expect(month).toContain("'cursor-pointer overflow-hidden rounded-md'");
+    expect(month).toContain("'cursor-pointer overflow-visible rounded-md'");
   });
 
   it('uses semantic active calendar accents and current-color filter dots', () => {
@@ -221,8 +266,6 @@ describe('surface class contracts', () => {
     expect(alphaCards).toEqual([
       // Goal celebration is a transient overlay over a deliberately dark scrim.
       'src/components/ui/GoalCelebration.tsx:bg-card/95',
-      // This colors an hourly weather segment; it is not a card, header, or navigation surface.
-      'src/components/widgets/WeatherWidget.tsx:bg-card/80',
     ]);
   });
 
@@ -236,17 +279,36 @@ describe('surface class contracts', () => {
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
+      // Month-view weekday divider is decorative.
+      'src/components/calendar/MonthView.tsx:border-border/70',
+      // Calendar planning-group divider is decorative.
+      'src/components/calendar/cells/DayColumn.tsx:border-border/40',
+      'src/components/dashboard/MobileCards.tsx:border-border/55',
+      'src/components/dashboard/MobileCards.tsx:border-border/55',
+      'src/components/dashboard/MobileCards.tsx:border-border/55',
+      // Community gallery preview and hover boundaries are decorative.
+      'src/components/layout/CommunityGallery.tsx:border-border/70',
+      'src/components/layout/CommunityGallery.tsx:border-border/70',
+      'src/components/layout/CommunityGallery.tsx:hover:border-primary/40',
       'src/components/layout/CoordinateEditor.tsx:border-border/50',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
+      'src/components/layout/SideNav.tsx:border-border/45',
+      'src/components/layout/SubpageHeader.tsx:border-border/45',
+      'src/components/ui/card.tsx:border-border/55',
+      'src/components/ui/dialog.tsx:border-border/55',
+      'src/components/ui/select.tsx:border-border/60',
       'src/components/widgets/BirthdaysWidget.tsx:border-border/50',
-      'src/components/widgets/WeatherWidget.tsx:border-border/60',
-      'src/components/widgets/WeatherWidget.tsx:border-border/60',
-      'src/components/widgets/WeatherWidget.tsx:border-border/60',
+      'src/components/widgets/WeatherWidget.tsx:border-border/35',
+      'src/components/widgets/WeatherWidget.tsx:border-border/35',
+      'src/components/widgets/WeatherWidget.tsx:border-border/35',
+      'src/components/widgets/WeatherWidget.tsx:border-border/40',
+      'src/components/widgets/WeatherWidget.tsx:border-border/45',
+      'src/components/widgets/WeatherWidget.tsx:border-border/45',
     ]);
   });
 
-  it('allowlists only redundant avatar initials and decorative glyphs below 12px', () => {
+  it('allowlists only redundant, decorative, and compact calendar text below 12px', () => {
     const subTwelveText = collectProductionClasses(
       /(?:^|[\s'"])(?<className>text-\[(?:8|9|10|11)px\])(?=$|[\s'"])/gm
     );
@@ -260,10 +322,19 @@ describe('surface class contracts', () => {
       'src/app/chores/ChoreItem.tsx:text-[8px]',
       'src/app/chores/ChoreItem.tsx:text-[8px]',
       'src/app/meals/MealsView.tsx:text-[8px]',
+      // Compact OAuth scope strings are code snippets with fixed-width content.
+      'src/app/settings/sections/integrations/cards/GoogleManualTokenForm.tsx:text-[11px]',
       'src/app/tasks/TaskItem.tsx:text-[8px]',
       // Decorative selected-state check glyphs.
+      'src/app/travel/components/InlineChildAdd.tsx:text-[10px]',
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinForm.tsx:text-[10px]',
+      'src/app/travel/components/PinList.tsx:text-[10px]',
+      // Compact metadata and screen-size labels in the community gallery.
+      'src/components/layout/CommunityGallery.tsx:text-[10px]',
+      'src/components/layout/CommunityGallery.tsx:text-[11px]',
+      // Compact labels identify the device frames in the layout gallery.
+      'src/components/layout/DevicePreviewGallery.tsx:text-[9px]',
       // Navigation and modal avatar initials with adjacent names or labels.
       'src/components/layout/MobileFab.tsx:text-[10px]',
       'src/components/layout/MobileNav.tsx:text-[10px]',
@@ -271,15 +342,14 @@ describe('surface class contracts', () => {
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddTaskModal.tsx:text-[10px]',
-      // Decorative up/down triangle glyphs.
-      'src/components/widgets/CalendarWidgetControls.tsx:text-[10px]',
-      'src/components/widgets/CalendarWidgetControls.tsx:text-[10px]',
       // Compact avatar initials with adjacent names.
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',
       'src/components/widgets/MealsWidget.tsx:text-[8px]',
       'src/components/widgets/MessagesWidget.tsx:text-[10px]',
       'src/components/widgets/TasksWidget.tsx:text-[8px]',
+      // Compact sun/moon metadata.
+      'src/components/widgets/WeatherWidget.tsx:text-[11px]',
     ]);
   });
 });

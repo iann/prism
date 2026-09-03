@@ -73,10 +73,11 @@ function currentResponse(overrides: Partial<{
   };
 }
 
-function forecastItem(dt: number, temp: number, weatherId = 800) {
+function forecastItem(dt: number, temp: number, weatherId = 800, pop?: number) {
   return {
     dt,
     main: { temp, temp_min: temp - 2, temp_max: temp + 2 },
+    pop,
     weather: [{ id: weatherId, main: 'Weather', description: 'weather' }],
   };
 }
@@ -139,6 +140,18 @@ describe('fetchCurrentWeather — unit conversions', () => {
     const { fetchCurrentWeather } = await import('../openweather');
     const result = await fetchCurrentWeather();
     expect(result.windSpeed).toBe(0);
+  });
+
+  it('preserves a coordinate location display name', async () => {
+    mockFetch(currentResponse());
+    const { fetchCurrentWeather } = await import('../openweather');
+    const result = await fetchCurrentWeather({
+      lat: 42.46,
+      lon: -71.06,
+      displayName: 'Melrose, Massachusetts, US',
+    });
+
+    expect(result.locationName).toBe('Melrose, Massachusetts, US');
   });
 });
 
@@ -443,6 +456,51 @@ describe('fetchForecast — hourly slice', () => {
     expect(hourlyTimes).toContain(justIn);
     expect(hourlyTimes).toContain(future24);
     expect(hourlyTimes).not.toContain(tooFar);
+  });
+});
+
+describe('fetchWeatherData — forecast periods', () => {
+  it('uses the full forecast set and exposes the city fixed offset', async () => {
+    const morning = SEC(Date.UTC(2026, 4, 1, 11, 0, 0));
+    const afternoon = SEC(Date.UTC(2026, 4, 1, 19, 0, 0));
+    const evening = SEC(Date.UTC(2026, 4, 2, 1, 0, 0));
+    const items = [
+      forecastItem(morning, 283.15, 800, 0.1),
+      forecastItem(afternoon, 293.15, 500, 0.4),
+      forecastItem(evening, 288.15, 600, 0.8),
+    ];
+
+    jest
+      .spyOn(global, 'fetch' as never)
+      .mockResolvedValueOnce({ ok: true, json: async () => currentResponse() } as never)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => forecastResponse(items, CDT_OFFSET),
+      } as never);
+
+    const { fetchWeatherData } = await import('../openweather');
+    const result = await fetchWeatherData(undefined, {
+      units: { temperature: 'C', windSpeed: 'km/h', precipitation: 'mm' },
+    });
+
+    const byLabel = Object.fromEntries(
+      (result.periods ?? []).map((period) => [period.label, period])
+    );
+    expect(result.timezoneOffsetSeconds).toBe(CDT_OFFSET);
+    expect(byLabel.Morn).toMatchObject({
+      period: 'morning',
+      dateKey: '2026-05-01',
+      temp: 10,
+      condition: 'sunny',
+    });
+    expect(byLabel.Aft).toMatchObject({ period: 'afternoon', temp: 20, condition: 'rainy' });
+    expect(byLabel.Eve).toMatchObject({
+      period: 'evening',
+      temp: 15,
+      condition: 'snowy',
+      precipProbability: 80,
+    });
+    expect(result.hourly?.some((hour) => hour.time.getTime() === morning * 1000)).toBe(false);
   });
 });
 

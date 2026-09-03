@@ -42,16 +42,16 @@ describe.each([
     applyAppTheme(themeId, variant);
   });
 
-  it('uses the active theme ramp and the thicker range treatment', () => {
+  it('uses the vivid display ramp and the thicker range treatment', () => {
     const { container } = render(<DayHeader days={[makeDay()]} units={units} />);
     const range = container.querySelector('[data-weather-temperature-range]');
 
     expect(range).not.toBeNull();
     expect(range?.className).toContain('h-3');
     expect(range?.className).not.toContain('opacity-80');
-    expect(range?.getAttribute('style')).toContain('--weather-temp-freezing');
-    expect(range?.getAttribute('style')).toContain('--weather-temp-hot');
-    expect(range?.getAttribute('style')).toContain('saturate(1.18)');
+    expect(range?.getAttribute('style')).toContain('--weather-forecast-freezing');
+    expect(range?.getAttribute('style')).toContain('--weather-forecast-hot');
+    expect(range?.getAttribute('style')).toContain('saturate(1.22)');
   });
 });
 
