@@ -12,9 +12,25 @@ const FONT_SCALE_OPTIONS = [75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 130, 14
 
 export function DisplaysSection() {
   const { layouts, loading } = useLayouts();
+  const [homeAssistantConfigured, setHomeAssistantConfigured] = useState<boolean | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   // Optimistic local scale values — keyed by layout id
   const [localScales, setLocalScales] = useState<Record<string, number>>({});
+  const [localAppleTv, setLocalAppleTv] = useState<Record<string, boolean>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/integrations/home-assistant/config-status')
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('status unavailable')))
+      .then((status: { configured?: boolean }) => {
+        if (active) setHomeAssistantConfigured(status.configured === true);
+      })
+      .catch(() => {
+        if (active) setHomeAssistantConfigured(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   // Initialise local scales from loaded layouts (only once per layout)
   useEffect(() => {
@@ -27,6 +43,39 @@ export function DisplaysSection() {
       return next;
     });
   }, [layouts]);
+
+  useEffect(() => {
+    if (homeAssistantConfigured === null) return;
+    setLocalAppleTv((prev) => {
+      const next = { ...prev };
+      for (const layout of layouts) {
+        next[layout.id] ??= homeAssistantConfigured
+          ? layout.floatingCardSettings?.appleTvPlayback?.enabled ?? true
+          : false;
+      }
+      return next;
+    });
+  }, [homeAssistantConfigured, layouts]);
+
+  const updateAppleTv = async (layoutId: string, enabled: boolean) => {
+    const previous = localAppleTv[layoutId] ?? true;
+    setLocalAppleTv((prev) => ({ ...prev, [layoutId]: enabled }));
+    setSaveError(null);
+    setSaving(layoutId);
+    try {
+      const response = await fetch(`/api/layouts/${layoutId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ floatingCardSettings: { appleTvPlayback: { enabled } } }),
+      });
+      if (!response.ok) throw new Error('Apple TV setting could not be saved.');
+    } catch (error) {
+      setLocalAppleTv((prev) => ({ ...prev, [layoutId]: previous }));
+      setSaveError(error instanceof Error ? error.message : 'Apple TV setting could not be saved.');
+    } finally {
+      setSaving(null);
+    }
+  };
 
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const saveVersions = useRef<Record<string, number>>({});
@@ -126,6 +175,24 @@ export function DisplaysSection() {
                   )}
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 shrink-0 accent-primary"
+                      checked={homeAssistantConfigured === true && (localAppleTv[layout.id] ?? true)}
+                      disabled={homeAssistantConfigured !== true}
+                      onChange={(e) => void updateAppleTv(layout.id, e.target.checked)}
+                      aria-label={`Show Apple TV playback card on ${layout.name}`}
+                    />
+                    <span>
+                      {homeAssistantConfigured === true
+                        ? 'Show Apple TV playback card on this dashboard'
+                        : 'Apple TV playback unavailable until Home Assistant is configured'}
+                    </span>
+                  </label>
+                  {saveError && saving === null && (
+                    <p role="alert" className="text-sm text-destructive">{saveError}</p>
+                  )}
                   {/* Collapsed by default. Reading a dashboard from across a room is a
                       real case but an uncommon one, and leaving the control open put a
                       slider in front of everyone to serve the few who need it.

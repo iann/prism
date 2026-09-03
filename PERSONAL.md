@@ -782,6 +782,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: ae392e8e
 
+94. **Home Assistant Apple TV floating playback card**
+
+    Added a configurable full-desktop floating card backed by Home Assistant,
+    with entity discovery/manual entry, media artwork and metadata, a live
+    timeline with relative/local end time, playback/seek/volume/mute controls,
+    confirmed remote suspend plus player turn-off, and right-to-left upward
+    wrapping through a reusable floating-card stack.
+
+    Commit: daa6b81
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

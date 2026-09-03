@@ -325,6 +325,24 @@ describe('createLayoutSchema', () => {
       }).success
     ).toBe(false);
   });
+
+  it('accepts explicit Apple TV floating card settings', () => {
+    expect(createLayoutSchema.safeParse({
+      ...validLayout,
+      floatingCardSettings: { appleTvPlayback: { enabled: false } },
+    }).success).toBe(true);
+  });
+
+  it('rejects malformed or unknown floating card settings', () => {
+    expect(createLayoutSchema.safeParse({
+      ...validLayout,
+      floatingCardSettings: { appleTvPlayback: { enabled: 'no' } },
+    }).success).toBe(false);
+    expect(createLayoutSchema.safeParse({
+      ...validLayout,
+      floatingCardSettings: { appleTvPlayback: { enabled: true }, unknown: true },
+    }).success).toBe(false);
+  });
 });
 
 describe('validateRequest', () => {
