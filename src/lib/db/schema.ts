@@ -832,6 +832,9 @@ export const layouts = pgTable('layouts', {
   // Per-dashboard font scale (percentage, e.g. 90, 100, 110 — null = 100)
   fontScale: integer('font_scale'),
 
+  // Per-dashboard overlay settings. Secrets remain in api_credentials.
+  floatingCardSettings: jsonb('floating_card_settings'),
+
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

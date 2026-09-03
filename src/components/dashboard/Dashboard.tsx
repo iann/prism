@@ -12,6 +12,7 @@ import { GRID_COLS } from '@/lib/constants/grid';
 import { useScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
 import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
+import { useIsFullDesktop } from '@/lib/hooks/useIsFullDesktop';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useTaskLists } from '@/lib/hooks/useTaskLists';
 import { useRecipes } from '@/lib/hooks/useRecipes';
@@ -51,6 +52,8 @@ const MealModal = lazy(() =>
   import('@/app/meals/MealsView').then((m) => ({ default: m.MealModal }))
 );
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
+import { AppleTvPlaybackCard } from '@/components/widgets/AppleTvPlaybackCard';
+import { FloatingCardStack } from './FloatingCardStack';
 import { renderScreensaverPreview } from '@/components/screensaver/ScreensaverWidgetPreview';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { WidgetErrorBoundary } from '@/components/dashboard/WidgetErrorBoundary';
@@ -177,6 +180,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   // Detect portrait nav to offset grid height (nav covers bottom 80px + safe area)
   const deviceOrientation = useOrientation();
   const isMobile = useIsMobile();
+  const isFullDesktop = useIsFullDesktop();
   const { uiHidden } = useAutoHideUI();
   const hasPortraitNav = !isMobile && deviceOrientation === 'portrait';
   // Only reserve bottom space when nav is actually visible (not auto-hidden)
@@ -487,6 +491,14 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     );
   }, []);
 
+  const floatingCards = isFullDesktop && !layout.isEditing ? (
+    <FloatingCardStack bottomOffset={bottomOffset}>
+      <AppleTvPlaybackCard
+        enabled={layout.activeLayout?.floatingCardSettings?.appleTvPlayback?.enabled ?? true}
+      />
+    </FloatingCardStack>
+  ) : null;
+
   if (isMobile) {
     return (
       <AppShell
@@ -642,6 +654,8 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
             </WidgetErrorBoundary>
           )}
         </LCARSFrame>
+
+        {floatingCards}
 
         {showAddTask && (
           <AddTaskModal

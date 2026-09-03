@@ -394,8 +394,11 @@ CREATE TABLE IF NOT EXISTS public.layouts (
     slug character varying(100),
     screensaver_widgets jsonb,
     orientation character varying(20) DEFAULT 'landscape'::character varying,
-    font_scale integer
+    font_scale integer,
+    floating_card_settings jsonb
 );
+
+ALTER TABLE public.layouts ADD COLUMN IF NOT EXISTS floating_card_settings jsonb;
 
 
 --

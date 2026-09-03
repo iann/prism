@@ -5,6 +5,14 @@ import { layouts } from '@/lib/db/schema';
 import { eq, desc, isNull } from 'drizzle-orm';
 import { createLayoutSchema, validateRequest } from '@/lib/validations';
 import { logError } from '@/lib/utils/logError';
+import { getHomeAssistantConfig } from '@/lib/integrations/homeAssistantCredentials';
+
+const defaultFloatingCardSettings = { appleTvPlayback: { enabled: true } } as const;
+function withFloatingCardDefaults<T extends { floatingCardSettings: unknown }>(layout: T, configured: boolean) {
+  return configured && !layout.floatingCardSettings
+    ? { ...layout, floatingCardSettings: defaultFloatingCardSettings }
+    : layout;
+}
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -70,7 +78,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ layouts: results });
+    const configured = !!(await getHomeAssistantConfig());
+    return NextResponse.json({ layouts: results.map((layout) => withFloatingCardDefaults(layout, configured)) });
   } catch (error) {
     logError('Error fetching layouts:', error);
     return NextResponse.json(
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, slug: requestedSlug, isDefault, widgets, screensaverWidgets, orientation, createdBy } = validation.data;
+    const { name, slug: requestedSlug, isDefault, widgets, screensaverWidgets, orientation, createdBy, floatingCardSettings } = validation.data;
 
     const newLayout = await db.transaction(async (tx) => {
       if (isDefault) {
@@ -118,6 +127,7 @@ export async function POST(request: NextRequest) {
           screensaverWidgets: screensaverWidgets || null,
           orientation: orientation || 'landscape',
           createdBy: createdBy || null,
+          floatingCardSettings: floatingCardSettings || null,
         })
         .returning();
 

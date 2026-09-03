@@ -35,6 +35,7 @@ export interface Layout {
   screensaverWidgets: WidgetConfig[] | null;
   orientation: string;
   fontScale: number | null;
+  floatingCardSettings?: { appleTvPlayback: { enabled: boolean } };
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
