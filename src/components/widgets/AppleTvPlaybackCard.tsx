@@ -26,15 +26,14 @@ import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
 import { useAppleTvPlayback } from '@/lib/hooks/useAppleTvPlayback';
 import { estimateHomeAssistantAppleTvPosition } from '@/lib/integrations/homeAssistantAppleTv';
 import { useCurrentTime } from './ClockWidget';
+import { useTimeFormat } from '@/components/providers';
+import { formatDisplayTime } from '@/lib/utils/timeFormat';
 import { cn } from '@/lib/utils';
 
 const formatDuration = (seconds: number | null) =>
   seconds == null || !Number.isFinite(seconds)
     ? '--:--'
     : `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
-const formatEndTime = (date: Date) =>
-  date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-const APPLE_TV_MAX_SIZE = '32rem';
 const VOLUME_STEP = 0.05;
 
 export function AppleTvPlaybackCard({
@@ -45,6 +44,7 @@ export function AppleTvPlaybackCard({
   className?: string;
 }) {
   const { data, loading, error, action } = useAppleTvPlayback(enabled);
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const now = useCurrentTime();
   const { confirm, dialogProps } = useConfirmDialog();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -92,7 +92,6 @@ export function AppleTvPlaybackCard({
           'flex aspect-square w-[min(32rem,calc(100vw-2rem))] max-w-full flex-col gap-4 overflow-hidden p-4 px-8 pb-8',
           className
         )}
-        style={{ maxWidth: APPLE_TV_MAX_SIZE }}
         aria-label={`${deviceName} playback`}
       >
         <CardHeader className="shrink-0 flex-row items-center justify-between space-y-0 p-0">
@@ -201,7 +200,7 @@ export function AppleTvPlaybackCard({
                 <span>{formatDuration(position)}</span>
                 <span>
                   {endTime
-                    ? `Ends in ${formatDuration(Math.max(0, data.duration - (position ?? 0)))} · ${formatEndTime(endTime)}`
+                    ? `Ends in ${formatDuration(Math.max(0, data.duration - (position ?? 0)))} · ${formatDisplayTime(endTime, timeFormat, {}, displayTimezone)}`
                     : formatDuration(data.duration)}
                 </span>
               </div>

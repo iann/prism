@@ -792,6 +792,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: daa6b81
 
+95. **Apple TV and radar floating-card placement**
+
+    Keeps the precipitation radar anchored at the right edge, places newly
+    active Apple TV media to its left, and lets the floating cards share a
+    row before wrapping upward on smaller desktop widths.
+
+    Commit: 761461b5
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
