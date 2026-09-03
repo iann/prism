@@ -34,7 +34,6 @@ const formatDuration = (seconds: number | null) =>
   seconds == null || !Number.isFinite(seconds)
     ? '--:--'
     : `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
-const APPLE_TV_MAX_SIZE = '32rem';
 const VOLUME_STEP = 0.05;
 
 export function AppleTvPlaybackCard({
@@ -93,7 +92,6 @@ export function AppleTvPlaybackCard({
           'flex aspect-square w-[min(32rem,calc(100vw-2rem))] max-w-full flex-col gap-4 overflow-hidden p-4 px-8 pb-8',
           className
         )}
-        style={{ maxWidth: APPLE_TV_MAX_SIZE }}
         aria-label={`${deviceName} playback`}
       >
         <CardHeader className="shrink-0 flex-row items-center justify-between space-y-0 p-0">

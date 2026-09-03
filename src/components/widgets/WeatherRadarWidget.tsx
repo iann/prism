@@ -12,7 +12,6 @@ export type WeatherRadarWidgetProps = {
   bottomOffset?: number;
 };
 
-const RADAR_MAX_SIZE = '32rem';
 const RADAR_DISMISSED_UNTIL_KEY = 'prism:weather-radar-dismissed-until';
 const RADAR_DISMISS_DURATION_MS = 2 * 60 * 60 * 1000;
 
@@ -90,8 +89,7 @@ export const WeatherRadarWidget = React.memo(function WeatherRadarWidget({
 
   return (
     <div
-      className="relative z-[10000] aspect-square w-[min(32rem,calc(100vw-2rem))] max-w-full min-w-0 overflow-hidden rounded-xl"
-      style={{ maxWidth: RADAR_MAX_SIZE }}
+      className="relative z-[10000] aspect-square w-[min(32rem,calc(100vw-2rem))] min-w-0 max-w-full overflow-hidden rounded-xl"
       data-testid="weather-radar-widget"
     >
       <div className="h-full min-h-0 w-full overflow-clip" data-testid="weather-radar-map">

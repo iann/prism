@@ -29,6 +29,24 @@ describe('FloatingCardStack', () => {
     expect(stack.className).toContain('content-start');
     expect(stack.className).toContain('pointer-events-none');
     expect(stack.style.bottom).toContain('96px');
-    expect(screen.getByRole('button').parentElement?.className).toContain('pointer-events-auto');
+    const cardSlot = screen.getByRole('button').parentElement;
+    expect(cardSlot?.className).toContain('pointer-events-auto');
+    expect(cardSlot?.style.flex).toContain('1 1 min(32rem');
+    expect(cardSlot?.style.flex).toContain('100%');
+    expect(cardSlot?.style.flex).toContain('1rem');
+    expect(cardSlot?.style.maxWidth).toBe('32rem');
+  });
+
+  it('keeps the first card at the right edge so later cards fill to its left', () => {
+    render(
+      <FloatingCardStack>
+        <button>radar</button>
+        <button>media</button>
+      </FloatingCardStack>
+    );
+
+    const slots = screen.getAllByRole('button').map((button) => button.parentElement);
+    expect(slots).toHaveLength(2);
+    expect(slots[0]?.style.flex).toBe(slots[1]?.style.flex);
   });
 });
