@@ -5,6 +5,20 @@ This guide covers two ways to connect Prism with Home Assistant:
 1. **Embed Prism** as an iframe panel in the HA sidebar
 2. **Pull Prism data** into HA sensors via REST API
 
+### Prism Home Assistant setup API
+
+The Apple TV integration is configured from Prism’s UI (Settings), not by exposing credentials in a URL or configuration file. Setup endpoints require an authenticated user with the `canModifySettings` permission; display/guest authentication is not sufficient. Credentials are encrypted at rest, and Home Assistant URLs are restricted to safe LAN destinations.
+
+These routes support the UI:
+
+- `GET /api/integrations/home-assistant/config-status` — reports whether the integration is configured and the selected entity IDs; it never returns the access token.
+- `POST /api/integrations/home-assistant/test` — validates the UI-supplied configuration and tests `/api/states` without saving it.
+- `POST /api/integrations/home-assistant/config` — tests and saves the encrypted configuration.
+- `DELETE /api/integrations/home-assistant/config` — removes the saved configuration.
+- `POST /api/integrations/home-assistant/discover` — queries Home Assistant’s `/api/states` and returns safe media-player/remote candidates for the UI. It requires `canModifySettings`, and returns at most 100 candidates to keep the response bounded.
+
+At runtime, the integration uses the selected media-player state and builds validated Home Assistant action requests for playback, stopping, seeking, volume, mute, and the two-step remote suspend/player power-off action. The Stop control is shown only when the selected media player reports Home Assistant’s stop capability. Entity IDs are domain-validated before actions are sent. Do not put access tokens in logs, screenshots, browser URLs, or documentation.
+
 ---
 
 ## 1. Embedding Prism as an HA Panel

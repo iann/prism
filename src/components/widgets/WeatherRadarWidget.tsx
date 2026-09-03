@@ -8,7 +8,7 @@ import { buildWindyEmbedUrl } from '@/lib/weather/windy';
 
 export type WeatherRadarWidgetProps = {
   data?: WeatherData | null;
-  /** Space reserved for portrait navigation or the LCARS footer. */
+  /** Retained for callers from the pre-stack API; positioning is stack-owned. */
   bottomOffset?: number;
 };
 
@@ -43,7 +43,6 @@ function hasCoordinates(data: WeatherData): data is WeatherData & { lat: number;
 /** Conditionally surfaces a Windy map over the dashboard when precipitation is nearby. */
 export const WeatherRadarWidget = React.memo(function WeatherRadarWidget({
   data,
-  bottomOffset = 0,
 }: WeatherRadarWidgetProps) {
   const [dismissalReady, setDismissalReady] = React.useState(false);
   const [dismissedUntil, setDismissedUntil] = React.useState<number | null>(null);
@@ -89,16 +88,10 @@ export const WeatherRadarWidget = React.memo(function WeatherRadarWidget({
   if (!dismissalReady || dismissedUntil !== null) return null;
   if (!data || !hasCoordinates(data) || !hasPrecipitationInRadarWindow(data)) return null;
 
-  const radarSize = `min(calc(100vw - 2rem), calc(100dvh - ${bottomOffset + 32}px), ${RADAR_MAX_SIZE})`;
-
   return (
     <div
-      className="fixed right-4 z-[10000] min-w-0 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl"
-      style={{
-        width: radarSize,
-        height: radarSize,
-        bottom: `calc(${bottomOffset + 16}px + env(safe-area-inset-bottom))`,
-      }}
+      className="relative z-[10000] aspect-square w-[min(32rem,calc(100vw-2rem))] max-w-full min-w-0 overflow-hidden rounded-xl"
+      style={{ maxWidth: RADAR_MAX_SIZE }}
       data-testid="weather-radar-widget"
     >
       <div className="h-full min-h-0 w-full overflow-clip" data-testid="weather-radar-map">

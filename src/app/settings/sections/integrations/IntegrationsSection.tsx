@@ -13,6 +13,7 @@ import { GmailProviderCard } from './cards/GmailProviderCard';
 import { CalDAVProviderCard } from './cards/CalDAVProviderCard';
 import { KrogerProviderCard } from './cards/KrogerProviderCard';
 import { PhotoSourcesCard } from './cards/PhotoSourcesCard';
+import { HomeAssistantAppleTvProviderCard } from './cards/HomeAssistantAppleTvProviderCard';
 
 /**
  * Consolidated integrations page (issue #52). One card per provider brand.
@@ -139,6 +140,7 @@ export function IntegrationsSection() {
           forceSubSectionOpen={hash}
         />
         <KrogerProviderCard />
+        <HomeAssistantAppleTvProviderCard />
         <PhotoSourcesCard forceSubSectionOpen={hash} />
       </div>
     </div>

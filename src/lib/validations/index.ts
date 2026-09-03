@@ -407,6 +407,9 @@ export const createLayoutSchema = z.object({
   screensaverWidgets: widgetConfigsSchema.nullable().optional(),
   orientation: z.enum(['landscape', 'portrait']).optional().default('landscape'),
   fontScale: z.number().int().min(50).max(200).nullable().optional(),
+  floatingCardSettings: z.object({
+    appleTvPlayback: z.object({ enabled: z.boolean() }).strict(),
+  }).strict().optional(),
   createdBy: uuidSchema.optional(),
 });
 

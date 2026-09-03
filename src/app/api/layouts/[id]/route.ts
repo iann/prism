@@ -5,6 +5,9 @@ import { layouts } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { updateLayoutSchema, validateRequest } from '@/lib/validations';
 import { logError } from '@/lib/utils/logError';
+import { getHomeAssistantConfig } from '@/lib/integrations/homeAssistantCredentials';
+
+const defaultFloatingCardSettings = { appleTvPlayback: { enabled: true } } as const;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -39,7 +42,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(layout);
+    const configured = !!(await getHomeAssistantConfig());
+    return NextResponse.json(configured && !layout.floatingCardSettings
+      ? { ...layout, floatingCardSettings: defaultFloatingCardSettings }
+      : layout);
   } catch (error) {
     logError('Error fetching layout:', error);
     return NextResponse.json(
@@ -93,13 +99,14 @@ export async function PATCH(
     };
 
     // Map validated fields to update data
-    const { name, widgets, isDefault, screensaverWidgets, orientation, fontScale } = validation.data;
+    const { name, widgets, isDefault, screensaverWidgets, orientation, fontScale, floatingCardSettings } = validation.data;
     if (name !== undefined) updateData.name = name;
     if (widgets !== undefined) updateData.widgets = widgets;
     if (isDefault !== undefined) updateData.isDefault = isDefault;
     if (screensaverWidgets !== undefined) updateData.screensaverWidgets = screensaverWidgets;
     if (orientation !== undefined) updateData.orientation = orientation;
     if (fontScale !== undefined) updateData.fontScale = fontScale;
+    if (floatingCardSettings !== undefined) updateData.floatingCardSettings = floatingCardSettings;
 
     await db
       .update(layouts)

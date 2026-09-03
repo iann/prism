@@ -53,6 +53,8 @@ const MealModal = lazy(() =>
 );
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { WeatherRadarWidget } from '@/components/widgets/WeatherRadarWidget';
+import { AppleTvPlaybackCard } from '@/components/widgets/AppleTvPlaybackCard';
+import { FloatingCardStack } from './FloatingCardStack';
 import { renderScreensaverPreview } from '@/components/screensaver/ScreensaverWidgetPreview';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { WidgetErrorBoundary } from '@/components/dashboard/WidgetErrorBoundary';
@@ -497,8 +499,13 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     );
   }, []);
 
-  const weatherRadar = isFullDesktop && !layout.isEditing ? (
-    <WeatherRadarWidget data={data.weather.data} bottomOffset={bottomOffset} />
+  const floatingCards = isFullDesktop && !layout.isEditing ? (
+    <FloatingCardStack bottomOffset={bottomOffset}>
+      <AppleTvPlaybackCard
+        enabled={layout.activeLayout?.floatingCardSettings?.appleTvPlayback?.enabled ?? true}
+      />
+      <WeatherRadarWidget data={data.weather.data} />
+    </FloatingCardStack>
   ) : null;
 
   if (isMobile) {
@@ -657,7 +664,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
           )}
         </LCARSFrame>
 
-        {weatherRadar}
+        {floatingCards}
 
         {showAddTask && (
           <AddTaskModal
