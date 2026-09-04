@@ -222,7 +222,7 @@ function DashboardHelp() {
 
       <H2>Preview Mode</H2>
       <P>Click <strong>Preview</strong> in the toolbar (or press Ctrl+Shift+M) to temporarily hide the editor toolbar and see your layout as it will actually appear; click <strong>Exit Preview</strong> to return. Use the &quot;Show Nav / Hide Nav&quot; toggle to check how it looks with and without the navigation sidebar. This is useful for fine-tuning layouts on dedicated displays.</P>
-      <P>For a permanent clean look, enable <strong>Auto-Hide Navigation</strong> in Settings &gt; Appearance. The nav and toolbar will automatically hide after a period of inactivity and reappear on click or keyboard input.</P>
+      <P>For a permanent clean look, enable <strong>Auto-Hide Navigation</strong> in Settings &gt; Appearance. The nav and toolbar will automatically hide after a period of inactivity and reappear on click or keyboard input. Interactions inside floating cards, popovers, or dialogs, such as media playback controls or a confirmation dialog, keep the navigation hidden; interactions elsewhere restore it.</P>
 
       <H2>Screensaver Layout</H2>
       <P>Each dashboard has its own screensaver layout. In edit mode, click the <strong>Screensaver</strong> button to switch to editing the screensaver widget arrangement. The screensaver activates after a configurable idle period (Settings &gt; Appearance &gt; Timers &amp; Auto-Activation) and shows a photo slideshow with your chosen widgets overlaid. Its templates keep the calendar, or tonight&apos;s meals, as the hero, with small clock, weather, and message accents floating over one clean photo region so the wallpaper stays the star.</P>
