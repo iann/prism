@@ -29,8 +29,10 @@ describe('FloatingCardStack', () => {
     expect(stack.className).toContain('content-start');
     expect(stack.className).toContain('pointer-events-none');
     expect(stack.style.bottom).toContain('96px');
+    expect(stack.getAttribute('data-auto-hide-keep')).toBeNull();
     const cardSlot = screen.getByRole('button').parentElement;
     expect(cardSlot?.className).toContain('pointer-events-auto');
+    expect(cardSlot?.hasAttribute('data-auto-hide-keep')).toBe(true);
     expect(cardSlot?.style.flex).toContain('1 1 min(32rem');
     expect(cardSlot?.style.flex).toContain('100%');
     expect(cardSlot?.style.flex).toContain('1rem');

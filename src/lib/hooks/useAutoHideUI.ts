@@ -6,6 +6,11 @@ import { usePathname } from 'next/navigation';
 const STORAGE_KEY = 'prism:auto-hide-ui';
 const HIDE_DELAY = 10_000; // 10 seconds
 const HIDE_REFLOW_GUARD = 750;
+const AUTO_HIDE_KEEP_SELECTOR = '[data-auto-hide-keep]';
+
+function isAutoHideKeepTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(AUTO_HIDE_KEEP_SELECTOR) !== null;
+}
 
 /**
  * Returns whether the UI (nav + toolbar) should be hidden due to inactivity.
@@ -27,9 +32,9 @@ export function useAutoHideUI() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ignoreScrollUntilRef = useRef(0);
 
-  const resetTimer = useCallback(() => {
+  const resetTimer = useCallback((reveal = true) => {
     if (!enabled) return;
-    setHidden(false);
+    if (reveal) setHidden(false);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       // Collapsing application chrome can change the document geometry and
@@ -55,7 +60,7 @@ export function useAutoHideUI() {
     const events = ['mousedown', 'touchstart', 'keydown', 'scroll'] as const;
     const handler = (event: Event) => {
       if (event.type === 'scroll' && Date.now() < ignoreScrollUntilRef.current) return;
-      resetTimer();
+      resetTimer(!isAutoHideKeepTarget(event.target));
     };
 
     events.forEach((e) => window.addEventListener(e, handler, { passive: true }));
@@ -69,11 +74,11 @@ export function useAutoHideUI() {
     // A still cursor emits no mousemove, so idle auto-hide still engages, and
     // a touch-only kiosk (no mousemove) is unaffected.
     let lastMove = 0;
-    const moveHandler = () => {
+    const moveHandler = (event: MouseEvent) => {
       const now = performance.now();
       if (now - lastMove < 400) return;
       lastMove = now;
-      resetTimer();
+      resetTimer(!isAutoHideKeepTarget(event.target));
     };
     window.addEventListener('mousemove', moveHandler, { passive: true });
     // Start the timer immediately

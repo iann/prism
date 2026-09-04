@@ -800,6 +800,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 761461b5
 
+96. **Overlay-safe auto-hide navigation**
+
+    Keeps auto-hidden dashboard navigation hidden while people interact with
+    floating cards, popovers, or dialogs, while interactions elsewhere still
+    restore the navigation.
+
+    Commit: 4cbad780
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
