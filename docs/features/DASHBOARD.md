@@ -99,7 +99,7 @@ Alongside it, a **device preview gallery** shows how your single design renders 
 
 Click **Preview** in the right toolbar (or press **Ctrl+Shift+M**) to temporarily hide the editor chrome and see the board as it will actually appear; click **Exit Preview** to return. Use the **Show Nav / Hide Nav** toggle to check how it looks with and without the navigation sidebar. Useful for fine-tuning layouts on dedicated wall displays.
 
-For a permanently clean look, enable **Auto-Hide Navigation** in *Settings → Appearance*: the nav and toolbar hide after a period of inactivity and reappear on click or keyboard input.
+For a permanently clean look, enable **Auto-Hide Navigation** in *Settings → Appearance*: the nav and toolbar hide after a period of inactivity and reappear on click or keyboard input. Interactions inside floating cards, popovers, or dialogs, such as media playback controls or a confirmation dialog, keep the navigation hidden; interactions elsewhere restore it.
 
 ---
 

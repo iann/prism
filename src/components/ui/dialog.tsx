@@ -82,6 +82,7 @@ const DialogContent = React.forwardRef<
         className
       )}
       {...props}
+      data-auto-hide-keep
     >
       {children}
       <DialogPrimitive.Close

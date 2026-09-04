@@ -40,6 +40,7 @@ const AlertDialogContent = React.forwardRef<
         className
       )}
       {...props}
+      data-auto-hide-keep
     />
   </AlertDialogPortal>
 ));

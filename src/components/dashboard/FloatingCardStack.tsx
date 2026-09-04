@@ -27,6 +27,7 @@ export function FloatingCardStack({ children, bottomOffset = 0 }: FloatingCardSt
     >
       {cards.map((card, index) => (
         <div
+          data-auto-hide-keep
           className="pointer-events-auto min-w-0 max-w-full [&:empty]:hidden"
           style={{
             flex: '1 1 min(32rem, calc((100% - 1rem) / 2))',

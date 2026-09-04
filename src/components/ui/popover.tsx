@@ -36,6 +36,7 @@ const PopoverContent = React.forwardRef<
         className,
       )}
       {...props}
+      data-auto-hide-keep
     />
   </PopoverPrimitive.Portal>
 ));
