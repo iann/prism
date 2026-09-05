@@ -811,6 +811,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 4cbad780
 
+97. **Auto-hide stale paused media cards**
+
+    Hides Home Assistant media-player cards after five minutes in the paused
+    state, while honoring the provider pause timestamp and resetting the timer
+    when playback resumes or the media changes.
+
+    Commit: 851c1992
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

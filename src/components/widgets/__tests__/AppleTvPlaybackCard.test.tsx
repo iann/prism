@@ -19,7 +19,8 @@ jest.mock('@/lib/hooks/useConfirmDialog', () => ({
 jest.mock('@/components/providers', () => ({
   useTimeFormat: () => ({ timeFormat: '12h', displayTimezone: 'UTC' }),
 }));
-jest.mock('../ClockWidget', () => ({ useCurrentTime: () => new Date('2026-09-03T12:00:00Z') }));
+let currentTime = new Date('2026-09-03T12:00:00Z');
+jest.mock('../ClockWidget', () => ({ useCurrentTime: () => currentTime }));
 jest.mock('@/components/ui/confirm-dialog', () => ({ ConfirmDialog: () => null }));
 
 const makeData = (overrides: Partial<MediaPlayerPlaybackData> = {}): MediaPlayerPlaybackData => ({
@@ -60,6 +61,7 @@ const makeData = (overrides: Partial<MediaPlayerPlaybackData> = {}): MediaPlayer
   ...overrides,
 });
 beforeEach(() => {
+  currentTime = new Date('2026-09-03T12:00:00Z');
   data = makeData();
   action.mockClear();
   confirm.mockClear();
@@ -81,6 +83,37 @@ it.each(['playing', 'paused', 'buffering'] as const)('renders %s state and metad
   expect(screen.getByText('Series · S1 E1')).toBeTruthy();
   expect(screen.getByText('Artist · Album')).toBeTruthy();
   expect(screen.getByText(/Ends in/)).toBeTruthy();
+});
+it('hides paused media after five minutes of local observation', () => {
+  data = makeData({ state: 'paused', positionUpdatedAt: null });
+  const view = render(<MediaPlayerPlaybackCard />);
+  expect(screen.getByTestId('media-player-playback-card')).toBeTruthy();
+
+  currentTime = new Date('2026-09-03T12:04:59Z');
+  view.rerender(<MediaPlayerPlaybackCard />);
+  expect(screen.getByTestId('media-player-playback-card')).toBeTruthy();
+
+  currentTime = new Date('2026-09-03T12:05:00Z');
+  view.rerender(<MediaPlayerPlaybackCard />);
+  expect(view.container.innerHTML).toBe('');
+});
+it('uses Home Assistant pause time when it is already older than five minutes', () => {
+  data = makeData({ state: 'paused', positionUpdatedAt: '2026-09-03T11:54:59Z' });
+  expect(render(<MediaPlayerPlaybackCard />).container.innerHTML).toBe('');
+});
+it('resets the paused timeout when playback resumes', () => {
+  data = makeData({ state: 'paused', positionUpdatedAt: null });
+  const view = render(<MediaPlayerPlaybackCard />);
+
+  currentTime = new Date('2026-09-03T12:04:59Z');
+  data = makeData({ state: 'playing' });
+  view.rerender(<MediaPlayerPlaybackCard />);
+  expect(screen.getByTestId('media-player-playback-card')).toBeTruthy();
+
+  currentTime = new Date('2026-09-03T12:05:00Z');
+  data = makeData({ state: 'paused', positionUpdatedAt: null });
+  view.rerender(<MediaPlayerPlaybackCard />);
+  expect(screen.getByTestId('media-player-playback-card')).toBeTruthy();
 });
 it('renders music metadata and artwork fallback', () => {
   data = makeData({

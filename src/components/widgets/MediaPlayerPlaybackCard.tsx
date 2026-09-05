@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ChevronsLeft,
   ChevronsRight,
@@ -24,7 +24,10 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
 import { useMediaPlayerDismissal } from '@/lib/hooks/useMediaPlayerDismissal';
-import { useMediaPlayerPlayback } from '@/lib/hooks/useMediaPlayerPlayback';
+import {
+  useMediaPlayerPlayback,
+  type MediaPlayerPlaybackData,
+} from '@/lib/hooks/useMediaPlayerPlayback';
 import { estimateHomeAssistantMediaPlayerPosition } from '@/lib/integrations/homeAssistantMediaPlayer';
 import { useCurrentTime } from './ClockWidget';
 import { useTimeFormat } from '@/components/providers';
@@ -37,6 +40,40 @@ const formatDuration = (seconds: number | null) =>
     ? '--:--'
     : `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 const VOLUME_STEP = 0.05;
+const PAUSED_CARD_TIMEOUT_MS = 5 * 60 * 1000;
+
+function usePausedCardExpiry(
+  data: Pick<
+    MediaPlayerPlaybackData,
+    'active' | 'state' | 'entityId' | 'mediaIdentity' | 'positionUpdatedAt'
+  >,
+  now: Date
+) {
+  const pausedSession = useRef<{ key: string; startedAt: number } | null>(null);
+  const sessionKey = `${data.entityId ?? ''}:${data.mediaIdentity ?? ''}`;
+
+  if (data.active && data.state === 'paused') {
+    if (pausedSession.current?.key !== sessionKey) {
+      const reportedAt = data.positionUpdatedAt ? Date.parse(data.positionUpdatedAt) : NaN;
+      const nowMs = now.getTime();
+      pausedSession.current = {
+        key: sessionKey,
+        // Home Assistant's timestamp lets an already-paused session expire on
+        // first render; fall back to local observation when it is unavailable.
+        startedAt: Number.isFinite(reportedAt) && reportedAt <= nowMs ? reportedAt : nowMs,
+      };
+    }
+  } else {
+    pausedSession.current = null;
+  }
+
+  return Boolean(
+    data.active &&
+      data.state === 'paused' &&
+      pausedSession.current &&
+      now.getTime() - pausedSession.current.startedAt >= PAUSED_CARD_TIMEOUT_MS
+  );
+}
 
 export function MediaPlayerPlaybackCard({
   enabled = true,
@@ -48,6 +85,7 @@ export function MediaPlayerPlaybackCard({
   const { data, loading, error, action } = useMediaPlayerPlayback(enabled);
   const { timeFormat, displayTimezone } = useTimeFormat();
   const now = useCurrentTime();
+  const pausedCardExpired = usePausedCardExpiry(data, now);
   const {
     ready: dismissalReady,
     dismissed,
@@ -92,7 +130,15 @@ export function MediaPlayerPlaybackCard({
   useEffect(() => {
     setArtworkFailed(false);
   }, [data.artworkUrl]);
-  if (!enabled || !dismissalReady || dismissed || !data.visible || !data.active) return null;
+  if (
+    !enabled ||
+    !dismissalReady ||
+    dismissed ||
+    pausedCardExpired ||
+    !data.visible ||
+    !data.active
+  )
+    return null;
   const playing = data.state === 'playing';
   const playbackControl = playing ? 'pause' : data.state === 'paused' ? 'play' : null;
   const hasExplicitPlaybackControl = playbackControl !== null && can(playbackControl);
