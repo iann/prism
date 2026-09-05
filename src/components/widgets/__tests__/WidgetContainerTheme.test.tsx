@@ -37,8 +37,11 @@ describe('WidgetContainer theme overrides', () => {
     const card = renderWidget();
 
     expect(card.dataset.themeSurface).toBe('preset');
-    expect(card.classList.contains('border-border/55')).toBe(true);
-    expect(card.classList.contains('rounded-xl')).toBe(true);
+    expect(card.classList.contains('bg-card/85')).toBe(true);
+    expect(card.classList.contains('backdrop-blur-sm')).toBe(true);
+    expect(card.classList.contains('border-border')).toBe(true);
+    expect(card.classList.contains('border-[length:var(--border-width,1px)]')).toBe(true);
+    expect(card.classList.contains('rounded-[var(--radius,0.5rem)]')).toBe(true);
     expect(card.classList.contains('shadow-sm')).toBe(true);
     expect(card.classList.contains('border-transparent')).toBe(false);
   });

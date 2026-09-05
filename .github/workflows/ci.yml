@@ -166,7 +166,7 @@ jobs:
         # Drop the NodeSource apt source first — it periodically 403s and aborts
         # `apt-get update` (Node is already in the image; we only need psql from
         # the Ubuntu repos here).
-        run: rm -f /etc/apt/sources.list.d/nodesource* && apt-get update && apt-get install -y --no-install-recommends postgresql-client
+        run: rm -f /etc/apt/sources.list.d/nodesource* && apt-get update && apt-get install -y --no-install-recommends postgresql-client redis-tools
 
       - name: Apply base schema
         env:
