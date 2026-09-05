@@ -4,14 +4,16 @@ import { db } from '@/lib/db/client';
 import { decrypt, encrypt } from '@/lib/utils/crypto';
 import { safeFetch, validatePublicUrl } from '@/lib/utils/safeFetch';
 
-export const HOME_ASSISTANT_SERVICE = 'home-assistant-apple-tv';
+export const HOME_ASSISTANT_SERVICE = 'home-assistant-media-player';
+/** Legacy storage key retained so existing Apple TV configurations keep working. */
+export const LEGACY_HOME_ASSISTANT_SERVICE = 'home-assistant-apple-tv';
 /** Maximum number of entity candidates returned by the setup discovery endpoint. */
 export const MAX_DISCOVERY_CANDIDATES = 100;
 export type HomeAssistantConfig = {
   baseUrl: string;
   accessToken: string;
   mediaPlayerEntityId: string;
-  remoteEntityId: string;
+  remoteEntityId: string | null;
 };
 
 export function normalizeBaseUrl(value: unknown): string {
@@ -32,15 +34,27 @@ export function validateConfig(input: unknown): HomeAssistantConfig {
     baseUrl: normalizeBaseUrl(v.baseUrl),
     accessToken: v.accessToken.trim(),
     mediaPlayerEntityId: validateEntity(v.mediaPlayerEntityId, 'media_player'),
-    remoteEntityId: validateEntity(v.remoteEntityId, 'remote'),
+    remoteEntityId:
+      typeof v.remoteEntityId === 'string' && v.remoteEntityId.trim()
+        ? validateEntity(v.remoteEntityId, 'remote')
+        : null,
   };
 }
 export async function getHomeAssistantConfig(): Promise<HomeAssistantConfig | null> {
-  const row = await db.query.apiCredentials.findFirst({
+  const row = (await db.query.apiCredentials.findFirst({
     where: (c, { eq }) => eq(c.service, HOME_ASSISTANT_SERVICE),
-  });
+  })) ?? (await db.query.apiCredentials.findFirst({
+    where: (c, { eq }) => eq(c.service, LEGACY_HOME_ASSISTANT_SERVICE),
+  }));
   if (!row) return null;
-  return JSON.parse(decrypt(row.encryptedCredentials)) as HomeAssistantConfig;
+  const parsed = JSON.parse(decrypt(row.encryptedCredentials)) as Partial<HomeAssistantConfig>;
+  return {
+    ...parsed,
+    baseUrl: parsed.baseUrl as string,
+    accessToken: parsed.accessToken as string,
+    mediaPlayerEntityId: parsed.mediaPlayerEntityId as string,
+    remoteEntityId: parsed.remoteEntityId ?? null,
+  };
 }
 export async function saveHomeAssistantConfig(config: HomeAssistantConfig) {
   const encryptedCredentials = encrypt(JSON.stringify(config));
@@ -54,6 +68,7 @@ export async function saveHomeAssistantConfig(config: HomeAssistantConfig) {
 }
 export async function deleteHomeAssistantConfig() {
   await db.delete(apiCredentials).where(eq(apiCredentials.service, HOME_ASSISTANT_SERVICE));
+  await db.delete(apiCredentials).where(eq(apiCredentials.service, LEGACY_HOME_ASSISTANT_SERVICE));
 }
 export async function homeAssistantFetch(
   config: Pick<HomeAssistantConfig, 'baseUrl' | 'accessToken'>,

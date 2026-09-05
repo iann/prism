@@ -16,7 +16,7 @@ export function DisplaysSection() {
   const [saving, setSaving] = useState<string | null>(null);
   // Optimistic local scale values — keyed by layout id
   const [localScales, setLocalScales] = useState<Record<string, number>>({});
-  const [localAppleTv, setLocalAppleTv] = useState<Record<string, boolean>>({});
+  const [localMediaPlayer, setLocalMediaPlayer] = useState<Record<string, boolean>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,26 +42,28 @@ export function DisplaysSection() {
 
   useEffect(() => {
     if (homeAssistantConfigured === null) return;
-    setLocalAppleTv((prev) => {
+    setLocalMediaPlayer((prev) => {
       const next = { ...prev };
       for (const layout of layouts) next[layout.id] ??= homeAssistantConfigured
-        ? layout.floatingCardSettings?.appleTvPlayback.enabled ?? true
+        ? layout.floatingCardSettings?.mediaPlayerPlayback?.enabled ??
+          layout.floatingCardSettings?.appleTvPlayback?.enabled ??
+          true
         : false;
       return next;
     });
   }, [homeAssistantConfigured, layouts]);
 
-  const updateAppleTv = async (layoutId: string, enabled: boolean) => {
-    const previous = localAppleTv[layoutId] ?? true;
-    setLocalAppleTv((prev) => ({ ...prev, [layoutId]: enabled }));
+  const updateMediaPlayer = async (layoutId: string, enabled: boolean) => {
+    const previous = localMediaPlayer[layoutId] ?? true;
+    setLocalMediaPlayer((prev) => ({ ...prev, [layoutId]: enabled }));
     setSaveError(null);
     setSaving(layoutId);
     try {
-      const response = await fetch(`/api/layouts/${layoutId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ floatingCardSettings: { appleTvPlayback: { enabled } } }) });
-      if (!response.ok) throw new Error('Apple TV setting could not be saved.');
+      const response = await fetch(`/api/layouts/${layoutId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ floatingCardSettings: { mediaPlayerPlayback: { enabled } } }) });
+      if (!response.ok) throw new Error('Media-player setting could not be saved.');
     } catch (error) {
-      setLocalAppleTv((prev) => ({ ...prev, [layoutId]: previous }));
-      setSaveError(error instanceof Error ? error.message : 'Apple TV setting could not be saved.');
+      setLocalMediaPlayer((prev) => ({ ...prev, [layoutId]: previous }));
+      setSaveError(error instanceof Error ? error.message : 'Media-player setting could not be saved.');
     } finally { setSaving(null); }
   };
 
@@ -164,8 +166,8 @@ export function DisplaysSection() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm">
-                    <input type="checkbox" className="h-5 w-5 shrink-0 accent-primary" checked={homeAssistantConfigured === true && (localAppleTv[layout.id] ?? true)} disabled={homeAssistantConfigured !== true} onChange={(e) => void updateAppleTv(layout.id, e.target.checked)} aria-label={`Show Apple TV playback card on ${layout.name}`} />
-                    <span>{homeAssistantConfigured === true ? 'Show Apple TV playback card on this dashboard' : 'Apple TV playback unavailable until Home Assistant is configured'}</span>
+                    <input type="checkbox" className="h-5 w-5 shrink-0 accent-primary" checked={homeAssistantConfigured === true && (localMediaPlayer[layout.id] ?? true)} disabled={homeAssistantConfigured !== true} onChange={(e) => void updateMediaPlayer(layout.id, e.target.checked)} aria-label={`Show media-player playback card on ${layout.name}`} />
+                    <span>{homeAssistantConfigured === true ? 'Show media-player playback card on this dashboard' : 'Media-player playback unavailable until Home Assistant is configured'}</span>
                   </label>
                   {saveError && saving === null && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
                   {/* Collapsed by default. Reading a dashboard from across a room is a

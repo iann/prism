@@ -1,8 +1,7 @@
 const WINDY_EMBED_URL = '/api/weather/windy/embed2.html';
 const WINDY_MAP_ZOOM = '10';
-const WINDY_MAP_SOUTHWARD_OFFSET = 0.16;
 
-/** Build the Windy radar URL with Boston centered in the local radar view. */
+/** Build the Windy radar URL centered on the configured weather location. */
 export function buildWindyEmbedUrl(lat: number, lon: number): string {
   const coordinate = (value: number) => Number(value.toFixed(4)).toString();
   const params = new URLSearchParams([
@@ -18,7 +17,7 @@ export function buildWindyEmbedUrl(lat: number, lon: number): string {
     ['play', '1'],
     ['menu', ''],
     ['calendar', ''],
-    ['lat', coordinate(lat - WINDY_MAP_SOUTHWARD_OFFSET)],
+    ['lat', coordinate(lat)],
     ['lon', coordinate(lon)],
     ['marker', ''],
     ['message', ''],

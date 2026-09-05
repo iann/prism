@@ -7,7 +7,7 @@ import { createLayoutSchema, validateRequest } from '@/lib/validations';
 import { logError } from '@/lib/utils/logError';
 import { getHomeAssistantConfig } from '@/lib/integrations/homeAssistantCredentials';
 
-const defaultFloatingCardSettings = { appleTvPlayback: { enabled: true } } as const;
+const defaultFloatingCardSettings = { mediaPlayerPlayback: { enabled: true } } as const;
 function withFloatingCardDefaults<T extends { floatingCardSettings: unknown }>(layout: T, configured: boolean) {
   return configured && !layout.floatingCardSettings
     ? { ...layout, floatingCardSettings: defaultFloatingCardSettings }

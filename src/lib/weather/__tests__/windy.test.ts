@@ -1,7 +1,7 @@
 import { buildWindyEmbedUrl } from '../windy';
 
 describe('buildWindyEmbedUrl', () => {
-  it('places the weather location in the upper portion of the radar map', () => {
+  it('centers the radar map on the configured weather location', () => {
     const url = new URL(buildWindyEmbedUrl(42.46, -71.06), 'http://localhost:3005');
 
     expect(url.pathname).toBe('/api/weather/windy/embed2.html');
@@ -14,7 +14,7 @@ describe('buildWindyEmbedUrl', () => {
     expect(url.searchParams.get('play')).toBe('1');
     expect(url.searchParams.get('menu')).toBe('');
     expect(url.searchParams.get('calendar')).toBe('');
-    expect(url.searchParams.get('lat')).toBe('42.3');
+    expect(url.searchParams.get('lat')).toBe('42.46');
     expect(url.searchParams.get('lon')).toBe('-71.06');
     expect(url.searchParams.get('detailLat')).toBeNull();
     expect(url.searchParams.get('detailLon')).toBeNull();

@@ -7,7 +7,7 @@ import { updateLayoutSchema, validateRequest } from '@/lib/validations';
 import { logError } from '@/lib/utils/logError';
 import { getHomeAssistantConfig } from '@/lib/integrations/homeAssistantCredentials';
 
-const defaultFloatingCardSettings = { appleTvPlayback: { enabled: true } } as const;
+const defaultFloatingCardSettings = { mediaPlayerPlayback: { enabled: true } } as const;
 
 interface RouteParams {
   params: Promise<{ id: string }>;

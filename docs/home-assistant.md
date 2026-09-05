@@ -7,7 +7,7 @@ This guide covers two ways to connect Prism with Home Assistant:
 
 ### Prism Home Assistant setup API
 
-The Apple TV integration is configured from Prism’s UI (Settings), not by exposing credentials in a URL or configuration file. Setup endpoints require an authenticated user with the `canModifySettings` permission; display/guest authentication is not sufficient. Credentials are encrypted at rest, and Home Assistant URLs are restricted to safe LAN destinations.
+The Home Assistant media-player integration is configured from Prism’s UI (Settings), not by exposing credentials in a URL or configuration file. Setup endpoints require an authenticated user with the `canModifySettings` permission; display/guest authentication is not sufficient. Credentials are encrypted at rest, and Home Assistant URLs are restricted to safe LAN destinations.
 
 These routes support the UI:
 
@@ -16,8 +16,11 @@ These routes support the UI:
 - `POST /api/integrations/home-assistant/config` — tests and saves the encrypted configuration.
 - `DELETE /api/integrations/home-assistant/config` — removes the saved configuration.
 - `POST /api/integrations/home-assistant/discover` — queries Home Assistant’s `/api/states` and returns safe media-player/remote candidates for the UI. It requires `canModifySettings`, and returns at most 100 candidates to keep the response bounded.
+- `GET /api/integrations/home-assistant/media-player` — returns the selected media player’s safe playback state, metadata, artwork URL, and opaque media identity.
+- `POST /api/integrations/home-assistant/media-player/action` — sends playback, seek, volume, mute, stop, and power actions. The remote entity is optional; when configured, power sends an Apple TV-style remote suspend before `media_player.turn_off`.
+- `GET /api/integrations/home-assistant/media-player/artwork` — proxies the selected player’s same-origin artwork without exposing Home Assistant credentials or picture paths.
 
-At runtime, the integration uses the selected media-player state and builds validated Home Assistant action requests for playback, stopping, seeking, volume, mute, and the two-step remote suspend/player power-off action. The Stop control is shown only when the selected media player reports Home Assistant’s stop capability. Entity IDs are domain-validated before actions are sent. Do not put access tokens in logs, screenshots, browser URLs, or documentation.
+The legacy `/api/integrations/home-assistant/apple-tv`, `/apple-tv/action`, and `/apple-tv/artwork` paths remain compatibility aliases for existing clients. At runtime, the integration uses the selected media-player state and builds validated Home Assistant action requests for playback, stopping, seeking, volume, mute, and optional remote suspend/player power-off. The Stop control is shown only when the selected media player reports Home Assistant’s stop capability. Entity IDs are domain-validated before actions are sent. Do not put access tokens in logs, screenshots, browser URLs, or documentation.
 
 ---
 
@@ -32,11 +35,13 @@ ALLOWED_FRAME_ANCESTORS=http://homeassistant.local:8123
 ```
 
 Multiple origins (comma-separated):
+
 ```env
 ALLOWED_FRAME_ANCESTORS=http://homeassistant.local:8123, https://ha.example.com
 ```
 
 Restart the Prism container after changing:
+
 ```bash
 docker-compose restart app
 ```
@@ -48,16 +53,17 @@ In your Home Assistant `configuration.yaml`:
 ```yaml
 panel_iframe:
   prism:
-    title: "Family Dashboard"
-    url: "http://prism.local:3000"
+    title: 'Family Dashboard'
+    url: 'http://prism.local:3000'
     icon: mdi:view-dashboard
 ```
 
 Restart Home Assistant. Prism will appear in the sidebar.
 
 To show a specific dashboard (e.g. the kitchen layout):
+
 ```yaml
-    url: "http://prism.local:3000/d/kitchen"
+url: 'http://prism.local:3000/d/kitchen'
 ```
 
 ---
@@ -76,7 +82,7 @@ API tokens let Home Assistant query Prism's REST API without PIN-based login.
 
 ```yaml
 # secrets.yaml
-prism_token: "paste-your-64-char-token-here"
+prism_token: 'paste-your-64-char-token-here'
 ```
 
 ### Token scopes
@@ -102,12 +108,12 @@ Use HA's [REST sensor](https://www.home-assistant.io/integrations/rest/) to pull
 ```yaml
 sensor:
   - platform: rest
-    name: "Prism Next Event"
-    resource: "http://prism.local:3000/api/events?limit=1"
+    name: 'Prism Next Event'
+    resource: 'http://prism.local:3000/api/events?limit=1'
     headers:
       Authorization: !secret prism_bearer
     value_template: "{{ value_json.events[0].title if value_json.events else 'None' }}"
-    json_attributes_path: "$.events[0]"
+    json_attributes_path: '$.events[0]'
     json_attributes:
       - startTime
       - endTime
@@ -116,8 +122,9 @@ sensor:
 ```
 
 In `secrets.yaml`:
+
 ```yaml
-prism_bearer: "Bearer paste-your-64-char-token-here"
+prism_bearer: 'Bearer paste-your-64-char-token-here'
 ```
 
 ### Pending chores count
@@ -125,8 +132,8 @@ prism_bearer: "Bearer paste-your-64-char-token-here"
 ```yaml
 sensor:
   - platform: rest
-    name: "Prism Pending Chores"
-    resource: "http://prism.local:3000/api/chores"
+    name: 'Prism Pending Chores'
+    resource: 'http://prism.local:3000/api/chores'
     headers:
       Authorization: !secret prism_bearer
     value_template: >
@@ -137,11 +144,12 @@ sensor:
 ### Shopping list item count
 
 {% raw %}
+
 ```yaml
 sensor:
   - platform: rest
-    name: "Prism Shopping Items"
-    resource: "http://prism.local:3000/api/shopping-lists?includeItems=true"
+    name: 'Prism Shopping Items'
+    resource: 'http://prism.local:3000/api/shopping-lists?includeItems=true'
     headers:
       Authorization: !secret prism_bearer
     value_template: >
@@ -152,15 +160,17 @@ sensor:
       {{ total }}
     scan_interval: 600
 ```
+
 {% endraw %}
 
 ### Today's meals
 
 {% raw %}
+
 ```yaml
 sensor:
   - platform: rest
-    name: "Prism Dinner Tonight"
+    name: 'Prism Dinner Tonight'
     resource: "http://prism.local:3000/api/meals?weekOf={{ now().strftime('%Y-%m-%d') }}"
     headers:
       Authorization: !secret prism_bearer
@@ -170,6 +180,7 @@ sensor:
       {{ dinner[0].name if dinner else 'Not planned' }}
     scan_interval: 3600
 ```
+
 {% endraw %}
 
 ---
@@ -183,7 +194,7 @@ automation:
   - alias: "Announce tonight's dinner at 4pm"
     trigger:
       - platform: time
-        at: "16:00:00"
+        at: '16:00:00'
     action:
       - service: tts.speak
         target:
@@ -197,7 +208,7 @@ automation:
 
 ```yaml
 automation:
-  - alias: "Notify when shopping list has 10+ items"
+  - alias: 'Notify when shopping list has 10+ items'
     trigger:
       - platform: numeric_state
         entity_id: sensor.prism_shopping_items
@@ -205,7 +216,7 @@ automation:
     action:
       - service: notify.mobile_app
         data:
-          title: "Shopping List"
+          title: 'Shopping List'
           message: "You have {{ states('sensor.prism_shopping_items') }} items on the shopping list."
 ```
 
@@ -234,11 +245,11 @@ Example REST sensor using the spoken response:
 ```yaml
 sensor:
   - platform: rest
-    name: "Prism Meals Today"
-    resource: "http://prism.local:3000/api/v1/voice/meals/today"
+    name: 'Prism Meals Today'
+    resource: 'http://prism.local:3000/api/v1/voice/meals/today'
     headers:
       Authorization: !secret prism_bearer
-    value_template: "{{ value_json.spoken }}"
+    value_template: '{{ value_json.spoken }}'
     scan_interval: 3600
 ```
 
@@ -251,17 +262,21 @@ See [docs/voice-api.md](voice-api.md) for the full endpoint reference, request/r
 ## Troubleshooting
 
 **"Authentication required" error**
+
 - Make sure the `Authorization` header includes `Bearer ` (with a space) before the token
 - Verify the token hasn't been revoked in Settings → Security → API Tokens
 
 **iframe shows blank/refuses to connect**
+
 - Check `ALLOWED_FRAME_ANCESTORS` is set in `.env` and the container was restarted
 - Verify the URL matches exactly (including port)
 
 **Sensors show "unknown"**
+
 - Check the Prism container is running: `docker ps`
 - Test the endpoint manually: `curl -H "Authorization: Bearer YOUR_TOKEN" http://prism.local:3000/api/chores`
 - Check HA logs for connection errors
 
 **Google Calendar won't connect — "must end with a public top-level domain"**
+
 - The add-on runs on a private LAN address, which Google refuses to accept as an OAuth redirect URI. Either put Prism behind a public HTTPS URL, or use the no-public-URL method (paste a refresh token from Google's OAuth Playground). See [Calendar → Google Calendar without a public URL](features/CALENDAR.md#google-calendar-without-a-public-url-oauth-playground).
