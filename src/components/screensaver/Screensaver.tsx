@@ -54,7 +54,7 @@ export {
   deleteScreensaverPreset,
 } from './screensaverStorage';
 
-export function Screensaver() {
+export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
   const { isIdle: idleNow } = useIdleDetection();
   const { enabled: performanceMode } = usePerformanceMode();
   // Away and Babysitter are deliberate, someone-chose-this states, and each
@@ -68,7 +68,14 @@ export function Screensaver() {
   // has touched anything — so it yields to both.
   const { isAway } = useAwayMode();
   const { isActive: isBabysitter } = useBabysitterMode();
-  const isIdle = shouldShowScreensaver({ idle: idleNow, away: isAway, babysitter: isBabysitter });
+  // LazyOverlays owns the first idle hook so it can avoid mounting this heavy
+  // tree on every page. Pass that state through when it mounts us: otherwise
+  // the activation event has already fired before this second hook exists.
+  const isIdle = shouldShowScreensaver({
+    idle: idleOverride ?? idleNow,
+    away: isAway,
+    babysitter: isBabysitter,
+  });
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: screensaverInterval } = useScreensaverInterval();
