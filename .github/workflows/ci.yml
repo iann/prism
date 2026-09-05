@@ -166,7 +166,7 @@ jobs:
         # Drop the NodeSource apt source first — it periodically 403s and aborts
         # `apt-get update` (Node is already in the image; we only need psql from
         # the Ubuntu repos here).
-        run: rm -f /etc/apt/sources.list.d/nodesource* && apt-get update && apt-get install -y --no-install-recommends postgresql-client
+        run: rm -f /etc/apt/sources.list.d/nodesource* && apt-get update && apt-get install -y --no-install-recommends postgresql-client redis-tools
 
       - name: Apply base schema
         env:
@@ -180,7 +180,7 @@ jobs:
         run: npm run db:seed
 
       - name: Run e2e modality suite
-        run: npx playwright test e2e/reverse-proxy.spec.ts e2e/mobile-pwa-settings.spec.ts --reporter=list
+        run: npx playwright test e2e/reverse-proxy.spec.ts e2e/mobile-pwa-settings.spec.ts e2e/upstream-regression.spec.ts --reporter=list
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -266,7 +266,7 @@ jobs:
       - name: Check for Linux baselines
         id: check-baselines
         run: |
-          if ls e2e/visual-regression.spec.ts-snapshots/*-chromium-linux.png > /dev/null 2>&1; then
+          if find e2e -type f -path '*-snapshots/*-chromium-linux.png' -print -quit | grep -q .; then
             echo "found=true" >> $GITHUB_OUTPUT
           else
             echo "found=false" >> $GITHUB_OUTPUT
@@ -280,7 +280,7 @@ jobs:
       #     manual commit.
       - name: Run visual regression suite (compare)
         if: ${{ steps.check-baselines.outputs.found == 'true' && (github.event_name != 'workflow_dispatch' || inputs.update_visual_baselines != true) }}
-        run: npx playwright test e2e/visual-regression.spec.ts --reporter=list
+        run: npx playwright test e2e/visual-regression.spec.ts e2e/upstream-visual-regression.spec.ts --reporter=list
 
       - name: Skip compare (no Linux baselines yet)
         if: ${{ steps.check-baselines.outputs.found == 'false' && (github.event_name != 'workflow_dispatch' || inputs.update_visual_baselines != true) }}
@@ -290,7 +290,7 @@ jobs:
 
       - name: Run visual regression suite (update baselines)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_visual_baselines == true }}
-        run: npx playwright test e2e/visual-regression.spec.ts --update-snapshots --reporter=list
+        run: npx playwright test e2e/visual-regression.spec.ts e2e/upstream-visual-regression.spec.ts --update-snapshots --reporter=list
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -305,5 +305,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: visual-regression-linux-baselines
-          path: e2e/visual-regression.spec.ts-snapshots/*-chromium-linux.png
+          path: e2e/**/*-snapshots/*-chromium-linux.png
           retention-days: 14

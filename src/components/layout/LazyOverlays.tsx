@@ -31,7 +31,7 @@ export function LazyOverlays() {
     <>
       {babysitterActive && <BabysitterModeOverlay toggle={toggleBabysitter} />}
       {isAway && <AwayModeOverlay toggle={toggleAway} />}
-      {isIdle && <Screensaver />}
+      {isIdle && <Screensaver idleOverride={isIdle} />}
     </>
   );
 }

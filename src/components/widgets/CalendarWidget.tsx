@@ -22,7 +22,8 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { isLightColor } from '@/lib/utils/color';
 import { deduplicateEvents } from '@/lib/utils/calendarDedup';
@@ -38,6 +39,7 @@ import {
   CalendarPrefsScopeContext,
 } from '@/lib/hooks/useCalendarWidgetPrefs';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
+import { useCalendarSyncHealth } from '@/lib/hooks/useCalendarSyncHealth';
 import { CalendarWidgetControls } from './CalendarWidgetControls';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Chore, Meal, Task } from '@/types';
@@ -151,6 +153,16 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   } = useCalendarEvents({
     daysToShow: 60,
     enabled: !hasExternalEvents,
+  });
+  // Sync stopping is worth knowing about from across the room — a stale
+  // calendar looks exactly like a quiet week. Not on the screensaver, though:
+  // nobody is standing at it, and the badge would just be a permanent blemish
+  // on the wallpaper. The screensaver renders its own copy of this widget over
+  // a still-mounted dashboard, so switching the check off here also keeps that
+  // copy from doubling the polling for a badge it will never draw.
+  const prefsScope = useContext(CalendarPrefsScopeContext);
+  const { needsReauth, stalled: syncPaused } = useCalendarSyncHealth({
+    enabled: prefsScope !== 'screensaver',
   });
   const { selectedCalendarIds, toggleCalendar, filterEvents, calendarGroups } = useCalendarFilter();
 
@@ -406,6 +418,17 @@ export const CalendarWidget = React.memo(function CalendarWidget({
       className={className}
     >
       {!uiHidden && calendarChips}
+      {syncPaused && (
+        <Link
+          href="/calendar?manage=calendars"
+          className="flex items-center justify-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 py-1 bg-amber-500/10 rounded mb-1 hover:bg-amber-500/20"
+          title="Sync has stopped for one or more calendars — reconnect to resume"
+        >
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          {needsReauth === 1 ? 'Sync paused — reconnect' : `Sync paused on ${needsReauth} calendars — reconnect`}
+        </Link>
+      )}
+
       {viewUnavailable && (
         <div className="mb-1 rounded bg-muted/50 py-1 text-center text-[12px] text-muted-foreground">
           Resize widget for {VIEW_OPTIONS.find((v) => v.value === viewType)?.label} view

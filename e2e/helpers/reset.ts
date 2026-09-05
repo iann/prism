@@ -1,5 +1,5 @@
-import { execSync } from 'child_process';
-import { writeFileSync, unlinkSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -16,15 +16,13 @@ function runSQL(sql: string) {
   const tmpFile = join(tmpdir(), `prism-e2e-${Date.now()}.sql`);
   writeFileSync(tmpFile, sql, 'utf-8');
   try {
-    if (process.env.DATABASE_URL) {
-      execSync(`psql "${process.env.DATABASE_URL}" -f "${tmpFile}"`, {
-        stdio: 'pipe',
-      });
+    if (process.env.DATABASE_URL && hasCommand('psql')) {
+      execFileSync('psql', [process.env.DATABASE_URL, '-f', tmpFile], { stdio: 'pipe' });
     } else {
       const dbName = process.env.E2E_DB_NAME || 'prism';
-      execSync(`docker exec -i prism-db psql -U prism -d ${dbName} < "${tmpFile}"`, {
-        stdio: 'pipe',
-        shell: 'cmd.exe',
+      execFileSync('docker', ['exec', '-i', 'prism-db', 'psql', '-U', 'prism', '-d', dbName], {
+        input: readFileSync(tmpFile),
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
     }
   } finally {
@@ -36,10 +34,19 @@ function runSQL(sql: string) {
  * Flush Redis to clear sessions and caches.
  */
 function flushRedis() {
-  if (process.env.REDIS_URL) {
-    execSync(`redis-cli -u "${process.env.REDIS_URL}" FLUSHDB`, { stdio: 'pipe' });
+  if (process.env.REDIS_URL && hasCommand('redis-cli')) {
+    execFileSync('redis-cli', ['-u', process.env.REDIS_URL, 'FLUSHDB'], { stdio: 'pipe' });
   } else {
-    execSync('docker exec prism-redis redis-cli FLUSHDB', { stdio: 'pipe' });
+    execFileSync('docker', ['exec', 'prism-redis', 'redis-cli', 'FLUSHDB'], { stdio: 'pipe' });
+  }
+}
+
+function hasCommand(command: string): boolean {
+  try {
+    execFileSync(command, ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
   }
 }
 

@@ -13,6 +13,7 @@ import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { scopedHref, isNavActive } from '@/lib/utils/dashboardScope';
 import { User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
@@ -38,10 +39,7 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
   const navItems = filterPortraitNavItems(ALL_NAV_ITEMS);
   const t = useTranslations('common');
 
-  const isActive = (href: string) => {
-    if (href === '/') return pathname === '/';
-    return pathname.startsWith(href);
-  };
+  const isActive = (href: string) => isNavActive(href, pathname);
 
   return (
     <nav className={cn(
@@ -57,7 +55,7 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={scopedHref(item.href, pathname)}
               prefetch={false}
               className={cn(
                 'wall-portrait-nav-item',

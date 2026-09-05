@@ -27,12 +27,21 @@ afterAll(() => {
   delete (global as { fetch?: unknown }).fetch;
 });
 
-function expectSoftCardSurface(element: Element) {
-  expect(element.classList.contains('bg-card')).toBe(true);
-  expect(element.classList.contains('bg-card/85')).toBe(false);
-  expect(element.classList.contains('backdrop-blur-sm')).toBe(false);
+function expectThemeCardSurface(element: Element) {
+  expect(element.classList.contains('bg-card/85')).toBe(true);
+  expect(element.classList.contains('backdrop-blur-sm')).toBe(true);
+  expect(element.classList.contains('bg-card')).toBe(false);
   expect(element.classList.contains('dark:bg-card/85')).toBe(false);
   expect(element.classList.contains('dark:backdrop-blur-sm')).toBe(false);
+  expect(element.classList.contains('border-border')).toBe(true);
+  expect(element.classList.contains('border-[length:var(--border-width,1px)]')).toBe(true);
+  expect(element.classList.contains('rounded-[var(--radius,0.5rem)]')).toBe(true);
+  expect(element.classList.contains('rounded-xl')).toBe(false);
+  expect(element.classList.contains('shadow-sm')).toBe(true);
+}
+
+function expectMobileCardSurface(element: Element) {
+  expect(element.classList.contains('bg-card')).toBe(true);
   expect(element.classList.contains('border-border/55')).toBe(true);
   expect(element.classList.contains('rounded-xl')).toBe(true);
   expect(element.classList.contains('shadow-sm')).toBe(true);
@@ -81,10 +90,10 @@ function collectProductionClasses(pattern: RegExp): string[] {
 }
 
 describe('surface class contracts', () => {
-  it('keeps the shared Card opaque in light mode and translucent in dark mode', () => {
+  it('keeps the shared Card on the theme-driven surface contract', () => {
     const { container } = render(<Card>Card content</Card>);
 
-    expectSoftCardSurface(container.firstElementChild!);
+    expectThemeCardSurface(container.firstElementChild!);
   });
 
   it('uses the same contract for a representative mobile dashboard card', () => {
@@ -101,7 +110,7 @@ describe('surface class contracts', () => {
     };
     const { container } = render(<WeatherCard data={data as never} />);
 
-    expectSoftCardSurface(container.firstElementChild!);
+    expectMobileCardSurface(container.firstElementChild!);
   });
 
   it('keeps calendar event cards opaque with a full light border', () => {
@@ -266,6 +275,8 @@ describe('surface class contracts', () => {
     expect(alphaCards).toEqual([
       // Goal celebration is a transient overlay over a deliberately dark scrim.
       'src/components/ui/GoalCelebration.tsx:bg-card/95',
+      // Shared cards use the theme surface with a restrained translucent veil.
+      'src/components/ui/card.tsx:bg-card/85',
     ]);
   });
 
@@ -295,7 +306,6 @@ describe('surface class contracts', () => {
       'src/components/layout/LayoutPreview.tsx:border-border/30',
       'src/components/layout/SideNav.tsx:border-border/45',
       'src/components/layout/SubpageHeader.tsx:border-border/45',
-      'src/components/ui/card.tsx:border-border/55',
       'src/components/ui/dialog.tsx:border-border/55',
       'src/components/ui/select.tsx:border-border/60',
       'src/components/widgets/BirthdaysWidget.tsx:border-border/50',
@@ -343,6 +353,8 @@ describe('surface class contracts', () => {
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddTaskModal.tsx:text-[10px]',
       // Compact avatar initials with adjacent names.
+      // Compact calendar sync status metadata.
+      'src/components/widgets/CalendarWidget.tsx:text-[10px]',
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',
       'src/components/widgets/ChoresWidget.tsx:text-[8px]',
       'src/components/widgets/MealsWidget.tsx:text-[8px]',
