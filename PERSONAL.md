@@ -787,10 +787,27 @@ upstream-sync-only commits are omitted unless they changed behavior.
     Adds a configurable full-desktop floating card backed by Home Assistant,
     with media-player entity discovery/manual entry, media artwork and metadata,
     a live timeline with relative/local end time, playback/seek/volume/mute
-    controls, optional Apple TV-style remote suspend plus player turn-off, and
-    right-to-left upward wrapping alongside the precipitation radar.
+    controls, close and stop actions, optional Apple TV-style remote suspend
+    plus player turn-off, and right-to-left upward wrapping alongside the
+    precipitation radar.
 
-    Commits: eedb60f6, 3a216515, 67ce59c7
+    Commits: daa6b81, 67ce59c7
+
+95. **Media player and radar floating-card placement**
+
+    Keeps the precipitation radar anchored at the right edge, places newly
+    active media to its left, and lets the floating cards share a row before
+    wrapping upward on smaller desktop widths.
+
+    Commit: 761461b5
+
+96. **Overlay-safe auto-hide navigation**
+
+    Keeps auto-hidden dashboard navigation hidden while people interact with
+    floating cards, popovers, or dialogs, while interactions elsewhere still
+    restore the navigation.
+
+    Commit: 4cbad780
 
 ## Superseded personal iterations
 
