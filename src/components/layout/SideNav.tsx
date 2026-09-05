@@ -27,6 +27,7 @@ import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { scopedHref, isNavActive } from '@/lib/utils/dashboardScope';
 import { HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PrismIcon } from '@/components/ui/PrismIcon';
@@ -105,12 +106,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
   }, [pathname]);
 
   // Check if a nav item is active
-  const isActive = (href: string) => {
-    if (href === '/') {
-      return pathname === '/';
-    }
-    return pathname.startsWith(href);
-  };
+  const isActive = (href: string) => isNavActive(href, pathname);
 
   // Toggle drawer on tap in blank area — skip if clicking a link or button
   const handleAsideClick = (e: React.MouseEvent) => {
@@ -140,7 +136,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
       >
         {/* HEADER WITH LOGO */}
         <div className={cn('flex items-center h-12 [@media(pointer:coarse)]:h-16 px-2', expanded ? 'justify-start' : 'justify-center')}>
-          <Link href="/" prefetch={false} className="flex items-center gap-2" aria-label="Prism home">
+          <Link href={scopedHref('/', pathname)} prefetch={false} className="flex items-center gap-2" aria-label="Prism home">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
               <PrismIcon size={24} />
             </div>
@@ -158,7 +154,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
               return (
                 <li key={item.href}>
                   <Link
-                    href={item.href}
+                    href={scopedHref(item.href, pathname)}
                     prefetch={false}
                     aria-label={t(item.i18nKey)}
                     className={cn(

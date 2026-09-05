@@ -3,6 +3,7 @@
  */
 import { THEME_TOKENS, isValidTokenValue, type Theme, type ThemeTokens } from './tokens';
 import { appThemes, isAppThemeId } from './appThemes';
+import { normalizeShape } from './tokens';
 
 export type ResolvedMode = 'light' | 'dark';
 
@@ -32,9 +33,35 @@ export function applyThemeVars(root: HTMLElement, tokens: Partial<ThemeTokens>):
   }
 }
 
+/** Apply the shape values, which are the same in both modes. */
+export function applyThemeShape(root: HTMLElement, theme: Theme): void {
+  for (const [prop, value] of shapeProperties(theme)) {
+    root.style.setProperty(prop, value);
+  }
+}
+
+/**
+ * Shape as CSS custom properties.
+ *
+ * Density is a multiplier rather than a length so it can scale the existing
+ * spacing scale instead of replacing it — a theme says "roomier", not "16px",
+ * and stays correct wherever it is applied.
+ */
+function shapeProperties(theme: Theme): Array<[string, string]> {
+  const { radius, density, borderWidth } = normalizeShape(theme.shape);
+  return [
+    ['--radius', `${radius}rem`],
+    ['--density', String(density)],
+    ['--border-width', `${borderWidth}px`],
+  ];
+}
+
 /** Remove every theme token, falling back to the values in globals.css. */
 export function clearThemeVars(root: HTMLElement): void {
   for (const token of THEME_TOKENS) root.style.removeProperty(`--${token}`);
+  for (const [prop] of shapeProperties({ light: {}, dark: {} } as Theme)) {
+    root.style.removeProperty(prop);
+  }
 }
 
 /**
@@ -72,6 +99,7 @@ export function themeCss(theme: Theme): string {
   };
 
   const appTheme = isAppThemeId(theme.id) ? appThemes[theme.id] : undefined;
+  const shape = shapeProperties(theme).map(([p, v]) => `${p}:${v}`).join(';');
 
-  return `:root{${block(theme.light, appTheme?.light)}}.dark{${block(theme.dark, appTheme?.dark)}}`;
+  return `:root{${block(theme.light, appTheme?.light)};${shape}}.dark{${block(theme.dark, appTheme?.dark)}}`;
 }

@@ -856,6 +856,7 @@ const PRISM: GalleryTheme = {
     input: '217 33% 25%',
     ring: '212 95% 68%',
   },
+  shape: { radius: 0.5, density: 1, borderWidth: 1 },
 };
 
 /**
@@ -909,6 +910,9 @@ const CLAY: GalleryTheme = {
     input: '25 14% 28%',
     ring: '22 55% 62%',
   },
+  // Softer and roomier. The extra padding does more than the hue to make this
+  // feel calm rather than merely beige.
+  shape: { radius: 0.9, density: 1.15, borderWidth: 1 },
 };
 
 
@@ -963,6 +967,7 @@ const HARVEST: GalleryTheme = {
     input: '26 16% 26%',
     ring: '32 70% 60%',
   },
+  shape: { radius: 0.75, density: 1.05, borderWidth: 1 },
 };
 
 const SNOW_DAY: GalleryTheme = {
@@ -1011,6 +1016,9 @@ const SNOW_DAY: GalleryTheme = {
     input: '215 24% 27%',
     ring: '199 75% 65%',
   },
+  // Airy and almost borderless — surfaces separated by space rather than by
+  // lines, which is what makes it read as quiet.
+  shape: { radius: 1.1, density: 1.25, borderWidth: 0 },
 };
 
 /**
@@ -1065,6 +1073,10 @@ const ARCADE: GalleryTheme = {
     input: '248 28% 26%',
     ring: '285 85% 70%',
   },
+  // Square, tight and heavily outlined. A sixteen-bit console had hard edges
+  // and no wasted space, and these three together do more than the palette to
+  // stop this reading as Prism in different colours.
+  shape: { radius: 0, density: 0.85, borderWidth: 2 },
 };
 
 export const BUILTIN_THEMES: GalleryTheme[] = [

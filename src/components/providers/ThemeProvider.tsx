@@ -31,7 +31,7 @@ import {
 } from '@/lib/themes/sunsetTheme';
 import { isInstallableTheme, type Theme } from '@/lib/themes/tokens';
 import { BUILTIN_THEMES, getBuiltinTheme, DEFAULT_THEME_ID } from '@/lib/themes/appThemes';
-import { applyThemeVars, themeTokens } from '@/lib/themes/applyTheme';
+import { applyThemeVars, applyThemeShape, themeTokens } from '@/lib/themes/applyTheme';
 
 /** Theme modes supported by the display brightness control. */
 export type ThemeMode = 'light' | 'dark' | 'system' | 'sunset';
@@ -357,6 +357,17 @@ export function ThemeProvider({
 
   // Compatibility for personal components and older settings controls.
   const setColorTheme = (newTheme: string) => setPalette(newTheme);
+
+  // Apply the palette's variables whenever it or the light/dark mode changes.
+  //
+  // Runs after mount only. The first paint is handled by a stylesheet rendered
+  // on the server, so this effect is for changes rather than for load — which
+  // is why there is no flash when someone picks a palette.
+  useEffect(() => {
+    if (!mounted) return;
+    applyThemeVars(document.documentElement, themeTokens(palette, resolvedTheme));
+    applyThemeShape(document.documentElement, palette);
+  }, [palette, resolvedTheme, mounted]);
 
   // Escape hatch for a kiosk that cannot reach Settings: ?theme=default resets
   // the palette and persists it.
