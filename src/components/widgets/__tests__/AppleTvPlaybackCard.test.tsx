@@ -33,6 +33,7 @@ const makeData = (overrides: Partial<MediaPlayerPlaybackData> = {}): MediaPlayer
   album: 'Album',
   mediaType: 'video',
   appName: 'TV',
+  mediaService: null,
   series: 'Series',
   episode: 'S1 E1',
   mediaIdentity: 'media-1',
@@ -92,6 +93,49 @@ it('renders music metadata and artwork fallback', () => {
   render(<MediaPlayerPlaybackCard />);
   expect(screen.getByText('Artist · Album')).toBeTruthy();
   expect(screen.getByLabelText('Media Player playback')).toBeTruthy();
+  expect(screen.getByTestId('media-player-generic-artwork')).toBeTruthy();
+});
+it('shows a YouTube logo when Home Assistant has no artwork', () => {
+  data = makeData({ appName: 'YouTube', mediaService: 'youtube', artworkUrl: null });
+  render(<MediaPlayerPlaybackCard />);
+  const artwork = screen.getByRole('img', { name: 'YouTube artwork fallback' });
+  expect(artwork.getAttribute('data-service')).toBe('youtube');
+  expect(screen.getByTestId('media-player-provider-logo').getAttribute('data-logo-src')).toBe(
+    '/media-player-artwork/logos/youtube.svg'
+  );
+});
+it('uses the service logo when a normally available artwork URL fails', () => {
+  data = makeData({ appName: 'Plex', mediaService: 'plex' });
+  render(<MediaPlayerPlaybackCard />);
+  fireEvent.error(screen.getByAltText(''));
+  const artwork = screen.getByRole('img', { name: 'Plex artwork fallback' });
+  expect(artwork.getAttribute('data-service')).toBe('plex');
+  expect(screen.getByTestId('media-player-provider-logo').getAttribute('data-logo-src')).toBe(
+    '/media-player-artwork/logos/plex.svg'
+  );
+});
+it('can infer a known service from the app name for older API responses', () => {
+  data = makeData({ appName: 'Netflix', mediaService: null, artworkUrl: null });
+  render(<MediaPlayerPlaybackCard />);
+  expect(screen.getByRole('img', { name: 'Netflix artwork fallback' })).toBeTruthy();
+});
+it('renders the LocalTV+ fallback treatment', () => {
+  data = makeData({ appName: 'LocalTV+', mediaService: 'local-tv-plus', artworkUrl: null });
+  render(<MediaPlayerPlaybackCard />);
+  const artwork = screen.getByRole('img', { name: 'LocalTV+ artwork fallback' });
+  expect(artwork.getAttribute('data-service')).toBe('local-tv-plus');
+  expect(screen.getByTestId('media-player-provider-logo').getAttribute('data-logo-src')).toBe(
+    '/media-player-artwork/logos/local-tv-plus.png'
+  );
+});
+it('renders Apple TV+ as a streaming-service fallback', () => {
+  data = makeData({ appName: 'Apple TV+', mediaService: 'apple-tv', artworkUrl: null });
+  render(<MediaPlayerPlaybackCard />);
+  const artwork = screen.getByRole('img', { name: 'Apple TV+ artwork fallback' });
+  expect(artwork.getAttribute('data-service')).toBe('apple-tv');
+  expect(screen.getByTestId('media-player-provider-logo').getAttribute('data-logo-src')).toBe(
+    '/media-player-artwork/logos/apple-tv.png'
+  );
 });
 it('uses Home Assistant friendly name in the card heading and power action', async () => {
   data = makeData({ deviceName: 'Living Room' });
@@ -172,8 +216,8 @@ it('adjusts volume with 48px buttons in 5% increments', async () => {
   expect(volumeRow?.className).toContain('w-full');
   expect(
     [...(volumeRow?.querySelectorAll('button') ?? [])].map((button) =>
-      button.getAttribute('aria-label'),
-    ),
+      button.getAttribute('aria-label')
+    )
   ).toEqual(['Decrease volume', 'Mute', 'Increase volume']);
   expect(decrease.className).toContain('min-h-12');
   expect(decrease.className).toContain('flex-1');
@@ -200,7 +244,8 @@ it('supports mute and confirmed power', async () => {
   expect(action).toHaveBeenCalledWith({ control: 'turn_off' });
 });
 it('shows refresh status', () => {
-  const hook = jest.requireMock('@/lib/hooks/useMediaPlayerPlayback').useMediaPlayerPlayback as jest.Mock;
+  const hook = jest.requireMock('@/lib/hooks/useMediaPlayerPlayback')
+    .useMediaPlayerPlayback as jest.Mock;
   hook.mockReturnValueOnce({ data, loading: true, error: null, action });
   render(<MediaPlayerPlaybackCard />);
   expect(screen.getByText('Refreshing…')).toBeTruthy();

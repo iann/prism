@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Album,
   ChevronsLeft,
   ChevronsRight,
   CirclePlay,
@@ -31,6 +30,7 @@ import { useCurrentTime } from './ClockWidget';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime } from '@/lib/utils/timeFormat';
 import { cn } from '@/lib/utils';
+import { MediaPlayerArtwork } from './MediaPlayerArtwork';
 
 const formatDuration = (seconds: number | null) =>
   seconds == null || !Number.isFinite(seconds)
@@ -48,7 +48,11 @@ export function MediaPlayerPlaybackCard({
   const { data, loading, error, action } = useMediaPlayerPlayback(enabled);
   const { timeFormat, displayTimezone } = useTimeFormat();
   const now = useCurrentTime();
-  const { ready: dismissalReady, dismissed, dismiss } = useMediaPlayerDismissal({
+  const {
+    ready: dismissalReady,
+    dismissed,
+    dismiss,
+  } = useMediaPlayerDismissal({
     entityId: data.entityId,
     mediaIdentity: data.mediaIdentity,
     active: data.active,
@@ -176,9 +180,7 @@ export function MediaPlayerPlaybackCard({
                 onError={() => setArtworkFailed(true)}
               />
             ) : (
-              <div className="flex h-48 w-48 shrink-0 items-center justify-center rounded-xl bg-muted">
-                <Album className="h-8 w-8 text-muted-foreground" />
-              </div>
+              <MediaPlayerArtwork service={data.mediaService} appName={data.appName} />
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-xl font-semibold">

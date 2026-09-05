@@ -18,13 +18,18 @@ export function buildHomeAssistantMediaIdentity(
     | 'album'
     | 'mediaType'
     | 'appName'
+    | 'mediaService'
     | 'duration'
   >
 ): string | null {
   if (!state.entityId) return null;
 
   const source = state.mediaContentId
-    ? { entityId: state.entityId, mediaContentId: state.mediaContentId }
+    ? {
+        entityId: state.entityId,
+        mediaContentId: state.mediaContentId,
+        mediaService: state.mediaService,
+      }
     : {
         entityId: state.entityId,
         title: state.title,
@@ -34,18 +39,14 @@ export function buildHomeAssistantMediaIdentity(
         album: state.album,
         mediaType: state.mediaType,
         appName: state.appName,
+        mediaService: state.mediaService,
         duration: state.duration,
       };
 
   const hasFallbackMetadata =
     !!state.mediaContentId ||
     Boolean(
-      state.title ||
-        state.series ||
-        state.episode ||
-        state.artist ||
-        state.album ||
-        state.appName
+      state.title || state.series || state.episode || state.artist || state.album || state.appName
     );
   if (!hasFallbackMetadata) return null;
 

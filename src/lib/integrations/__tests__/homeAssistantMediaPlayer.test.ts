@@ -1,5 +1,6 @@
 import {
   buildHomeAssistantMediaPlayerActionRequests,
+  identifyMediaPlayerService,
   normalizeHomeAssistantMediaPlayerState,
 } from '../homeAssistantMediaPlayer';
 import { buildHomeAssistantMediaIdentity } from '../homeAssistantMediaPlayerIdentity';
@@ -19,6 +20,40 @@ function makeState(attributes: Record<string, unknown> = {}) {
 }
 
 describe('Home Assistant media-player integration', () => {
+  it.each([
+    ['YouTube', 'youtube'],
+    ['YouTube Music', 'youtube-music'],
+    ['Netflix', 'netflix'],
+    ['Disney+', 'disney-plus'],
+    ['Prime Video', 'prime-video'],
+    ['HBO Max', 'max'],
+    ['Paramount+', 'paramount-plus'],
+    ['Plex', 'plex'],
+    ['Apple TV', 'apple-tv'],
+    ['Apple TV+', 'apple-tv'],
+    ['tv.apple.com', 'apple-tv'],
+    ['YourLocalTV', 'local-tv-plus'],
+    ['Mass Local TV', 'local-tv-plus'],
+    ['LocalTV+', 'local-tv-plus'],
+    ['Spotify', 'spotify'],
+    ['Twitch', 'twitch'],
+  ] as const)('recognizes %s as %s', (hint, service) => {
+    expect(identifyMediaPlayerService(hint)).toBe(service);
+  });
+
+  it('uses a source or content ID when the app name is not useful', () => {
+    expect(
+      normalizeHomeAssistantMediaPlayerState({
+        entity_id: mediaPlayer,
+        attributes: {
+          app_name: 'Chromecast',
+          source: 'YouTube',
+          media_content_id: 'https://www.youtube.com/watch?v=abc',
+        },
+      }).mediaService
+    ).toBe('youtube');
+  });
+
   it('turns off a generic media player without requiring a remote', () => {
     expect(
       buildHomeAssistantMediaPlayerActionRequests({ control: 'turn_off' }, mediaPlayer)
@@ -56,9 +91,7 @@ describe('Home Assistant media-player integration', () => {
 
   it('prefers media_content_id and never returns it in the identity', () => {
     const rawId = 'provider://film?token=must-not-leak';
-    const identity = buildHomeAssistantMediaIdentity(
-      makeState({ media_content_id: rawId })
-    );
+    const identity = buildHomeAssistantMediaIdentity(makeState({ media_content_id: rawId }));
     expect(identity).toMatch(/^[a-f0-9]{32}$/);
     expect(identity).not.toContain(rawId);
   });
