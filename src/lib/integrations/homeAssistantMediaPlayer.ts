@@ -30,6 +30,97 @@ export type HomeAssistantMediaPlayerActionInput =
   | { control: 'volume_set'; volumeLevel: number }
   | { control: 'volume_mute'; isVolumeMuted: boolean };
 
+/** Known media services used to select a safe, local artwork fallback. */
+export type MediaPlayerService =
+  | 'youtube'
+  | 'youtube-music'
+  | 'netflix'
+  | 'hulu'
+  | 'disney-plus'
+  | 'prime-video'
+  | 'max'
+  | 'paramount-plus'
+  | 'peacock'
+  | 'apple-tv'
+  | 'plex'
+  | 'spotify'
+  | 'amazon-music'
+  | 'pandora'
+  | 'soundcloud'
+  | 'tidal'
+  | 'deezer'
+  | 'siriusxm'
+  | 'twitch'
+  | 'roku'
+  | 'tubi'
+  | 'crunchyroll'
+  | 'pluto-tv'
+  | 'discovery-plus'
+  | 'espn-plus'
+  | 'sling'
+  | 'fubo'
+  | 'shudder'
+  | 'britbox'
+  | 'local-tv-plus';
+
+const MEDIA_PLAYER_SERVICE_MATCHERS: ReadonlyArray<{
+  service: MediaPlayerService;
+  pattern: RegExp;
+}> = [
+  { service: 'youtube-music', pattern: /\b(?:youtube\s*music|yt\s*music|ytmusic)\b/i },
+  { service: 'youtube', pattern: /\byoutube(?:\s*tv)?\b/i },
+  { service: 'netflix', pattern: /\bnetflix\b/i },
+  { service: 'hulu', pattern: /\bhulu\b/i },
+  { service: 'disney-plus', pattern: /\bdisney(?:\s*plus|\+)?\b/i },
+  { service: 'amazon-music', pattern: /\bamazon\s+music\b/i },
+  { service: 'prime-video', pattern: /\b(?:amazon\s+)?prime\s*video\b/i },
+  { service: 'max', pattern: /\b(?:hbo\s*)?max\b/i },
+  { service: 'paramount-plus', pattern: /\bparamount(?:\s*plus|\+)?\b/i },
+  { service: 'peacock', pattern: /\bpeacock\b/i },
+  {
+    service: 'apple-tv',
+    pattern: /\bapple[\s._-]*tv(?:\s*plus|\+)?\b|\btv\.apple\.com\b/i,
+  },
+  { service: 'plex', pattern: /\bplex\b/i },
+  {
+    service: 'local-tv-plus',
+    pattern:
+      /\b(?:your[\s._-]*local[\s._-]*tv|mass[\s._-]*local[\s._-]*tv|masslocaltv)\b|\blocaltv\+/i,
+  },
+  { service: 'spotify', pattern: /\bspotify\b/i },
+  { service: 'pandora', pattern: /\bpandora\b/i },
+  { service: 'soundcloud', pattern: /\bsoundcloud\b/i },
+  { service: 'tidal', pattern: /\btidal\b/i },
+  { service: 'deezer', pattern: /\bdeezer\b/i },
+  { service: 'siriusxm', pattern: /\bsirius\s*xm\b/i },
+  { service: 'twitch', pattern: /\btwitch\b/i },
+  { service: 'roku', pattern: /\broku\b/i },
+  { service: 'tubi', pattern: /\btubi\b/i },
+  { service: 'crunchyroll', pattern: /\bcrunchyroll\b/i },
+  { service: 'pluto-tv', pattern: /\bpluto[\s._-]*tv\b/i },
+  { service: 'discovery-plus', pattern: /\bdiscovery(?:\s*plus|\+)?\b/i },
+  { service: 'espn-plus', pattern: /\bespn(?:\s*plus|\+)?\b/i },
+  { service: 'sling', pattern: /\bsling(?:\s*tv)?\b/i },
+  { service: 'fubo', pattern: /\bfubo(?:\s*tv)?\b/i },
+  { service: 'shudder', pattern: /\bshudder\b/i },
+  { service: 'britbox', pattern: /\bbritbox\b/i },
+];
+
+/**
+ * Identifies a streaming service from Home Assistant's non-sensitive media hints.
+ * The raw media content ID stays server-side; only this known service label is exposed.
+ */
+export function identifyMediaPlayerService(...hints: unknown[]): MediaPlayerService | null {
+  const haystack = hints
+    .filter((hint): hint is string => typeof hint === 'string' && hint.trim().length > 0)
+    .join(' ')
+    .toLowerCase();
+  if (!haystack) return null;
+  return (
+    MEDIA_PLAYER_SERVICE_MATCHERS.find(({ pattern }) => pattern.test(haystack))?.service ?? null
+  );
+}
+
 export type HomeAssistantMediaPlayerState = {
   entityId: string | null;
   deviceName: string | null;
@@ -39,6 +130,7 @@ export type HomeAssistantMediaPlayerState = {
   album: string | null;
   mediaType: string | null;
   appName: string | null;
+  mediaService: MediaPlayerService | null;
   series: string | null;
   episode: string | null;
   /** Server-only source value; API routes must remove it before serialization. */
@@ -104,6 +196,12 @@ export function normalizeHomeAssistantMediaPlayerState(
     album: text(a.media_album_name),
     mediaType: text(a.media_content_type),
     appName: text(a.app_name),
+    mediaService: identifyMediaPlayerService(
+      a.app_name,
+      a.source,
+      a.media_content_id,
+      a.friendly_name
+    ),
     mediaContentId: text(a.media_content_id),
     thumbnail: text(a.entity_picture),
     position:
@@ -218,7 +316,10 @@ export function buildHomeAssistantMediaPlayerActionRequests(
 
 /** End time is estimated from `now` and the resulting position, and is null without a valid duration. */
 export function estimateHomeAssistantMediaPlayerPosition(
-  state: Pick<HomeAssistantMediaPlayerState, 'position' | 'positionUpdatedAt' | 'duration' | 'state'>,
+  state: Pick<
+    HomeAssistantMediaPlayerState,
+    'position' | 'positionUpdatedAt' | 'duration' | 'state'
+  >,
   now: Date | number = Date.now()
 ): { position: number | null; endTime: Date | null } {
   if (state.position == null) return { position: null, endTime: null };

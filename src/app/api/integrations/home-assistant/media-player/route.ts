@@ -22,6 +22,7 @@ const empty = () => ({
   album: null,
   mediaType: null,
   appName: null,
+  mediaService: null,
   series: null,
   episode: null,
   mediaIdentity: null,
@@ -57,11 +58,7 @@ export async function GET() {
       normalized.state === 'playing' ||
       normalized.state === 'paused' ||
       normalized.state === 'buffering';
-    const {
-      thumbnail: _thumbnail,
-      mediaContentId: _mediaContentId,
-      ...safeState
-    } = normalized;
+    const { thumbnail: _thumbnail, mediaContentId: _mediaContentId, ...safeState } = normalized;
     const artworkVersion = normalized.thumbnail
       ? createHash('sha256').update(normalized.thumbnail).digest('hex').slice(0, 12)
       : null;

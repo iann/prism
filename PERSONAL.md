@@ -786,12 +786,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Adds a configurable full-desktop floating card backed by Home Assistant,
     with media-player entity discovery/manual entry, media artwork and metadata,
+    offline provider detection and branded logo fallbacks for missing artwork,
     a live timeline with relative/local end time, playback/seek/volume/mute
-    controls, close and stop actions, optional Apple TV-style remote suspend
-    plus player turn-off, and right-to-left upward wrapping alongside the
-    precipitation radar.
+    controls, optional Apple TV-style remote suspend plus player turn-off, and
+    right-to-left upward wrapping alongside the precipitation radar. The
+    fallback set includes Apple TV+ and LocalTV+ in addition to the major
+    streaming and music providers.
 
-    Commits: daa6b81, 67ce59c7
+    Commits: eedb60f6, 3a216515, 67ce59c7, 06603005
 
 95. **Media player and radar floating-card placement**
 

@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { useFetch } from './useFetch';
 import type {
   HomeAssistantMediaPlayerActionInput,
+  MediaPlayerService,
   SupportedMediaPlayerControl,
 } from '@/lib/integrations/homeAssistantMediaPlayer';
 
@@ -20,6 +21,7 @@ export type MediaPlayerPlaybackData = {
   album: string | null;
   mediaType: string | null;
   appName: string | null;
+  mediaService: MediaPlayerService | null;
   series: string | null;
   episode: string | null;
   /** Opaque server-generated identity; raw Home Assistant media IDs never reach the client. */
@@ -46,6 +48,7 @@ export const MEDIA_PLAYER_INITIAL_DATA: MediaPlayerPlaybackData = {
   album: null,
   mediaType: null,
   appName: null,
+  mediaService: null,
   series: null,
   episode: null,
   mediaIdentity: null,

@@ -173,6 +173,21 @@ describe('Home Assistant routes', () => {
     expect(JSON.stringify(body)).not.toContain('secret');
   });
 
+  it('returns a safe service label for logo artwork when Home Assistant has no picture', async () => {
+    getConfig.mockResolvedValue(config);
+    haFetch.mockResolvedValue(
+      ok({
+        entity_id: config.mediaPlayerEntityId,
+        state: 'playing',
+        attributes: { media_title: 'Video', app_name: 'YouTube' },
+      })
+    );
+
+    const body = await (await mediaPlayer()).json();
+    expect(body.artworkUrl).toBeNull();
+    expect(body.mediaService).toBe('youtube');
+  });
+
   it('exposes an opaque media identity without returning media_content_id', async () => {
     getConfig.mockResolvedValue(config);
     const rawMediaId = 'provider://film?token=must-not-leak';
