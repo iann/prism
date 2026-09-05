@@ -51,4 +51,15 @@ describe('FloatingCardStack', () => {
     expect(slots).toHaveLength(2);
     expect(slots[0]?.style.flex).toBe(slots[1]?.style.flex);
   });
+
+  it('supports top placement for global alert cards', () => {
+    render(
+      <FloatingCardStack topOffset={16}>
+        <button>camera</button>
+      </FloatingCardStack>
+    );
+    const stack = screen.getByTestId('floating-card-stack');
+    expect(stack.style.top).toContain('16px');
+    expect(stack.style.bottom).toBe('');
+  });
 });

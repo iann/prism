@@ -36,9 +36,9 @@ function collectBuildFiles(relativePath, files) {
 
   const stat = fs.statSync(absolutePath);
   if (stat.isDirectory()) {
-    for (const entry of fs.readdirSync(absolutePath, { withFileTypes: true }).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    )) {
+    for (const entry of fs
+      .readdirSync(absolutePath, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name))) {
       collectBuildFiles(path.join(relativePath, entry.name), files);
     }
     return;
@@ -99,7 +99,6 @@ const nextConfig = {
   serverExternalPackages: ['undici'],
   generateBuildId: async () => APP_BUILD_ID,
 
-
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.icloud.com' },
@@ -112,7 +111,13 @@ const nextConfig = {
   },
 
   experimental: {
-    optimizePackageImports: ['lucide-react', 'date-fns', '@radix-ui/react-dropdown-menu', '@radix-ui/react-dialog', '@radix-ui/react-select'],
+    optimizePackageImports: [
+      'lucide-react',
+      'date-fns',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+    ],
     serverActions: {
       allowedOrigins: ['localhost:3000', 'localhost:3005'],
     },
@@ -137,7 +142,12 @@ const nextConfig = {
 
   webpack: (config, { isServer }) => {
     if (isServer) {
-      config.externals = [...(Array.isArray(config.externals) ? config.externals : [config.externals].filter(Boolean)), 'undici'];
+      config.externals = [
+        ...(Array.isArray(config.externals)
+          ? config.externals
+          : [config.externals].filter(Boolean)),
+        'undici',
+      ];
     }
     return config;
   },

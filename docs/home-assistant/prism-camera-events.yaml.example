@@ -1,0 +1,48 @@
+# Example only. Replace every entity_id and the event source trigger with the
+# entities discovered in Home Assistant. Do not enable this file unchanged.
+# Keep PRISM_CAMERA_EVENT_URL and PRISM_CAMERA_EVENT_AUTHORIZATION in
+# secrets.yaml. The authorization secret must include the `Bearer ` prefix.
+# The Prism event envelope is documented in docs/eufy-camera-event-proposal.md.
+
+rest_command:
+  prism_camera_event:
+    url: !secret prism_camera_event_url
+    method: POST
+    timeout: 10
+    headers:
+      Authorization: !secret prism_camera_event_authorization
+      Content-Type: application/json
+    payload: '{{ payload }}'
+
+# Replace these triggers with the actual Eufy integration entities/events.
+# The template intentionally refuses to send until the placeholder IDs are
+# replaced, so a copied example cannot report a false camera event.
+automation:
+  - id: prism_camera_doorbell_1_event
+    alias: Prism camera — Doorbell 1 event (configure entity first)
+    mode: parallel
+    trigger:
+      - platform: state
+        entity_id: camera.REPLACE_WITH_VERIFIED_EUFY_ENTITY
+        to: 'REPLACE_WITH_VERIFIED_RING_STATE'
+    condition:
+      - condition: template
+        value_template: >-
+          {{ 'REPLACE_WITH_VERIFIED' not in trigger.entity_id and
+             'REPLACE_WITH_VERIFIED' not in (trigger.to_state.state | string) }}
+    action:
+      - variables:
+          event_id: '{{ trigger.id }}-{{ trigger.to_state.last_changed }}'
+          event_payload:
+            version: 1
+            eventId: '{{ event_id }}'
+            cameraId: doorbell-1
+            kind: doorbell
+            occurredAt: '{{ trigger.to_state.last_changed }}'
+      - action: rest_command.prism_camera_event
+        data:
+          payload: '{{ event_payload | to_json }}'
+
+# Add one automation per verified ringing/motion source after the Phase 1
+# hardware trial. Do not infer a second physical ring from a sensor that stays
+# on; use a distinct integration event if the installed bridge exposes one.

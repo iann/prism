@@ -2663,3 +2663,39 @@ CREATE TABLE IF NOT EXISTS public.excluded_photos (
   created_at timestamp DEFAULT now() NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS excluded_photos_source_external_unique ON public.excluded_photos (source_id, external_id);
+
+-- Camera event ingress/display grants and durable stream cleanup ownership.
+-- Keep these definitions in the fresh-install schema as well as migration
+-- 0027 so a new container does not depend on a later ALTER pass.
+CREATE TABLE IF NOT EXISTS public.camera_access_grants (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  kind varchar(20) NOT NULL,
+  token_hash varchar(64) NOT NULL,
+  camera_ids jsonb DEFAULT '[]'::jsonb NOT NULL,
+  display_id varchar(100),
+  created_by uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  expires_at timestamp NOT NULL,
+  revoked_at timestamp,
+  last_used_at timestamp,
+  created_at timestamp DEFAULT now() NOT NULL,
+  CONSTRAINT camera_access_grants_kind_check CHECK (kind IN ('event-ingress', 'display'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS camera_access_grants_token_hash_idx ON public.camera_access_grants (token_hash);
+CREATE INDEX IF NOT EXISTS camera_access_grants_display_idx ON public.camera_access_grants (display_id);
+CREATE INDEX IF NOT EXISTS camera_access_grants_expires_idx ON public.camera_access_grants (expires_at);
+
+CREATE TABLE IF NOT EXISTS public.camera_stream_cleanup (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  camera_id varchar(100) NOT NULL,
+  generation integer NOT NULL,
+  state varchar(20) DEFAULT 'pending' NOT NULL,
+  hard_deadline timestamp NOT NULL,
+  mapping jsonb NOT NULL,
+  last_error varchar(500),
+  created_at timestamp DEFAULT now() NOT NULL,
+  updated_at timestamp DEFAULT now() NOT NULL,
+  CONSTRAINT camera_stream_cleanup_state_check
+    CHECK (state IN ('pending', 'active', 'stopping', 'failed', 'released'))
+);
+CREATE INDEX IF NOT EXISTS camera_stream_cleanup_camera_state_idx ON public.camera_stream_cleanup (camera_id, state);
+CREATE INDEX IF NOT EXISTS camera_stream_cleanup_deadline_idx ON public.camera_stream_cleanup (hard_deadline);

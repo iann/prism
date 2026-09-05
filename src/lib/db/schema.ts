@@ -951,6 +951,60 @@ export const apiCredentials = pgTable('api_credentials', {
 });
 
 
+/**
+ * Narrow credentials used by the camera event ingress and enrolled displays.
+ * Raw grant tokens are never stored; camera/auth.ts stores a SHA-256 digest.
+ */
+export const cameraAccessGrants = pgTable('camera_access_grants', {
+  id: uuid('id').defaultRandom().primaryKey(),
+
+  kind: varchar('kind', { length: 20 })
+    .$type<'event-ingress' | 'display'>()
+    .notNull(),
+
+  tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+
+  // The grant is intentionally scoped to opaque camera IDs, never HA entities.
+  cameraIds: jsonb('camera_ids').$type<string[]>().default([]).notNull(),
+
+  // Display grants are bound to the enrolled browser/display identity.
+  displayId: varchar('display_id', { length: 100 }),
+
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  expiresAt: timestamp('expires_at').notNull(),
+  revokedAt: timestamp('revoked_at'),
+  lastUsedAt: timestamp('last_used_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  tokenHashIdx: uniqueIndex('camera_access_grants_token_hash_idx').on(table.tokenHash),
+  displayIdx: index('camera_access_grants_display_idx').on(table.displayId),
+  expiresIdx: index('camera_access_grants_expires_idx').on(table.expiresAt),
+}));
+
+
+/**
+ * Durable ownership records for camera streams requested by Prism. The stream
+ * worker owns cleanup; a browser disconnect must never be the only stop signal.
+ */
+export const cameraStreamCleanup = pgTable('camera_stream_cleanup', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  cameraId: varchar('camera_id', { length: 100 }).notNull(),
+  generation: integer('generation').notNull(),
+  state: varchar('state', { length: 20 })
+    .$type<'pending' | 'active' | 'stopping' | 'failed' | 'released'>()
+    .default('pending')
+    .notNull(),
+  hardDeadline: timestamp('hard_deadline').notNull(),
+  mapping: jsonb('mapping').notNull(),
+  lastError: varchar('last_error', { length: 500 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  cameraStateIdx: index('camera_stream_cleanup_camera_state_idx').on(table.cameraId, table.state),
+  deadlineIdx: index('camera_stream_cleanup_deadline_idx').on(table.hardDeadline),
+}));
+
+
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -1904,4 +1958,3 @@ export const weekendVisitsRelations = relations(weekendVisits, ({ one }) => ({
     references: [users.id],
   }),
 }));
-

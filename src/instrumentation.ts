@@ -48,5 +48,8 @@ export async function register() {
 
     const { startTelemetryCron } = await import('./lib/server/telemetryCron');
     startTelemetryCron();
+
+    const { startCameraSessionCleanup } = await import('./lib/server/cameraSessionCleanup');
+    startCameraSessionCleanup();
   }
 }

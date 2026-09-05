@@ -14,6 +14,7 @@ import { CalDAVProviderCard } from './cards/CalDAVProviderCard';
 import { KrogerProviderCard } from './cards/KrogerProviderCard';
 import { PhotoSourcesCard } from './cards/PhotoSourcesCard';
 import { HomeAssistantMediaPlayerProviderCard } from './cards/HomeAssistantMediaPlayerProviderCard';
+import { HomeAssistantCameraProviderCard } from './cards/HomeAssistantCameraProviderCard';
 
 /**
  * Consolidated integrations page (issue #52). One card per provider brand.
@@ -141,6 +142,7 @@ export function IntegrationsSection() {
         />
         <KrogerProviderCard />
         <HomeAssistantMediaPlayerProviderCard />
+        <HomeAssistantCameraProviderCard />
         <PhotoSourcesCard forceSubSectionOpen={hash} />
       </div>
     </div>

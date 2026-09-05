@@ -264,6 +264,8 @@ describe('surface class contracts', () => {
     );
 
     expect(alphaCards).toEqual([
+      // Camera alert media cards are intentionally translucent over the display.
+      'src/components/cameras/CameraEventCard.tsx:bg-card/95',
       // Goal celebration is a transient overlay over a deliberately dark scrim.
       'src/components/ui/GoalCelebration.tsx:bg-card/95',
     ]);
@@ -283,6 +285,10 @@ describe('surface class contracts', () => {
       'src/components/calendar/MonthView.tsx:border-border/70',
       // Calendar planning-group divider is decorative.
       'src/components/calendar/cells/DayColumn.tsx:border-border/40',
+      // Camera alert card boundaries remain readable over live media.
+      'src/components/cameras/CameraEventCard.tsx:border-border/60',
+      'src/components/cameras/CameraEventCard.tsx:border-border/70',
+      'src/components/cameras/CameraEventCard.tsx:border-border/70',
       'src/components/dashboard/MobileCards.tsx:border-border/55',
       'src/components/dashboard/MobileCards.tsx:border-border/55',
       'src/components/dashboard/MobileCards.tsx:border-border/55',

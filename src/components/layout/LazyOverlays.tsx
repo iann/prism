@@ -18,6 +18,10 @@ const BabysitterModeOverlay = dynamic(
   () => import('@/components/babysitter-mode/BabysitterModeOverlay').then(m => ({ default: m.BabysitterModeOverlay })),
   { ssr: false }
 );
+const CameraAlertProvider = dynamic(
+  () => import('@/components/cameras/CameraAlertProvider').then(m => ({ default: m.CameraAlertProvider })),
+  { ssr: false }
+);
 
 export function LazyOverlays() {
   const { isIdle } = useIdleDetection();
@@ -32,6 +36,7 @@ export function LazyOverlays() {
       {babysitterActive && <BabysitterModeOverlay toggle={toggleBabysitter} />}
       {isAway && <AwayModeOverlay toggle={toggleAway} />}
       {isIdle && <Screensaver />}
+      <CameraAlertProvider />
     </>
   );
 }
