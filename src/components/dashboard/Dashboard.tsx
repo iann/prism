@@ -53,7 +53,7 @@ const MealModal = lazy(() =>
 );
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { WeatherRadarWidget } from '@/components/widgets/WeatherRadarWidget';
-import { AppleTvPlaybackCard } from '@/components/widgets/AppleTvPlaybackCard';
+import { MediaPlayerPlaybackCard } from '@/components/widgets/MediaPlayerPlaybackCard';
 import { FloatingCardStack } from './FloatingCardStack';
 import { renderScreensaverPreview } from '@/components/screensaver/ScreensaverWidgetPreview';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
@@ -499,15 +499,20 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     );
   }, []);
 
-  const floatingCards = isFullDesktop && !layout.isEditing ? (
-    <FloatingCardStack bottomOffset={bottomOffset}>
-      {/* FloatingCardStack flows right-to-left, so radar stays at the right edge. */}
-      <WeatherRadarWidget data={data.weather.data} />
-      <AppleTvPlaybackCard
-        enabled={layout.activeLayout?.floatingCardSettings?.appleTvPlayback?.enabled ?? true}
-      />
-    </FloatingCardStack>
-  ) : null;
+  const floatingCards =
+    isFullDesktop && !layout.isEditing ? (
+      <FloatingCardStack bottomOffset={bottomOffset}>
+        {/* FloatingCardStack flows right-to-left, so radar stays at the right edge. */}
+        <WeatherRadarWidget data={data.weather.data} />
+        <MediaPlayerPlaybackCard
+          enabled={
+            layout.activeLayout?.floatingCardSettings?.mediaPlayerPlayback?.enabled ??
+            layout.activeLayout?.floatingCardSettings?.appleTvPlayback?.enabled ??
+            true
+          }
+        />
+      </FloatingCardStack>
+    ) : null;
 
   if (isMobile) {
     return (

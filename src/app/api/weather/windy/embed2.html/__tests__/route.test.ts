@@ -6,6 +6,10 @@ describe('rewriteWindyEmbedHtml', () => {
 
     expect(html).toContain('<base href="https://embed.windy.com/">');
     expect(html).toContain('id="prism-windy-overrides"');
+    expect(html).toContain('#mobile-ovr-select');
+    expect(html).toContain('#legend-mobile');
+    expect(html).toContain('.metric-legend');
+    expect(html).toContain('#embed-zoom');
     expect(html).toContain('.leaflet-marker-icon.mylocation');
     expect(html).toContain('#plugin-radar .speed-switch');
     expect(html).toContain('Windy</title>');

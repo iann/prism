@@ -1,13 +1,17 @@
 /** @jest-environment jsdom */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { AppleTvPlaybackCard } from '../AppleTvPlaybackCard';
-import type { AppleTvPlaybackData } from '@/lib/hooks/useAppleTvPlayback';
+import { MediaPlayerPlaybackCard } from '../MediaPlayerPlaybackCard';
+import type { MediaPlayerPlaybackData } from '@/lib/hooks/useMediaPlayerPlayback';
 
 const action = jest.fn<Promise<void>, [Record<string, unknown>]>(() => Promise.resolve());
 const confirm = jest.fn<Promise<boolean>, [string, string, object]>(() => Promise.resolve(true));
-let data: AppleTvPlaybackData;
-jest.mock('@/lib/hooks/useAppleTvPlayback', () => ({
-  useAppleTvPlayback: jest.fn(() => ({ data, loading: false, error: null, action })),
+let data: MediaPlayerPlaybackData;
+const dismiss = jest.fn();
+jest.mock('@/lib/hooks/useMediaPlayerPlayback', () => ({
+  useMediaPlayerPlayback: jest.fn(() => ({ data, loading: false, error: null, action })),
+}));
+jest.mock('@/lib/hooks/useMediaPlayerDismissal', () => ({
+  useMediaPlayerDismissal: jest.fn(() => ({ ready: true, dismissed: false, dismiss })),
 }));
 jest.mock('@/lib/hooks/useConfirmDialog', () => ({
   useConfirmDialog: jest.fn(() => ({ confirm, dialogProps: { open: false } })),
@@ -18,9 +22,10 @@ jest.mock('@/components/providers', () => ({
 jest.mock('../ClockWidget', () => ({ useCurrentTime: () => new Date('2026-09-03T12:00:00Z') }));
 jest.mock('@/components/ui/confirm-dialog', () => ({ ConfirmDialog: () => null }));
 
-const makeData = (overrides: Partial<AppleTvPlaybackData> = {}): AppleTvPlaybackData => ({
+const makeData = (overrides: Partial<MediaPlayerPlaybackData> = {}): MediaPlayerPlaybackData => ({
   active: true,
   visible: true,
+  entityId: 'media_player.tv',
   deviceName: null,
   state: 'playing',
   title: 'Film',
@@ -30,6 +35,7 @@ const makeData = (overrides: Partial<AppleTvPlaybackData> = {}): AppleTvPlayback
   appName: 'TV',
   series: 'Series',
   episode: 'S1 E1',
+  mediaIdentity: 'media-1',
   artworkUrl: 'https://art',
   position: 30,
   duration: 120,
@@ -37,6 +43,7 @@ const makeData = (overrides: Partial<AppleTvPlaybackData> = {}): AppleTvPlayback
   endTime: '2026-09-03T12:01:30Z',
   volumeLevel: 0.5,
   isVolumeMuted: false,
+  remoteAvailable: true,
   supportedControls: [
     'play',
     'pause',
@@ -55,18 +62,19 @@ beforeEach(() => {
   data = makeData();
   action.mockClear();
   confirm.mockClear();
+  dismiss.mockClear();
 });
 
 it('renders nothing while inactive', () => {
   data = makeData({ visible: false, active: false });
-  expect(render(<AppleTvPlaybackCard />).container.innerHTML).toBe('');
+  expect(render(<MediaPlayerPlaybackCard />).container.innerHTML).toBe('');
 });
 it('does not render cached playback when disabled', () => {
-  expect(render(<AppleTvPlaybackCard enabled={false} />).container.innerHTML).toBe('');
+  expect(render(<MediaPlayerPlaybackCard enabled={false} />).container.innerHTML).toBe('');
 });
 it.each(['playing', 'paused', 'buffering'] as const)('renders %s state and metadata', (state) => {
   data = makeData({ state });
-  render(<AppleTvPlaybackCard />);
+  render(<MediaPlayerPlaybackCard />);
   expect(screen.getByText(state)).toBeTruthy();
   expect(screen.getByText('Film')).toBeTruthy();
   expect(screen.getByText('Series · S1 E1')).toBeTruthy();
@@ -81,13 +89,13 @@ it('renders music metadata and artwork fallback', () => {
     episode: null,
     artworkUrl: null,
   });
-  render(<AppleTvPlaybackCard />);
+  render(<MediaPlayerPlaybackCard />);
   expect(screen.getByText('Artist · Album')).toBeTruthy();
-  expect(screen.getByLabelText('Apple TV playback')).toBeTruthy();
+  expect(screen.getByLabelText('Media Player playback')).toBeTruthy();
 });
 it('uses Home Assistant friendly name in the card heading and power action', async () => {
   data = makeData({ deviceName: 'Living Room' });
-  render(<AppleTvPlaybackCard />);
+  render(<MediaPlayerPlaybackCard />);
   expect(screen.getByRole('heading', { name: /Living Room · TV/ })).toBeTruthy();
   expect(screen.getByLabelText('Living Room playback')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Turn off Living Room' }));
@@ -100,8 +108,8 @@ it('uses Home Assistant friendly name in the card heading and power action', asy
   );
 });
 it('matches the radar footprint and uses a square card', () => {
-  render(<AppleTvPlaybackCard />);
-  const card = screen.getByLabelText('Apple TV playback');
+  render(<MediaPlayerPlaybackCard />);
+  const card = screen.getByLabelText('Media Player playback');
   expect(card.className).toContain('aspect-square');
   expect(card.className).toContain('w-[min(32rem,calc(100vw-2rem))]');
   expect(card.className).toContain('px-8');
@@ -109,26 +117,47 @@ it('matches the radar footprint and uses a square card', () => {
   expect(screen.getByAltText('').className).toContain('h-48');
   expect(screen.getByAltText('').className).toContain('w-48');
 });
+it('provides a radar-sized close button for the current media', () => {
+  render(<MediaPlayerPlaybackCard />);
+  const closeButton = screen.getByRole('button', { name: 'Close Media Player playback' });
+  expect(closeButton.className).toContain('h-12');
+  expect(closeButton.className).toContain('w-12');
+  expect(closeButton.parentElement?.lastElementChild).toBe(closeButton);
+  fireEvent.click(closeButton);
+  expect(dismiss).toHaveBeenCalledTimes(1);
+});
+it('uses a generic power confirmation when no remote is configured', async () => {
+  data = makeData({ remoteAvailable: false });
+  render(<MediaPlayerPlaybackCard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Turn off Media Player' }));
+  await waitFor(() =>
+    expect(confirm).toHaveBeenCalledWith(
+      'Turn off Media Player?',
+      'This will turn off the Media Player media player.',
+      { confirmLabel: 'Turn off' }
+    )
+  );
+});
 it('renders exactly one explicit play/pause control', () => {
-  render(<AppleTvPlaybackCard />);
-  expect(screen.getAllByRole('button', { name: /pause|play/i })).toHaveLength(1);
+  render(<MediaPlayerPlaybackCard />);
+  expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Play or pause' })).toBeNull();
 });
 it('falls back to play/pause and hides unsupported controls', () => {
   data = makeData({ state: 'buffering', supportedControls: ['play_pause'] });
-  render(<AppleTvPlaybackCard />);
+  render(<MediaPlayerPlaybackCard />);
   expect(screen.getByRole('button', { name: 'Play or pause' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Previous' })).toBeNull();
 });
 it('estimates the raw API position once for a smooth timeline', () => {
   data = makeData({ position: 30, positionUpdatedAt: '2026-09-03T11:59:50Z' });
-  render(<AppleTvPlaybackCard />);
+  render(<MediaPlayerPlaybackCard />);
   expect((screen.getByLabelText('Playback position') as HTMLInputElement).value).toBe('40');
   expect(screen.getByText(/Ends in 1:20/)).toBeTruthy();
 });
 it('commits deliberate seeks, including zero, with 48px sizing', async () => {
   data = makeData({ position: 10, supportedControls: ['seek'] });
-  render(<AppleTvPlaybackCard />);
+  render(<MediaPlayerPlaybackCard />);
   const slider = screen.getByLabelText('Playback position');
   expect(slider.className).toContain('h-12');
   fireEvent.change(slider, { target: { value: '0' } });
@@ -136,11 +165,16 @@ it('commits deliberate seeks, including zero, with 48px sizing', async () => {
   await waitFor(() => expect(action).toHaveBeenCalledWith({ control: 'seek', seekPosition: 0 }));
 });
 it('adjusts volume with 48px buttons in 5% increments', async () => {
-  render(<AppleTvPlaybackCard />);
+  render(<MediaPlayerPlaybackCard />);
   const decrease = screen.getByRole('button', { name: 'Decrease volume' });
   const increase = screen.getByRole('button', { name: 'Increase volume' });
   const volumeRow = decrease.parentElement;
   expect(volumeRow?.className).toContain('w-full');
+  expect(
+    [...(volumeRow?.querySelectorAll('button') ?? [])].map((button) =>
+      button.getAttribute('aria-label'),
+    ),
+  ).toEqual(['Decrease volume', 'Mute', 'Increase volume']);
   expect(decrease.className).toContain('min-h-12');
   expect(decrease.className).toContain('flex-1');
   expect(increase.className).toContain('min-h-12');
@@ -151,20 +185,23 @@ it('adjusts volume with 48px buttons in 5% increments', async () => {
   );
 });
 it('supports mute and confirmed power', async () => {
-  render(<AppleTvPlaybackCard />);
+  render(<MediaPlayerPlaybackCard />);
+  const mute = screen.getByRole('button', { name: 'Mute' });
+  expect(mute.className).toContain('bg-secondary');
+  expect(mute.getAttribute('aria-pressed')).toBe('false');
   fireEvent.click(screen.getByRole('button', { name: 'Stop media' }));
   await waitFor(() => expect(action).toHaveBeenCalledWith({ control: 'stop' }));
   fireEvent.click(screen.getByRole('button', { name: 'Mute' }));
   await waitFor(() =>
     expect(action).toHaveBeenCalledWith({ control: 'volume_mute', isVolumeMuted: true })
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Turn off Apple TV' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Turn off Media Player' }));
   await waitFor(() => expect(confirm).toHaveBeenCalled());
   expect(action).toHaveBeenCalledWith({ control: 'turn_off' });
 });
 it('shows refresh status', () => {
-  const hook = jest.requireMock('@/lib/hooks/useAppleTvPlayback').useAppleTvPlayback as jest.Mock;
+  const hook = jest.requireMock('@/lib/hooks/useMediaPlayerPlayback').useMediaPlayerPlayback as jest.Mock;
   hook.mockReturnValueOnce({ data, loading: true, error: null, action });
-  render(<AppleTvPlaybackCard />);
+  render(<MediaPlayerPlaybackCard />);
   expect(screen.getByText('Refreshing…')).toBeTruthy();
 });

@@ -8,6 +8,14 @@ const WINDY_OVERRIDES_STYLE = `
   #logo-wrapper {
     display: none !important;
   }
+  /* Prism supplies its own close affordance, so remove Windy's redundant
+     overlay selector, legend, and zoom controls from the small radar card. */
+  #mobile-ovr-select,
+  #legend-mobile,
+  .metric-legend,
+  #embed-zoom {
+    display: none !important;
+  }
   #plugin-radar .speed-switch {
     display: none !important;
   }

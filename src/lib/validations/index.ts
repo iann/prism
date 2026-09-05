@@ -408,7 +408,9 @@ export const createLayoutSchema = z.object({
   orientation: z.enum(['landscape', 'portrait']).optional().default('landscape'),
   fontScale: z.number().int().min(50).max(200).nullable().optional(),
   floatingCardSettings: z.object({
-    appleTvPlayback: z.object({ enabled: z.boolean() }).strict(),
+    mediaPlayerPlayback: z.object({ enabled: z.boolean() }).strict().optional(),
+    /** Legacy key retained for layouts saved before the media-player rename. */
+    appleTvPlayback: z.object({ enabled: z.boolean() }).strict().optional(),
   }).strict().optional(),
   createdBy: uuidSchema.optional(),
 });

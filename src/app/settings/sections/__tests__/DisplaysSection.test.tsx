@@ -18,7 +18,7 @@ jest.mock('@/lib/hooks/useLayouts', () => ({
   })(),
 }));
 
-describe('DisplaysSection Apple TV setting', () => {
+describe('DisplaysSection media-player setting', () => {
   beforeEach(() => {
     global.fetch = jest.fn();
   });
@@ -26,7 +26,7 @@ describe('DisplaysSection Apple TV setting', () => {
   it('keeps the checkbox unchecked and disabled while status is loading', () => {
     (global.fetch as jest.Mock).mockReturnValue(new Promise(() => {}));
     render(<DisplaysSection />);
-    const checkbox = screen.getByLabelText('Show Apple TV playback card on False') as HTMLInputElement;
+    const checkbox = screen.getByLabelText('Show media-player playback card on False') as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
     expect(checkbox.disabled).toBe(true);
   });
@@ -34,23 +34,23 @@ describe('DisplaysSection Apple TV setting', () => {
   it('keeps the checkbox unavailable when Home Assistant is unconfigured', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ configured: false }) });
     render(<DisplaysSection />);
-    await waitFor(() => expect((screen.getByLabelText('Show Apple TV playback card on False') as HTMLInputElement).disabled).toBe(true));
-    expect((screen.getByLabelText('Show Apple TV playback card on False') as HTMLInputElement).checked).toBe(false);
+    await waitFor(() => expect((screen.getByLabelText('Show media-player playback card on False') as HTMLInputElement).disabled).toBe(true));
+    expect((screen.getByLabelText('Show media-player playback card on False') as HTMLInputElement).checked).toBe(false);
   });
 
   it('keeps the checkbox unavailable when status is unavailable', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false });
     render(<DisplaysSection />);
-    await waitFor(() => expect((screen.getByLabelText('Show Apple TV playback card on False') as HTMLInputElement).disabled).toBe(true));
-    expect((screen.getByLabelText('Show Apple TV playback card on False') as HTMLInputElement).checked).toBe(false);
+    await waitFor(() => expect((screen.getByLabelText('Show media-player playback card on False') as HTMLInputElement).disabled).toBe(true));
+    expect((screen.getByLabelText('Show media-player playback card on False') as HTMLInputElement).checked).toBe(false);
   });
 
   it('preserves explicit layout values and enables missing values when configured', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ configured: true }) });
     render(<DisplaysSection />);
-    await waitFor(() => expect((screen.getByLabelText('Show Apple TV playback card on Missing') as HTMLInputElement).disabled).toBe(false));
-    expect((screen.getByLabelText('Show Apple TV playback card on False') as HTMLInputElement).checked).toBe(false);
-    expect((screen.getByLabelText('Show Apple TV playback card on True') as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByLabelText('Show Apple TV playback card on Missing') as HTMLInputElement).checked).toBe(true);
+    await waitFor(() => expect((screen.getByLabelText('Show media-player playback card on Missing') as HTMLInputElement).disabled).toBe(false));
+    expect((screen.getByLabelText('Show media-player playback card on False') as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByLabelText('Show media-player playback card on True') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText('Show media-player playback card on Missing') as HTMLInputElement).checked).toBe(true);
   });
 });

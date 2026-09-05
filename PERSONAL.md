@@ -782,21 +782,22 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: ae392e8e
 
-94. **Home Assistant Apple TV floating playback card**
+94. **Home Assistant Media Player floating playback card**
 
-    Added a configurable full-desktop floating card backed by Home Assistant,
-    with entity discovery/manual entry, media artwork and metadata, a live
-    timeline with relative/local end time, playback/seek/volume/mute controls,
-    confirmed remote suspend plus player turn-off, and right-to-left upward
-    wrapping through a reusable floating-card stack.
+    Adds a configurable full-desktop floating card backed by Home Assistant,
+    with media-player entity discovery/manual entry, media artwork and metadata,
+    a live timeline with relative/local end time, playback/seek/volume/mute
+    controls, close and stop actions, optional Apple TV-style remote suspend
+    plus player turn-off, and right-to-left upward wrapping alongside the
+    precipitation radar.
 
-    Commit: daa6b81
+    Commits: daa6b81, 67ce59c7
 
-95. **Apple TV and radar floating-card placement**
+95. **Media player and radar floating-card placement**
 
     Keeps the precipitation radar anchored at the right edge, places newly
-    active Apple TV media to its left, and lets the floating cards share a
-    row before wrapping upward on smaller desktop widths.
+    active media to its left, and lets the floating cards share a row before
+    wrapping upward on smaller desktop widths.
 
     Commit: 761461b5
 

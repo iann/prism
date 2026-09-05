@@ -34,6 +34,7 @@ import { DELETE as remove } from '../config/route';
 import { POST as test } from '../test/route';
 import { POST as discover } from '../discover/route';
 import { GET as appleTv } from '../apple-tv/route';
+import { GET as mediaPlayer } from '../media-player/route';
 
 const config = {
   baseUrl: 'http://ha.local',
@@ -170,6 +171,24 @@ describe('Home Assistant routes', () => {
     );
     expect(JSON.stringify(body)).not.toContain(picturePath);
     expect(JSON.stringify(body)).not.toContain('secret');
+  });
+
+  it('exposes an opaque media identity without returning media_content_id', async () => {
+    getConfig.mockResolvedValue(config);
+    const rawMediaId = 'provider://film?token=must-not-leak';
+    haFetch.mockResolvedValue(
+      ok({
+        entity_id: config.mediaPlayerEntityId,
+        state: 'playing',
+        attributes: { media_title: 'Film', media_content_id: rawMediaId },
+      })
+    );
+
+    const body = await (await mediaPlayer()).json();
+    expect(body.mediaIdentity).toMatch(/^[a-f0-9]{32}$/);
+    expect(body.mediaContentId).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain(rawMediaId);
+    expect(JSON.stringify(body)).not.toContain('must-not-leak');
   });
 
   it('rejects scoped voice tokens from Apple TV control while allowing wildcard tokens', async () => {

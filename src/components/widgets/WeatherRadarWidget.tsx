@@ -106,7 +106,7 @@ export const WeatherRadarWidget = React.memo(function WeatherRadarWidget({
         aria-label="Close weather radar"
         title="Hide weather radar for 2 hours"
         onClick={dismissRadar}
-        className="absolute left-2 top-2 z-10 flex h-12 w-12 items-center justify-center bg-transparent text-white drop-shadow-lg transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        className="absolute right-2 top-2 z-10 flex h-12 w-12 items-center justify-center bg-transparent text-white drop-shadow-lg transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
         data-testid="weather-radar-dismiss"
       >
         <X className="h-5 w-5" aria-hidden="true" />

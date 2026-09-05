@@ -48,7 +48,7 @@ describe('WeatherRadarWidget', () => {
     expect(iframe.className).toContain('h-full');
     expect(iframe.className).not.toContain('h-[calc(100%+8rem)]');
     expect(iframe.getAttribute('src')).toContain('/api/weather/windy/embed2.html');
-    expect(iframe.getAttribute('src')).toContain('lat=41.7181');
+    expect(iframe.getAttribute('src')).toContain('lat=41.8781');
     expect(iframe.getAttribute('src')).toContain('lon=-87.6298');
     expect(iframe.getAttribute('src')).toContain('marker=');
     expect(iframe.getAttribute('src')).not.toContain('detailLat=');
@@ -60,6 +60,8 @@ describe('WeatherRadarWidget', () => {
     const closeButton = screen.getByRole('button', { name: 'Close weather radar' });
     expect(closeButton.className).toContain('h-12');
     expect(closeButton.className).toContain('w-12');
+    expect(closeButton.className).toContain('right-2');
+    expect(closeButton.className).not.toContain('left-2');
 
     fireEvent.click(closeButton);
 
