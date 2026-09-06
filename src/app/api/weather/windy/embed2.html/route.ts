@@ -17,6 +17,8 @@ const WINDY_QUERY_KEYS = [
   'calendar',
   'lat',
   'lon',
+  'detailLat',
+  'detailLon',
   'marker',
   'message',
 ] as const;

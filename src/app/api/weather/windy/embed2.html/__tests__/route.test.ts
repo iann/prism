@@ -11,6 +11,16 @@ describe('rewriteWindyEmbedHtml', () => {
     expect(html).toContain('.metric-legend');
     expect(html).toContain('#embed-zoom');
     expect(html).toContain('.leaflet-marker-icon.mylocation');
+    expect(html).toContain('.leaflet-marker-icon.picker');
+    expect(html).toContain('.leaflet-marker-icon.picker::before');
+    expect(html).toContain('.leaflet-marker-icon.picker::after');
+    expect(html).toContain('.picker-lines');
+    expect(html).toContain('.picker-content');
+    expect(html).toContain('prism-windy-home-ripple');
+    expect(html).toContain('#map-container .leaflet-marker-icon.picker::before');
+    expect(html).toContain('animation: prism-windy-home-ripple');
+    expect(html).toContain('!important');
+    expect(html).toContain('#f6c85f');
     expect(html).toContain('#plugin-radar .speed-switch');
     expect(html).toContain('Windy</title>');
   });

@@ -819,6 +819,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 851c1992
 
+98. **Animated radar home marker**
+
+    Adds a small gold dot at the saved Melrose home location on the
+    precipitation radar, suppressing Windy's large forecast picker while
+    keeping a staggered ripple visible even in low-graphics mode.
+
+    Commit: 4995dcc1
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

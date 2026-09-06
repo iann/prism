@@ -1,5 +1,6 @@
 const WINDY_EMBED_URL = '/api/weather/windy/embed2.html';
 const WINDY_MAP_ZOOM = '10';
+const WINDY_HOME_MARKER = { lat: 42.443652, lon: -71.051189 } as const;
 
 /** Build the Windy radar URL centered on the configured weather location. */
 export function buildWindyEmbedUrl(lat: number, lon: number): string {
@@ -19,7 +20,9 @@ export function buildWindyEmbedUrl(lat: number, lon: number): string {
     ['calendar', ''],
     ['lat', coordinate(lat)],
     ['lon', coordinate(lon)],
-    ['marker', ''],
+    ['detailLat', coordinate(WINDY_HOME_MARKER.lat)],
+    ['detailLon', coordinate(WINDY_HOME_MARKER.lon)],
+    ['marker', 'true'],
     ['message', ''],
   ]);
 
