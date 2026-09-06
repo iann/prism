@@ -50,8 +50,9 @@ describe('WeatherRadarWidget', () => {
     expect(iframe.getAttribute('src')).toContain('/api/weather/windy/embed2.html');
     expect(iframe.getAttribute('src')).toContain('lat=41.8781');
     expect(iframe.getAttribute('src')).toContain('lon=-87.6298');
-    expect(iframe.getAttribute('src')).toContain('marker=');
-    expect(iframe.getAttribute('src')).not.toContain('detailLat=');
+    expect(iframe.getAttribute('src')).toContain('detailLat=42.4437');
+    expect(iframe.getAttribute('src')).toContain('detailLon=-71.0512');
+    expect(iframe.getAttribute('src')).toContain('marker=true');
   });
 
   it('hides the radar for two hours when the close icon is clicked', () => {
@@ -67,7 +68,7 @@ describe('WeatherRadarWidget', () => {
 
     expect(screen.queryByTestId('weather-radar-widget')).toBeNull();
     expect(Number(localStorage.getItem(RADAR_DISMISSED_UNTIL_KEY))).toBeGreaterThan(
-      Date.now() + 2 * 60 * 60 * 1000 - 1000,
+      Date.now() + 2 * 60 * 60 * 1000 - 1000
     );
   });
 
@@ -85,7 +86,7 @@ describe('WeatherRadarWidget', () => {
         data={makeWeather({
           current: { ...makeWeather().current, condition: 'sunny' },
         })}
-      />,
+      />
     );
 
     expect(screen.queryByTestId('weather-radar-widget')).toBeNull();

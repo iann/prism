@@ -16,9 +16,9 @@ describe('buildWindyEmbedUrl', () => {
     expect(url.searchParams.get('calendar')).toBe('');
     expect(url.searchParams.get('lat')).toBe('42.46');
     expect(url.searchParams.get('lon')).toBe('-71.06');
-    expect(url.searchParams.get('detailLat')).toBeNull();
-    expect(url.searchParams.get('detailLon')).toBeNull();
-    expect(url.searchParams.get('marker')).toBe('');
+    expect(url.searchParams.get('detailLat')).toBe('42.4437');
+    expect(url.searchParams.get('detailLon')).toBe('-71.0512');
+    expect(url.searchParams.get('marker')).toBe('true');
     expect(url.searchParams.get('message')).toBe('');
   });
 });

@@ -5,6 +5,56 @@ const WINDY_OVERRIDES_STYLE = `
   .leaflet-marker-shadow.mylocation {
     display: none !important;
   }
+  /* Windy's marker=true mode opens a forecast picker. Keep its geographic
+     anchor, but turn the picker into a passive home dot for Prism's radar. */
+  .leaflet-marker-icon.picker {
+    position: absolute !important;
+    width: 10px !important;
+    height: 10px !important;
+    margin: -5px 0 0 -5px !important;
+    border: 2px solid rgba(24, 34, 48, 0.9) !important;
+    border-radius: 50% !important;
+    background: #f6c85f !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8),
+      0 1px 4px rgba(0, 0, 0, 0.65) !important;
+    pointer-events: none !important;
+  }
+  .leaflet-marker-icon.picker::before,
+  .leaflet-marker-icon.picker::after {
+    position: absolute;
+    inset: -3px;
+    content: '';
+    border: 1px solid rgba(246, 200, 95, 0.75);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: prism-windy-home-ripple 2.4s ease-out infinite;
+  }
+  /* Keep Prism's home pulse running when Windy's low-graphics rules disable
+     animations elsewhere in the embed. */
+  #map-container .leaflet-marker-icon.picker::before,
+  #map-container .leaflet-marker-icon.picker::after {
+    animation: prism-windy-home-ripple 2.4s ease-out infinite !important;
+    -webkit-animation: prism-windy-home-ripple 2.4s ease-out infinite !important;
+  }
+  #map-container .leaflet-marker-icon.picker::after {
+    animation-delay: -1.2s !important;
+    -webkit-animation-delay: -1.2s !important;
+  }
+  .leaflet-marker-icon.picker .picker-lines,
+  .leaflet-marker-icon.picker .picker-content {
+    display: none !important;
+  }
+  @keyframes prism-windy-home-ripple {
+    0% {
+      opacity: 0.8;
+      transform: scale(0.65);
+    }
+    70%,
+    100% {
+      opacity: 0;
+      transform: scale(2.8);
+    }
+  }
   #logo-wrapper {
     display: none !important;
   }
