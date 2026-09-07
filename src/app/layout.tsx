@@ -44,6 +44,7 @@ import type { Metadata, Viewport } from 'next';
 
 // DM Sans from Google Fonts (loaded by Next.js for performance)
 // Next.js automatically optimizes font loading to prevent layout shift
+import { Inter, Fraunces, Nunito, JetBrains_Mono } from 'next/font/google';
 import { DM_Sans } from 'next/font/google';
 
 // Providers (theme, auth, etc.)
@@ -84,6 +85,39 @@ const dmSans = DM_Sans({
   variable: '--font-dm-sans',
   display: 'swap',
   weight: ['400', '500', '600', '700'],
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+/**
+ * The other faces a theme may ask for, by role.
+ *
+ * Declared here because next/font resolves at build time — a face has to be in
+ * the image to be usable at all, which is also why a theme picks a role from a
+ * fixed list rather than naming a family. The browser only fetches the one a
+ * theme actually selects, so the cost of the three unused ones is disk in the
+ * container, not bytes on a display.
+ */
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  display: 'swap',
+});
+
+const nunito = Nunito({
+  subsets: ['latin'],
+  variable: '--font-rounded',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono-theme',
+  display: 'swap',
 });
 
 
@@ -287,6 +321,10 @@ export default async function RootLayout({
       <body
         className={`
           ${dmSans.variable}
+          ${inter.variable}
+          ${fraunces.variable}
+          ${nunito.variable}
+          ${jetbrainsMono.variable}
           font-sans
           antialiased
           bg-background

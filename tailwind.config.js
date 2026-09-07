@@ -82,9 +82,20 @@ module.exports = {
 
       fontFamily: {
         sans: [
-          'var(--font-dm-sans, DM Sans)',
-          'DM Sans',
+          // next/font generates `--font-inter` (resolving to "Inter","Inter
+          // Fallback") plus a metric-matched `Inter Fallback` face with
+          // size-adjust:107.12%, whose whole job is to stop the page reflowing
+          // when the real font swaps in. Naming the family literally here
+          // skipped straight past it to system-ui, so every cold load reflowed
+          // ~7% — the layout shift next/font exists to prevent, shipping
+          // unnoticed. Read the variable, keep literals as the fallback for
+          // anywhere it is not defined.
+          // A theme's chosen face goes first, and resolves to the Inter
+          // variable when no theme sets one — so the default path is byte for
+          // byte what it was, including the metric-matched fallback below.
+          'var(--theme-font, var(--font-inter, Inter))',
           'Inter Fallback',
+          'DM Sans',
           'system-ui',
           '-apple-system',
           'BlinkMacSystemFont',

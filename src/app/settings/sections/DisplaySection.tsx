@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Sun, Moon, Monitor, Sunset } from 'lucide-react';
+import { Sun, Moon, Monitor, Share2, Store, Sunset } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ import {
   useAutoOrientationSetting,
   useScreensaverInterval,
 } from '@/components/layout/WallpaperBackground';
+import { ThemeShareDialog } from '@/components/settings/ThemeShareDialog';
+import { CommunityThemeGallery } from '@/components/settings/CommunityThemeGallery';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import { useOrientationOverride } from '../SettingsView';
 import { useScreensaverTimeout } from '@/lib/hooks/useScreensaverTimeout';
@@ -58,9 +60,12 @@ export function DisplaySection() {
     palette: activePalette,
     palettes,
     setPalette,
+    installedThemes,
   } = useTheme();
   const { seasonalTheme, setSeasonalTheme, palette } = useSeasonalTheme();
   const [sunsetOffsetInput, setSunsetOffsetInput] = useState(String(sunsetOffsetMinutes));
+  const [sharing, setSharing] = useState(false);
+  const [browsing, setBrowsing] = useState(false);
 
   useEffect(() => {
     setSunsetOffsetInput(String(sunsetOffsetMinutes));
@@ -95,6 +100,16 @@ export function DisplaySection() {
             Sets the background, widget surfaces, calendars, controls, borders, and accent colors
             throughout Prism.
           </CardDescription>
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" size="sm" onClick={() => setBrowsing(true)}>
+              <Store className="mr-1 h-4 w-4" />
+              Browse community themes
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSharing(true)}>
+              <Share2 className="mr-1 h-4 w-4" />
+              Share palette
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {palettes.map((preset) => {
@@ -134,7 +149,12 @@ export function DisplaySection() {
                     />
                   ))}
                 </div>
-                <span className="block text-sm font-semibold">{preset.name}</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="block text-sm font-semibold">{preset.name}</span>
+                  {installedThemes.some((theme) => theme.id === preset.id) && (
+                    <span className="text-[10px] text-muted-foreground">Community</span>
+                  )}
+                </div>
                 <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
                   {preset.description}
                 </span>
@@ -232,6 +252,12 @@ export function DisplaySection() {
 
         </CardContent>
       </Card>
+
+      {sharing && (
+        <ThemeShareDialog palette={activePalette} onClose={() => setSharing(false)} />
+      )}
+
+      {browsing && <CommunityThemeGallery onClose={() => setBrowsing(false)} />}
 
       <Card>
         <CardHeader>

@@ -10,7 +10,7 @@ import { logError } from '@/lib/utils/logError';
 import { PIN_LENGTH_SETTING_KEY } from '@/lib/constants';
 import { isSetupComplete } from '@/lib/setup';
 import { getBuiltinTheme } from '@/lib/themes/appThemes';
-import { isInstallableTheme } from '@/lib/themes/tokens';
+import { isInstallableTheme, MAX_INSTALLED_THEMES } from '@/lib/themes/tokens';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -103,7 +103,7 @@ export async function PATCH(request: NextRequest) {
       // reach a <style> element rendered on the server, so they are checked
       // here rather than trusted because they came from our own gallery.
       if (installed !== undefined) {
-        if (!Array.isArray(installed) || installed.length > 40) {
+        if (!Array.isArray(installed) || installed.length > MAX_INSTALLED_THEMES) {
           return NextResponse.json({ error: 'Invalid installed themes' }, { status: 400 });
         }
         if (!installed.every(isInstallableTheme)) {
