@@ -29,9 +29,9 @@ import {
   normalizeSunsetOffsetMinutes,
   resolveSunsetTheme,
 } from '@/lib/themes/sunsetTheme';
-import { isInstallableTheme, type Theme } from '@/lib/themes/tokens';
+import { isInstallableTheme, MAX_INSTALLED_THEMES, type Theme } from '@/lib/themes/tokens';
 import { BUILTIN_THEMES, getBuiltinTheme, DEFAULT_THEME_ID } from '@/lib/themes/appThemes';
-import { applyThemeVars, applyThemeShape, themeTokens } from '@/lib/themes/applyTheme';
+import { applyThemeVars, applyThemeChrome, themeTokens } from '@/lib/themes/applyTheme';
 
 /** Theme modes supported by the display brightness control. */
 export type ThemeMode = 'light' | 'dark' | 'system' | 'sunset';
@@ -53,6 +53,21 @@ interface ThemeContextValue {
   /** Every built-in and installed palette available to the picker. */
   palettes: Theme[];
   setPalette: (id: string) => void;
+  /** The subset of `palettes` that came from the gallery rather than the box. */
+  installedThemes: Theme[];
+  /**
+   * Add a gallery theme and switch to it.
+   *
+   * Installing and applying are one operation because the API validates them
+   * as one: `paletteId` has to name a builtin or a theme present in the same
+   * write, so there is no request that installs without choosing.
+   *
+   * Resolves false when the write was refused, so the caller can say so rather
+   * than showing an install that vanishes on the next load.
+   */
+  installTheme: (theme: Theme) => Promise<boolean>;
+  /** Remove a gallery theme, falling back to the default if it was in use. */
+  uninstallTheme: (id: string) => Promise<boolean>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -62,6 +77,13 @@ const SUNSET_OFFSET_STORAGE_KEY = 'prism-sunset-offset';
 const COLOR_THEME_STORAGE_KEY = 'prism-color-theme';
 const DEFAULT_COLOR_THEME: AppThemeId = 'daybook';
 const THEME_SETTING_KEY = 'theme';
+// Keep the upstream Prism palette as the recovery surface even though the
+// personal fork's normal default remains Daybook.
+const RECOVERY_THEME_ID = 'prism';
+
+function getRecoveryTheme(): Theme {
+  return getBuiltinTheme(RECOVERY_THEME_ID) ?? getBuiltinTheme(DEFAULT_THEME_ID) ?? BUILTIN_THEMES[0]!;
+}
 
 // Personal themes own more than the gallery's core token set. Remove those
 // properties before applying a gallery palette so values from a previous
@@ -149,6 +171,30 @@ export function ThemeProvider({
     resolvedTheme: 'light' | 'dark';
     colorTheme: string;
   } | null>(null);
+  const themeRef = React.useRef(theme);
+  themeRef.current = theme;
+
+  // The settings row is replaced wholesale, so every palette write carries
+  // the complete installed-theme list. Read the current brightness through a
+  // ref because the initial settings request may resolve before mount state has
+  // settled.
+  const persistTheme = async (paletteId: string, installed: Theme[]): Promise<boolean> => {
+    try {
+      const request = safeFetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: THEME_SETTING_KEY,
+          value: { mode: themeRef.current, paletteId, installed },
+        }),
+      });
+      if (!request) return false;
+      const response = await request;
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
 
   // Sunset mode only needs weather data when selected. The weather response
   // carries the resolved location coordinates used for solar timing.
@@ -199,10 +245,21 @@ export function ThemeProvider({
         if (cancelled || !data) return;
         const stored = data.settings?.[THEME_SETTING_KEY];
         const installed = Array.isArray(stored?.installed)
-          ? (stored.installed as unknown[]).filter(isInstallableTheme)
+          ? (stored.installed as unknown[])
+              .filter(isInstallableTheme)
+              .filter((candidate) => !getBuiltinTheme(candidate.id))
           : [];
 
-        if (installed.length > 0) setInstalledThemes(installed);
+        setInstalledThemes(installed);
+
+        if (new URLSearchParams(window.location.search).get('theme') === 'default') {
+          const fallback = getRecoveryTheme();
+          setPaletteState(fallback);
+          setColorThemeState(fallback.id);
+          if (isAppThemeId(fallback.id)) localStorage.setItem(COLOR_THEME_STORAGE_KEY, fallback.id);
+          void persistTheme(fallback.id, installed);
+          return;
+        }
 
         const id = typeof stored?.paletteId === 'string' ? stored.paletteId : null;
         const found = id
@@ -335,8 +392,6 @@ export function ThemeProvider({
     localStorage.setItem(SUNSET_OFFSET_STORAGE_KEY, String(normalizedMinutes));
   };
 
-  // Persist the palette to the shared settings row while applying it locally
-  // immediately so a slow or unavailable API never blocks the display.
   const setPalette = (id: string) => {
     const next = getBuiltinTheme(id) ?? installedThemes.find((candidate) => candidate.id === id);
     if (!next) return;
@@ -346,13 +401,50 @@ export function ThemeProvider({
     if (isAppThemeId(id)) localStorage.setItem(COLOR_THEME_STORAGE_KEY, id);
     else localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
 
-    safeFetch('/api/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: THEME_SETTING_KEY, value: { mode: theme, paletteId: id } }),
-    })?.catch(() => {
-      // Applied locally; a later load can retry the household setting.
-    });
+    void persistTheme(id, installedThemes);
+  };
+
+  const installTheme = async (incoming: Theme): Promise<boolean> => {
+    // Re-validated here even though the gallery validated on fetch: this is the
+    // last point before the value is handed to a row that gets rendered into a
+    // <style> element on the server.
+    if (!isInstallableTheme(incoming)) return false;
+    // A builtin id would shadow a palette everyone already has, and the
+    // resolver checks builtins first, so the installed copy would be dead data.
+    if (getBuiltinTheme(incoming.id)) return false;
+
+    const next = [...installedThemes.filter((t) => t.id !== incoming.id), incoming];
+    // The API refuses more than 40. Refusing here too means the caller gets a
+    // reason rather than a 400 it has to interpret.
+    if (next.length > MAX_INSTALLED_THEMES) return false;
+
+    const ok = await persistTheme(incoming.id, next);
+    if (!ok) return false;
+    setInstalledThemes(next);
+    setPaletteState(incoming);
+    setColorThemeState(incoming.id);
+    localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
+    return true;
+  };
+
+  const uninstallTheme = async (id: string): Promise<boolean> => {
+    const next = installedThemes.filter((t) => t.id !== id);
+    if (next.length === installedThemes.length) return false;
+
+    // Removing the palette in use would leave `paletteId` naming a theme that
+    // is no longer in the write, which the API rejects. Fall back first.
+    const fallback = getRecoveryTheme();
+    const nextPaletteId = palette.id === id ? fallback.id : palette.id;
+
+    const ok = await persistTheme(nextPaletteId, next);
+    if (!ok) return false;
+    setInstalledThemes(next);
+    if (palette.id === id) {
+      setPaletteState(fallback);
+      setColorThemeState(fallback.id);
+      if (isAppThemeId(fallback.id)) localStorage.setItem(COLOR_THEME_STORAGE_KEY, fallback.id);
+    }
+    return true;
   };
 
   // Compatibility for personal components and older settings controls.
@@ -366,32 +458,8 @@ export function ThemeProvider({
   useEffect(() => {
     if (!mounted) return;
     applyThemeVars(document.documentElement, themeTokens(palette, resolvedTheme));
-    applyThemeShape(document.documentElement, palette);
+    applyThemeChrome(document.documentElement, palette);
   }, [palette, resolvedTheme, mounted]);
-
-  // Escape hatch for a kiosk that cannot reach Settings: ?theme=default resets
-  // the palette and persists it.
-  useEffect(() => {
-    if (!mounted) return;
-    if (new URLSearchParams(window.location.search).get('theme') !== 'default') return;
-
-    const fallback = getBuiltinTheme(DEFAULT_THEME_ID) ?? BUILTIN_THEMES[0]!;
-    setPaletteState(fallback);
-    setColorThemeState(fallback.id);
-    if (isAppThemeId(fallback.id)) localStorage.setItem(COLOR_THEME_STORAGE_KEY, fallback.id);
-    safeFetch('/api/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        key: THEME_SETTING_KEY,
-        value: { mode: theme, paletteId: fallback.id },
-      }),
-    })?.catch(() => {
-      // Reset locally at least; the display is usable again.
-    });
-    // The escape hatch is intentionally processed once per mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]);
 
   // Apply seasonal theme CSS variables globally. Passing the resolved mode
   // avoids a second MutationObserver on a display that runs for weeks.
@@ -417,6 +485,7 @@ export function ThemeProvider({
           palette,
           palettes,
           setPalette,
+          installedThemes, installTheme, uninstallTheme,
         }}
       >
         {children}
@@ -437,6 +506,7 @@ export function ThemeProvider({
         palette,
         palettes,
         setPalette,
+        installedThemes, installTheme, uninstallTheme,
       }}
     >
       {children}

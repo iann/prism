@@ -109,6 +109,92 @@ export function normalizeShape(value: unknown): ThemeShape {
   return out;
 }
 
+/**
+ * Typefaces a theme may choose from.
+ *
+ * A name from this list, never a font name from the payload. Two reasons: a
+ * font has to be loaded to be usable, so only faces built into the image can
+ * work at all; and a family name is a string that reaches a CSS declaration,
+ * which is the one thing this module exists to prevent.
+ *
+ * Roles rather than faces — `serif` rather than the name of a particular
+ * serif — so the face behind a role can be replaced without invalidating every
+ * theme that asked for it.
+ *
+ * Typeface is the largest identity lever left after density. A rounded
+ * geometric and a newspaper serif read as different products in a way no
+ * palette swap manages.
+ */
+export const THEME_FONTS = {
+  sans: { label: 'Sans', varName: '--font-inter' },
+  serif: { label: 'Serif', varName: '--font-serif' },
+  rounded: { label: 'Rounded', varName: '--font-rounded' },
+  mono: { label: 'Mono', varName: '--font-mono-theme' },
+} as const;
+
+export type ThemeFont = keyof typeof THEME_FONTS;
+export const THEME_FONT_IDS = Object.keys(THEME_FONTS) as ThemeFont[];
+export const DEFAULT_THEME_FONT: ThemeFont = 'sans';
+
+export function isValidFont(value: unknown): value is ThemeFont {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(THEME_FONTS, value)
+    && value !== '__proto__';
+}
+
+export function normalizeFont(value: unknown): ThemeFont {
+  return isValidFont(value) ? value : DEFAULT_THEME_FONT;
+}
+
+/**
+ * Presentation choices that are neither a colour nor a number.
+ *
+ * The safest of the three kinds by some distance. A colour is a value that has
+ * to be checked and a metric is a number that has to be clamped; a mode is a
+ * name that either is or is not in a list written here. There is nothing for a
+ * submission to express — it picks an option, and what that option means is
+ * decided in this repository.
+ *
+ * Deliberately not the same thing as the calendar's own `displayMode`, which
+ * is a per-display preference somebody sets for their own screen. A theme
+ * states how it wants to look; it does not reach in and change a choice
+ * somebody already made.
+ */
+export const THEME_MODES = {
+  /** How tightly events pack. `compact` is the wall-display end of the ramp. */
+  events: { options: ['comfortable', 'compact'] as const, default: 'comfortable' as const },
+  /** Whether panels read as raised cards or as flat regions of the page. */
+  surface: { options: ['card', 'flat'] as const, default: 'card' as const },
+} as const;
+
+export type ThemeModeKey = keyof typeof THEME_MODES;
+export type ThemeModes = { [K in ThemeModeKey]: (typeof THEME_MODES)[K]['options'][number] };
+
+const MODE_KEYS = Object.keys(THEME_MODES) as ThemeModeKey[];
+
+export function isValidModes(value: unknown): value is Partial<ThemeModes> {
+  if (value === undefined) return true;
+  if (!value || typeof value !== 'object') return false;
+  const m = value as Record<string, unknown>;
+  return MODE_KEYS.every((key) => {
+    const v = m[key];
+    if (v === undefined) return true; // absent takes the default
+    return typeof v === 'string' && (THEME_MODES[key].options as readonly string[]).includes(v);
+  });
+}
+
+/** Fall back per key, so one unknown mode does not discard the others. */
+export function normalizeModes(value: unknown): ThemeModes {
+  const m = (value ?? {}) as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  for (const key of MODE_KEYS) {
+    const v = m[key];
+    out[key] = typeof v === 'string' && (THEME_MODES[key].options as readonly string[]).includes(v)
+      ? v
+      : THEME_MODES[key].default;
+  }
+  return out as ThemeModes;
+}
+
 export interface Theme {
   id: string;
   name: string;
@@ -120,6 +206,10 @@ export interface Theme {
    * only states what it actually wants to change.
    */
   shape?: Partial<ThemeShape>;
+  /** Typeface role. Absent means the default sans. */
+  font?: ThemeFont;
+  /** Presentation choices. Absent, or partly absent, takes the defaults. */
+  modes?: Partial<ThemeModes>;
 }
 
 /**
@@ -139,6 +229,44 @@ export function isValidTokenValue(value: unknown): value is string {
   if (!m) return false;
   const [h, s, l] = [Number(m[1]), Number(m[2]), Number(m[3])];
   return h <= 360 && s <= 100 && l <= 100;
+}
+
+/**
+ * Token keys as a submission spells them, reduced to the bare names used here.
+ *
+ * A theme written by hand — or exported from a fork, or copied out of a
+ * stylesheet or a devtools pane — spells these the way CSS does, with the
+ * leading `--`. Bare names are this project's own convention and nothing tells
+ * a submitter about it, so the prefixed spelling arrived looking like nineteen
+ * missing values rather than one naming difference, and the error listed every
+ * token the file in fact contained.
+ *
+ * Read-side only. What gets written is still the bare form, so the stored
+ * shape stays single.
+ */
+export function normalizeTokenKeys(src: unknown): Record<string, unknown> {
+  // Null prototype, and the three inherited names refused outright.
+  //
+  // Without both, `{"__proto__": {"background": "1 2% 3%"}}` in a submission
+  // sets this object's prototype, and `background` then resolves to a value
+  // the submitter supplied without it being an own property — invisible to
+  // Object.keys, so absent from the report of what was carried, yet copied
+  // into the committed file all the same. The value still has to pass the
+  // triple check, so this was never a way to inject CSS; it was a way to make
+  // the file a reviewer reads differ from the theme that gets installed.
+  const out: Record<string, unknown> = Object.create(null);
+  if (!src || typeof src !== 'object') return out;
+
+  for (const [key, value] of Object.entries(src as Record<string, unknown>)) {
+    const prefixed = key.startsWith('--');
+    const bare = prefixed ? key.slice(2) : key;
+    if (bare === '__proto__' || bare === 'constructor' || bare === 'prototype') continue;
+    // A bare key beats a prefixed one, so a file carrying both is read as the
+    // canonical spelling rather than by whichever came last in the object.
+    if (prefixed && bare in out) continue;
+    out[bare] = value;
+  }
+  return out;
 }
 
 /** True when every token is present and every value is a valid triple. */
@@ -164,6 +292,23 @@ export function isInstallableTheme(value: unknown): value is Theme {
     typeof t.description === 'string' && t.description.length <= 160 &&
     isValidTokenSet(t.light) &&
     isValidTokenSet(t.dark) &&
-    (t.shape === undefined || isValidShape(t.shape))
+    (t.shape === undefined || isValidShape(t.shape)) &&
+    // Checked here as well as on the way in: these reach a custom property on
+    // the same render path the colours do, and a stored row is not the same
+    // thing as a trusted one.
+    (t.font === undefined || isValidFont(t.font)) &&
+    isValidModes(t.modes)
   );
 }
+
+/**
+ * How many gallery themes one instance may keep.
+ *
+ * The cap exists because installed themes are stored inline in a single
+ * settings row that is read on every server render. Forty is well past what a
+ * household picks through and still small enough that the row stays cheap.
+ *
+ * Shared by the API, which refuses a larger write, and by the provider, which
+ * refuses before making one — the same number in both places, from here.
+ */
+export const MAX_INSTALLED_THEMES = 40;
