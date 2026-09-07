@@ -37,7 +37,7 @@ function expectThemeCardSurface(element: Element) {
   expect(element.classList.contains('border-[length:var(--border-width,1px)]')).toBe(true);
   expect(element.classList.contains('rounded-[var(--radius,0.5rem)]')).toBe(true);
   expect(element.classList.contains('rounded-xl')).toBe(false);
-  expect(element.classList.contains('shadow-sm')).toBe(true);
+  expect(element.classList.contains('shadow-[var(--surface-shadow)]')).toBe(true);
 }
 
 function expectMobileCardSurface(element: Element) {
@@ -306,6 +306,8 @@ describe('surface class contracts', () => {
       'src/components/layout/LayoutPreview.tsx:border-border/30',
       'src/components/layout/SideNav.tsx:border-border/45',
       'src/components/layout/SubpageHeader.tsx:border-border/45',
+      // Theme gallery card boundary is decorative.
+      'src/components/settings/CommunityThemeGallery.tsx:border-border/70',
       'src/components/ui/dialog.tsx:border-border/55',
       'src/components/ui/select.tsx:border-border/60',
       'src/components/widgets/BirthdaysWidget.tsx:border-border/50',
@@ -332,6 +334,8 @@ describe('surface class contracts', () => {
       'src/app/chores/ChoreItem.tsx:text-[8px]',
       'src/app/chores/ChoreItem.tsx:text-[8px]',
       'src/app/meals/MealsView.tsx:text-[8px]',
+      // Compact labels identify the active palette in settings.
+      'src/app/settings/sections/DisplaySection.tsx:text-[10px]',
       // Compact OAuth scope strings are code snippets with fixed-width content.
       'src/app/settings/sections/integrations/cards/GoogleManualTokenForm.tsx:text-[11px]',
       'src/app/tasks/TaskItem.tsx:text-[8px]',
@@ -340,6 +344,9 @@ describe('surface class contracts', () => {
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinForm.tsx:text-[10px]',
       'src/app/travel/components/PinList.tsx:text-[10px]',
+      // Compact calendar event labels and spacing metadata.
+      'src/components/calendar/TwoWeekView.tsx:text-[10px]',
+      'src/components/calendar/cells/InlineCalendarEvent.tsx:text-[8px]',
       // Compact metadata and screen-size labels in the community gallery.
       'src/components/layout/CommunityGallery.tsx:text-[10px]',
       'src/components/layout/CommunityGallery.tsx:text-[11px]',
@@ -352,6 +359,12 @@ describe('surface class contracts', () => {
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddTaskModal.tsx:text-[10px]',
+      // Compact palette and theme metadata in the settings gallery.
+      'src/components/settings/CommunityThemeGallery.tsx:text-[10px]',
+      'src/components/settings/CommunityThemeGallery.tsx:text-[10px]',
+      'src/components/settings/CommunityThemeGallery.tsx:text-[10px]',
+      'src/components/settings/CommunityThemeGallery.tsx:text-[11px]',
+      'src/components/settings/CommunityThemeGallery.tsx:text-[11px]',
       // Compact avatar initials with adjacent names.
       // Compact calendar sync status metadata.
       'src/components/widgets/CalendarWidget.tsx:text-[10px]',
