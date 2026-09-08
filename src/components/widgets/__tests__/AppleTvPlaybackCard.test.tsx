@@ -82,7 +82,7 @@ it.each(['playing', 'paused', 'buffering'] as const)('renders %s state and metad
   expect(screen.getByText('Film')).toBeTruthy();
   expect(screen.getByText('Series · S1 E1')).toBeTruthy();
   expect(screen.getByText('Artist · Album')).toBeTruthy();
-  expect(screen.getByText(/Ends in/)).toBeTruthy();
+  expect(screen.getByText(/left · Ends at/)).toBeTruthy();
 });
 it('hides paused media after five minutes of local observation', () => {
   data = makeData({ state: 'paused', positionUpdatedAt: null });
@@ -230,7 +230,8 @@ it('estimates the raw API position once for a smooth timeline', () => {
   data = makeData({ position: 30, positionUpdatedAt: '2026-09-03T11:59:50Z' });
   render(<MediaPlayerPlaybackCard />);
   expect((screen.getByLabelText('Playback position') as HTMLInputElement).value).toBe('40');
-  expect(screen.getByText(/Ends in 1:20/)).toBeTruthy();
+  expect(screen.getByText('1:20')).toBeTruthy();
+  expect(screen.getByText(/left · Ends at/)).toBeTruthy();
 });
 it('commits deliberate seeks, including zero, with 48px sizing', async () => {
   data = makeData({ position: 10, supportedControls: ['seek'] });
