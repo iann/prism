@@ -827,6 +827,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 4995dcc1
 
+99. **Stable media playback timing labels**
+
+    Keeps the live remaining-time value in a reserved, right-aligned slot and
+    separates it from the static “Ends at” time so playback countdowns do not
+    shift the card layout as digits change.
+
+    Commit: cdd4504f
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
