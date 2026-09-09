@@ -835,6 +835,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: cdd4504f
 
+100. **Separated media playback timing values**
+
+    Adds explicit spacing and non-shrinking numeric slots for elapsed and
+    remaining playback times so the numbers and “left” label stay distinct.
+
+    Commit: d786805c
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
