@@ -842,6 +842,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: d786805c
 
+101. **Centered animated radar home marker**
+
+    Aligns the precipitation radar’s gold home dot and its staggered ripple
+    with Windy’s current picker element, while retaining compatibility with
+    older marker markup.
+
+    Commit: 89dbbb3b
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
