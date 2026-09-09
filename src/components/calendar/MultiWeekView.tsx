@@ -22,6 +22,8 @@ import { SpanningEventRows } from './cells';
 import { useTimeFormat } from '@/components/providers';
 import { eventOccursOnDisplayDay, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
+import { useDateLabels } from '@/lib/hooks/useDateLabels';
+import { useTranslations } from 'next-intl';
 
 export interface MultiWeekViewProps {
   currentDate: Date;
@@ -187,6 +189,8 @@ function DayCell({
   showAll?: boolean;
 }) {
   const { timeFormat, displayTimezone } = useTimeFormat();
+  const t = useTranslations('calendar');
+  const d = useDateLabels();
   const cards = displayMode === 'cards';
   const fallback = compact ? FALLBACK_VISIBLE_CARDS_COMPACT : FALLBACK_VISIBLE_CARDS;
   const spanningEventSet = new Set(spanningEvents);
@@ -249,12 +253,12 @@ function DayCell({
   const today = isSameDay(date, displayNow);
   const tomorrow = isSameDay(date, addDays(displayNow, 1));
   const dayLabel = today
-    ? 'Today'
+    ? t('today')
     : tomorrow
-      ? 'Tomorrow'
+      ? t('tomorrow')
       : compact
-        ? format(date, 'EEE')
-        : format(date, 'EEEE');
+        ? d.weekdayShort(date)
+        : d.weekdayLong(date);
   const dayWeather = bucket?.weather;
   const cardSize = compact ? 'sm' : 'md';
 
@@ -328,6 +332,7 @@ function DayCell({
         events={spanningEvents}
         onEventClick={onEventClick}
         compact={compact}
+        gap="0.25rem"
       />
 
       {/* Cards / events. In cards mode, meals render at the top of the day's
@@ -355,7 +360,7 @@ function DayCell({
                   layout="column"
                   stripeColor={event.color}
                   title={event.title}
-                  timeLabel={event.allDay ? 'All day' : formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)}
+                  timeLabel={event.allDay ? t('allDay') : formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)}
                   subtitle={event.location || event.calendarName}
                   onClick={() => onEventClick(event)}
                   dragId={draggable ? `event:${event.id}` : undefined}

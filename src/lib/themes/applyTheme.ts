@@ -2,7 +2,7 @@
  * Turning a theme into CSS, on the client and on the server.
  */
 import {
-  THEME_TOKENS, isValidTokenValue, normalizeShape, normalizeFont, normalizeModes,
+  ALL_THEME_TOKENS, isValidTokenValue, normalizeShape, normalizeFont, normalizeModes,
   THEME_FONTS, type Theme, type ThemeTokens,
 } from './tokens';
 import { appThemes, isAppThemeId } from './appThemes';
@@ -25,7 +25,7 @@ export function themeTokens(theme: Theme, mode: ResolvedMode): ThemeTokens {
  * This is the last point before the DOM, and the cost is a regex per token.
  */
 export function applyThemeVars(root: HTMLElement, tokens: Partial<ThemeTokens>): void {
-  for (const token of THEME_TOKENS) {
+  for (const token of ALL_THEME_TOKENS) {
     const value = tokens[token];
     if (isValidTokenValue(value)) {
       root.style.setProperty(`--${token}`, value);
@@ -158,7 +158,7 @@ function chromeProperties(theme: Theme): Array<[string, string]> {
 
 /** Remove every theme token, falling back to the values in globals.css. */
 export function clearThemeVars(root: HTMLElement): void {
-  for (const token of THEME_TOKENS) root.style.removeProperty(`--${token}`);
+  for (const token of ALL_THEME_TOKENS) root.style.removeProperty(`--${token}`);
   for (const [prop] of chromeProperties({ light: {}, dark: {} } as Theme)) {
     root.style.removeProperty(prop);
   }
@@ -167,7 +167,7 @@ export function clearThemeVars(root: HTMLElement): void {
 /**
  * A stylesheet for server rendering, so the first paint is already themed.
  *
- * Built by iterating THEME_TOKENS and emitting only values that pass the
+ * Built by iterating ALL_THEME_TOKENS and emitting only values that pass the
  * triple check — never by serialising the theme object. That matters more here
  * than on the client: `setProperty` goes through the CSSOM, which cannot be
  * escaped out of, but this string lands inside a `<style>` element where a
@@ -175,7 +175,7 @@ export function clearThemeVars(root: HTMLElement): void {
  * in this app to catch that.
  *
  * The shape of this function is the guarantee for external themes: anything
- * not in THEME_TOKENS cannot appear in their output, whatever the input
+ * not in ALL_THEME_TOKENS cannot appear in their output, whatever the input
  * contains. Static app themes are the one intentional exception; their
  * extended widget and weather properties come from this source file rather
  * than from the theme payload, so they can be safely included for first paint.
@@ -184,7 +184,7 @@ export function themeCss(theme: Theme): string {
   const block = (tokens: ThemeTokens, trustedAppTokens?: Record<`--${string}`, string>) => {
     const properties = new Map<string, string>();
 
-    for (const token of THEME_TOKENS) {
+    for (const token of ALL_THEME_TOKENS) {
       if (isValidTokenValue(tokens[token])) properties.set(`--${token}`, tokens[token]);
     }
 

@@ -37,12 +37,16 @@ export function useTranslations(namespace?: string) {
     let out = lookup(namespace, key);
     if (values) {
       for (const [k, v] of Object.entries(values)) {
+        if (typeof v === 'function') continue; // rich-text tag handler, not a value
         out = out.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
       }
     }
     return out;
   };
   translate.has = (key: string) => typeof lookupValue(namespace, key) === 'string';
+  translate.rich = (key: string, values?: Record<string, unknown>) =>
+    translate(key, values).replace(/<\/?[a-zA-Z][^>]*>/g, '');
+  translate.raw = (key: string) => lookup(namespace, key);
   return translate;
 }
 
