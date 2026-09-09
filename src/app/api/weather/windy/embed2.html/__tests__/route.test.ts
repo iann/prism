@@ -11,6 +11,13 @@ describe('rewriteWindyEmbedHtml', () => {
     expect(html).toContain('.metric-legend');
     expect(html).toContain('#embed-zoom');
     expect(html).toContain('.leaflet-marker-icon.mylocation');
+    expect(html).toContain('#map-container #picker-dot');
+    expect(html).toContain('#map-container #picker-dot::before');
+    expect(html).toContain('#map-container #picker-dot::after');
+    expect(html).toContain('#picker-dot > svg');
+    expect(html).toContain('margin: -5px !important');
+    expect(html).toContain('font-size: 0 !important');
+    expect(html).toContain('transform-origin: 50% 50%');
     expect(html).toContain('.leaflet-marker-icon.picker');
     expect(html).toContain('.leaflet-marker-icon.picker::before');
     expect(html).toContain('.leaflet-marker-icon.picker::after');
