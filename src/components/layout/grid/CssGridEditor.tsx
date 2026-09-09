@@ -398,7 +398,7 @@ function DraggableWidget({
   // Ring color: blue for move, orange for resize
   const ringClass = isSelected
     ? inResizeMode
-      ? 'ring-2 ring-orange-500 ring-offset-2 z-[100]'
+      ? 'ring-2 ring-warning ring-offset-2 z-[100]'
       : 'ring-2 ring-blue-500 ring-offset-2 z-[100]'
     : 'touch-manipulation';
 
@@ -427,7 +427,7 @@ function DraggableWidget({
         className={`absolute inset-0 z-10 border-2 ${
           isSelected
             ? inResizeMode
-              ? 'border-solid border-orange-500'
+              ? 'border-solid border-warning'
               : 'border-dashed border-blue-500'
             : `border-dashed ${theme.borderDash}`
         } pointer-events-none rounded-xl`}
@@ -464,7 +464,7 @@ function DraggableWidget({
       {isSelected && !isDragging && (
         <div
           className={`pointer-events-none absolute left-1/2 top-1 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium text-white shadow-sm ${
-            inResizeMode ? 'bg-orange-500/90' : 'bg-blue-500/90'
+            inResizeMode ? 'bg-warning/90' : 'bg-blue-500/90'
           }`}
         >
           {inResizeMode ? (
@@ -603,7 +603,7 @@ function ResizeHandles({
           {/* Visual dot for corners — large and visible */}
           {edge.length === 2 && (
             <div
-              className="absolute rounded-full border-2 border-white bg-orange-500 shadow-md"
+              className="absolute rounded-full border-2 border-white bg-warning shadow-md"
               style={{
                 width: 18,
                 height: 18,
@@ -616,7 +616,7 @@ function ResizeHandles({
           {/* Visual bar for edges — thick and visible */}
           {edge.length === 1 && (
             <div
-              className="absolute rounded-full bg-orange-500/70"
+              className="absolute rounded-full bg-warning/70"
               style={{
                 ...(edge === 'n' || edge === 's'
                   ? {

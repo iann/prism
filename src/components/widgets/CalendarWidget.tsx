@@ -22,6 +22,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
+import { useTranslations } from 'next-intl';
 import { Calendar, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ import { isLightColor } from '@/lib/utils/color';
 import { deduplicateEvents } from '@/lib/utils/calendarDedup';
 import { WidgetContainer, useWidgetBgOverride } from './WidgetContainer';
 import { useCalendarEvents, useCalendarFilter, useCalendarNotes } from '@/lib/hooks';
+import { useDateLabels } from '@/lib/hooks/useDateLabels';
 import { useDayBucketsForRange } from '@/lib/hooks/useDayBucketsForRange';
 import { useWeekMutations } from '@/lib/hooks/useWeekMutations';
 import { useAuth } from '@/components/providers';
@@ -108,6 +110,8 @@ export const CalendarWidget = React.memo(function CalendarWidget({
 }: CalendarWidgetProps) {
   const { activeUser } = useAuth();
   const { uiHidden } = useAutoHideUI();
+  const t = useTranslations('calendar');
+  const formatDayHeader = useDayHeaderFormatter();
   const { weekStartsOn } = useWeekStartsOn();
   const bgOverride = useWidgetBgOverride();
   const transparentMode = bgOverride?.hasCustomBg === true;
@@ -287,7 +291,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
         await moveEvent(itemId, ev.startTime, ev.endTime, targetBucket.date);
       }
     } catch (err) {
-      setMoveError(err instanceof Error ? err.message : 'Failed to move item');
+      setMoveError(err instanceof Error ? err.message : t('errors.moveFailed'));
     }
   };
 
@@ -321,9 +325,8 @@ export const CalendarWidget = React.memo(function CalendarWidget({
     (resolvedView === 'day' || resolvedView === 'list') && calendarGroups.length > 1;
 
   // Calendar filter chips
-  const calendarChips =
-    calendarGroups.length > 0 ? (
-      <div className="wall-calendar-chips -mt-1 flex flex-wrap items-center gap-1 px-3 pb-2">
+  const calendarChips = calendarGroups.length > 0 ? (
+    <div className="wall-calendar-chips -mt-1 flex flex-wrap items-center gap-1 px-3 pb-2">
         <button
           onClick={() => toggleCalendar('all')}
           className={cn(
@@ -335,7 +338,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
                 : 'bg-muted text-muted-foreground hover:bg-accent'
           )}
         >
-          All
+          {t('toolbar.all')}
         </button>
         {calendarGroups.map((group) => (
           <button
@@ -380,7 +383,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
 
   return (
     <WidgetContainer
-      title="Calendar"
+      title={t('title')}
       titleHref={titleHref}
       icon={<Calendar className="h-4 w-4" />}
       size="large"
@@ -421,7 +424,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
       {syncPaused && (
         <Link
           href="/calendar?manage=calendars"
-          className="flex items-center justify-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 py-1 bg-amber-500/10 rounded mb-1 hover:bg-amber-500/20"
+          className="flex items-center justify-center gap-1 text-[10px] text-warning py-1 bg-warning/10 rounded mb-1 hover:bg-warning/20"
           title="Sync has stopped for one or more calendars — reconnect to resume"
         >
           <AlertTriangle className="h-3 w-3 shrink-0" />
@@ -431,7 +434,9 @@ export const CalendarWidget = React.memo(function CalendarWidget({
 
       {viewUnavailable && (
         <div className="mb-1 rounded bg-muted/50 py-1 text-center text-[12px] text-muted-foreground">
-          Resize widget for {VIEW_OPTIONS.find((v) => v.value === viewType)?.label} view
+          {t('toolbar.resizeForView', {
+            view: t(`views.${VIEW_OPTIONS.find((v) => v.value === viewType)?.labelKey ?? 'agenda'}`),
+          })}
         </div>
       )}
 
@@ -566,9 +571,13 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   );
 });
 
-function formatDayHeader(date: Date): string {
-  const dayName = format(date, 'EEEE, MMMM d, yyyy');
-  if (isToday(date)) return `Today - ${dayName}`;
-  if (isTomorrow(date)) return `Tomorrow - ${dayName}`;
-  return dayName;
+function useDayHeaderFormatter(): (date: Date) => string {
+  const t = useTranslations('calendar');
+  const d = useDateLabels();
+  return (date: Date) => {
+    const dayName = d.fullDate(date);
+    if (isToday(date)) return t('dayHeader', { label: t('today'), date: dayName });
+    if (isTomorrow(date)) return t('dayHeader', { label: t('tomorrow'), date: dayName });
+    return dayName;
+  };
 }

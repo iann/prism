@@ -25,6 +25,7 @@ import { useTimeFormat } from '@/components/providers';
 import { SpanningEventRows } from './cells';
 import { eventOccursOnDisplayDay, formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
+import { useDateLabels } from '@/lib/hooks/useDateLabels';
 
 export interface ThreeMonthViewProps {
   currentDate: Date;
@@ -52,9 +53,12 @@ function MiniMonth({
   bordered?: boolean;
 }) {
   const { timeFormat, displayTimezone } = useTimeFormat();
+  const d = useDateLabels();
   const displayNow = toDisplayDate(new Date(), displayTimezone);
   const { weekStartsOn } = useWeekStartsOn();
-  const dayNames = [...ALL_DAY_NAMES.slice(weekStartsOn), ...ALL_DAY_NAMES.slice(0, weekStartsOn)];
+  // Sunday-first indices rotated to the configured week start; the initials
+  // themselves come from the interface language.
+  const dayIndices = Array.from({ length: ALL_DAY_NAMES.length }, (_, i) => (i + weekStartsOn) % ALL_DAY_NAMES.length);
   const bgOverride = useWidgetBgOverride();
   const transparentMode = bgOverride?.hasCustomBg === true;
   const monthStart = startOfMonth(month);
@@ -88,14 +92,14 @@ function MiniMonth({
       {/* Month header with themed color — compact band so the three minis
           can use more vertical space for actual day cells. */}
       <div className="text-center py-1 font-semibold text-sm flex-shrink-0 shadow-sm bg-primary text-primary-foreground">
-        {format(month, 'MMMM yyyy')}
+        {d.monthYear(month)}
       </div>
 
       {/* Day name headers */}
       <div className="grid grid-cols-7 gap-px px-1 flex-shrink-0">
-        {dayNames.map((name, i) => (
-          <div key={i} className="text-center text-[12px] font-medium text-muted-foreground py-1">
-            {name}
+        {dayIndices.map((index) => (
+          <div key={index} className="text-center text-[12px] font-medium text-muted-foreground py-1">
+            {d.weekdayByIndex(index, 'weekdayNarrow')}
           </div>
         ))}
       </div>

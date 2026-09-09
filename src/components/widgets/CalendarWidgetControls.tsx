@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -58,6 +59,7 @@ export function CalendarWidgetControls({
   goToToday,
   goToNext,
 }: CalendarWidgetControlsProps) {
+  const t = useTranslations('calendar');
   // The widget views that benefit from "card vs inline" toggle: day, list,
   // week, multiWeek, month. Agenda has no such concept.
   const displayApplicable = resolvedView !== 'agenda';
@@ -103,12 +105,12 @@ export function CalendarWidgetControls({
                 : 'bg-background text-foreground hover:bg-accent',
             )}
           >
-            Today
+            {t('today')}
           </Button>
-          <Button variant="outline" size="icon" onClick={goToPrevious} aria-label="Previous" className="rounded-xl">
+          <Button variant="outline" size="icon" onClick={goToPrevious} aria-label={t('nav.previous')} className="rounded-xl">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={goToNext} aria-label="Next" className="rounded-xl">
+          <Button variant="outline" size="icon" onClick={goToNext} aria-label={t('nav.next')} className="rounded-xl">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </>
@@ -172,6 +174,7 @@ function ViewPopover({
   availableViews: WidgetViewType[];
   transparentMode: boolean;
 }) {
+  const t = useTranslations('calendar');
   const [open, setOpen] = React.useState(false);
   const enabled = VIEW_OPTIONS.filter((opt) => availableViews.includes(opt.value));
   const activeOpt =
@@ -192,13 +195,13 @@ function ViewPopover({
         <PopoverTrigger asChild>
           <button
             type="button"
-            aria-label="Calendar view"
+            aria-label={t('nav.calendarView')}
             className={cn(
               'inline-flex items-center justify-center gap-1 h-full w-28 px-3 text-sm rounded-xl border border-input/70 bg-background hover:bg-accent hover:text-accent-foreground',
               transparentMode && 'bg-transparent border-current/20',
             )}
           >
-            <span className="truncate">{activeOpt.label}</span>
+            <span className="truncate">{t(`views.${activeOpt.labelKey}`)}</span>
             <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
           </button>
         </PopoverTrigger>
@@ -222,7 +225,7 @@ function ViewPopover({
                   !isAvailable && 'opacity-40 cursor-not-allowed',
                 )}
               >
-                <span className="flex-1 text-left">{opt.label}</span>
+                <span className="flex-1 text-left">{t(`views.${opt.labelKey}`)}</span>
               </button>
             );
           })}
@@ -231,8 +234,8 @@ function ViewPopover({
       <div className="inline-flex items-center gap-1.5 h-full">
         <button
           type="button"
-          aria-label="Previous view"
-          title="Previous view"
+          aria-label={t('nav.previousView')}
+          title={t('nav.previousView')}
           onClick={() => cycle(-1)}
           className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-input/70 hover:bg-accent"
         >
@@ -240,8 +243,8 @@ function ViewPopover({
         </button>
         <button
           type="button"
-          aria-label="Next view"
-          title="Next view"
+          aria-label={t('nav.nextView')}
+          title={t('nav.nextView')}
           onClick={() => cycle(1)}
           className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-input/70 hover:bg-accent"
         >

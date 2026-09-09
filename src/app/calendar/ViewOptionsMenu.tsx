@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Settings2,
   Calendar,
@@ -49,11 +50,13 @@ interface ViewOptionsMenuProps {
   triggerClassName?: string;
 }
 
-const OVERLAY_ROWS: Array<{ key: keyof OverlayFlags; label: string; Icon: typeof Calendar }> = [
-  { key: 'events', label: 'Events', Icon: Calendar },
-  { key: 'meals', label: 'Meals', Icon: UtensilsCrossed },
-  { key: 'chores', label: 'Chores', Icon: ListChecks },
-  { key: 'tasks', label: 'Tasks', Icon: CheckSquare },
+// Labels come from `calendar.options` at render. The key doubles as the
+// catalogue key, so the two lists can't drift apart.
+const OVERLAY_ROWS: Array<{ key: keyof OverlayFlags; Icon: typeof Calendar }> = [
+  { key: 'events', Icon: Calendar },
+  { key: 'meals', Icon: UtensilsCrossed },
+  { key: 'chores', Icon: ListChecks },
+  { key: 'tasks', Icon: CheckSquare },
 ];
 
 interface CheckRowProps {
@@ -118,6 +121,7 @@ export function ViewOptionsMenu({
   onReset,
   triggerClassName,
 }: ViewOptionsMenuProps) {
+  const t = useTranslations('calendar.options');
   // Count toggles that are non-default so we can show a badge on the trigger.
   // 'inline' is the first-load default in both useCalendarViewData and
   // useCalendarWidgetPrefs — keep this in sync with those initializers and
@@ -144,11 +148,11 @@ export function ViewOptionsMenu({
           variant="outline"
           size="sm"
           aria-label="View options"
-          title="View options"
+          title={t('label')}
           className={cn('wall-options-trigger gap-1.5 h-9', triggerClassName)}
         >
           <Settings2 className="h-4 w-4" />
-          <span className="hidden sm:inline">View</span>
+          <span className="hidden sm:inline">{t('trigger')}</span>
           {nonDefaultCount > 0 && (
             // Count circle is the ONLY visual indicator that filters are
             // active — the button's outer fill stays the same regardless,
@@ -164,7 +168,7 @@ export function ViewOptionsMenu({
         <div className="space-y-3">
           <section>
             <p className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Display
+              {t('display')}
             </p>
             <div className="space-y-0.5">
               {displayApplicable && (
@@ -186,7 +190,7 @@ export function ViewOptionsMenu({
                     >
                       {displayMode === 'cards' && <span className="h-2 w-2 rounded-full bg-primary" />}
                     </span>
-                    <span className="flex-1 text-left">Cards</span>
+                    <span className="flex-1 text-left">{t('cards')}</span>
                   </button>
                   <button
                     type="button"
@@ -205,34 +209,34 @@ export function ViewOptionsMenu({
                     >
                       {displayMode === 'inline' && <span className="h-2 w-2 rounded-full bg-primary" />}
                     </span>
-                    <span className="flex-1 text-left">Inline blocks</span>
+                    <span className="flex-1 text-left">{t('inlineBlocks')}</span>
                   </button>
                 </>
               )}
               <CheckRow
                 checked={weeksBordered}
                 onChange={onWeeksBorderedChange}
-                label="Grid lines"
+                label={t('gridLines')}
               />
               {weekendsApplicable && (
                 <CheckRow
                   checked={hideWeekends}
                   onChange={onHideWeekendsChange}
-                  label="Hide weekends"
+                  label={t('hideWeekends')}
                 />
               )}
               {notesApplicable && (
                 <CheckRow
                   checked={showNotes}
                   onChange={onShowNotesChange}
-                  label="Notes column"
+                  label={t('notesColumn')}
                 />
               )}
               {mergeApplicable && onMergedViewChange && (
                 <CheckRow
                   checked={mergedView}
                   onChange={onMergedViewChange}
-                  label="Merge calendars"
+                  label={t('mergeCalendars')}
                 />
               )}
             </div>
@@ -240,15 +244,15 @@ export function ViewOptionsMenu({
 
           <section>
             <p className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Show on calendar
+              {t('showOnCalendar')}
             </p>
             <div className="space-y-0.5">
-              {OVERLAY_ROWS.map(({ key, label, Icon }) => (
+              {OVERLAY_ROWS.map(({ key, Icon }) => (
                 <CheckRow
                   key={key}
                   checked={overlays[key]}
                   onChange={() => toggleOverlay(key)}
-                  label={label}
+                  label={t(key)}
                   Icon={Icon}
                   disabled={!showOverlayRows && key !== 'events'}
                 />
@@ -256,7 +260,7 @@ export function ViewOptionsMenu({
             </div>
             {!showOverlayRows && (
               <p className="mt-2 px-2 text-[12px] leading-snug text-muted-foreground">
-                Switch to Cards mode to show meals, chores, and tasks alongside events.
+                {t('cardsHint')}
               </p>
             )}
           </section>
@@ -269,7 +273,7 @@ export function ViewOptionsMenu({
                 onClick={onReset}
                 className="flex min-h-11 w-full items-center justify-center rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
               >
-                Reset to defaults
+                {t('reset')}
               </button>
             </>
           )}

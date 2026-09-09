@@ -102,9 +102,9 @@ export function LayoutEditorPreviewPanel({
         </div>
       )}
       {validation.warnings.length > 0 && validation.errors.length === 0 && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2">
+        <div className="rounded-md border border-warning/30 bg-warning/10 p-2">
           {validation.warnings.map((w, i) => (
-            <p key={i} className="text-xs leading-tight text-amber-600">
+            <p key={i} className="text-xs leading-tight text-warning">
               {w}
             </p>
           ))}
