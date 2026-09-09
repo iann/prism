@@ -267,14 +267,16 @@ export function MediaPlayerPlaybackCard({
                 disabled={!can('seek') || pending}
               />
               <div className="flex items-baseline justify-between gap-4 text-sm">
-                <span className="tabular-nums">{formatDuration(position)}</span>
+                <span className="inline-block min-w-[6ch] shrink-0 tabular-nums">
+                  {formatDuration(position)}
+                </span>
                 {endTime ? (
-                  <span className="flex min-w-0 items-baseline justify-end whitespace-nowrap text-right">
-                    <span className="inline-block min-w-[6ch] tabular-nums">
+                  <span className="flex shrink-0 items-baseline justify-end gap-1 whitespace-nowrap text-right">
+                    <span className="inline-block min-w-[6ch] shrink-0 text-right tabular-nums">
                       {formatDuration(Math.max(0, data.duration - (position ?? 0)))}
                     </span>
-                    <span className="text-muted-foreground"> left · Ends at </span>
-                    <span>{formatDisplayTime(endTime, timeFormat, {}, displayTimezone)}</span>
+                    <span className="shrink-0 text-muted-foreground">left · Ends at</span>
+                    <span className="shrink-0">{formatDisplayTime(endTime, timeFormat, {}, displayTimezone)}</span>
                   </span>
                 ) : (
                   <span className="tabular-nums">{formatDuration(data.duration)}</span>

@@ -230,8 +230,15 @@ it('estimates the raw API position once for a smooth timeline', () => {
   data = makeData({ position: 30, positionUpdatedAt: '2026-09-03T11:59:50Z' });
   render(<MediaPlayerPlaybackCard />);
   expect((screen.getByLabelText('Playback position') as HTMLInputElement).value).toBe('40');
-  expect(screen.getByText('1:20')).toBeTruthy();
-  expect(screen.getByText(/left · Ends at/)).toBeTruthy();
+  const elapsed = screen.getByText('0:40');
+  expect(elapsed.className).toContain('min-w-[6ch]');
+  expect(elapsed.className).toContain('shrink-0');
+  const remaining = screen.getByText('1:20');
+  expect(remaining.className).toContain('shrink-0');
+  expect(remaining.className).toContain('text-right');
+  const timingLabel = screen.getByText(/left · Ends at/);
+  expect(timingLabel.parentElement?.className).toContain('gap-1');
+  expect(timingLabel.parentElement?.className).toContain('shrink-0');
 });
 it('commits deliberate seeks, including zero, with 48px sizing', async () => {
   data = makeData({ position: 10, supportedControls: ['seek'] });
