@@ -85,18 +85,48 @@ test.describe('calendar grid geometry', () => {
         }
         return null;
       };
-      const out: Array<{ band: number | null; card: number | null }> = [];
+      const out: Array<{
+        band: number;
+        card: number | null;
+        expectedBand: number | null;
+      }> = [];
       document.querySelectorAll('[data-spanning-events]').forEach((band) => {
         const cell = band.parentElement!;
         const slice = [...band.children].find((e) => e.getBoundingClientRect().width && e.textContent?.trim());
-        const card = [...cell.querySelectorAll('button')].find((b) => !b.closest('[data-spanning-events]') && b.textContent?.trim());
-        if (slice && card) out.push({ band: textLeft(slice), card: textLeft(card) });
+        if (!slice) return;
+
+        // The personal calendar puts timed one-day events in the shared lane
+        // band as well as all-day and multi-day events. When there is a regular
+        // calendar card below it, compare those two content offsets; otherwise
+        // compare the band title with its own stripe + flex gap. Looking for any
+        // button here used to select a chore/meal card, which is a different
+        // surface and produced a misleading 5px failure.
+        const card = [...cell.querySelectorAll('button[data-variant="event"]')]
+          .find((b) => !b.closest('[data-spanning-events]') && b.textContent?.trim());
+        const bandLeft = textLeft(slice);
+        if (bandLeft === null) return;
+        if (card) {
+          const cardLeft = textLeft(card);
+          if (cardLeft !== null) out.push({ band: bandLeft, card: cardLeft, expectedBand: null });
+          return;
+        }
+
+        const stripe = slice.querySelector('span[aria-hidden]');
+        if (!stripe) return;
+        const gap = parseFloat(getComputedStyle(slice).columnGap || getComputedStyle(slice).gap || '0');
+        out.push({
+          band: bandLeft,
+          card: null,
+          expectedBand: +(stripe.getBoundingClientRect().right + gap).toFixed(1),
+        });
       });
       return out;
     });
 
     expect(offsets.length).toBeGreaterThan(0);
-    for (const o of offsets) expect(o.band).toBeCloseTo(o.card!, 0);
+    for (const o of offsets) {
+      expect(o.band).toBeCloseTo(o.card ?? o.expectedBand!, 0);
+    }
   });
 
   test('a lane sits at the same height in every column of a row', async ({ page }) => {
