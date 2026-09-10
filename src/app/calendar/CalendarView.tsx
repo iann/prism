@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
+import { sanitizeEventDescription } from '@/lib/utils/eventDescriptionHtml';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, startOfDay } from 'date-fns';
 import {
   DndContext,
@@ -770,7 +771,7 @@ export function CalendarView() {
 
 
 function EventDetailModal({ event, onClose, onEdit, onDeleted }: {
-  event: { id: string; title: string; startTime: Date; endTime: Date; allDay: boolean; color: string; location?: string; calendarName: string };
+  event: { id: string; title: string; startTime: Date; endTime: Date; allDay: boolean; color: string; location?: string; description?: string; calendarName: string };
   onClose: () => void;
   onEdit: () => void;
   onDeleted: () => void;
@@ -808,7 +809,22 @@ function EventDetailModal({ event, onClose, onEdit, onDeleted }: {
                 time: formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone),
               })}
         </p>
-        {event.location && <p className="text-sm text-muted-foreground mb-4">{event.location}</p>}
+        {event.location && <p className="text-sm text-muted-foreground mb-2">{event.location}</p>}
+        {/*
+          Descriptions arrive as HTML from Google ("<b>BOLD</b>" and the like),
+          so they are rendered rather than printed as tags. The source is an
+          external calendar, which makes it untrusted markup: see
+          sanitizeEventDescription for what survives the allowlist.
+
+          Capped in height with its own scroll: some events carry a whole
+          meeting agenda, and the modal should not grow to fit one.
+        */}
+        {event.description && (
+          <div
+            className="mb-4 max-h-40 overflow-y-auto rounded border border-border/50 bg-muted/30 px-2 py-1.5 text-sm text-foreground [&_a]:underline [&_li]:ml-4 [&_li]:list-disc [&_p]:mb-1"
+            dangerouslySetInnerHTML={{ __html: sanitizeEventDescription(event.description) }}
+          />
+        )}
         <p className="text-xs text-muted-foreground">{event.calendarName}</p>
         <div className="flex justify-between mt-6">
           <Button variant="destructive" onClick={handleDelete}>

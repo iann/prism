@@ -286,6 +286,8 @@ describe('surface class contracts', () => {
     );
 
     expect(alphaBoundaries).toEqual([
+      // Event descriptions use a subtle content boundary.
+      'src/app/calendar/CalendarView.tsx:border-border/50',
       'src/app/goals/GoalsView.tsx:border-border/50',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',

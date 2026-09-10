@@ -216,6 +216,7 @@ function MonthDayCell({
   const today = isSameDay(date, toDisplayDate(new Date(), displayTimezone));
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
 
+
   return (
     <div
       ref={cards && enableDnd ? droppable.setNodeRef : undefined}
@@ -252,7 +253,7 @@ function MonthDayCell({
         rowDates={rowDates}
         events={spanningEvents}
         onEventClick={onEventClick}
-        gap="1px"
+        cards={cards}
       />
 
       {cards ? (
