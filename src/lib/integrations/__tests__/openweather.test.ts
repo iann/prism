@@ -73,11 +73,21 @@ function currentResponse(overrides: Partial<{
   };
 }
 
-function forecastItem(dt: number, temp: number, weatherId = 800, pop?: number) {
+function forecastItem(
+  dt: number,
+  temp: number,
+  weatherId = 800,
+  pop?: number,
+  windSpeed?: number,
+  windGust?: number,
+) {
   return {
     dt,
     main: { temp, temp_min: temp - 2, temp_max: temp + 2 },
     pop,
+    ...(windSpeed === undefined
+      ? {}
+      : { wind: { speed: windSpeed, ...(windGust === undefined ? {} : { gust: windGust }) } }),
     weather: [{ id: weatherId, main: 'Weather', description: 'weather' }],
   };
 }
@@ -501,6 +511,27 @@ describe('fetchWeatherData — forecast periods', () => {
       precipProbability: 80,
     });
     expect(result.hourly?.some((hour) => hour.time.getTime() === morning * 1000)).toBe(false);
+  });
+
+  it('carries forecast wind into the period summary data', async () => {
+    const afternoon = SEC(Date.UTC(2026, 4, 1, 19, 0, 0));
+    const items = [forecastItem(afternoon, 293.15, 800, 0, 10, 20)];
+
+    jest
+      .spyOn(global, 'fetch' as never)
+      .mockResolvedValueOnce({ ok: true, json: async () => currentResponse() } as never)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => forecastResponse(items, CDT_OFFSET),
+      } as never);
+
+    const { fetchWeatherData } = await import('../openweather');
+    const result = await fetchWeatherData();
+
+    expect(result.periods?.find((period) => period.period === 'afternoon')).toMatchObject({
+      windSpeed: 22,
+      windGust: 45,
+    });
   });
 });
 

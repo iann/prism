@@ -165,7 +165,6 @@ function MiniMonth({
                       events={rowEventEvents}
                       onEventClick={onEventClick}
                       compact
-                      gap="1px"
                     />
                   )}
                   {/* Event list — scrollable within day cell */}

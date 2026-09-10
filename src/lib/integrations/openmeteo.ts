@@ -68,6 +68,8 @@ interface OpenMeteoHourly {
   time: string[];
   temperature_2m: number[];
   apparent_temperature?: number[];
+  wind_speed_10m?: number[];
+  wind_gusts_10m?: number[];
   precipitation_probability?: number[];
   precipitation: number[];
   weather_code: number[];
@@ -243,6 +245,8 @@ export async function fetchWeatherData(
     hourly: [
       'temperature_2m',
       'apparent_temperature',
+      'wind_speed_10m',
+      'wind_gusts_10m',
       'precipitation_probability',
       'precipitation',
       'weather_code',
@@ -358,6 +362,12 @@ export async function fetchWeatherData(
       condition: mapWmoCode(hourly.weather_code[i] ?? 0),
       temp: Math.round(hourly.temperature_2m[i] ?? 0),
       feelsLike: Math.round(hourly.apparent_temperature?.[i] ?? hourly.temperature_2m[i] ?? 0),
+      windSpeed: hourly.wind_speed_10m?.[i] === undefined
+        ? undefined
+        : Math.round(hourly.wind_speed_10m[i]!),
+      windGust: hourly.wind_gusts_10m?.[i] === undefined
+        ? undefined
+        : Math.round(hourly.wind_gusts_10m[i]!),
       uvIndex: hourly.uv_index?.[i] === undefined
         ? undefined
         : Math.round(hourly.uv_index[i]! * 10) / 10,
@@ -380,6 +390,8 @@ export async function fetchWeatherData(
           condition: currentWeather.condition,
           temp: currentWeather.temperature,
           feelsLike: currentWeather.feelsLike,
+          windSpeed: currentWeather.windSpeed,
+          windGust: currentWeather.windGust,
           uvIndex: currentWeather.uvIndex,
           precipIntensity: current.precipitation,
         }

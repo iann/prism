@@ -14,7 +14,7 @@ import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
 import { hexToRgba } from '@/lib/utils/color';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import type { CalendarEvent } from '@/types/calendar';
-import { CardHeightProbe, DayOverflowPopover, DroppableOverlayCell, WeekItemCard, useDayDroppable, weatherIcon, type OverlayItemRef } from './cells';
+import { CardHeightProbe, DayOverflowPopover, DroppableOverlayCell, WeekItemCard, cardTitleClasses, useDayDroppable, weatherIcon, type OverlayItemRef } from './cells';
 import { useCardCapacity } from '@/lib/hooks/useCardCapacity';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
@@ -332,7 +332,12 @@ function DayCell({
         events={spanningEvents}
         onEventClick={onEventClick}
         compact={compact}
-        gap="0.25rem"
+        cards={cards}
+        // Matches this view's event list below (line ~364).
+        padX={compact ? 'px-1' : 'px-1.5'}
+        // Matches the stripe on this view's cards: sm is 3px, md is 5px.
+        stripePx={compact ? 3 : 5}
+        titleClass={cardTitleClasses(cardSize)}
       />
 
       {/* Cards / events. In cards mode, meals render at the top of the day's
@@ -361,7 +366,11 @@ function DayCell({
                   stripeColor={event.color}
                   title={event.title}
                   timeLabel={event.allDay ? t('allDay') : formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)}
-                  subtitle={event.location || event.calendarName}
+                  // No third row at all. A location is worth knowing, but not at
+                  // the cost of a card that is three lines in one cell and two
+                  // in the next; the modal has it, and the grid is read from
+                  // across a room. Time and title only.
+                  subtitle={undefined}
                   onClick={() => onEventClick(event)}
                   dragId={draggable ? `event:${event.id}` : undefined}
                   subdued={isCalendarEventPast(

@@ -6,18 +6,44 @@ const NOW = Date.parse('2026-08-31T11:00:00Z'); // 7:00 AM in New York
 
 const messages: Record<string, string> = {
   'summary.conditions.sunny': 'mostly sunny',
+  'summary.conditions.sunnyBright': 'bright',
+  'summary.conditions.sunnySunlit': 'sunlit',
   'summary.conditions.sunnyNight': 'mostly clear',
+  'summary.conditions.sunnyNightClear': 'clear',
   'summary.conditions.partly-cloudy': 'partly cloudy',
+  'summary.conditions.partlyCloudyBright': 'bright with patchy clouds',
+  'summary.conditions.partlyCloudySunClouds': 'partly sunny',
   'summary.conditions.cloudy': 'mostly cloudy',
+  'summary.conditions.cloudyGray': 'gray',
+  'summary.conditions.cloudyOvercast': 'overcast',
   'summary.conditions.rainy': 'rain',
+  'summary.conditions.rainyShowers': 'showery',
+  'summary.conditions.rainySteady': 'rainy',
   'summary.conditions.snowy': 'snow',
+  'summary.conditions.snowyWintry': 'wintry',
+  'summary.conditions.snowyShowers': 'snowy',
   'summary.conditions.stormy': 'storms',
+  'summary.conditions.stormyThunderstorms': 'thundery',
+  'summary.conditions.stormySkies': 'stormy skies',
+  'summary.conditions.withBreezy': '{condition} and breezy',
+  'summary.conditions.withWind': '{condition}, with {wind}',
+  'summary.conditions.withTemperature': '{temperature} and {condition}',
+  'summary.wind.breezy': 'breezy',
+  'summary.wind.gusty': 'gusty winds',
+  'summary.wind.blustery': 'blustery winds',
+  'summary.temperature.freezing': 'freezing',
+  'summary.temperature.cold': 'cold',
+  'summary.temperature.crisp': 'crisp',
+  'summary.temperature.warm': 'warm',
+  'summary.temperature.hot': 'hot',
   'summary.periods.morning': 'this morning',
   'summary.periods.afternoon': 'this afternoon',
   'summary.periods.evening': 'tonight',
   'summary.singleTimed': '{condition} {period}.',
   'summary.singleToday': '{condition} today.',
   'summary.transition': '{first} {firstPeriod}, then {second} {secondPeriod}.',
+  'summary.turningBreezy': '{condition} {firstPeriod}, turning breezy {secondPeriod}.',
+  'summary.turningWind': '{condition} {firstPeriod}, turning {wind} {secondPeriod}.',
 };
 
 const translate: WeatherSummaryTranslator = (key, values) => {
@@ -30,10 +56,12 @@ const translate: WeatherSummaryTranslator = (key, values) => {
 
 function period(
   key: NonNullable<ForecastPeriod['period']>,
-  condition: WeatherCondition
+  condition: WeatherCondition,
+  wind: Pick<ForecastPeriod, 'windSpeed' | 'windGust'> = {},
+  temp = 70
 ): ForecastPeriod {
   const labels = { morning: 'Morn', afternoon: 'Aft', evening: 'Eve' };
-  return { period: key, label: labels[key], temp: 70, condition };
+  return { period: key, label: labels[key], temp, condition, ...wind };
 }
 
 describe('formatWeatherSummary', () => {
@@ -66,7 +94,7 @@ describe('formatWeatherSummary', () => {
         },
         translate
       )
-    ).toBe('Rain this morning, then mostly cloudy tonight.');
+    ).toBe('Rain this morning, then gray tonight.');
   });
 
   it('uses the observed current condition for the active timed period', () => {
@@ -80,7 +108,7 @@ describe('formatWeatherSummary', () => {
         },
         translate
       )
-    ).toBe('Rain this morning, then mostly cloudy this afternoon.');
+    ).toBe('Rain this morning, then gray this afternoon.');
   });
 
   it('uses clear wording for sunny conditions in the evening', () => {
@@ -95,6 +123,122 @@ describe('formatWeatherSummary', () => {
         translate
       )
     ).toBe('Mostly clear tonight.');
+  });
+
+  it('adds breezy wording to an evening period when sustained wind is notable', () => {
+    expect(
+      formatWeatherSummary(
+        {
+          currentCondition: 'sunny',
+          periods: [period('evening', 'sunny', { windSpeed: 15 })],
+          windSpeedUnit: 'mph',
+          timeZone: 'America/New_York',
+          nowMs: Date.parse('2026-08-31T23:00:00Z'),
+        },
+        translate
+      )
+    ).toBe('Mostly clear and breezy tonight.');
+  });
+
+  it('supports the equivalent metric breezy threshold', () => {
+    expect(
+      formatWeatherSummary(
+        {
+          currentCondition: 'sunny',
+          periods: [period('afternoon', 'sunny', { windSpeed: 24.1 })],
+          windSpeedUnit: 'km/h',
+          timeZone: 'America/New_York',
+          nowMs: Date.parse('2026-08-31T17:00:00Z'),
+        },
+        translate
+      )
+    ).toBe('Mostly sunny and breezy this afternoon.');
+  });
+
+  it('adds a crisp descriptor to a cool dry forecast', () => {
+    expect(
+      formatWeatherSummary(
+        {
+          currentCondition: 'sunny',
+          periods: [period('morning', 'sunny', {}, 50)],
+          temperatureUnit: 'F',
+          timeZone: 'America/New_York',
+          nowMs: NOW,
+        },
+        translate
+      )
+    ).toBe('Crisp and mostly sunny this morning.');
+  });
+
+  it('uses Celsius thresholds for temperature descriptors', () => {
+    expect(
+      formatWeatherSummary(
+        {
+          currentCondition: 'sunny',
+          periods: [period('afternoon', 'sunny', {}, 0)],
+          temperatureUnit: 'C',
+          timeZone: 'America/New_York',
+          nowMs: Date.parse('2026-08-31T17:00:00Z'),
+        },
+        translate
+      )
+    ).toBe('Freezing and mostly sunny this afternoon.');
+  });
+
+  it('uses gusty wording when gusts stand well above sustained wind', () => {
+    expect(
+      formatWeatherSummary(
+        {
+          currentCondition: 'sunny',
+          periods: [period('afternoon', 'sunny', { windSpeed: 18, windGust: 32 })],
+          windSpeedUnit: 'mph',
+          timeZone: 'America/New_York',
+          nowMs: Date.parse('2026-08-31T17:00:00Z'),
+        },
+        translate
+      )
+    ).toBe('Mostly sunny, with gusty winds this afternoon.');
+  });
+
+  it('derives breezy wording directly from hourly forecast wind', () => {
+    expect(
+      formatWeatherSummary(
+        {
+          currentCondition: 'sunny',
+          hourly: [
+            {
+              time: new Date('2026-08-31T17:00:00Z'), // 1 PM in New York
+              condition: 'sunny',
+              temp: 78,
+              feelsLike: 78,
+              windSpeed: 18,
+            },
+          ],
+          windSpeedUnit: 'mph',
+          timeZone: 'America/New_York',
+          nowMs: NOW,
+        },
+        translate
+      )
+    ).toBe('Mostly sunny and breezy this afternoon.');
+  });
+
+  it('describes a same-condition shift into breezy weather naturally', () => {
+    expect(
+      formatWeatherSummary(
+        {
+          currentCondition: 'sunny',
+          periods: [
+            period('morning', 'sunny', { windSpeed: 8 }),
+            period('afternoon', 'sunny', { windSpeed: 18 }),
+          ],
+          windSpeedUnit: 'mph',
+          timeZone: 'America/New_York',
+          nowMs: NOW,
+        },
+        translate
+      )
+    ).toBe('Mostly sunny this morning, turning breezy this afternoon.');
   });
 
   it('suppresses day parts that have already ended at the location', () => {
@@ -113,7 +257,7 @@ describe('formatWeatherSummary', () => {
       translate
     );
 
-    expect(summary).toBe('Rain this afternoon, then mostly cloudy tonight.');
+    expect(summary).toBe('Rain this afternoon, then gray tonight.');
     expect(summary).not.toContain('morning');
   });
 
@@ -191,7 +335,7 @@ describe('formatWeatherSummary', () => {
         },
         translate
       )
-    ).toBe('Mostly cloudy today.');
+    ).toBe('Gray today.');
   });
 
   it.each([
@@ -228,7 +372,7 @@ describe('formatWeatherSummary', () => {
         },
         translate
       )
-    ).toBe('Mostly cloudy today.');
+    ).toBe('Gray today.');
   });
 });
 
@@ -343,5 +487,21 @@ describe('buildForecastPeriods', () => {
     );
 
     expect(periods[0]).toMatchObject({ temp: 65, condition: 'cloudy' });
+  });
+
+  it('averages forecast wind across the representative samples', () => {
+    const periods = buildForecastPeriods(
+      [
+        { time: '2026-08-31T13:00:00Z', temp: 70, condition: 'sunny', windSpeed: 12, windGust: 20 },
+        { time: '2026-08-31T15:00:00Z', temp: 71, condition: 'sunny', windSpeed: 18, windGust: 30 },
+      ],
+      { timeZone },
+      earlyMorning
+    );
+
+    expect(periods.find((candidate) => candidate.period === 'morning')).toMatchObject({
+      windSpeed: 15,
+      windGust: 25,
+    });
   });
 });

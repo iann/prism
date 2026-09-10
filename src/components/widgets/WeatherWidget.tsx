@@ -179,6 +179,10 @@ export interface HourlyForecast {
   condition: WeatherCondition;
   temp: number; // In WeatherUnits.temperature
   feelsLike: number; // In WeatherUnits.temperature
+  /** Optional sustained wind speed in WeatherUnits.windSpeed. */
+  windSpeed?: number;
+  /** Optional wind gust speed in WeatherUnits.windSpeed. */
+  windGust?: number;
   uvIndex?: number;
   precipProbability?: number; // 0–100
   precipIntensity?: number;   // in/hr or mm/hr, according to WeatherUnits
@@ -825,6 +829,8 @@ function CurrentConditions({
       currentCondition: weather.condition,
       periods,
       hourly,
+      windSpeedUnit: units.windSpeed,
+      temperatureUnit: units.temperature,
       timeZone: timezone,
       utcOffsetSeconds: timezoneOffsetSeconds,
     },

@@ -75,6 +75,10 @@ interface OpenWeatherForecast {
       temp_max: number;
     };
     pop?: number;
+    wind?: {
+      speed?: number;
+      gust?: number;
+    };
     weather: Array<{
       id: number;
       main: string;
@@ -353,6 +357,8 @@ async function fetchForecastRaw(
       condition: mapCondition(item.weather[0]?.id ?? 800),
       temp: tempFromKelvin(item.main.temp, units),
       feelsLike: tempFromKelvin(item.main.feels_like ?? item.main.temp, units),
+      windSpeed: item.wind?.speed === undefined ? undefined : windFromMps(item.wind.speed, units),
+      windGust: item.wind?.gust === undefined ? undefined : windFromMps(item.wind.gust, units),
       precipProbability: item.pop === undefined ? undefined : Math.round(item.pop * 100),
     }));
 
@@ -361,6 +367,8 @@ async function fetchForecastRaw(
       time: item.dt * 1000,
       temp: tempFromKelvin(item.main.temp, units),
       condition: mapCondition(item.weather[0]?.id ?? 800),
+      windSpeed: item.wind?.speed === undefined ? undefined : windFromMps(item.wind.speed, units),
+      windGust: item.wind?.gust === undefined ? undefined : windFromMps(item.wind.gust, units),
       precipProbability: item.pop === undefined ? undefined : item.pop * 100,
     })),
     { utcOffsetSeconds: tzOffsetSec },
@@ -410,6 +418,8 @@ export async function fetchWeatherData(
           condition: currentData.condition,
           temp: currentData.temperature,
           feelsLike: currentData.feelsLike,
+          windSpeed: currentData.windSpeed,
+          windGust: currentData.windGust,
         }
       : h
   );
