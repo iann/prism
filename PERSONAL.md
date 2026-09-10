@@ -850,6 +850,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 89dbbb3b
 
+102. **Single-source radar home ripple**
+
+    Keeps the radar ripple on Windy’s geographic home marker, hides the
+    separate fixed picker cursor, and explicitly centers both animated rings
+    so the effect does not appear to drift away from the dot.
+
+    Commit: b16fe981
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
