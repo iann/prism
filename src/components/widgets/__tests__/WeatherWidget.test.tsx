@@ -694,7 +694,7 @@ describe('current conditions', () => {
 
       const temperature = screen.getByTestId('weather-current-temperature');
       const summary = screen.getByTestId('weather-day-summary');
-      expect(summary.textContent).toBe('Partly cloudy tonight.');
+      expect(summary.textContent).toBe('Crisp and bright with patchy clouds tonight.');
       expect(summary.parentElement).toBe(temperature.parentElement);
       expect(screen.queryByText('Partly cloudy', { exact: true })).toBeNull();
     } finally {

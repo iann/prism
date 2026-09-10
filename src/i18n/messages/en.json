@@ -204,12 +204,40 @@
     "summary": {
       "conditions": {
         "sunny": "mostly sunny",
+        "sunnyBright": "bright",
+        "sunnySunlit": "sunlit",
         "sunnyNight": "mostly clear",
+        "sunnyNightClear": "clear",
         "partly-cloudy": "partly cloudy",
+        "partlyCloudyBright": "bright with patchy clouds",
+        "partlyCloudySunClouds": "partly sunny",
         "cloudy": "mostly cloudy",
+        "cloudyGray": "gray",
+        "cloudyOvercast": "overcast",
         "rainy": "rain",
+        "rainyShowers": "showery",
+        "rainySteady": "rainy",
         "snowy": "snow",
-        "stormy": "storms"
+        "snowyWintry": "wintry",
+        "snowyShowers": "snowy",
+        "stormy": "storms",
+        "stormyThunderstorms": "thundery",
+        "stormySkies": "stormy skies",
+        "withBreezy": "{condition} and breezy",
+        "withWind": "{condition}, with {wind}",
+        "withTemperature": "{temperature} and {condition}"
+      },
+      "wind": {
+        "breezy": "breezy",
+        "gusty": "gusty winds",
+        "blustery": "blustery winds"
+      },
+      "temperature": {
+        "freezing": "freezing",
+        "cold": "cold",
+        "crisp": "crisp",
+        "warm": "warm",
+        "hot": "hot"
       },
       "periods": {
         "morning": "this morning",
@@ -219,6 +247,8 @@
       "singleTimed": "{condition} {period}.",
       "singleToday": "{condition} today.",
       "transition": "{first} {firstPeriod}, then {second} {secondPeriod}.",
+      "turningBreezy": "{condition} {firstPeriod}, turning breezy {secondPeriod}.",
+      "turningWind": "{condition} {firstPeriod}, turning {wind} {secondPeriod}.",
       "feelsLikeNow": "Feels like {temperature} now."
     }
   }

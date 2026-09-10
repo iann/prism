@@ -11,6 +11,10 @@ export interface ForecastPeriod {
   temp: number;
   condition: WeatherCondition;
   precipProbability?: number;
+  /** Average sustained wind speed across the representative samples. */
+  windSpeed?: number;
+  /** Average gust speed across the representative samples, when available. */
+  windGust?: number;
 }
 
 export interface ForecastPeriodSample {
@@ -18,6 +22,8 @@ export interface ForecastPeriodSample {
   temp: number;
   condition: WeatherCondition;
   precipProbability?: number;
+  windSpeed?: number;
+  windGust?: number;
 }
 
 export interface LocationTimeOptions {
@@ -117,6 +123,14 @@ function representativeCondition(samples: readonly ForecastPeriodSample[]): Weat
   )[0]![0];
 }
 
+function average(values: readonly number[]): number | undefined {
+  const finiteValues = values.filter((value) => Number.isFinite(value));
+  if (finiteValues.length === 0) return undefined;
+
+  const result = finiteValues.reduce((sum, value) => sum + value, 0) / finiteValues.length;
+  return Math.round(result * 10) / 10;
+}
+
 /** Build all available local-day parts from the provider's full hourly set. */
 export function buildForecastPeriods(
   samples: readonly ForecastPeriodSample[],
@@ -152,6 +166,12 @@ export function buildForecastPeriods(
     const precipProbabilities = representativeSamples
       .map((sample) => sample.precipProbability)
       .filter((value): value is number => value !== undefined && Number.isFinite(value));
+    const windSpeeds = representativeSamples
+      .map((sample) => sample.windSpeed)
+      .filter((value): value is number => value !== undefined && Number.isFinite(value));
+    const windGusts = representativeSamples
+      .map((sample) => sample.windGust)
+      .filter((value): value is number => value !== undefined && Number.isFinite(value));
 
     return [
       {
@@ -162,6 +182,8 @@ export function buildForecastPeriods(
         condition: representativeCondition(representativeSamples),
         precipProbability:
           precipProbabilities.length > 0 ? Math.round(Math.max(...precipProbabilities)) : undefined,
+        windSpeed: average(windSpeeds),
+        windGust: average(windGusts),
       },
     ];
   });

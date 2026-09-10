@@ -65,6 +65,8 @@ function daily(dt: number, overrides: Partial<{
 function hourly(dt: number, overrides: Partial<{
   icon: string;
   temperature: number;
+  windSpeed: number;
+  windGust: number;
   uvIndex: number;
   precipProbability: number;
   precipIntensity: number;
@@ -73,6 +75,8 @@ function hourly(dt: number, overrides: Partial<{
     time: dt,
     icon: overrides.icon ?? 'clear-day',
     temperature: overrides.temperature ?? 68,
+    windSpeed: overrides.windSpeed,
+    windGust: overrides.windGust,
     uvIndex: overrides.uvIndex,
     precipProbability: overrides.precipProbability ?? 0,
     precipIntensity: overrides.precipIntensity ?? 0,
@@ -489,6 +493,21 @@ describe('hourly forecast', () => {
     const result = await fetchWeatherData();
 
     expect(result.hourly?.[0]?.uvIndex).toBe(7.5);
+  });
+
+  it('includes hourly wind values for period summaries', async () => {
+    const slot = SEC(MOCK_NOW + 3 * 3_600_000);
+    mockFetch(buildResponse({
+      hourlyData: [hourly(slot, { windSpeed: 18, windGust: 28 })],
+    }));
+    const { fetchWeatherData } = await import('../pirateweather');
+    const result = await fetchWeatherData();
+
+    expect(result.hourly?.[0]).toMatchObject({ windSpeed: 18, windGust: 28 });
+    expect(result.periods?.find((period) => period.period === 'afternoon')).toMatchObject({
+      windSpeed: 18,
+      windGust: 28,
+    });
   });
 });
 

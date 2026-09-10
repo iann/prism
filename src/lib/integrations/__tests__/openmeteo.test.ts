@@ -67,6 +67,8 @@ function buildResponse(timezone = 'America/Chicago') {
       time: [`${today}T10:00`, `${today}T11:00`, `${today}T12:00`],
       temperature_2m: [70, 71, 72],
       uv_index: [5.5, 6.5, 7.5],
+      wind_speed_10m: [5, 24, 30],
+      wind_gusts_10m: [8, 35, 40],
       precipitation_probability: [0, 0, 0],
       precipitation: [0, 0, 0],
       weather_code: [0, 1, 2],
@@ -116,6 +118,25 @@ describe('openmeteo.fetchWeatherData', () => {
 
     expect(result.current.uvIndex).toBe(5.5);
     expect(result.hourly?.[1]?.uvIndex).toBe(6.5);
+  });
+
+  it('preserves hourly wind values for period summaries', async () => {
+    const timezone = 'America/Chicago';
+    const today = localDate(0, timezone);
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse(`${today}T10:30:00Z`));
+    jest.spyOn(global, 'fetch' as never).mockResolvedValue({
+      ok: true,
+      json: async () => buildResponse(timezone),
+    } as never);
+
+    const { fetchWeatherData } = await import('../openmeteo');
+    const result = await fetchWeatherData();
+
+    expect(result.hourly?.[1]).toMatchObject({ windSpeed: 24, windGust: 35 });
+    expect(result.periods?.find((period) => period.period === 'morning')).toMatchObject({
+      windSpeed: 14.5,
+      windGust: 21.5,
+    });
   });
 
   it('preserves a coordinate location display name', async () => {
