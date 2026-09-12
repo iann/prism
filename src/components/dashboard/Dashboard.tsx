@@ -66,6 +66,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
 import { cn } from '@/lib/utils';
 import { getWidgetType } from '@/lib/utils/widgetInstances';
+import { BirthdayCelebration } from '@/components/birthday';
 
 const VISIBLE_WIDGETS_KEY = 'prism-visible-widgets';
 
@@ -530,6 +531,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
         onLogout={activeUser ? clearActiveUser : undefined}
         onLogin={handleLogin}
       >
+        <BirthdayCelebration />
         <LCARSFrame
           enabled={isLCARS}
           compact
@@ -559,6 +561,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
       onLogin={handleLogin}
       showWallpaper
     >
+      <BirthdayCelebration />
       <DashboardLayout className={cn(className, isLCARS && 'lcars-dashboard')}>
         <DashboardHeader
           onScreensaverClick={() => window.dispatchEvent(new Event('prism:screensaver'))}

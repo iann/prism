@@ -8,6 +8,7 @@ import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
+import { isCameronBirthday } from '@/lib/cameronBirthday';
 import { WidgetContainer } from './WidgetContainer';
 import { ClockGreeting } from './ClockGreeting';
 
@@ -23,6 +24,10 @@ export interface ClockWidgetProps {
 export function millisecondsUntilNextClockTick(showSeconds: boolean, now = Date.now()) {
   const interval = showSeconds ? 1_000 : 60_000;
   return interval - (now % interval);
+}
+
+export function shouldShowClockGreeting(showGreeting: boolean, date: Date): boolean {
+  return showGreeting || isCameronBirthday(date);
 }
 
 export const ClockWidget = React.memo(function ClockWidget({
@@ -57,11 +62,12 @@ export const ClockWidget = React.memo(function ClockWidget({
     };
   }, [showSeconds]);
 
+  const displayNow = toDisplayDate(currentTime, displayTimezone);
   const timeString = formatDisplayTime(currentTime, effectiveTimeFormat, { showSeconds }, displayTimezone);
   // Locale-aware, via Intl rather than a fixed date-fns pattern: word order
   // differs per language ("Tuesday, January 21" vs "Dienstag, 21. Januar"), so
   // a hardcoded pattern would render German words in US order.
-  const dateString = toDisplayDate(currentTime, displayTimezone).toLocaleDateString(locale, {
+  const dateString = displayNow.toLocaleDateString(locale, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -88,7 +94,9 @@ export const ClockWidget = React.memo(function ClockWidget({
       className={cn('flex items-center justify-center', className)}
     >
       <div className="flex flex-col items-center justify-center h-full text-center">
-        {showGreeting && <ClockGreeting date={currentTime} size={size} />}
+        {shouldShowClockGreeting(showGreeting, currentTime) && (
+          <ClockGreeting date={currentTime} size={size} />
+        )}
 
         <time
           dateTime={currentTime.toISOString()}
