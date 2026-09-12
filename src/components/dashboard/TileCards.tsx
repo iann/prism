@@ -94,8 +94,8 @@ export function ClockTile() {
       <TileLine>{formatDisplayTime(now, timeFormat, {}, displayTimezone)}</TileLine>
       <TileLine dim>{format(displayNow, 'EEE, MMM d')}</TileLine>
       {isBirthday && (
-        <div className="flex flex-wrap items-center gap-2 whitespace-normal break-words text-xs leading-snug">
-          {CAMERON_BIRTHDAY_GREETING}
+        <div className="flex flex-col items-start gap-2 text-xs leading-snug">
+          <span className="whitespace-normal break-words">{CAMERON_BIRTHDAY_GREETING}</span>
           <CameronBirthdayPartyButton />
         </div>
       )}
