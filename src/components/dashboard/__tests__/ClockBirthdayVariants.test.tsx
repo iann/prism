@@ -31,7 +31,7 @@ describe('mobile clock birthday variants', () => {
     );
 
     expect(screen.getAllByText(CAMERON_BIRTHDAY_GREETING)).toHaveLength(2);
-    expect(CAMERON_BIRTHDAY_GREETING).toBe('Happy Birthday Cameron!!!');
+    expect(CAMERON_BIRTHDAY_GREETING).toBe('🎉 Happy Birthday Cameron 🎉');
     expect(screen.getAllByText(CAMERON_BIRTHDAY_GREETING)[0]?.className).toContain('break-words');
   });
 
