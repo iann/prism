@@ -106,7 +106,7 @@ describe('BirthdayCelebration', () => {
     expect(container.querySelectorAll('svg.birthday-balloon')).toHaveLength(0);
   });
 
-  it('recurs after an independently selected six-to-twelve minute delay', () => {
+  it('recurs after an independently selected three-to-five minute delay', () => {
     const random = jest.fn(() => 0);
     const { container } = render(<BirthdayCelebration random={random} />);
 
@@ -120,7 +120,9 @@ describe('BirthdayCelebration', () => {
     expect(container.querySelectorAll('svg.birthday-balloon')).toHaveLength(1);
   });
 
-  it('keeps scene delay selection within inclusive six-to-twelve minute bounds', () => {
+  it('keeps scene delay selection within inclusive three-to-five minute bounds', () => {
+    expect(CAMERON_BIRTHDAY_MIN_SCENE_DELAY_MS).toBe(3 * 60_000);
+    expect(CAMERON_BIRTHDAY_MAX_SCENE_DELAY_MS).toBe(5 * 60_000);
     expect(selectCameronBirthdaySceneDelay(() => 0)).toBe(CAMERON_BIRTHDAY_MIN_SCENE_DELAY_MS);
     expect(selectCameronBirthdaySceneDelay(() => 1)).toBe(CAMERON_BIRTHDAY_MAX_SCENE_DELAY_MS);
     expect(selectCameronBirthdaySceneDelay(() => 0.5)).toBe(

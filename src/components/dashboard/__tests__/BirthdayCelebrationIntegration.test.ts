@@ -19,10 +19,12 @@ describe('dashboard birthday celebration integration', () => {
 
     expect(celebrationMounts).toHaveLength(2);
     expect(mobileBranch.match(/<BirthdayCelebration \/>/g)).toHaveLength(1);
+    expect(mobileBranch.match(/<CameronBirthdayPartyButton \/>/g)).toHaveLength(1);
     expect(mobileBranch.indexOf('<BirthdayCelebration />')).toBeLessThan(
       mobileBranch.indexOf('<LCARSFrame')
     );
     expect(desktopBranch.match(/<BirthdayCelebration \/>/g)).toHaveLength(1);
+    expect(desktopBranch.match(/<CameronBirthdayPartyButton \/>/g)).toHaveLength(1);
     expect(desktopBranch.indexOf('<BirthdayCelebration />')).toBeLessThan(
       desktopBranch.indexOf('<DashboardLayout')
     );
