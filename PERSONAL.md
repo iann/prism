@@ -866,6 +866,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: b02fd90f
 
+104. **Cameron birthday party mode**
+
+    Adds a September 12 browser-local birthday greeting and a calm,
+    child-friendly celebration mode with a welcome scene, one-tap Party!
+    control, named confetti-and-balloon recipes, randomized six-to-twelve-
+    minute scenes, reduced-motion support, and Performance Mode compatibility.
+
+    Commit: ad1b0cea
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
