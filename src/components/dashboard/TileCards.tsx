@@ -94,7 +94,7 @@ export function ClockTile() {
       <TileLine dim>{format(displayNow, 'EEE, MMM d')}</TileLine>
       {isBirthday && (
         <div className="text-xs leading-snug">
-          <span className="whitespace-normal break-words">{CAMERON_BIRTHDAY_GREETING}</span>
+          <span className="whitespace-nowrap">{CAMERON_BIRTHDAY_GREETING}</span>
         </div>
       )}
     </TileShell>

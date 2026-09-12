@@ -899,6 +899,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: c68fd10c
 
+108. **One-line birthday greeting layout**
+
+    Keeps the emoji-framed birthday greeting on one line by using birthday-
+    specific compact sizing and no-wrap styling across clock layouts.
+
+    Commit: c48d5821
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
