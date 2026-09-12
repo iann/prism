@@ -30,6 +30,7 @@ describe('mobile clock birthday variants', () => {
     );
 
     expect(screen.getAllByText(CAMERON_BIRTHDAY_GREETING)).toHaveLength(2);
+    expect(CAMERON_BIRTHDAY_GREETING).toBe('Happy Birthday Cameron!!!');
     expect(screen.getAllByText(CAMERON_BIRTHDAY_GREETING)[0]?.className).toContain('break-words');
   });
 
@@ -48,6 +49,7 @@ describe('mobile clock birthday variants', () => {
       expect(button.tagName).toBe('BUTTON');
       expect((button as HTMLElement).style.minHeight).toBe('48px');
       expect((button as HTMLElement).style.minWidth).toBe('48px');
+      expect(button.getAttribute('data-auto-hide-keep')).toBe('true');
     });
     const dispatchSpy = jest.spyOn(window, 'dispatchEvent');
     fireEvent.click(buttons[0]!);
