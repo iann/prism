@@ -875,6 +875,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: ad1b0cea
 
+105. **Compact Cameron birthday controls**
+
+    Removes emojis from the birthday greeting so it fits more reliably,
+    places the Party! control on its own line in every clock layout, and
+    keeps auto-hidden navigation collapsed while the celebration control is
+    used.
+
+    Commit: 747c61cb
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
