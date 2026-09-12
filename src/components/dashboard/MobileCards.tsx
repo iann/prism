@@ -109,8 +109,8 @@ export function ClockCard() {
       <span className="text-2xl font-light tabular-nums">{formatDisplayTime(now, timeFormat, {}, displayTimezone)}</span>
       <span className="text-sm text-muted-foreground">{format(displayNow, 'EEEE, MMM d')}</span>
       {isBirthday && (
-        <span className="flex w-full flex-wrap items-center justify-center gap-2 whitespace-normal break-words text-center text-sm font-medium">
-          {CAMERON_BIRTHDAY_GREETING}
+        <span className="flex w-full flex-col items-center gap-2 text-center text-sm font-medium">
+          <span className="whitespace-normal break-words">{CAMERON_BIRTHDAY_GREETING}</span>
           <CameronBirthdayPartyButton />
         </span>
       )}

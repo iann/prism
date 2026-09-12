@@ -359,8 +359,12 @@ export const ClockGreeting = React.memo(function ClockGreeting({
 }: ClockGreetingProps) {
   return (
     <div className={cn('font-medium tracking-wider', SIZE_STYLES[size], className)}>
-      <span>{getClockGreeting(date)}</span>
-      {isCameronBirthday(date) && <CameronBirthdayPartyButton />}
+      <span className="block whitespace-normal break-words">{getClockGreeting(date)}</span>
+      {isCameronBirthday(date) && (
+        <div className="mt-2 flex justify-center">
+          <CameronBirthdayPartyButton />
+        </div>
+      )}
     </div>
   );
 });

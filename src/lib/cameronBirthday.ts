@@ -1,7 +1,7 @@
 /** Cameron's annual birthday policy, kept independent of any presentation. */
 export const CAMERON_BIRTHDAY_MONTH = 9;
 export const CAMERON_BIRTHDAY_DAY = 12;
-export const CAMERON_BIRTHDAY_GREETING = 'Happy Birthday Cameron!!! 🥳🎂🎈';
+export const CAMERON_BIRTHDAY_GREETING = 'Happy Birthday Cameron!!!';
 
 /** Event name reserved for the later party-mode trigger. */
 export const CAMERON_BIRTHDAY_PARTY_EVENT = 'prism:cameron-birthday-party';
