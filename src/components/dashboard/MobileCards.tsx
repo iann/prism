@@ -33,7 +33,6 @@ import { getBusStatusColorClass } from '@/components/widgets/busStatusColors';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { CAMERON_BIRTHDAY_GREETING, isCameronBirthdayDateKey } from '@/lib/cameronBirthday';
-import { CameronBirthdayPartyButton } from '@/components/birthday';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 
 type DashData = ReturnType<typeof useDashboardData>;
@@ -109,9 +108,8 @@ export function ClockCard() {
       <span className="text-2xl font-light tabular-nums">{formatDisplayTime(now, timeFormat, {}, displayTimezone)}</span>
       <span className="text-sm text-muted-foreground">{format(displayNow, 'EEEE, MMM d')}</span>
       {isBirthday && (
-        <span className="flex w-full flex-col items-center gap-2 text-center text-sm font-medium">
-          <span className="whitespace-normal break-words">{CAMERON_BIRTHDAY_GREETING}</span>
-          <CameronBirthdayPartyButton />
+        <span className="block w-full whitespace-normal break-words text-center text-sm font-medium">
+          {CAMERON_BIRTHDAY_GREETING}
         </span>
       )}
     </div>
