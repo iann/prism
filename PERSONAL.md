@@ -892,6 +892,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 69b107c0
 
+107. **Birthday greeting emoji framing**
+
+    Frames Cameron's birthday greeting with party emojis while preserving the
+    wrapping behavior used by the full and compact clock layouts.
+
+    Commit: c68fd10c
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
