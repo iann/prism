@@ -29,10 +29,10 @@ export type WeightedOption<T> = {
 export type RandomSource = () => number;
 
 export const CAMERON_BIRTHDAY_WELCOME_DELAY_MS = 1_000;
-export const CAMERON_BIRTHDAY_MIN_SCENE_DELAY_MS = 6 * 60_000;
-export const CAMERON_BIRTHDAY_MAX_SCENE_DELAY_MS = 12 * 60_000;
+export const CAMERON_BIRTHDAY_MIN_SCENE_DELAY_MS = 3 * 60_000;
+export const CAMERON_BIRTHDAY_MAX_SCENE_DELAY_MS = 5 * 60_000;
 
-/** Selects the next scene delay, including both six- and twelve-minute bounds. */
+/** Selects the next scene delay, including both three- and five-minute bounds. */
 export function selectCameronBirthdaySceneDelay(random: RandomSource = Math.random): number {
   const value = Math.min(Math.max(random(), 0), 1);
   return Math.round(

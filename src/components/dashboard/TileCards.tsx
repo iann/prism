@@ -16,7 +16,6 @@ import type { BusRouteStatus, BusPrediction } from '@/lib/hooks/useBusTracking';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { CAMERON_BIRTHDAY_GREETING, isCameronBirthdayDateKey } from '@/lib/cameronBirthday';
-import { CameronBirthdayPartyButton } from '@/components/birthday';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 
 type DashData = ReturnType<typeof useDashboardData>;
@@ -94,9 +93,8 @@ export function ClockTile() {
       <TileLine>{formatDisplayTime(now, timeFormat, {}, displayTimezone)}</TileLine>
       <TileLine dim>{format(displayNow, 'EEE, MMM d')}</TileLine>
       {isBirthday && (
-        <div className="flex flex-col items-start gap-2 text-xs leading-snug">
+        <div className="text-xs leading-snug">
           <span className="whitespace-normal break-words">{CAMERON_BIRTHDAY_GREETING}</span>
-          <CameronBirthdayPartyButton />
         </div>
       )}
     </TileShell>

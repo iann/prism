@@ -870,8 +870,8 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Adds a September 12 browser-local birthday greeting and a calm,
     child-friendly celebration mode with a welcome scene, one-tap Party!
-    control, named confetti-and-balloon recipes, randomized six-to-twelve-
-    minute scenes, reduced-motion support, and Performance Mode compatibility.
+    control, named confetti-and-balloon recipes, randomized recurring scenes,
+    reduced-motion support, and Performance Mode compatibility.
 
     Commit: ad1b0cea
 
@@ -883,6 +883,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
     used.
 
     Commit: 747c61cb
+
+106. **Floating birthday party control and shorter cadence**
+
+    Moves the birthday trigger to one circular floating party-emoji button at
+    the bottom-left of the dashboard and shortens automatic celebrations to a
+    randomized three-to-five-minute cadence.
+
+    Commit: 69b107c0
 
 ## Superseded personal iterations
 

@@ -4,7 +4,6 @@ import * as React from 'react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CAMERON_BIRTHDAY_GREETING, isCameronBirthday } from '@/lib/cameronBirthday';
-import { CameronBirthdayPartyButton } from '@/components/birthday';
 
 interface ClockGreetingProps {
   date: Date;
@@ -360,11 +359,6 @@ export const ClockGreeting = React.memo(function ClockGreeting({
   return (
     <div className={cn('font-medium tracking-wider', SIZE_STYLES[size], className)}>
       <span className="block whitespace-normal break-words">{getClockGreeting(date)}</span>
-      {isCameronBirthday(date) && (
-        <div className="mt-2 flex justify-center">
-          <CameronBirthdayPartyButton />
-        </div>
-      )}
     </div>
   );
 });
