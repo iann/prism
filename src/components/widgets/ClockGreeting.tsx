@@ -351,14 +351,23 @@ const SIZE_STYLES = {
   large:  'text-4xl mb-2',
 } as const;
 
+const BIRTHDAY_SIZE_STYLES = {
+  small:  'text-sm mb-0',
+  medium: 'text-lg mb-1',
+  large:  'text-2xl mb-2',
+} as const;
+
 export const ClockGreeting = React.memo(function ClockGreeting({
   date,
   size = 'medium',
   className,
 }: ClockGreetingProps) {
+  const isBirthday = isCameronBirthday(date);
   return (
-    <div className={cn('font-medium tracking-wider', SIZE_STYLES[size], className)}>
-      <span className="block whitespace-normal break-words">{getClockGreeting(date)}</span>
+    <div className={cn('font-medium tracking-wider', isBirthday ? BIRTHDAY_SIZE_STYLES[size] : SIZE_STYLES[size], className)}>
+      <span className={cn('block', isBirthday ? 'whitespace-nowrap' : 'whitespace-normal break-words')}>
+        {getClockGreeting(date)}
+      </span>
     </div>
   );
 });
