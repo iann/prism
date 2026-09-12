@@ -3,6 +3,8 @@
 import * as React from 'react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { CAMERON_BIRTHDAY_GREETING, isCameronBirthday } from '@/lib/cameronBirthday';
+import { CameronBirthdayPartyButton } from '@/components/birthday';
 
 interface ClockGreetingProps {
   date: Date;
@@ -339,6 +341,11 @@ function pickGreeting(date: Date): string {
   return list[Math.abs(hash) % list.length] ?? '';
 }
 
+export function getClockGreeting(date: Date): string {
+  if (isCameronBirthday(date)) return CAMERON_BIRTHDAY_GREETING;
+  return pickGreeting(date);
+}
+
 const SIZE_STYLES = {
   small:  'text-lg mb-0',
   medium: 'text-2xl mb-1',
@@ -352,7 +359,8 @@ export const ClockGreeting = React.memo(function ClockGreeting({
 }: ClockGreetingProps) {
   return (
     <div className={cn('font-medium tracking-wider', SIZE_STYLES[size], className)}>
-      {pickGreeting(date)}
+      <span>{getClockGreeting(date)}</span>
+      {isCameronBirthday(date) && <CameronBirthdayPartyButton />}
     </div>
   );
 });

@@ -700,6 +700,13 @@
       animation-delay: 0ms !important;
       animation-iteration-count: infinite !important;
     }
+
+    /* Birthday scenes remain expressive in Prism Performance Mode. Restore
+     * each balloon's own timing after the broad performance override above. */
+    html.performance-mode .birthday-balloon {
+      animation-duration: var(--birthday-balloon-duration) !important;
+      animation-delay: var(--birthday-balloon-delay) !important;
+    }
   }
 
   html.performance-mode .shadow-sm,
@@ -2124,4 +2131,126 @@ body:has(.wall-display) [role='dialog'] select {
  */
 .prism-water-clear [class*="bg-card"] {
   padding-top: 30px;
+}
+
+/* Birthday party overlay: only the balloons animate with transform/opacity;
+ * their per-scene values arrive through typed custom properties. */
+.birthday-celebration {
+  isolation: isolate;
+}
+
+.birthday-celebration__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.birthday-celebration__balloons {
+  position: absolute;
+  inset: 0;
+}
+
+.birthday-balloon {
+  position: absolute;
+  left: var(--birthday-balloon-x);
+  bottom: -5rem;
+  width: 3.25rem;
+  height: 4.75rem;
+  opacity: 0;
+  transform: translate3d(-50%, 0, 0) scale(var(--birthday-balloon-scale));
+  animation: birthday-balloon-rise var(--birthday-balloon-duration) ease-out
+    var(--birthday-balloon-delay) forwards;
+}
+
+.birthday-balloon--hero {
+  width: 4.5rem;
+  height: 6.75rem;
+  z-index: 1;
+}
+
+.birthday-balloon__body,
+.birthday-balloon__knot {
+  fill: var(--birthday-balloon-color);
+}
+
+.birthday-balloon__string {
+  fill: none;
+  stroke: var(--birthday-balloon-color);
+  stroke-width: 1.25;
+}
+
+.birthday-balloon__highlight {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.72);
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.birthday-balloon--hero-gold .birthday-balloon__body,
+.birthday-balloon--hero-gold .birthday-balloon__knot {
+  fill: #ffd166;
+}
+
+.birthday-balloon__smile {
+  fill: rgb(35 35 55 / 0.82);
+}
+
+.birthday-balloon__smile path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
+.birthday-balloon__crown {
+  fill: #ffd166;
+  stroke: #f77f00;
+  stroke-width: 1;
+}
+
+.birthday-balloon__stripe {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.72);
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.birthday-celebration--exit {
+  animation: birthday-celebration-exit 550ms ease-out forwards;
+}
+
+@keyframes birthday-balloon-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 0, 0) scale(var(--birthday-balloon-scale));
+  }
+  16% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 1;
+    transform: translate3d(-50%, -76vh, 0) scale(var(--birthday-balloon-scale));
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -92vh, 0) scale(var(--birthday-balloon-scale));
+  }
+}
+
+@keyframes birthday-celebration-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .birthday-balloon,
+  .birthday-celebration--exit {
+    animation: none;
+    opacity: 0;
+  }
 }

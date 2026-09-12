@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, createContext, useContext } from 'react';
+import React, { useMemo, createContext, useContext, useEffect, useState } from 'react';
 import { DAYS_OF_WEEK } from '@/lib/constants/days';
 import type { MobileLayoutMode } from '@/lib/hooks/useMobileLayout';
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
@@ -32,6 +32,9 @@ import type { BusRouteStatus, BusPrediction } from '@/lib/hooks/useBusTracking';
 import { getBusStatusColorClass } from '@/components/widgets/busStatusColors';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
+import { CAMERON_BIRTHDAY_GREETING, isCameronBirthdayDateKey } from '@/lib/cameronBirthday';
+import { CameronBirthdayPartyButton } from '@/components/birthday';
+import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 
 type DashData = ReturnType<typeof useDashboardData>;
 
@@ -92,13 +95,25 @@ export function WeatherCard({ data }: { data: DashData['weather'] }) {
 
 export function ClockCard() {
   const { timeFormat, displayTimezone } = useTimeFormat();
-  const now = new Date();
+  const dateKey = useLocalDateKey();
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const displayNow = toDisplayDate(now, displayTimezone);
+  const isBirthday = isCameronBirthdayDateKey(dateKey);
   return (
-    <div className="wall-card bg-card rounded-xl border border-border/55 shadow-sm p-3 flex items-center gap-3">
+    <div className="wall-card bg-card rounded-xl border border-border/55 shadow-sm p-3 flex flex-wrap items-center gap-3">
       <Clock className="h-5 w-5 text-muted-foreground" />
       <span className="text-2xl font-light tabular-nums">{formatDisplayTime(now, timeFormat, {}, displayTimezone)}</span>
       <span className="text-sm text-muted-foreground">{format(displayNow, 'EEEE, MMM d')}</span>
+      {isBirthday && (
+        <span className="flex w-full flex-wrap items-center justify-center gap-2 whitespace-normal break-words text-center text-sm font-medium">
+          {CAMERON_BIRTHDAY_GREETING}
+          <CameronBirthdayPartyButton />
+        </span>
+      )}
     </div>
   );
 }
