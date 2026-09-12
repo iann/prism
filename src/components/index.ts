@@ -27,3 +27,6 @@ export * from './auth';
 
 // Dashboard (main dashboard assembly)
 export * from './dashboard';
+
+// Birthday party overlay (mounted by a later dashboard integration phase).
+export * from './birthday';
