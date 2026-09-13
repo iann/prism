@@ -2,13 +2,17 @@ import { rewriteWindyEmbedHtml } from '@/lib/weather/windyProxy';
 
 describe('rewriteWindyEmbedHtml', () => {
   it('keeps Windy assets resolvable and hides Prism-unwanted Windy controls', () => {
-    const html = rewriteWindyEmbedHtml('<html><head><title>Windy</title></head><body /></html>');
+    const html = rewriteWindyEmbedHtml(
+      '<html><head><title>Windy</title></head><body><div class="metric-legend" id="legend-mobile"></div></body></html>'
+    );
 
     expect(html).toContain('<base href="https://embed.windy.com/">');
     expect(html).toContain('id="prism-windy-overrides"');
     expect(html).toContain('#mobile-ovr-select');
-    expect(html).toContain('#legend-mobile');
-    expect(html).toContain('.metric-legend');
+    expect(html).toContain('id="legend-mobile"');
+    expect(html).toContain('class="metric-legend"');
+    expect(html).not.toContain('#legend-mobile,');
+    expect(html).not.toContain('.metric-legend,');
     expect(html).toContain('#embed-zoom');
     expect(html).toContain('.leaflet-marker-icon.mylocation');
     expect(html).toContain('#map-container #picker-dot');
@@ -29,7 +33,8 @@ describe('rewriteWindyEmbedHtml', () => {
     expect(html).toContain('#map-container .leaflet-marker-icon.picker::before');
     expect(html).toContain('animation: prism-windy-home-ripple');
     expect(html).toContain('!important');
-    expect(html).toContain('#f6c85f');
+    expect(html).toContain('#ffffff');
+    expect(html).not.toContain('#f6c85f');
     expect(html).toContain('#plugin-radar .speed-switch');
     expect(html).toContain('Windy</title>');
   });

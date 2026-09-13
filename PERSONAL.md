@@ -906,6 +906,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: c48d5821
 
+109. **Readable and wider precipitation radar popover**
+
+    Restores Windy’s rain-intensity key, zooms the radar out one level for
+    broader context, and changes the home marker to a high-contrast white dot
+    and ripple with a dark outline.
+
+    Commit: 61fff0fc
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

@@ -17,7 +17,7 @@ const WINDY_OVERRIDES_STYLE = `
     opacity: 1 !important;
     border: 2px solid rgba(24, 34, 48, 0.9) !important;
     border-radius: 50% !important;
-    background: #f6c85f !important;
+    background: #ffffff !important;
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8),
       0 1px 4px rgba(0, 0, 0, 0.65) !important;
     pointer-events: none !important;
@@ -35,7 +35,7 @@ const WINDY_OVERRIDES_STYLE = `
     margin: -5px;
     box-sizing: border-box;
     content: '';
-    border: 1px solid rgba(246, 200, 95, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.85);
     border-radius: 50%;
     pointer-events: none;
     transform-origin: 50% 50%;
@@ -71,10 +71,9 @@ const WINDY_OVERRIDES_STYLE = `
     display: none !important;
   }
   /* Prism supplies its own close affordance, so remove Windy's redundant
-     overlay selector, legend, and zoom controls from the small radar card. */
+     overlay selector and zoom controls from the small radar card. Keep the
+     precipitation legend visible so the radar colors remain interpretable. */
   #mobile-ovr-select,
-  #legend-mobile,
-  .metric-legend,
   #embed-zoom {
     display: none !important;
   }
