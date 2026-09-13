@@ -7,7 +7,7 @@ describe('buildWindyEmbedUrl', () => {
     expect(url.pathname).toBe('/api/weather/windy/embed2.html');
     expect(url.searchParams.get('type')).toBe('map');
     expect(url.searchParams.get('location')).toBe('coordinates');
-    expect(url.searchParams.get('zoom')).toBe('10');
+    expect(url.searchParams.get('zoom')).toBe('9');
     expect(url.searchParams.get('overlay')).toBe('radar');
     expect(url.searchParams.get('product')).toBe('radar');
     expect(url.searchParams.get('level')).toBe('surface');
