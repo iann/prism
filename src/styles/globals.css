@@ -245,57 +245,60 @@
 
   /* Presets tint related widget families; manual layout-editor colors bypass
    * these selectors through data-theme-surface="custom". */
-  [data-theme-widget] > [data-widget][data-theme-surface="preset"] {
-    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+  [data-theme-widget] > [data-widget][data-theme-surface='preset'] {
+    transition:
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease;
   }
 
-  [data-theme-widget="calendar"] > [data-widget][data-theme-surface="preset"] {
+  [data-theme-widget='calendar'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-calendar));
   }
 
-  .dark [data-theme-widget="calendar"] > [data-widget][data-theme-surface="preset"] {
+  .dark [data-theme-widget='calendar'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-calendar) / 0.9);
   }
 
-  [data-theme-widget="tasks"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="shopping"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="meals"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="chores"] > [data-widget][data-theme-surface="preset"] {
+  [data-theme-widget='tasks'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='shopping'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='meals'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='chores'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-planning));
   }
 
-  .dark [data-theme-widget="tasks"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="shopping"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="meals"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="chores"] > [data-widget][data-theme-surface="preset"] {
+  .dark [data-theme-widget='tasks'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='shopping'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='meals'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='chores'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-planning) / 0.9);
   }
 
-  [data-theme-widget="messages"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="birthdays"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="points"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="wishes"] > [data-widget][data-theme-surface="preset"] {
+  [data-theme-widget='messages'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='birthdays'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='points'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='wishes'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-family));
   }
 
-  .dark [data-theme-widget="messages"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="birthdays"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="points"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="wishes"] > [data-widget][data-theme-surface="preset"] {
+  .dark [data-theme-widget='messages'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='birthdays'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='points'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='wishes'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-family) / 0.9);
   }
 
-  [data-theme-widget="clock"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="weather"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="busTracking"] > [data-widget][data-theme-surface="preset"],
-  [data-theme-widget="travel"] > [data-widget][data-theme-surface="preset"] {
+  [data-theme-widget='clock'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='weather'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='busTracking'] > [data-widget][data-theme-surface='preset'],
+  [data-theme-widget='travel'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-info));
   }
 
-  .dark [data-theme-widget="clock"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="weather"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="busTracking"] > [data-widget][data-theme-surface="preset"],
-  .dark [data-theme-widget="travel"] > [data-widget][data-theme-surface="preset"] {
+  .dark [data-theme-widget='clock'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='weather'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='busTracking'] > [data-widget][data-theme-surface='preset'],
+  .dark [data-theme-widget='travel'] > [data-widget][data-theme-surface='preset'] {
     background-color: hsl(var(--widget-info) / 0.9);
   }
 
@@ -308,7 +311,7 @@
   }
 
   ::-webkit-scrollbar {
-    @apply w-2 h-2;
+    @apply h-2 w-2;
   }
 
   ::-webkit-scrollbar-track {
@@ -316,7 +319,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full;
+    @apply rounded-full bg-muted-foreground/30;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -329,16 +332,16 @@
   }
 
   button,
-  [role="button"],
-  [role="tab"],
-  [role="switch"] {
+  [role='button'],
+  [role='tab'],
+  [role='switch'] {
     -webkit-user-select: none;
     user-select: none;
   }
 
   a,
   button,
-  [role="button"] {
+  [role='button'] {
     touch-action: manipulation;
   }
 
@@ -570,18 +573,32 @@
 }
 
 @keyframes spin-fast {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes rope-wave {
-  0%, 100% { d: path("M0 10 Q10 5 20 10 Q30 15 40 10"); }
-  50% { d: path("M0 10 Q10 15 20 10 Q30 5 40 10"); }
+  0%,
+  100% {
+    d: path('M0 10 Q10 5 20 10 Q30 15 40 10');
+  }
+  50% {
+    d: path('M0 10 Q10 15 20 10 Q30 5 40 10');
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .animate-plane-fly {
@@ -601,8 +618,13 @@
 }
 
 @keyframes wiggle {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
 }
 
 .animate-wiggle {
@@ -638,16 +660,64 @@
 }
 
 /* Edge handles - 44px for touch targets */
-.react-resizable-handle-n { top: -22px; left: 24px; right: 24px; height: 44px; cursor: n-resize; }
-.react-resizable-handle-s { bottom: -22px; left: 24px; right: 24px; height: 44px; cursor: s-resize; }
-.react-resizable-handle-e { right: -22px; top: 24px; bottom: 24px; width: 44px; cursor: e-resize; }
-.react-resizable-handle-w { left: -22px; top: 24px; bottom: 24px; width: 44px; cursor: w-resize; }
+.react-resizable-handle-n {
+  top: -22px;
+  left: 24px;
+  right: 24px;
+  height: 44px;
+  cursor: n-resize;
+}
+.react-resizable-handle-s {
+  bottom: -22px;
+  left: 24px;
+  right: 24px;
+  height: 44px;
+  cursor: s-resize;
+}
+.react-resizable-handle-e {
+  right: -22px;
+  top: 24px;
+  bottom: 24px;
+  width: 44px;
+  cursor: e-resize;
+}
+.react-resizable-handle-w {
+  left: -22px;
+  top: 24px;
+  bottom: 24px;
+  width: 44px;
+  cursor: w-resize;
+}
 
 /* Corner handles - 48x48 */
-.react-resizable-handle-ne { top: -20px; right: -20px; width: 48px; height: 48px; cursor: ne-resize; }
-.react-resizable-handle-nw { top: -20px; left: -20px; width: 48px; height: 48px; cursor: nw-resize; }
-.react-resizable-handle-se { bottom: -20px; right: -20px; width: 48px; height: 48px; cursor: se-resize; }
-.react-resizable-handle-sw { bottom: -20px; left: -20px; width: 48px; height: 48px; cursor: sw-resize; }
+.react-resizable-handle-ne {
+  top: -20px;
+  right: -20px;
+  width: 48px;
+  height: 48px;
+  cursor: ne-resize;
+}
+.react-resizable-handle-nw {
+  top: -20px;
+  left: -20px;
+  width: 48px;
+  height: 48px;
+  cursor: nw-resize;
+}
+.react-resizable-handle-se {
+  bottom: -20px;
+  right: -20px;
+  width: 48px;
+  height: 48px;
+  cursor: se-resize;
+}
+.react-resizable-handle-sw {
+  bottom: -20px;
+  left: -20px;
+  width: 48px;
+  height: 48px;
+  cursor: sw-resize;
+}
 
 .react-resizable-handle::after {
   content: '';
@@ -702,6 +772,128 @@
   padding-right: env(safe-area-inset-right, 0px);
 }
 
+/* Family celebration overlay: only the balloons animate with transform/opacity;
+ * their per-scene values arrive through typed custom properties. */
+.birthday-celebration {
+  isolation: isolate;
+}
+
+.birthday-celebration__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.birthday-celebration__balloons {
+  position: absolute;
+  inset: 0;
+}
+
+.birthday-balloon {
+  position: absolute;
+  left: var(--birthday-balloon-x);
+  bottom: -5rem;
+  width: 3.25rem;
+  height: 4.75rem;
+  opacity: 0;
+  transform: translate3d(-50%, 0, 0) scale(var(--birthday-balloon-scale));
+  animation: birthday-balloon-rise var(--birthday-balloon-duration) ease-out
+    var(--birthday-balloon-delay) forwards;
+}
+
+.birthday-balloon--hero {
+  width: 4.5rem;
+  height: 6.75rem;
+  z-index: 1;
+}
+
+.birthday-balloon__body,
+.birthday-balloon__knot {
+  fill: var(--birthday-balloon-color);
+}
+
+.birthday-balloon__string {
+  fill: none;
+  stroke: var(--birthday-balloon-color);
+  stroke-width: 1.25;
+}
+
+.birthday-balloon__highlight {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.72);
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.birthday-balloon--hero-gold .birthday-balloon__body,
+.birthday-balloon--hero-gold .birthday-balloon__knot {
+  fill: #ffd166;
+}
+
+.birthday-balloon__smile {
+  fill: rgb(35 35 55 / 0.82);
+}
+
+.birthday-balloon__smile path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
+.birthday-balloon__crown {
+  fill: #ffd166;
+  stroke: #f77f00;
+  stroke-width: 1;
+}
+
+.birthday-balloon__stripe {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.72);
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.birthday-celebration--exit {
+  animation: birthday-celebration-exit 550ms ease-out forwards;
+}
+
+@keyframes birthday-balloon-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 0, 0) scale(var(--birthday-balloon-scale));
+  }
+  16% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 1;
+    transform: translate3d(-50%, -76vh, 0) scale(var(--birthday-balloon-scale));
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -92vh, 0) scale(var(--birthday-balloon-scale));
+  }
+}
+
+@keyframes birthday-celebration-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .birthday-balloon,
+  .birthday-celebration--exit {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 .pb-mobile-nav {
   padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
 }
@@ -716,27 +908,50 @@
 
 /* Keyboard slide animations */
 @keyframes keyboard-in {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 @keyframes keyboard-out {
-  from { transform: translateY(0); }
-  to   { transform: translateY(100%); }
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
 }
-.animate-keyboard-in  { animation: keyboard-in  200ms ease-out forwards; }
-.animate-keyboard-out { animation: keyboard-out 200ms ease-in  forwards; }
+.animate-keyboard-in {
+  animation: keyboard-in 200ms ease-out forwards;
+}
+.animate-keyboard-out {
+  animation: keyboard-out 200ms ease-in forwards;
+}
 
 /* Scan highlight flash on shopping items */
 @keyframes scan-highlight {
-  0%   { background-color: hsl(var(--primary) / 0.25); }
-  100% { background-color: transparent; }
+  0% {
+    background-color: hsl(var(--primary) / 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
-.scan-highlight { animation: scan-highlight 1.5s ease-out forwards; }
+.scan-highlight {
+  animation: scan-highlight 1.5s ease-out forwards;
+}
 
 /* Mic pulse when listening */
 @keyframes mic-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 [data-virtual-keyboard].is-listening .key-mic {
   animation: mic-pulse 1s infinite;

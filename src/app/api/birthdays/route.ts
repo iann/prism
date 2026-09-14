@@ -43,10 +43,11 @@ export async function GET(request: NextRequest) {
         name: birthdays.name,
         birthDate: birthdays.birthDate,
         eventType: birthdays.eventType,
+        userId: birthdays.userId,
+        partyModeEnabled: birthdays.partyModeEnabled,
         giftIdeas: birthdays.giftIdeas,
         sendCardDaysBefore: birthdays.sendCardDaysBefore,
         createdAt: birthdays.createdAt,
-        userId: users.id,
         userName: users.name,
         userColor: users.color,
       })
@@ -60,14 +61,15 @@ export async function GET(request: NextRequest) {
     const today = new Date();
     const currentYear = today.getFullYear();
 
-    let formattedBirthdays = results.map(birthday => {
+    let formattedBirthdays = results.map((birthday) => {
       const birthDate = new Date(birthday.birthDate);
       const birthYear = birthDate.getFullYear();
 
       // Only calculate age if a real year is present (not a placeholder/sentinel)
       // Synced events without a known year use 1904; manually created ones may have real years
       const hasYear = birthYear >= 1910 && birthYear <= currentYear;
-      const eventType = (birthday.eventType || 'birthday') as 'birthday' | 'anniversary' | 'milestone';
+      const eventType = (birthday.eventType || 'birthday') as
+        'birthday' | 'anniversary' | 'milestone';
 
       // Calculate next occurrence
       const nextBirthday = new Date(currentYear, birthDate.getMonth(), birthDate.getDate());
@@ -75,7 +77,9 @@ export async function GET(request: NextRequest) {
         nextBirthday.setFullYear(currentYear + 1);
       }
 
-      const daysUntil = Math.ceil((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntil = Math.ceil(
+        (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      );
 
       // For birthdays: turning age. For anniversaries/milestones: number of years.
       let age: number | null = null;
@@ -89,23 +93,27 @@ export async function GET(request: NextRequest) {
         name: birthday.name,
         birthDate: birthday.birthDate,
         eventType,
+        userId: birthday.userId,
+        partyModeEnabled: birthday.partyModeEnabled,
         age,
         daysUntil,
         nextBirthday: nextBirthday.toISOString().split('T')[0],
         giftIdeas: birthday.giftIdeas,
         sendCardDaysBefore: birthday.sendCardDaysBefore,
         createdAt: birthday.createdAt.toISOString(),
-        user: birthday.userId ? {
-          id: birthday.userId,
-          name: birthday.userName,
-          color: birthday.userColor,
-        } : null,
+        user: birthday.userId
+          ? {
+              id: birthday.userId,
+              name: birthday.userName,
+              color: birthday.userColor,
+            }
+          : null,
       };
     });
 
     // Filter for upcoming if requested
     if (upcomingOnly) {
-      formattedBirthdays = formattedBirthdays.filter(b => b.daysUntil <= 30);
+      formattedBirthdays = formattedBirthdays.filter((b) => b.daysUntil <= 30);
     }
 
     // Sort by days until birthday
@@ -119,10 +127,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ birthdays: formattedBirthdays });
   } catch (error) {
     logError('Error fetching birthdays:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch birthdays' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch birthdays' }, { status: 500 });
   }
 }
 
@@ -135,6 +140,7 @@ export async function GET(request: NextRequest) {
  *   name: string (required, e.g., "Grandma Helen")
  *   birthDate: string (required, YYYY-MM-DD format)
  *   userId?: string (optional link to family member)
+ *   partyModeEnabled?: boolean (opt this event into dashboard party mode)
  *   giftIdeas?: string
  *   sendCardDaysBefore?: number (default: 7)
  * }
@@ -153,13 +159,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const {
-        name,
-        birthDate,
-        userId,
-        giftIdeas,
-        sendCardDaysBefore,
-      } = validation.data;
+      const { name, birthDate, userId, partyModeEnabled, giftIdeas, sendCardDaysBefore } =
+        validation.data;
 
       // Insert the birthday
       const [newBirthday] = await db
@@ -168,32 +169,30 @@ export async function POST(request: NextRequest) {
           name,
           birthDate,
           userId: userId || null,
+          partyModeEnabled: partyModeEnabled ?? false,
           giftIdeas: giftIdeas || null,
           sendCardDaysBefore: sendCardDaysBefore || 7,
         })
         .returning();
 
       if (!newBirthday) {
-        return NextResponse.json(
-          { error: 'Failed to create birthday' },
-          { status: 500 }
-        );
+        return NextResponse.json({ error: 'Failed to create birthday' }, { status: 500 });
       }
 
-      return NextResponse.json({
-        id: newBirthday.id,
-        name: newBirthday.name,
-        birthDate: newBirthday.birthDate,
-        giftIdeas: newBirthday.giftIdeas,
-        sendCardDaysBefore: newBirthday.sendCardDaysBefore,
-        createdAt: newBirthday.createdAt.toISOString(),
-      }, { status: 201 });
+      return NextResponse.json(
+        {
+          id: newBirthday.id,
+          name: newBirthday.name,
+          birthDate: newBirthday.birthDate,
+          giftIdeas: newBirthday.giftIdeas,
+          sendCardDaysBefore: newBirthday.sendCardDaysBefore,
+          createdAt: newBirthday.createdAt.toISOString(),
+        },
+        { status: 201 }
+      );
     } catch (error) {
       logError('Error creating birthday:', error);
-      return NextResponse.json(
-        { error: 'Failed to create birthday' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to create birthday' }, { status: 500 });
     }
   });
 }

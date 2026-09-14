@@ -26,6 +26,7 @@ import {
   KeyboardIcon,
   Monitor,
   Wand2,
+  PartyPopper,
 } from 'lucide-react';
 import { PrismIcon } from '@/components/ui/PrismIcon';
 import { cn } from '@/lib/utils';
@@ -50,6 +51,7 @@ import { BusTrackingSection } from './sections/BusTrackingSection';
 import { InputSection } from './sections/InputSection';
 import { FeaturesSection } from './sections/FeaturesSection';
 import { ActivityLogSection } from './sections/ActivityLogSection';
+import { PartyModeSection } from './sections/PartyModeSection';
 
 import { DisplaysSection } from './sections/DisplaysSection';
 import { IntegrationsSection } from './sections/integrations/IntegrationsSection';
@@ -66,7 +68,6 @@ interface DisplayContextFilters {
   wallpaper: { orientation: ('landscape' | 'portrait' | 'square')[]; usage: ('wallpaper' | 'all')[] };
   screensaver: { orientation: ('landscape' | 'portrait' | 'square')[]; usage: ('screensaver' | 'all')[] };
 }
-
 const defaultDisplayContexts: DisplayContextFilters = {
   gallery: { orientation: ['landscape', 'portrait', 'square'], usage: ['gallery', 'all'] },
   wallpaper: { orientation: ['landscape'], usage: ['wallpaper', 'all'] },
@@ -186,6 +187,7 @@ export function SettingsView() {
   const sections = [
     { id: 'account', label: 'Account & Profile', icon: User },
     { id: 'family', label: 'Family Members', icon: Users },
+    { id: 'party-mode', label: 'Party Mode', icon: PartyPopper },
     { id: 'general', label: 'General', icon: SlidersHorizontal },
     { id: 'integrations', label: 'Integrations', icon: Link2 },
     // Calendar management moved onto the Calendar page (Manage calendars button).
@@ -269,6 +271,7 @@ export function SettingsView() {
             <div className="max-w-2xl">
               {activeSection === 'account' && <AccountSection />}
               {activeSection === 'family' && <FamilySection />}
+              {activeSection === 'party-mode' && <PartyModeSection />}
               {activeSection === 'integrations' && <IntegrationsSection />}
               {activeSection === 'displays' && <DisplaysSection />}
               {activeSection === 'photos' && <PhotosSettingsSection />}

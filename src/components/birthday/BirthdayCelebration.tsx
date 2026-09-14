@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AnimationEvent } from 'react';
 import confetti from 'canvas-confetti';
 import {
-  CAMERON_BIRTHDAY_PARTY_CANCEL_EVENT,
-  CAMERON_BIRTHDAY_PARTY_EVENT,
-  isCameronBirthdayDateKey,
+  BIRTHDAY_PARTY_CANCEL_EVENT,
+  BIRTHDAY_PARTY_EVENT,
+  getTodaysFamilyCelebrations,
+  hasFamilyCelebrationOnDate,
+  type BirthdayCelebrationRecord,
   type RandomSource,
-} from '@/lib/cameronBirthday';
+} from '@/lib/birthdayCelebration';
 import { localDateKey } from '@/lib/hooks/useLocalDateKey';
 import { usePrefersReducedMotion } from '@/lib/hooks/usePrefersReducedMotion';
 import { BirthdayBalloon } from './BirthdayBalloon';
@@ -29,19 +31,20 @@ export type BirthdayPartyTriggerDetail = {
 };
 
 /** Phase 3 can call this bridge without coupling the dashboard to the overlay. */
-export function triggerCameronBirthdayParty(detail: BirthdayPartyTriggerDetail = {}): boolean {
+export function triggerBirthdayParty(detail: BirthdayPartyTriggerDetail = {}): boolean {
   if (typeof window === 'undefined') return false;
-  window.dispatchEvent(new CustomEvent(CAMERON_BIRTHDAY_PARTY_EVENT, { detail }));
+  window.dispatchEvent(new CustomEvent(BIRTHDAY_PARTY_EVENT, { detail }));
   return true;
 }
 
-export function cancelCameronBirthdayParty(): boolean {
+export function cancelBirthdayParty(): boolean {
   if (typeof window === 'undefined') return false;
-  window.dispatchEvent(new Event(CAMERON_BIRTHDAY_PARTY_CANCEL_EVENT));
+  window.dispatchEvent(new Event(BIRTHDAY_PARTY_CANCEL_EVENT));
   return true;
 }
 
 export type BirthdayCelebrationProps = {
+  celebrations?: readonly BirthdayCelebrationRecord[];
   random?: RandomSource;
   onComplete?: () => void;
 };
@@ -62,6 +65,7 @@ const EXIT_DELAY = 3_350;
 const MAX_SCENE_DURATION = 4_400;
 
 export function BirthdayCelebration({
+  celebrations = [],
   random = Math.random,
   onComplete,
 }: BirthdayCelebrationProps) {
@@ -97,6 +101,7 @@ export function BirthdayCelebration({
   }, [cancelScene]);
 
   const { dateKey, dateKeyRef, scheduleNextRef, clearScheduleTimer } = useBirthdayPartyScheduler({
+    celebrations,
     activeRef,
     random,
     reducedMotion: prefersReducedMotion,
@@ -107,7 +112,8 @@ export function BirthdayCelebration({
     clearScheduleTimer();
     cancelScene();
   }, [cancelScene, clearScheduleTimer]);
-  const inactive = prefersReducedMotion || !isCameronBirthdayDateKey(dateKey);
+  const todaysCelebrations = getTodaysFamilyCelebrations(celebrations, dateKey);
+  const inactive = prefersReducedMotion || todaysCelebrations.length === 0;
 
   useEffect(() => {
     randomRef.current = random;
@@ -158,7 +164,10 @@ export function BirthdayCelebration({
       if (activeRef.current) return;
       const currentDateKey = localDateKey();
       dateKeyRef.current = currentDateKey;
-      if (!isCameronBirthdayDateKey(currentDateKey) || document.visibilityState === 'hidden') {
+      if (
+        !hasFamilyCelebrationOnDate(celebrations, currentDateKey) ||
+        document.visibilityState === 'hidden'
+      ) {
         return;
       }
       if (prefersReducedMotion) return;
@@ -187,7 +196,7 @@ export function BirthdayCelebration({
       timerRefs.current.push(setTimeout(() => setPhase('exit'), EXIT_DELAY));
       timerRefs.current.push(setTimeout(finishScene, MAX_SCENE_DURATION));
     },
-    [dateKeyRef, fireScene, finishScene, prefersReducedMotion]
+    [celebrations, dateKeyRef, fireScene, finishScene, prefersReducedMotion]
   );
 
   useEffect(() => {
@@ -199,11 +208,11 @@ export function BirthdayCelebration({
       const detail = (event as CustomEvent<BirthdayPartyTriggerDetail>).detail;
       startScene(detail?.intensity);
     };
-    window.addEventListener(CAMERON_BIRTHDAY_PARTY_EVENT, handleTrigger);
-    window.addEventListener(CAMERON_BIRTHDAY_PARTY_CANCEL_EVENT, cancelParty);
+    window.addEventListener(BIRTHDAY_PARTY_EVENT, handleTrigger);
+    window.addEventListener(BIRTHDAY_PARTY_CANCEL_EVENT, cancelParty);
     return () => {
-      window.removeEventListener(CAMERON_BIRTHDAY_PARTY_EVENT, handleTrigger);
-      window.removeEventListener(CAMERON_BIRTHDAY_PARTY_CANCEL_EVENT, cancelParty);
+      window.removeEventListener(BIRTHDAY_PARTY_EVENT, handleTrigger);
+      window.removeEventListener(BIRTHDAY_PARTY_CANCEL_EVENT, cancelParty);
     };
   }, [cancelParty, startScene]);
 

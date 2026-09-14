@@ -35,7 +35,9 @@ export function buildWidgetProps(
   editHandlers?: EditHandlers
 ): Record<string, Record<string, unknown>> {
   return {
-    clock: {},
+    clock: {
+      celebrations: data.birthdays.birthdays,
+    },
     weather: {
       location: weatherLocation,
       data: data.weather.data || undefined,

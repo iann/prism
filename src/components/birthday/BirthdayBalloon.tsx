@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import type { RandomSource } from '@/lib/cameronBirthday';
+import type { RandomSource } from '@/lib/birthdayCelebration';
 
 export const BIRTHDAY_HERO_VARIANTS = ['smiling', 'crowned', 'striped', 'gold'] as const;
 export type BirthdayHeroVariant = (typeof BIRTHDAY_HERO_VARIANTS)[number];

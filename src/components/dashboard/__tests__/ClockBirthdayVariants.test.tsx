@@ -1,69 +1,53 @@
 /** @jest-environment jsdom */
 
 import { fireEvent, render, screen } from '@testing-library/react';
-import { CAMERON_BIRTHDAY_GREETING, CAMERON_BIRTHDAY_PARTY_EVENT } from '@/lib/cameronBirthday';
+import { BIRTHDAY_PARTY_EVENT } from '@/lib/birthdayCelebration';
 
-jest.mock('@/components/providers', () => ({
-  useTimeFormat: () => ({ timeFormat: '12h', displayTimezone: 'UTC' }),
+jest.mock('@/lib/hooks/useLocalDateKey', () => ({
+  useLocalDateKey: () => '2026-09-12',
 }));
 
-import { ClockCard } from '../MobileCards';
-import { ClockTile } from '../TileCards';
-import { ClockGreeting } from '@/components/widgets/ClockGreeting';
-import { CameronBirthdayPartyButton } from '@/components/birthday';
+import { PartyModeButton } from '@/components/birthday';
 
-describe('mobile clock birthday variants', () => {
-  beforeEach(() => {
-    jest.useFakeTimers().setSystemTime(new Date('2026-09-12T09:30:00Z'));
+const birthday = {
+  name: 'Emma',
+  birthDate: '2014-09-12',
+  eventType: 'birthday' as const,
+  partyModeEnabled: true,
+  userId: 'emma',
+};
+
+const anniversary = {
+  name: 'Alex & Jordan',
+  birthDate: '2010-09-12',
+  eventType: 'anniversary' as const,
+  partyModeEnabled: true,
+  userId: 'alex',
+};
+
+describe('universal party mode button', () => {
+  it('appears for a family birthday or anniversary', () => {
+    const { rerender } = render(<PartyModeButton celebrations={[birthday]} />);
+    expect(screen.queryByRole('button', { name: 'Start family celebration' })).not.toBeNull();
+
+    rerender(<PartyModeButton celebrations={[anniversary]} />);
+    expect(screen.queryByRole('button', { name: 'Start family celebration' })).not.toBeNull();
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
-  });
+  it('stays hidden for an unrelated date and triggers the universal event', () => {
+    render(<PartyModeButton celebrations={[{ ...birthday, birthDate: '2014-09-13' }]} />);
+    expect(screen.queryByRole('button', { name: 'Start family celebration' })).toBeNull();
 
-  it('shows the exact greeting in both compact clock layouts', () => {
-    render(
-      <>
-        <ClockCard />
-        <ClockTile />
-      </>
-    );
-
-    expect(screen.getAllByText(CAMERON_BIRTHDAY_GREETING)).toHaveLength(2);
-    expect(CAMERON_BIRTHDAY_GREETING).toBe('🎉 Happy Birthday Cameron 🎉');
-    expect(screen.getAllByText(CAMERON_BIRTHDAY_GREETING)[0]?.className).toContain('whitespace-nowrap');
-  });
-
-  it('renders one fixed emoji-only Party button outside the clock layouts', () => {
-    render(
-      <>
-        <ClockGreeting date={new Date('2026-09-12T09:30:00Z')} />
-        <ClockCard />
-        <ClockTile />
-        <CameronBirthdayPartyButton />
-      </>
-    );
-
-    const buttons = screen.getAllByRole('button', { name: 'Start birthday celebration' });
-    expect(buttons).toHaveLength(1);
-    const button = buttons[0]!;
-    expect(button.tagName).toBe('BUTTON');
-    expect((button as HTMLElement).style.minHeight).toBe('56px');
-    expect((button as HTMLElement).style.minWidth).toBe('56px');
-    expect(button.className).toContain('fixed');
-    expect(button.className).toContain('bottom-4');
-    expect(button.className).toContain('left-4');
-    expect(button.className).toContain('rounded-full');
-    expect(button.getAttribute('data-auto-hide-keep')).toBe('true');
-    expect(button.textContent).toBe('🎉');
     const dispatchSpy = jest.spyOn(window, 'dispatchEvent');
-    fireEvent.click(button);
+    render(<PartyModeButton celebrations={[birthday]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start family celebration' }));
     expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: CAMERON_BIRTHDAY_PARTY_EVENT,
-        detail: { intensity: 'supernova' },
-      })
+      expect.objectContaining({ type: BIRTHDAY_PARTY_EVENT, detail: { intensity: 'supernova' } })
     );
+  });
+
+  it('stays hidden for an unmarked event', () => {
+    render(<PartyModeButton celebrations={[{ ...birthday, partyModeEnabled: false }]} />);
+    expect(screen.queryByRole('button', { name: 'Start family celebration' })).toBeNull();
   });
 });

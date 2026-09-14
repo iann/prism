@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import {
-  CAMERON_BIRTHDAY_MAX_SCENE_DELAY_MS,
-  CAMERON_BIRTHDAY_MIN_SCENE_DELAY_MS,
-  CAMERON_BIRTHDAY_WELCOME_DELAY_MS,
-  isCameronBirthdayDateKey,
-  selectCameronBirthdaySceneDelay,
+  BIRTHDAY_MAX_SCENE_DELAY_MS,
+  BIRTHDAY_MIN_SCENE_DELAY_MS,
+  BIRTHDAY_WELCOME_DELAY_MS,
+  hasFamilyCelebrationOnDate,
+  selectBirthdaySceneDelay,
+  type BirthdayCelebrationRecord,
   type RandomSource,
-} from '@/lib/cameronBirthday';
+} from '@/lib/birthdayCelebration';
 import { localDateKey, useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 
 type BirthdayPartySchedulerProps = {
+  celebrations: readonly BirthdayCelebrationRecord[];
   activeRef: React.MutableRefObject<boolean>;
   random: RandomSource;
   reducedMotion: boolean;
@@ -20,6 +22,7 @@ type BirthdayPartySchedulerProps = {
 };
 
 export function useBirthdayPartyScheduler({
+  celebrations,
   activeRef,
   random,
   reducedMotion,
@@ -28,6 +31,7 @@ export function useBirthdayPartyScheduler({
 }: BirthdayPartySchedulerProps) {
   const dateKey = useLocalDateKey();
   const dateKeyRef = useRef(dateKey);
+  const celebrationsRef = useRef(celebrations);
   const randomRef = useRef(random);
   const reducedMotionRef = useRef(reducedMotion);
   const onStartRef = useRef(onStart);
@@ -36,11 +40,16 @@ export function useBirthdayPartyScheduler({
   const scheduleNextRef = useRef<() => void>(() => {});
 
   useEffect(() => {
+    celebrationsRef.current = celebrations;
     randomRef.current = random;
     reducedMotionRef.current = reducedMotion;
     onStartRef.current = onStart;
     onCancelRef.current = onCancel;
-  }, [onCancel, onStart, random, reducedMotion]);
+  }, [celebrations, onCancel, onStart, random, reducedMotion]);
+
+  const isEligible = useCallback((key: string) => {
+    return hasFamilyCelebrationOnDate(celebrationsRef.current, key);
+  }, []);
 
   const clearScheduleTimer = useCallback(() => {
     if (scheduleTimerRef.current) clearTimeout(scheduleTimerRef.current);
@@ -49,14 +58,13 @@ export function useBirthdayPartyScheduler({
 
   const startIfEligible = useCallback(
     (intensity?: 'party' | 'supernova') => {
-      // The hook's date key can be stale while a long timeout is pending. The
-      // timeout must consult the browser-local clock immediately before it
-      // starts anything, rather than trusting the value captured at mount.
+      // Recheck the clock immediately before starting delayed work so a scene
+      // never leaks into the next local calendar day.
       const currentKey = localDateKey();
       dateKeyRef.current = currentKey;
       if (
         reducedMotionRef.current ||
-        !isCameronBirthdayDateKey(currentKey) ||
+        !isEligible(currentKey) ||
         document.visibilityState === 'hidden' ||
         activeRef.current
       ) {
@@ -64,30 +72,30 @@ export function useBirthdayPartyScheduler({
       }
       onStartRef.current(intensity);
     },
-    [activeRef]
+    [activeRef, isEligible]
   );
 
   const scheduleNext = useCallback(() => {
     clearScheduleTimer();
     if (
       reducedMotionRef.current ||
-      !isCameronBirthdayDateKey(dateKeyRef.current) ||
+      !isEligible(dateKeyRef.current) ||
       document.visibilityState === 'hidden' ||
       activeRef.current
     ) {
       return;
     }
 
-    const delay = selectCameronBirthdaySceneDelay(randomRef.current);
+    const delay = selectBirthdaySceneDelay(randomRef.current);
     const boundedDelay = Math.min(
-      Math.max(delay, CAMERON_BIRTHDAY_MIN_SCENE_DELAY_MS),
-      CAMERON_BIRTHDAY_MAX_SCENE_DELAY_MS
+      Math.max(delay, BIRTHDAY_MIN_SCENE_DELAY_MS),
+      BIRTHDAY_MAX_SCENE_DELAY_MS
     );
     scheduleTimerRef.current = setTimeout(() => {
       scheduleTimerRef.current = null;
       startIfEligible();
     }, boundedDelay);
-  }, [activeRef, clearScheduleTimer, startIfEligible]);
+  }, [activeRef, clearScheduleTimer, isEligible, startIfEligible]);
 
   useEffect(() => {
     scheduleNextRef.current = scheduleNext;
@@ -97,17 +105,13 @@ export function useBirthdayPartyScheduler({
     dateKeyRef.current = dateKey;
     clearScheduleTimer();
     onCancelRef.current();
-    if (
-      !reducedMotion &&
-      isCameronBirthdayDateKey(dateKey) &&
-      document.visibilityState !== 'hidden'
-    ) {
+    if (!reducedMotion && isEligible(dateKey) && document.visibilityState !== 'hidden') {
       scheduleTimerRef.current = setTimeout(() => {
         scheduleTimerRef.current = null;
         startIfEligible('supernova');
-      }, CAMERON_BIRTHDAY_WELCOME_DELAY_MS);
+      }, BIRTHDAY_WELCOME_DELAY_MS);
     }
-  }, [clearScheduleTimer, dateKey, reducedMotion, startIfEligible]);
+  }, [clearScheduleTimer, dateKey, isEligible, reducedMotion, startIfEligible, celebrations]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -121,14 +125,14 @@ export function useBirthdayPartyScheduler({
       dateKeyRef.current = currentKey;
       clearScheduleTimer();
       onCancelRef.current();
-      if (!reducedMotionRef.current && isCameronBirthdayDateKey(currentKey)) {
+      if (!reducedMotionRef.current && isEligible(currentKey)) {
         scheduleNextRef.current();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [clearScheduleTimer]);
+  }, [clearScheduleTimer, isEligible]);
 
   useEffect(
     () => () => {

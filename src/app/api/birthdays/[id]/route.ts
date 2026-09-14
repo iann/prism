@@ -21,7 +21,6 @@ import { logError } from '@/lib/utils/logError';
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
-
 /**
  * GET /api/birthdays/[id]
  * Retrieves a single birthday by its ID.
@@ -39,6 +38,8 @@ export async function GET(
         id: birthdays.id,
         name: birthdays.name,
         birthDate: birthdays.birthDate,
+        eventType: birthdays.eventType,
+        partyModeEnabled: birthdays.partyModeEnabled,
         giftIdeas: birthdays.giftIdeas,
         sendCardDaysBefore: birthdays.sendCardDaysBefore,
         createdAt: birthdays.createdAt,
@@ -73,6 +74,8 @@ export async function GET(
       id: birthdayWithUser.id,
       name: birthdayWithUser.name,
       birthDate: birthdayWithUser.birthDate,
+      eventType: birthdayWithUser.eventType,
+      partyModeEnabled: birthdayWithUser.partyModeEnabled,
       age,
       daysUntil,
       nextBirthday: nextBirthday.toISOString().split('T')[0],
@@ -104,6 +107,7 @@ export async function GET(
  *   name?: string
  *   birthDate?: string (YYYY-MM-DD)
  *   userId?: string | null
+ *   partyModeEnabled?: boolean
  *   giftIdeas?: string | null
  *   sendCardDaysBefore?: number
  * }
@@ -144,6 +148,9 @@ export async function PATCH(
     if ('name' in validation.data) updateData.name = validation.data.name;
     if ('birthDate' in validation.data) updateData.birthDate = validation.data.birthDate;
     if ('userId' in validation.data) updateData.userId = validation.data.userId || null;
+    if ('partyModeEnabled' in validation.data) {
+      updateData.partyModeEnabled = validation.data.partyModeEnabled;
+    }
     if ('giftIdeas' in validation.data) updateData.giftIdeas = validation.data.giftIdeas || null;
     if ('sendCardDaysBefore' in validation.data) updateData.sendCardDaysBefore = validation.data.sendCardDaysBefore;
 
@@ -159,6 +166,8 @@ export async function PATCH(
         id: birthdays.id,
         name: birthdays.name,
         birthDate: birthdays.birthDate,
+        eventType: birthdays.eventType,
+        partyModeEnabled: birthdays.partyModeEnabled,
         giftIdeas: birthdays.giftIdeas,
         sendCardDaysBefore: birthdays.sendCardDaysBefore,
         createdAt: birthdays.createdAt,
@@ -193,6 +202,8 @@ export async function PATCH(
       id: updatedBirthdayWithUser.id,
       name: updatedBirthdayWithUser.name,
       birthDate: updatedBirthdayWithUser.birthDate,
+      eventType: updatedBirthdayWithUser.eventType,
+      partyModeEnabled: updatedBirthdayWithUser.partyModeEnabled,
       age,
       daysUntil,
       nextBirthday: nextBirthday.toISOString().split('T')[0],

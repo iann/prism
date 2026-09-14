@@ -251,6 +251,7 @@ describe('createBirthdaySchema', () => {
     const result = createBirthdaySchema.safeParse({
       name: 'Grandma',
       birthDate: '1950-06-15',
+      partyModeEnabled: true,
     });
     expect(result.success).toBe(true);
   });

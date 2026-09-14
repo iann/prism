@@ -755,6 +755,9 @@ export const birthdays = pgTable('birthdays', {
 
   eventType: varchar('event_type', { length: 20 }).default('birthday').notNull(),
 
+  // Opt-in for the dashboard's confetti/party-mode celebration.
+  partyModeEnabled: boolean('party_mode_enabled').default(false).notNull(),
+
   // Link to family member (if applicable)
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
 
@@ -1815,4 +1818,3 @@ export const weekendVisitsRelations = relations(weekendVisits, ({ one }) => ({
     references: [users.id],
   }),
 }));
-

@@ -5,6 +5,10 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  getTodaysFamilyCelebrations,
+  type BirthdayCelebrationRecord,
+} from '@/lib/birthdayCelebration';
 import { WidgetContainer } from './WidgetContainer';
 import { ClockGreeting } from './ClockGreeting';
 
@@ -13,6 +17,7 @@ export interface ClockWidgetProps {
   showSeconds?: boolean;
   format24Hour?: boolean;
   showDate?: boolean;
+  celebrations?: readonly BirthdayCelebrationRecord[];
   size?: 'small' | 'medium' | 'large';
   className?: string;
 }
@@ -22,11 +27,20 @@ export function millisecondsUntilNextClockTick(showSeconds: boolean, now = Date.
   return interval - (now % interval);
 }
 
+export function shouldShowClockGreeting(
+  showGreeting: boolean,
+  date: Date,
+  celebrations: readonly BirthdayCelebrationRecord[] = []
+): boolean {
+  return showGreeting || getTodaysFamilyCelebrations(celebrations, date).length > 0;
+}
+
 export const ClockWidget = React.memo(function ClockWidget({
   showGreeting = true,
   showSeconds = false,
   format24Hour = false,
   showDate = true,
+  celebrations = [],
   size = 'medium',
   className,
 }: ClockWidgetProps) {
@@ -50,8 +64,12 @@ export const ClockWidget = React.memo(function ClockWidget({
   }, [showSeconds]);
 
   const timeFormat = format24Hour
-    ? showSeconds ? 'HH:mm:ss' : 'HH:mm'
-    : showSeconds ? 'h:mm:ss a' : 'h:mm a';
+    ? showSeconds
+      ? 'HH:mm:ss'
+      : 'HH:mm'
+    : showSeconds
+      ? 'h:mm:ss a'
+      : 'h:mm a';
 
   const dateFormat = 'EEEE, MMMM d';
 
@@ -78,16 +96,14 @@ export const ClockWidget = React.memo(function ClockWidget({
       showHeader={false}
       className={cn('flex items-center justify-center', className)}
     >
-      <div className="flex flex-col items-center justify-center h-full text-center">
-        {showGreeting && <ClockGreeting date={currentTime} size={size} />}
+      <div className="flex h-full flex-col items-center justify-center text-center">
+        {shouldShowClockGreeting(showGreeting, currentTime, celebrations) && (
+          <ClockGreeting date={currentTime} size={size} celebrations={celebrations} />
+        )}
 
         <time
           dateTime={currentTime.toISOString()}
-          className={cn(
-            'font-bold tracking-tight',
-            'tabular-nums',
-            timeStyles[size]
-          )}
+          className={cn('font-bold tracking-tight', 'tabular-nums', timeStyles[size])}
         >
           {timeString}
         </time>
@@ -95,10 +111,7 @@ export const ClockWidget = React.memo(function ClockWidget({
         {showDate && (
           <time
             dateTime={currentTime.toISOString().split('T')[0]}
-            className={cn(
-              'text-muted-foreground mt-1',
-              dateStyles[size]
-            )}
+            className={cn('mt-1 text-muted-foreground', dateStyles[size])}
           >
             {dateString}
           </time>
@@ -130,8 +143,12 @@ export function formatTime(
   const { format24Hour = false, showSeconds = false } = options;
 
   const formatString = format24Hour
-    ? showSeconds ? 'HH:mm:ss' : 'HH:mm'
-    : showSeconds ? 'h:mm:ss a' : 'h:mm a';
+    ? showSeconds
+      ? 'HH:mm:ss'
+      : 'HH:mm'
+    : showSeconds
+      ? 'h:mm:ss a'
+      : 'h:mm a';
 
   return format(date, formatString);
 }

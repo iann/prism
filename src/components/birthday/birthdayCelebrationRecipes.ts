@@ -1,6 +1,6 @@
 import type confetti from 'canvas-confetti';
-import type { RandomSource } from '@/lib/cameronBirthday';
-import { selectWeighted } from '@/lib/cameronBirthday';
+import type { RandomSource } from '@/lib/birthdayCelebration';
+import { selectWeighted } from '@/lib/birthdayCelebration';
 
 export type BirthdayIntensity = 'sprinkle' | 'party' | 'supernova';
 
