@@ -200,6 +200,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: d276d02, 9e6ad24
 
+20. **Universal, opt-in party mode**
+
+    Generalized party mode for birthday and anniversary events, added a
+    per-event opt-in flag with a Settings → Party Mode control, and kept new
+    synced events disabled by default so each Prism installation can choose
+    its own celebrations.
+
+    Commit: 6d4c3284
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
