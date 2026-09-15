@@ -1,0 +1,10 @@
+# Scan the commit message itself.
+#
+# scan-pii.sh reads `git ls-files` and scan-text.sh reads a drafted file, so a
+# commit message was the one outbound surface neither of them saw. An audit
+# found personal data in published commit messages, including in the messages
+# of commits whose whole purpose was removing it from the files. A commit
+# message is as public as the diff; it gets the same gate.
+#
+# $1 is the path to the message file, which is exactly what scan-text.sh takes.
+bash scripts/scan-text.sh "$1"
