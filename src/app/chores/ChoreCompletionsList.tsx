@@ -50,7 +50,7 @@ export function ChoreCompletionsList({
                 'flex items-center gap-3 p-3 rounded-lg border bg-card dark:bg-card/85 dark:backdrop-blur-sm',
                 c.approvedBy
                   ? 'border-border'
-                  : 'border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/30'
+                  : 'border-warning/30 bg-warning/10'
               )}
             >
               <span className="text-lg shrink-0">{getCategoryEmoji(c.choreCategory)}</span>
@@ -63,11 +63,11 @@ export function ChoreCompletionsList({
                     </Badge>
                   )}
                   {c.approvedBy ? (
-                    <Badge variant="outline" className="text-xs text-green-600 border-green-500/30">
+                    <Badge variant="outline" className="text-xs text-success border-success/30">
                       <ShieldCheck className="h-3 w-3 mr-0.5" />Approved
                     </Badge>
                   ) : (
-                    <Badge variant="default" className="text-xs bg-amber-500 hover:bg-amber-500">
+                    <Badge variant="default" className="text-xs bg-warning hover:bg-warning">
                       Pending Approval
                     </Badge>
                   )}
@@ -84,7 +84,7 @@ export function ChoreCompletionsList({
                   </div>
                   {c.approvedBy && (
                     <div className="flex items-center gap-1">
-                      <ShieldCheck className="h-3 w-3 text-green-500" />
+                      <ShieldCheck className="h-3 w-3 text-success" />
                       <span>{c.approvedBy.name}</span>
                     </div>
                   )}
@@ -96,8 +96,9 @@ export function ChoreCompletionsList({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                className="wall-touch-control h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={() => onUndo(c.id, c.choreId)}
+                aria-label="Undo completion"
                 title="Undo completion and reverse points"
               >
                 <Undo2 className="h-4 w-4" />

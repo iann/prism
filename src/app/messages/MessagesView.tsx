@@ -15,6 +15,7 @@
 
 import * as React from 'react';
 import { useState, useMemo } from 'react';
+import { usePersistedState, useSessionScopedState, isBoolean, isStringArray } from '@/lib/hooks/usePersistedState';
 import { toast } from '@/components/ui/use-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
@@ -57,8 +58,16 @@ export function MessagesView() {
 
   // State
   const { messages, loading, error, refresh, deleteMessage, updateMessage } = useMessages();
-  const [filterAuthor, setFilterAuthor] = useState<string[] | null>(null);
-  const [groupByPerson, setGroupByPerson] = useState(false);
+  // Narrowing choice — kept across a refresh, dropped once the display has
+  // been idle, so nobody walks up to a board silently hiding most of it.
+  const [filterAuthor, setFilterAuthor] = useSessionScopedState<string[] | null>(
+    'prism-messages-filter-author', null,
+    (v): v is string[] | null => v === null || isStringArray(v),
+  );
+  // Presentation choice — safe to restore outright; it hides nothing.
+  const [groupByPerson, setGroupByPerson] = usePersistedState(
+    'prism-messages-group-by-person', false, isBoolean,
+  );
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Get unique authors
@@ -410,7 +419,7 @@ function MessageCard({
         className={cn(
           'p-2 rounded-md border border-border bg-card dark:bg-card/50',
           'hover:bg-muted/50 transition-colors group',
-          message.important && 'bg-red-100/50 dark:bg-red-950/50 border-destructive/20'
+          message.important && 'bg-destructive/10 border-destructive/20'
         )}
       >
         <div className="flex items-start justify-between gap-1">
@@ -428,10 +437,10 @@ function MessageCard({
                   disabled={saving}
                 />
                 <div className="flex items-center gap-1">
-                  <Button size="sm" className="h-6 text-xs px-2" onClick={saveEdit} disabled={saving || !editText.trim()}>
+                  <Button size="sm" className="wall-touch-control-inline h-6 text-xs px-2" onClick={saveEdit} disabled={saving || !editText.trim()}>
                     <Check className="h-3 w-3 mr-0.5" />{saving ? '...' : 'Save'}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={cancelEdit} disabled={saving}>
+                  <Button size="sm" variant="ghost" className="wall-touch-control-inline h-6 text-xs px-2" onClick={cancelEdit} disabled={saving}>
                     Cancel
                   </Button>
                   <span className="text-[12px] text-muted-foreground ml-auto">Ctrl+Enter</span>
@@ -462,7 +471,7 @@ function MessageCard({
                 variant="ghost"
                 size="icon"
                 onClick={startEdit}
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                className="wall-touch-control opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
                 title="Edit message"
               >
                 <Pencil className="h-3 w-3" />
@@ -471,7 +480,7 @@ function MessageCard({
                 variant="ghost"
                 size="icon"
                 onClick={onDelete}
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 text-destructive"
+                className="wall-touch-control opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 text-destructive"
                 title="Delete message"
               >
                 <Trash2 className="h-3 w-3" />
@@ -489,7 +498,7 @@ function MessageCard({
         'p-4 rounded-lg border border-border bg-card dark:bg-card/85 dark:backdrop-blur-sm',
         'hover:border-seasonal-accent hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
         'group',
-        message.important && 'bg-red-100/85 dark:bg-red-950/85 border-destructive/20'
+        message.important && 'bg-destructive/10 border-destructive/20'
       )}
     >
       {/* Header: Author and badges */}
@@ -546,7 +555,7 @@ function MessageCard({
               variant="ghost"
               size="icon"
               onClick={startEdit}
-              className="opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8"
+              className="wall-touch-control opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8"
               title="Edit message"
             >
               <Pencil className="h-4 w-4" />
@@ -555,7 +564,7 @@ function MessageCard({
               variant="ghost"
               size="icon"
               onClick={onDelete}
-              className="opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8 text-destructive"
+              className="wall-touch-control opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8 text-destructive"
               title="Delete message"
             >
               <Trash2 className="h-4 w-4" />

@@ -1,5 +1,13 @@
 import { db } from '@/lib/db/client';
 import { calendarSources, events, tasks, taskLists, dismissedEvents, settings } from '@/lib/db/schema';
+import { decideDeletionReview } from '@/lib/services/taskDeletionReview';
+
+/**
+ * How long a CalDAV task must have been absent before it is flagged. Matches
+ * the provider task sync: one missed or partial response cannot flag anything
+ * on its own.
+ */
+const CALDAV_MISSING_GRACE_MS = 6 * 60 * 1000;
 import { eq, and, gte, lte, sql, inArray, isNotNull } from 'drizzle-orm';
 import { AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY } from '@/lib/constants';
 import {
@@ -23,17 +31,23 @@ import { async as icalAsync, type VEvent, type CalendarResponse } from 'node-ica
 /**
  * Default sync window.
  *
- * Past: 90 days back so recent-past events (last quarter) keep flowing in.
- * Events OLDER than this are never touched by sync — the delete-on-remove
- * logic only operates within this window, so historic events synced under
- * an older default stay in the local DB forever.
+ * Sized to cover the calendar's display window (getFullCalendarRange: ~1yr
+ * back … ~2yr forward). If sync were narrower than the display, synced Google/
+ * CalDAV events past the sync horizon would silently not appear even though the
+ * views reach for them — the synced-calendar counterpart of #250, and worse
+ * because it's inconsistent (a local event shows at that date, a synced one
+ * doesn't). So keep sync >= the display reach.
  *
- * Future: 365 days forward so school-year, sports-season, and far-out
- * scheduled events show up. The previous ±30-day default silently dropped
- * anything beyond a month.
+ * Past: 365 days back so recent history stays in step with the views. Events
+ * OLDER than this are never touched by sync — the delete-on-remove logic only
+ * operates within this window, so historic events synced under an older default
+ * stay in the local DB forever.
+ *
+ * Future: 730 days forward so school-year, sports-season, and far-out scheduled
+ * events show up. (Was ±90d/365d, which the wider display window outran.)
  */
-const DEFAULT_TIME_MIN_MS = 90 * 24 * 60 * 60 * 1000;       // 90 days
-const DEFAULT_TIME_MAX_MS = 365 * 24 * 60 * 60 * 1000;      // 365 days
+const DEFAULT_TIME_MIN_MS = 365 * 24 * 60 * 60 * 1000;      // 1 year
+const DEFAULT_TIME_MAX_MS = 730 * 24 * 60 * 60 * 1000;      // 2 years
 
 /**
  * Check if token needs refresh (within 5 minutes of expiry)
@@ -259,12 +273,16 @@ export async function syncGoogleCalendarSource(
         ...(shouldAutoDisable ? { enabled: false, showInEventModal: false } : {}),
         syncErrors: {
           lastError: is404
-            ? `Calendar not found in Google (404). Failure ${consecutive404}/${DISABLE_THRESHOLD}.`
+            ? (shouldAutoDisable
+                ? 'Removed in Google Calendar — auto-disabled here.'
+                : `Calendar not found in Google (404). Failure ${consecutive404}/${DISABLE_THRESHOLD}.`)
             : errorStr,
           consecutiveFailures,
           consecutive404,
           is404,
-          ...(shouldAutoDisable ? { autoDisabled: true, autoDisabledAt: new Date().toISOString() } : {}),
+          // On confirmed deletion, flag it so the UI can say "removed in Google"
+          // rather than leaving a mysteriously-disabled calendar.
+          ...(shouldAutoDisable ? { autoDisabled: true, autoDisabledAt: new Date().toISOString(), removedAtSource: true } : {}),
           ...(prevErrors.userOverride ? { userOverride: true } : {}),
           timestamp: new Date().toISOString(),
         },
@@ -272,7 +290,10 @@ export async function syncGoogleCalendarSource(
       })
       .where(eq(calendarSources.id, sourceId));
 
-    return emptyCounts([`Failed to fetch events: ${error}`]);
+    // A 404 means the calendar was deleted in Google — expected and handled
+    // (it counts toward auto-disable above). Don't surface it as a user-facing
+    // "Sync failed"; only real/transient errors bubble up to the sync result.
+    return emptyCounts(is404 ? [] : [`Failed to fetch events: ${error}`]);
   }
 
   // Build set of Google event IDs for deletion cleanup (excluding cancelled)
@@ -1142,6 +1163,9 @@ export async function syncCalDAVTasks(
         externalUpdatedAt: new Date(),
         lastSynced: new Date(),
         updatedAt: new Date(),
+        // Present again, so it is not missing. Clearing here is what makes a
+        // single bad response self-healing rather than leaving a flag behind.
+        pendingDeletion: null,
       };
 
       if (existing) {
@@ -1153,16 +1177,38 @@ export async function syncCalDAVTasks(
       synced++;
     }
 
-    // Mirror upstream deletions: any caldav-prefixed task for this source
-    // that wasn't in the fetch round-trips out of Prism too. Also catches
-    // existing placeholder rows that pre-date the title filter above.
+    // Upstream deletions are held for review rather than applied. This used to
+    // delete outright, which is unrecoverable and silent: `realTasks` is a
+    // FILTERED list, so a change to that filter — or a CalDAV server having a
+    // bad day — wiped every task from this source with no undo and nothing
+    // said. Same treatment the provider task sources got, for the same reason.
     const allLocal = await db.query.tasks.findMany({
       where: sql`${tasks.externalId} LIKE ${`caldav:${source.id}:%`}`,
-      columns: { id: true, externalId: true },
+      columns: { id: true, externalId: true, lastSynced: true, pendingDeletion: true },
     });
-    const stale = allLocal.filter(t => t.externalId && !seenExternalIds.has(t.externalId));
-    if (stale.length > 0) {
-      await db.delete(tasks).where(inArray(tasks.id, stale.map(t => t.id)));
+    const missing = allLocal.filter(t => t.externalId && !seenExternalIds.has(t.externalId));
+
+    const nowTs = Date.now();
+    const flaggable = missing.filter(
+      t => t.lastSynced && nowTs - t.lastSynced.getTime() > CALDAV_MISSING_GRACE_MS,
+    );
+    const review = decideDeletionReview({
+      syncedCount: allLocal.length,
+      missingCount: flaggable.length,
+    });
+
+    if (review.guardTripped) {
+      // Said out loud rather than withheld quietly: a guard that silently
+      // does nothing is its own mystery.
+      console.error(
+        `[Sync] ${review.withheld} CalDAV tasks missing at once — too many to be a normal ` +
+        'change, so none were touched. Check the connection, then sync again.',
+      );
+    } else if (review.flag) {
+      const toFlag = flaggable.filter(t => !t.pendingDeletion).map(t => t.id);
+      if (toFlag.length > 0) {
+        await db.update(tasks).set({ pendingDeletion: new Date() }).where(inArray(tasks.id, toFlag));
+      }
     }
 
     // Refresh the source's health signal on success. For task-only sources

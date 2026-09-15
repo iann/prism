@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -69,7 +69,7 @@ jobs:
       PIN_ENCRYPTION_KEY: ci_test_pin_encryption_key_pad32
       ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -83,12 +83,44 @@ jobs:
       # is not '1' (this job doesn't set it), so a plain jest run is enough.
       - run: npm test -- --ci
 
+  mcp:
+    name: MCP server (build + smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # The MCP server carries its own manifest and lockfile under /.mcp, and
+    # nothing else in CI looked at it. Dependabot has been opening PRs against
+    # that lockfile all along, and they came back green off the root project's
+    # checks alone — including a major, where the only thing that actually
+    # verified the server still ran was someone building it by hand. Now that
+    # patch and minor updates auto-merge, that had to stop being a manual step.
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: .mcp/package-lock.json
+
+      - run: npm ci
+        working-directory: .mcp
+
+      - run: npm run build
+        working-directory: .mcp
+
+      # Starts the built server over stdio and speaks MCP to it: initialize,
+      # then tools/list, then checks the expected tools are all present. Catches
+      # a dependency that breaks the SDK handshake, which a type-check cannot.
+      - run: npm run smoke
+        working-directory: .mcp
+
   migration-replay:
     name: Migration replay (modality TODO #3)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -101,18 +133,40 @@ jobs:
       - name: Run migration replay script
         run: bash scripts/test-migration-replay.sh
 
+  playwright-image:
+    name: Resolve Playwright image tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # The container image and @playwright/test must move together, or the
+      # browser binaries in the image do not match the client and every spec
+      # fails with "Executable doesn't exist at /ms-playwright/...". Deriving
+      # the tag from package.json means Dependabot's bump carries the image
+      # with it: Dependabot cannot edit a workflow `container:` field, so a
+      # hardcoded tag had to be fixed by hand on every Playwright bump.
+      - id: resolve
+        run: |
+          version=$(node -p "require('./package.json').devDependencies['@playwright/test'].replace(/^[^0-9]*/, '')")
+          echo "tag=v${version}-jammy" >> "$GITHUB_OUTPUT"
+          echo "Playwright image: mcr.microsoft.com/playwright:v${version}-jammy"
+
   e2e-modality:
     name: E2E modality suite (reverse-proxy)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: playwright-image
 
     # Use the official Playwright container so Chromium is preinstalled.
     # Previously the job downloaded Chromium from cdn.playwright.dev at
     # job start, which began hanging indefinitely on GH-hosted runners
-    # around 2026-05-29 and killed the job at the timeout. Image must be
-    # kept in lockstep with @playwright/test in package.json.
+    # around 2026-05-29 and killed the job at the timeout. The tag comes
+    # from @playwright/test in package.json via the playwright-image job,
+    # so the two cannot drift apart.
     container:
-      image: mcr.microsoft.com/playwright:v1.58.2-jammy
+      image: mcr.microsoft.com/playwright:${{ needs.playwright-image.outputs.tag }}
 
     services:
       postgres:
@@ -153,7 +207,7 @@ jobs:
       E2E_PIN: '1234'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -166,7 +220,7 @@ jobs:
         # Drop the NodeSource apt source first — it periodically 403s and aborts
         # `apt-get update` (Node is already in the image; we only need psql from
         # the Ubuntu repos here).
-        run: rm -f /etc/apt/sources.list.d/nodesource* && apt-get update && apt-get install -y --no-install-recommends postgresql-client
+        run: rm -f /etc/apt/sources.list.d/nodesource* && apt-get update && apt-get install -y --no-install-recommends postgresql-client redis-tools
 
       - name: Apply base schema
         env:
@@ -180,7 +234,13 @@ jobs:
         run: npm run db:seed
 
       - name: Run e2e modality suite
-        run: npx playwright test e2e/reverse-proxy.spec.ts e2e/mobile-pwa-settings.spec.ts --reporter=list
+        run: npx playwright test e2e/reverse-proxy.spec.ts e2e/mobile-pwa-settings.spec.ts e2e/upstream-regression.spec.ts --reporter=list
+
+      # Geometry, separately: every calendar bug in the month grid has been a
+      # rendered box in the wrong place, which no unit test can see. The classes
+      # and props were correct each time.
+      - name: Run calendar geometry suite
+        run: npx playwright test e2e/calendar-geometry.spec.ts --reporter=list
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -194,10 +254,11 @@ jobs:
     name: Visual regression (modality TODO #2)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    needs: playwright-image
 
     # See e2e-modality for why we run inside the Playwright image.
     container:
-      image: mcr.microsoft.com/playwright:v1.58.2-jammy
+      image: mcr.microsoft.com/playwright:${{ needs.playwright-image.outputs.tag }}
 
     services:
       postgres:
@@ -232,7 +293,7 @@ jobs:
       E2E_PIN: '1234'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -266,7 +327,7 @@ jobs:
       - name: Check for Linux baselines
         id: check-baselines
         run: |
-          if ls e2e/visual-regression.spec.ts-snapshots/*-chromium-linux.png > /dev/null 2>&1; then
+          if find e2e -type f -path '*-snapshots/*-chromium-linux.png' -print -quit | grep -q .; then
             echo "found=true" >> $GITHUB_OUTPUT
           else
             echo "found=false" >> $GITHUB_OUTPUT
@@ -280,7 +341,7 @@ jobs:
       #     manual commit.
       - name: Run visual regression suite (compare)
         if: ${{ steps.check-baselines.outputs.found == 'true' && (github.event_name != 'workflow_dispatch' || inputs.update_visual_baselines != true) }}
-        run: npx playwright test e2e/visual-regression.spec.ts --reporter=list
+        run: npx playwright test e2e/visual-regression.spec.ts e2e/upstream-visual-regression.spec.ts --reporter=list
 
       - name: Skip compare (no Linux baselines yet)
         if: ${{ steps.check-baselines.outputs.found == 'false' && (github.event_name != 'workflow_dispatch' || inputs.update_visual_baselines != true) }}
@@ -290,7 +351,7 @@ jobs:
 
       - name: Run visual regression suite (update baselines)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_visual_baselines == true }}
-        run: npx playwright test e2e/visual-regression.spec.ts --update-snapshots --reporter=list
+        run: npx playwright test e2e/visual-regression.spec.ts e2e/upstream-visual-regression.spec.ts --update-snapshots --reporter=list
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -305,5 +366,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: visual-regression-linux-baselines
-          path: e2e/visual-regression.spec.ts-snapshots/*-chromium-linux.png
+          path: e2e/**/*-snapshots/*-chromium-linux.png
           retention-days: 14

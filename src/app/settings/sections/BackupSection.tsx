@@ -19,6 +19,9 @@ import { useBackups } from '@/lib/hooks/useBackups';
 
 type DangerStep = null | 'warn-truncate' | 'confirm-truncate' | 'warn-seed' | 'confirm-seed';
 
+/** How many backups to show before collapsing the rest behind a toggle. */
+const RECENT_BACKUP_COUNT = 5;
+
 export function BackupSection() {
   const {
     backups,
@@ -37,6 +40,11 @@ export function BackupSection() {
     truncateDatabase,
     seedDatabase,
   } = useBackups();
+
+  // Older ones are collapsed rather than dropped: nothing is deleted here, and
+  // an old backup is still restorable. The list has no retention policy, so it
+  // grows forever and buries the actions above it.
+  const [showAllBackups, setShowAllBackups] = useState(false);
 
   const [confirmRestore, setConfirmRestore] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -100,6 +108,44 @@ export function BackupSection() {
 
   return (
     <div className="space-y-6">
+      {/* Cache Management */}
+      <div className="border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-semibold flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-primary" />
+              Clear Cache &amp; Reload
+            </h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              Unregisters the service worker and clears cached assets. Use after an update if the app seems stale.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                if ('serviceWorker' in navigator) {
+                  const registrations = await navigator.serviceWorker.getRegistrations();
+                  await Promise.all(registrations.map(r => r.unregister()));
+                }
+                if ('caches' in window) {
+                  const keys = await caches.keys();
+                  await Promise.all(keys.map(k => caches.delete(k)));
+                }
+                window.location.reload();
+              } catch {
+                window.location.reload();
+              }
+            }}
+            className="ml-4 flex-shrink-0"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
       {/* Header with Create Backup button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -138,7 +184,7 @@ export function BackupSection() {
 
       {/* Success message */}
       {successMessage && (
-        <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400">
+        <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/40 rounded-lg text-success">
           <CheckCircle className="h-4 w-4" />
           {successMessage}
         </div>
@@ -146,7 +192,7 @@ export function BackupSection() {
 
       {/* Error message */}
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
+        <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/40 rounded-lg text-destructive">
           <AlertTriangle className="h-4 w-4" />
           {error}
         </div>
@@ -167,7 +213,7 @@ export function BackupSection() {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {backups.map((backup) => (
+            {(showAllBackups ? backups : backups.slice(0, RECENT_BACKUP_COUNT)).map((backup) => (
               <div
                 key={backup.filename}
                 className="p-4 flex items-center justify-between hover:bg-muted/50"
@@ -199,8 +245,8 @@ export function BackupSection() {
 
                   {/* Restore button */}
                   {confirmRestore === backup.filename ? (
-                    <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
-                      <span className="text-xs text-amber-700 dark:text-amber-400 max-w-48">
+                    <div className="flex items-center gap-2 p-2 bg-warning/10 rounded-lg">
+                      <span className="text-xs text-warning max-w-48">
                         This will overwrite all current data. Changes since {backup.createdAtFormatted} will be lost.
                       </span>
                       <Button
@@ -275,6 +321,19 @@ export function BackupSection() {
                 </div>
               </div>
             ))}
+            {backups.length > RECENT_BACKUP_COUNT && (
+              <button
+                type="button"
+                onClick={() => setShowAllBackups((v) => !v)}
+                className="w-full p-3 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              >
+                {showAllBackups
+                  ? 'Show fewer'
+                  : `Show ${backups.length - RECENT_BACKUP_COUNT} older backup${
+                      backups.length - RECENT_BACKUP_COUNT === 1 ? '' : 's'
+                    }`}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -285,59 +344,21 @@ export function BackupSection() {
         Restoring a backup will overwrite all current data.
       </p>
 
-      {/* Cache Management */}
-      <div className="border border-border rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-semibold flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-primary" />
-              Clear Cache &amp; Reload
-            </h4>
-            <p className="text-sm text-muted-foreground mt-1">
-              Unregisters the service worker and clears cached assets. Use after an update if the app seems stale.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              try {
-                if ('serviceWorker' in navigator) {
-                  const registrations = await navigator.serviceWorker.getRegistrations();
-                  await Promise.all(registrations.map(r => r.unregister()));
-                }
-                if ('caches' in window) {
-                  const keys = await caches.keys();
-                  await Promise.all(keys.map(k => caches.delete(k)));
-                }
-                window.location.reload();
-              } catch {
-                window.location.reload();
-              }
-            }}
-            className="ml-4 flex-shrink-0"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
       {/* Danger Zone */}
-      <div className="border border-red-200 dark:border-red-800 rounded-lg p-4 space-y-4">
-        <h4 className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-2">
+      <div className="border border-destructive/40 rounded-lg p-4 space-y-4">
+        <h4 className="font-semibold text-destructive flex items-center gap-2">
           <AlertTriangle className="h-4 w-4" />
           Danger Zone
         </h4>
 
         {/* Step 1: Warning for truncate */}
         {dangerStep === 'warn-truncate' && (
-          <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg space-y-3">
+          <div className="p-3 bg-destructive/10 border border-destructive/40 rounded-lg space-y-3">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-red-600 dark:text-red-400">Warning: This will permanently delete all data</p>
-                <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1">
+                <p className="font-medium text-destructive">Warning: This will permanently delete all data</p>
+                <p className="text-sm text-destructive/80 mt-1">
                   All family members, chores, tasks, calendar events, meals, recipes, shopping lists, messages, and settings will be removed. This cannot be undone.
                 </p>
               </div>
@@ -353,8 +374,8 @@ export function BackupSection() {
 
         {/* Step 2: Type-to-confirm for truncate */}
         {dangerStep === 'confirm-truncate' && (
-          <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg space-y-3">
-            <p className="text-sm text-red-600 dark:text-red-400">
+          <div className="p-3 bg-destructive/10 border border-destructive/40 rounded-lg space-y-3">
+            <p className="text-sm text-destructive">
               Type <span className="font-mono font-bold">{TRUNCATE_CHALLENGE}</span> to confirm:
             </p>
             <input
@@ -362,7 +383,7 @@ export function BackupSection() {
               value={challengeInput}
               onChange={(e) => setChallengeInput(e.target.value)}
               placeholder={TRUNCATE_CHALLENGE}
-              className="w-full px-3 py-2 rounded-md border border-red-300 dark:border-red-700 bg-background text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full px-3 py-2 rounded-md border border-destructive bg-background text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-destructive"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && challengeInput === TRUNCATE_CHALLENGE) handleTruncate();
@@ -389,18 +410,18 @@ export function BackupSection() {
 
         {/* Step 1: Warning for seed */}
         {dangerStep === 'warn-seed' && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg space-y-3">
+          <div className="p-3 bg-warning/10 border border-warning/40 rounded-lg space-y-3">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-amber-600 dark:text-amber-400">Warning: This will overwrite your data</p>
-                <p className="text-sm text-amber-600/80 dark:text-amber-400/80 mt-1">
+                <p className="font-medium text-warning">Warning: This will overwrite your data</p>
+                <p className="text-sm text-warning/80 mt-1">
                   Seeding will populate the database with demo family data (Alex, Jordan, Sam, Riley). Existing data may be affected.
                 </p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="default" size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={() => { setDangerStep('confirm-seed'); setChallengeInput(''); }}>
+              <Button variant="default" size="sm" className="bg-warning hover:bg-warning text-white" onClick={() => { setDangerStep('confirm-seed'); setChallengeInput(''); }}>
                 I understand, proceed
               </Button>
               <Button variant="outline" size="sm" onClick={cancelDanger}>Cancel</Button>
@@ -410,8 +431,8 @@ export function BackupSection() {
 
         {/* Step 2: Type-to-confirm for seed */}
         {dangerStep === 'confirm-seed' && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg space-y-3">
-            <p className="text-sm text-amber-600 dark:text-amber-400">
+          <div className="p-3 bg-warning/10 border border-warning/40 rounded-lg space-y-3">
+            <p className="text-sm text-warning">
               Type <span className="font-mono font-bold">{SEED_CHALLENGE}</span> to confirm:
             </p>
             <input
@@ -419,7 +440,7 @@ export function BackupSection() {
               value={challengeInput}
               onChange={(e) => setChallengeInput(e.target.value)}
               placeholder={SEED_CHALLENGE}
-              className="w-full px-3 py-2 rounded-md border border-amber-300 dark:border-amber-700 bg-background text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="w-full px-3 py-2 rounded-md border border-warning bg-background text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-warning"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && challengeInput === SEED_CHALLENGE) handleSeed();
@@ -430,7 +451,7 @@ export function BackupSection() {
               <Button
                 variant="default"
                 size="sm"
-                className="bg-amber-600 hover:bg-amber-700 text-white"
+                className="bg-warning hover:bg-warning text-white"
                 onClick={handleSeed}
                 disabled={seeding || challengeInput !== SEED_CHALLENGE}
               >
@@ -451,7 +472,7 @@ export function BackupSection() {
             <Button
               variant="outline"
               onClick={() => setDangerStep('warn-truncate')}
-              className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+              className="border-destructive text-destructive hover:bg-destructive/10"
             >
               <Eraser className="h-4 w-4 mr-2" />
               Clear All Data

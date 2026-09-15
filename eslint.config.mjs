@@ -1,16 +1,14 @@
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { FlatCompat } from '@eslint/eslintrc';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+// eslint-config-next 16 ships native flat config, so the shareable configs are
+// imported and spread directly. Going through FlatCompat (which is how this
+// file read under Next 15) now throws "Converting circular structure to JSON"
+// while validating the legacy schema, which is what made `next lint` unusable
+// on 16. `next lint` itself is gone in 16; package.json calls eslint directly.
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 
 const eslintConfig = [
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  ...nextCoreWebVitals,
+  ...nextTypescript,
 
   {
     rules: {
@@ -32,7 +30,42 @@ const eslintConfig = [
     },
   },
 
+  // Node scripts are CommonJS and are meant to use require().  `next lint` never
+  // looked at them; running eslint directly does.
   {
+    files: ['scripts/**/*.js', '*.js'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+
+  // React Compiler rules, new as errors in eslint-config-next 16 via
+  // eslint-plugin-react-hooks v6. They report 172 findings across 112 files on
+  // the tree as it stands, so they are warnings here: the Next 16 upgrade is
+  // not the place to make 112 files of behavioural changes sight unseen.
+  //
+  // These are NOT noise to be silenced. set-state-in-effect in particular
+  // describes a pattern this codebase has been bitten by before (per-display
+  // preferences loading after mount, so the first paint renders the wrong
+  // thing and then undoes it). They want working through deliberately, then
+  // promoting back to error.
+  {
+    rules: {
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/use-memo': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
+    },
+  },
+
+  {
+    // `next lint` only ever walked the source directories. Calling eslint
+    // directly (Next 16 removed `next lint`) walks everything, and flat config
+    // does not read .gitignore, so generated and vendored output now needs
+    // naming here or a local `npm run lint` fails on third-party minified JS
+    // that was never ours to lint.
     ignores: [
       '.next/**',
       'out/**',
@@ -40,6 +73,18 @@ const eslintConfig = [
       'build/**',
       'node_modules/**',
       'drizzle/**',
+      // mkdocs writes the built docs site here, bundled lunr/glightbox and all.
+      'site/**',
+      // Build output that lands in public/: the next-pwa service worker and its
+      // workbox runtime, and the MapLibre worker copied in by
+      // scripts/copy-maplibre-worker.mjs.
+      'public/sw.js',
+      'public/workbox-*.js',
+      'public/maplibre/**',
+      // Test and coverage artefacts.
+      'coverage/**',
+      'playwright-report/**',
+      'test-results/**',
       '*.config.js',
       '*.config.mjs',
     ],

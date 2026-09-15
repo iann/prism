@@ -25,6 +25,7 @@ function setDocumentHidden(hidden: boolean) {
 describe('useVisibilityPolling', () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    localStorage.removeItem('prism-perf-mode');
     Object.defineProperty(document, 'hidden', {
       value: false,
       writable: true,
@@ -33,6 +34,7 @@ describe('useVisibilityPolling', () => {
   });
 
   afterEach(() => {
+    localStorage.removeItem('prism-perf-mode');
     jest.useRealTimers();
   });
 
@@ -54,6 +56,18 @@ describe('useVisibilityPolling', () => {
     renderHook(() => useVisibilityPolling(callback, 5000, 2000));
 
     jest.advanceTimersByTime(6999);
+    expect(callback).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(1);
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('can preserve the requested cadence in Performance Mode', () => {
+    localStorage.setItem('prism-perf-mode', 'true');
+    const callback = jest.fn();
+    renderHook(() => useVisibilityPolling(callback, 5000, 0, false));
+
+    jest.advanceTimersByTime(4999);
     expect(callback).not.toHaveBeenCalled();
 
     jest.advanceTimersByTime(1);

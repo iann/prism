@@ -43,8 +43,28 @@ else
 fi
 
 # Remove backups older than retention period
+# Retention keys off the timestamp in the filename, not mtime.
+#
+# These files get read and copied by things that reset mtime (restore drills,
+# the PII scans, a plain `cp -p`-less copy), and `find -mtime` then treats a
+# month-old dump as new and keeps it forever. Meanwhile the off-site copy still
+# expires on its own schedule at RCLONE_RETENTION_DAYS, so the leftovers show up
+# in the one-way check below as "missing off-site" and the healthcheck goes red
+# on a backup that is completely fine. That happened: 28 dumps back to Aug 8 had
+# all been touched, 5 of them were past the remote retention, and the check
+# failed nightly on them.
+#
+# The filename carries the real backup date and nothing rewrites it.
 echo "[$(date)] Cleaning up backups older than $RETENTION_DAYS days..."
-find "$BACKUP_DIR" -name "prism_*.sql.gz" -type f -mtime +$RETENTION_DAYS -delete
+CUTOFF=$(date -d "@$(( $(date +%s) - RETENTION_DAYS * 86400 ))" +%Y%m%d)
+for f in "$BACKUP_DIR"/prism_*.sql.gz; do
+  [ -e "$f" ] || continue
+  stamp=$(basename "$f" | sed -n 's/^prism_\([0-9]\{8\}\)_.*/\1/p')
+  [ -n "$stamp" ] || continue
+  if [ "$stamp" -lt "$CUTOFF" ]; then
+    rm -f "$f"
+  fi
+done
 
 # List current backups
 echo "[$(date)] Current backups:"
@@ -71,9 +91,16 @@ if [ -n "$RCLONE_REMOTE" ] && command -v rclone >/dev/null 2>&1; then
   # live under data/ (see src/lib/config/runtime.ts), NOT uploads/. The photo
   # cache (data/photos/cache) is regenerable on demand, so it is excluded.
   DATA_REMOTE="${RCLONE_REMOTE%/*}/data"
+  # NON-DESTRUCTIVE: user photos/avatars are irreplaceable, so a local loss must
+  # NOT wipe the off-site copy. --backup-dir moves any file that would be deleted
+  # or overwritten into a timestamped folder instead of removing it, so a
+  # deleted-locally photo is preserved off-site and recoverable. (A plain
+  # `rclone sync` mirrors deletions — which is exactly how a local photo loss
+  # once propagated to the backup and destroyed the safety net.)
+  DATA_ARCHIVE="${RCLONE_REMOTE%/*}/data-deleted/${TIMESTAMP}"
   if [ -d "/data" ] && [ "$(ls -A /data 2>/dev/null)" ]; then
-    echo "[$(date)] Syncing data directory to off-site storage: $DATA_REMOTE..."
-    if rclone sync /data "$DATA_REMOTE" --exclude 'photos/cache/**' --progress; then
+    echo "[$(date)] Syncing data directory to off-site storage: $DATA_REMOTE (preserving deletions to $DATA_ARCHIVE)..."
+    if rclone sync /data "$DATA_REMOTE" --exclude 'photos/cache/**' --backup-dir "$DATA_ARCHIVE" --progress; then
       echo "[$(date)] Data sync completed successfully"
     else
       echo "[$(date)] WARNING: Data off-site sync failed!"

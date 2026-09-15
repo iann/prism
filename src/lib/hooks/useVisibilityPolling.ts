@@ -13,13 +13,16 @@ import { usePollingInterval } from './usePollingInterval';
  *
  * @param callback - Function to call on each interval tick
  * @param intervalMs - Interval in milliseconds (0 or negative to disable)
+ * @param respectPerformanceMode - Whether to stretch the interval on weak hardware
  */
 export function useVisibilityPolling(
   callback: () => void | Promise<void>,
   intervalMs: number,
-  offsetMs = 0
+  offsetMs = 0,
+  respectPerformanceMode = true
 ): void {
-  const effectiveInterval = usePollingInterval(intervalMs);
+  const performanceInterval = usePollingInterval(intervalMs);
+  const effectiveInterval = respectPerformanceMode ? performanceInterval : intervalMs;
   const inFlightRef = useRef(false);
 
   useEffect(() => {

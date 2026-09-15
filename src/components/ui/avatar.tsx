@@ -32,6 +32,7 @@ import * as React from 'react';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { cn } from '@/lib/utils';
 import { contrastText } from '@/lib/utils/color';
+import { Emoji } from '@/components/ui/Emoji';
 
 
 /**
@@ -189,7 +190,7 @@ export function UserAvatar({
         )}
         style={color ? { backgroundColor: color } : { backgroundColor: 'hsl(var(--muted))' }}
       >
-        <span className="leading-none">{emoji}</span>
+        <span className="leading-none"><Emoji e={emoji} label={name} /></span>
       </div>
     );
   }

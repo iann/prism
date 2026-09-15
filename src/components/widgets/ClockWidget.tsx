@@ -3,8 +3,11 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
+import { useLocale } from 'next-intl';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTimeFormat } from '@/components/providers';
+import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import {
   getTodaysFamilyCelebrations,
   type BirthdayCelebrationRecord,
@@ -38,12 +41,17 @@ export function shouldShowClockGreeting(
 export const ClockWidget = React.memo(function ClockWidget({
   showGreeting = true,
   showSeconds = false,
-  format24Hour = false,
+  format24Hour,
   showDate = true,
   celebrations = [],
   size = 'medium',
   className,
 }: ClockWidgetProps) {
+  const { timeFormat: globalTimeFormat, displayTimezone } = useTimeFormat();
+  const locale = useLocale();
+  const effectiveTimeFormat = format24Hour === undefined
+    ? globalTimeFormat
+    : format24Hour ? '24h' : '12h';
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   useEffect(() => {
@@ -63,18 +71,16 @@ export const ClockWidget = React.memo(function ClockWidget({
     };
   }, [showSeconds]);
 
-  const timeFormat = format24Hour
-    ? showSeconds
-      ? 'HH:mm:ss'
-      : 'HH:mm'
-    : showSeconds
-      ? 'h:mm:ss a'
-      : 'h:mm a';
-
-  const dateFormat = 'EEEE, MMMM d';
-
-  const timeString = format(currentTime, timeFormat);
-  const dateString = format(currentTime, dateFormat);
+  const displayNow = toDisplayDate(currentTime, displayTimezone);
+  const timeString = formatDisplayTime(currentTime, effectiveTimeFormat, { showSeconds }, displayTimezone);
+  // Locale-aware, via Intl rather than a fixed date-fns pattern: word order
+  // differs per language ("Tuesday, January 21" vs "Dienstag, 21. Januar"), so
+  // a hardcoded pattern would render German words in US order.
+  const dateString = displayNow.toLocaleDateString(locale, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 
   const timeStyles = {
     small: 'text-3xl',
@@ -96,14 +102,18 @@ export const ClockWidget = React.memo(function ClockWidget({
       showHeader={false}
       className={cn('flex items-center justify-center', className)}
     >
-      <div className="flex h-full flex-col items-center justify-center text-center">
+      <div className="flex flex-col items-center justify-center h-full text-center">
         {shouldShowClockGreeting(showGreeting, currentTime, celebrations) && (
           <ClockGreeting date={currentTime} size={size} celebrations={celebrations} />
         )}
 
         <time
           dateTime={currentTime.toISOString()}
-          className={cn('font-bold tracking-tight', 'tabular-nums', timeStyles[size])}
+          className={cn(
+            'font-bold tracking-tight',
+            'tabular-nums',
+            timeStyles[size]
+          )}
         >
           {timeString}
         </time>
@@ -111,7 +121,10 @@ export const ClockWidget = React.memo(function ClockWidget({
         {showDate && (
           <time
             dateTime={currentTime.toISOString().split('T')[0]}
-            className={cn('mt-1 text-muted-foreground', dateStyles[size])}
+            className={cn(
+              'text-muted-foreground mt-1',
+              dateStyles[size]
+            )}
           >
             {dateString}
           </time>
@@ -143,12 +156,8 @@ export function formatTime(
   const { format24Hour = false, showSeconds = false } = options;
 
   const formatString = format24Hour
-    ? showSeconds
-      ? 'HH:mm:ss'
-      : 'HH:mm'
-    : showSeconds
-      ? 'h:mm:ss a'
-      : 'h:mm a';
+    ? showSeconds ? 'HH:mm:ss' : 'HH:mm'
+    : showSeconds ? 'h:mm:ss a' : 'h:mm a';
 
   return format(date, formatString);
 }

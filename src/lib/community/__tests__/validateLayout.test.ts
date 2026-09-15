@@ -349,11 +349,9 @@ describe('validateCommunityLayout', () => {
       expect(result.valid).toBe(false);
     });
 
-    it('requires at least one screenSize for community submission', () => {
-      const result = validateCommunityLayout(makeLayout({ screenSizes: [] }), {
-        communitySubmission: true,
-      });
-      expect(result.valid).toBe(false);
+    it('no longer requires a screenSize for community submission (layouts stretch to any screen)', () => {
+      const result = validateCommunityLayout(makeLayout({ screenSizes: [] }), { communitySubmission: true });
+      expect(result.valid).toBe(true);
     });
 
     it('requires orientation for community submission', () => {

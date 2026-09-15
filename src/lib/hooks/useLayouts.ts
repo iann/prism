@@ -35,6 +35,11 @@ export interface Layout {
   screensaverWidgets: WidgetConfig[] | null;
   orientation: string;
   fontScale: number | null;
+  floatingCardSettings?: {
+    mediaPlayerPlayback?: { enabled: boolean };
+    /** Legacy key retained for layouts saved before the media-player rename. */
+    appleTvPlayback?: { enabled: boolean };
+  };
   createdBy?: string;
   createdAt: string;
   updatedAt: string;

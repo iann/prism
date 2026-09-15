@@ -21,14 +21,17 @@
  */
 
 'use client';
+import { Emoji } from '@/components/ui/Emoji';
 
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { scopedHref, isNavActive } from '@/lib/utils/dashboardScope';
 import { HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PrismIcon } from '@/components/ui/PrismIcon';
+import { useTranslations } from 'next-intl';
 import { ALL_NAV_ITEMS } from '@/lib/constants/navItems';
 import { useHiddenPages } from '@/lib/hooks/useHiddenPages';
 import { contrastText } from '@/lib/utils/color';
@@ -77,6 +80,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
   const pathname = usePathname();
   const { filterNavItems } = useHiddenPages();
   const navItems = filterNavItems(ALL_NAV_ITEMS);
+  const t = useTranslations('common');
   const [expanded, setExpanded] = React.useState(false);
   const asideRef = React.useRef<HTMLElement>(null);
 
@@ -102,12 +106,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
   }, [pathname]);
 
   // Check if a nav item is active
-  const isActive = (href: string) => {
-    if (href === '/') {
-      return pathname === '/';
-    }
-    return pathname.startsWith(href);
-  };
+  const isActive = (href: string) => isNavActive(href, pathname);
 
   // Toggle drawer on tap in blank area — skip if clicking a link or button
   const handleAsideClick = (e: React.MouseEvent) => {
@@ -123,18 +122,21 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
         ref={asideRef}
         onClick={handleAsideClick}
         className={cn(
-          'fixed left-0 top-0 z-40 h-screen',
-          'bg-card dark:bg-card/95',
+          'wall-side-nav',
+          'fixed left-0 top-0 z-40 h-[var(--app-vh,100vh)]',
+          'bg-card',
+          'border-r border-border/45',
           'flex flex-col',
           'transition-[transform,opacity,width] duration-300 ease-in-out',
-          expanded ? 'w-52 shadow-xl' : 'w-16',
+          expanded && 'wall-side-nav-expanded',
+          expanded ? 'w-52 shadow-lg' : 'w-16',
           uiHidden ? '-translate-x-full opacity-0 delay-100' : 'translate-x-0 opacity-100 delay-0',
           className
         )}
       >
         {/* HEADER WITH LOGO */}
         <div className={cn('flex items-center h-12 [@media(pointer:coarse)]:h-16 px-2', expanded ? 'justify-start' : 'justify-center')}>
-          <Link href="/" prefetch={false} className="flex items-center gap-2" aria-label="Prism home">
+          <Link href={scopedHref('/', pathname)} prefetch={false} className="flex items-center gap-2" aria-label="Prism home">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
               <PrismIcon size={24} />
             </div>
@@ -152,23 +154,26 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
               return (
                 <li key={item.href}>
                   <Link
-                    href={item.href}
+                    href={scopedHref(item.href, pathname)}
                     prefetch={false}
-                    aria-label={item.label}
+                    aria-label={t(item.i18nKey)}
                     className={cn(
+                      'wall-nav-item',
+                      active && 'wall-nav-item-active',
+                      expanded && 'wall-nav-item-expanded',
                       'flex items-center gap-3 px-3 py-1.5 [@media(pointer:coarse)]:py-2.5 rounded-lg',
                       'text-sm font-medium',
                       'transition-colors duration-200',
                       'touch-target',
                       active
-                        ? 'bg-seasonal-accent text-seasonal-accent-foreground'
+                        ? 'bg-accent text-accent-foreground'
                         : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                       expanded ? 'justify-start' : 'justify-center'
                     )}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                    <Icon className="wall-nav-icon h-5 w-5 flex-shrink-0" aria-hidden="true" />
                     {expanded && <span className="whitespace-nowrap">
-                      {item.label}
+                      {t(item.i18nKey)}
                     </span>}
                   </Link>
                 </li>
@@ -184,6 +189,8 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
             prefetch={false}
             aria-label="Help"
             className={cn(
+              'wall-nav-item wall-help-item',
+              expanded && 'wall-nav-item-expanded',
               'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
               expanded ? 'justify-start' : 'justify-center'
             )}
@@ -198,6 +205,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
           <button
             onClick={user ? onLogout : onLogin}
             className={cn(
+              'wall-user-button',
               'flex items-center gap-3 px-3 py-1.5 [@media(pointer:coarse)]:py-2.5 rounded-lg w-full',
               'text-sm font-medium',
               'transition-colors duration-200',
@@ -214,7 +222,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                   style={{ backgroundColor: user.color || '#6B7280', color: contrastText(user.color || '#6B7280') }}
                 >
                   {user.avatarUrl?.startsWith('emoji:') ? (
-                    <span className="text-lg">{user.avatarUrl.slice(6)}</span>
+                    <span className="text-lg"><Emoji e={user.avatarUrl.slice(6)} /></span>
                   ) : user.avatarUrl ? (
                     <Image
                       src={user.avatarUrl}
@@ -233,7 +241,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
               </>
             ) : (
               <>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-red-500/10 border-2 border-dashed border-red-500 flex-shrink-0">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-destructive/10 border-2 border-dashed border-destructive flex-shrink-0">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
@@ -244,13 +252,13 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="text-red-500"
+                    className="text-destructive"
                   >
                     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
                   </svg>
                 </div>
-                {expanded && <span className="whitespace-nowrap text-red-500">
+                {expanded && <span className="whitespace-nowrap text-destructive">
                   Log in
                 </span>}
               </>

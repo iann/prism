@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useMemo, useCallback, useState, lazy, Suspense } from 'react';
+import { useMemo, useCallback, useState, useContext, lazy, Suspense } from 'react';
 import {
   format,
   isToday,
@@ -22,18 +22,26 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { Calendar, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { Calendar, Loader2, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { isLightColor } from '@/lib/utils/color';
 import { deduplicateEvents } from '@/lib/utils/calendarDedup';
 import { WidgetContainer, useWidgetBgOverride } from './WidgetContainer';
 import { useCalendarEvents, useCalendarFilter, useCalendarNotes } from '@/lib/hooks';
+import { useDateLabels } from '@/lib/hooks/useDateLabels';
 import { useDayBucketsForRange } from '@/lib/hooks/useDayBucketsForRange';
 import { useWeekMutations } from '@/lib/hooks/useWeekMutations';
 import { useAuth } from '@/components/providers';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
-import { useCalendarWidgetPrefs, VIEW_OPTIONS } from '@/lib/hooks/useCalendarWidgetPrefs';
+import {
+  useCalendarWidgetPrefs,
+  VIEW_OPTIONS,
+  CalendarPrefsScopeContext,
+} from '@/lib/hooks/useCalendarWidgetPrefs';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
+import { useCalendarSyncHealth } from '@/lib/hooks/useCalendarSyncHealth';
 import { CalendarWidgetControls } from './CalendarWidgetControls';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Chore, Meal, Task } from '@/types';
@@ -102,6 +110,8 @@ export const CalendarWidget = React.memo(function CalendarWidget({
 }: CalendarWidgetProps) {
   const { activeUser } = useAuth();
   const { uiHidden } = useAutoHideUI();
+  const t = useTranslations('calendar');
+  const formatDayHeader = useDayHeaderFormatter();
   const { weekStartsOn } = useWeekStartsOn();
   const bgOverride = useWidgetBgOverride();
   const transparentMode = bgOverride?.hasCustomBg === true;
@@ -131,7 +141,12 @@ export const CalendarWidget = React.memo(function CalendarWidget({
     goToToday,
     goToPrevious,
     goToNext,
-  } = useCalendarWidgetPrefs(gridW, gridH, instanceId);
+  } = useCalendarWidgetPrefs(
+    gridW,
+    gridH,
+    instanceId,
+    useContext(CalendarPrefsScopeContext)
+  );
 
   const hasExternalEvents = externalEvents !== undefined;
   const {
@@ -142,6 +157,16 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   } = useCalendarEvents({
     daysToShow: 60,
     enabled: !hasExternalEvents,
+  });
+  // Sync stopping is worth knowing about from across the room — a stale
+  // calendar looks exactly like a quiet week. Not on the screensaver, though:
+  // nobody is standing at it, and the badge would just be a permanent blemish
+  // on the wallpaper. The screensaver renders its own copy of this widget over
+  // a still-mounted dashboard, so switching the check off here also keeps that
+  // copy from doubling the polling for a badge it will never draw.
+  const prefsScope = useContext(CalendarPrefsScopeContext);
+  const { needsReauth, stalled: syncPaused } = useCalendarSyncHealth({
+    enabled: prefsScope !== 'screensaver',
   });
   const { selectedCalendarIds, toggleCalendar, filterEvents, calendarGroups } = useCalendarFilter();
 
@@ -181,8 +206,9 @@ export const CalendarWidget = React.memo(function CalendarWidget({
         to: endOfWeek(monthEnd, { weekStartsOn }),
       };
     }
-    // agenda — 14 day window
-    return { from: currentDate, to: addDays(currentDate, 13) };
+    // agenda — 30 day window (matches AgendaView days below, so cards-mode
+    // meal/chore/task overlays are loaded for every day the agenda shows)
+    return { from: currentDate, to: addDays(currentDate, 29) };
   }, [resolvedView, resolvedWeekCount, currentDate, weekStartsOn]);
 
   const overlaysActive = cardsMode;
@@ -265,7 +291,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
         await moveEvent(itemId, ev.startTime, ev.endTime, targetBucket.date);
       }
     } catch (err) {
-      setMoveError(err instanceof Error ? err.message : 'Failed to move item');
+      setMoveError(err instanceof Error ? err.message : t('errors.moveFailed'));
     }
   };
 
@@ -299,13 +325,12 @@ export const CalendarWidget = React.memo(function CalendarWidget({
     (resolvedView === 'day' || resolvedView === 'list') && calendarGroups.length > 1;
 
   // Calendar filter chips
-  const calendarChips =
-    calendarGroups.length > 0 ? (
-      <div className="-mt-1 flex flex-wrap items-center gap-1 px-3 pb-2">
+  const calendarChips = calendarGroups.length > 0 ? (
+    <div className="wall-calendar-chips -mt-1 flex flex-wrap items-center gap-1 px-3 pb-2">
         <button
           onClick={() => toggleCalendar('all')}
           className={cn(
-            'rounded-full px-2 py-1 text-[12px] font-medium leading-none transition-colors',
+            'touch-target rounded-full px-3 py-2 text-[14px] font-medium leading-none transition-colors',
             selectedCalendarIds.has('all')
               ? 'bg-primary text-primary-foreground'
               : transparentMode
@@ -313,26 +338,30 @@ export const CalendarWidget = React.memo(function CalendarWidget({
                 : 'bg-muted text-muted-foreground hover:bg-accent'
           )}
         >
-          All
+          {t('toolbar.all')}
         </button>
         {calendarGroups.map((group) => (
           <button
             key={group.id}
             onClick={() => toggleCalendar(group.id)}
             className={cn(
-              'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[12px] font-medium leading-none transition-colors',
+              'wall-family-chip touch-target inline-flex items-center gap-1 rounded-full px-3 py-2 text-[14px] font-medium leading-none transition-colors',
               selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
-                ? isLightColor(group.color)
-                  ? '!text-black'
-                  : '!text-white'
+                ? cn(
+                    'wall-family-chip-active',
+                    isLightColor(group.color) ? '!text-black' : '!text-white',
+                  )
                 : transparentMode
                   ? 'text-current hover:text-current'
                   : 'bg-muted text-muted-foreground hover:bg-accent'
             )}
             style={
-              selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
-                ? { backgroundColor: group.color }
-                : undefined
+              {
+                '--wall-family-color': group.color,
+                ...(selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
+                  ? { backgroundColor: group.color }
+                  : {}),
+              } as React.CSSProperties
             }
           >
             <span
@@ -354,7 +383,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
 
   return (
     <WidgetContainer
-      title="Calendar"
+      title={t('title')}
       titleHref={titleHref}
       icon={<Calendar className="h-4 w-4" />}
       size="large"
@@ -392,9 +421,22 @@ export const CalendarWidget = React.memo(function CalendarWidget({
       className={className}
     >
       {!uiHidden && calendarChips}
+      {syncPaused && (
+        <Link
+          href="/calendar?manage=calendars"
+          className="flex items-center justify-center gap-1 text-[10px] text-warning py-1 bg-warning/10 rounded mb-1 hover:bg-warning/20"
+          title="Sync has stopped for one or more calendars — reconnect to resume"
+        >
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          {needsReauth === 1 ? 'Sync paused — reconnect' : `Sync paused on ${needsReauth} calendars — reconnect`}
+        </Link>
+      )}
+
       {viewUnavailable && (
         <div className="mb-1 rounded bg-muted/50 py-1 text-center text-[12px] text-muted-foreground">
-          Resize widget for {VIEW_OPTIONS.find((v) => v.value === viewType)?.label} view
+          {t('toolbar.resizeForView', {
+            view: t(`views.${VIEW_OPTIONS.find((v) => v.value === viewType)?.labelKey ?? 'agenda'}`),
+          })}
         </div>
       )}
 
@@ -425,8 +467,12 @@ export const CalendarWidget = React.memo(function CalendarWidget({
             {resolvedView === 'agenda' && (
               <AgendaView
                 events={visibleEvents}
-                days={14}
-                maxEventsPerDay={5}
+                days={30}
+                // Agenda is a scrollable list — show every event for each day
+                // rather than truncating to a "+N more" summary (0 = no cap).
+                // 30-day window matches the calendar subpage; empty days are
+                // skipped, so a longer horizon just shows more of your events.
+                maxEventsPerDay={0}
                 onEventClick={handleEventClick}
                 displayMode={displayMode}
                 bucketsByDate={overlaysActive ? bucketsByDate : undefined}
@@ -525,9 +571,13 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   );
 });
 
-function formatDayHeader(date: Date): string {
-  const dayName = format(date, 'EEEE, MMMM d, yyyy');
-  if (isToday(date)) return `Today - ${dayName}`;
-  if (isTomorrow(date)) return `Tomorrow - ${dayName}`;
-  return dayName;
+function useDayHeaderFormatter(): (date: Date) => string {
+  const t = useTranslations('calendar');
+  const d = useDateLabels();
+  return (date: Date) => {
+    const dayName = d.fullDate(date);
+    if (isToday(date)) return t('dayHeader', { label: t('today'), date: dayName });
+    if (isTomorrow(date)) return t('dayHeader', { label: t('tomorrow'), date: dayName });
+    return dayName;
+  };
 }

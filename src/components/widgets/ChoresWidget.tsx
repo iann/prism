@@ -25,6 +25,7 @@
 'use client';
 
 import * as React from 'react';
+import { Emoji } from '@/components/ui/Emoji';
 import { useState, useMemo, useCallback } from 'react';
 import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { ClipboardList, Plus, AlertCircle, CheckCircle, Clock, Hourglass } from 'lucide-react';
@@ -230,7 +231,7 @@ function ChoreItem({
         'flex items-start gap-3 p-2 rounded-lg',
         'hover:bg-accent/50 transition-colors',
         'touch-action-manipulation',
-        isPendingApproval && 'bg-amber-500/10 border border-amber-500/30'
+        isPendingApproval && 'bg-warning/10 border border-warning/30'
       )}
     >
       {/* Complete button — stops propagation so the row click doesn't also
@@ -243,7 +244,7 @@ function ChoreItem({
         className={cn(
           'h-8 w-8 shrink-0',
           isOverdue && !isPendingApproval && 'text-destructive hover:text-destructive',
-          isPendingApproval && 'text-amber-700 dark:text-amber-300'
+          isPendingApproval && 'text-warning'
         )}
         title={isPendingApproval ? 'Pending approval - click to complete or approve' : 'Mark as complete'}
         aria-label={isPendingApproval ? 'Pending approval' : 'Mark as complete'}
@@ -267,12 +268,12 @@ function ChoreItem({
       >
         <div className="flex items-center gap-2">
           {/* Category emoji */}
-          <span className="text-base">{categoryEmoji}</span>
+          <span className="text-base"><Emoji e={categoryEmoji} /></span>
 
           {/* Title */}
           <span className={cn(
             'text-sm font-medium truncate',
-            isPendingApproval && 'text-amber-800 dark:text-amber-300'
+            isPendingApproval && 'text-warning'
           )}>{chore.title}</span>
 
           {/* Points badge */}
@@ -284,7 +285,7 @@ function ChoreItem({
 
           {/* Pending approval badge - takes priority over "requires approval" */}
           {isPendingApproval ? (
-            <Badge variant="warning" className="text-[12px] px-1.5 py-0">
+            <Badge variant="default" className="text-[12px] px-1.5 py-0 bg-warning hover:bg-warning">
               Pending
             </Badge>
           ) : chore.requiresApproval && (
@@ -305,7 +306,7 @@ function ChoreItem({
                 size="sm"
                 className="h-4 w-4 text-[8px]"
               />
-              <span className="text-xs text-amber-800 dark:text-amber-300">
+              <span className="text-xs text-warning">
                 Done by {chore.pendingApproval.completedBy.name}
               </span>
             </div>

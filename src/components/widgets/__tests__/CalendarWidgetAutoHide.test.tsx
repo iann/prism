@@ -17,10 +17,14 @@ jest.mock('@/lib/hooks', () => ({
   useCalendarNotes: jest.fn(),
 }));
 
-jest.mock('@/lib/hooks/useCalendarWidgetPrefs', () => ({
-  useCalendarWidgetPrefs: jest.fn(),
-  VIEW_OPTIONS: [],
-}));
+jest.mock('@/lib/hooks/useCalendarWidgetPrefs', () => {
+  const actual = jest.requireActual('@/lib/hooks/useCalendarWidgetPrefs');
+  return {
+    ...actual,
+    useCalendarWidgetPrefs: jest.fn(),
+    VIEW_OPTIONS: [],
+  };
+});
 
 jest.mock('@/lib/hooks/useDayBucketsForRange', () => ({
   useDayBucketsForRange: jest.fn(),

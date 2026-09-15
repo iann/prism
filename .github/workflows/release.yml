@@ -53,7 +53,7 @@ jobs:
             runner: ubuntu-24.04-arm
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Extract tag + version
         id: ver
@@ -94,6 +94,7 @@ jobs:
           build-args: |
             PRISM_REF=${{ steps.ver.outputs.tag }}
             PRISM_BUILD_ID=${{ github.sha }}
+            PRISM_TELEMETRY_URL=https://prism-telemetry.sandydargoport.workers.dev
           push: true
           tags: |
             ghcr.io/sandydargoport/prism-ha-${{ matrix.arch }}:${{ steps.ver.outputs.version }}

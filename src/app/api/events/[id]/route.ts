@@ -16,11 +16,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireRole } from '@/lib/auth';
+import { patchEventSchema, validateRequest } from '@/lib/validations';
 import { db } from '@/lib/db/client';
 import { events, calendarSources, dismissedEvents } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { invalidateEntity } from '@/lib/cache/cacheKeys';
-import { updateCalendarEvent, deleteCalendarEvent, refreshAccessToken } from '@/lib/integrations/google-calendar';
+import { updateCalendarEvent, deleteCalendarEvent, createCalendarEvent, moveCalendarEvent, refreshAccessToken, toGoogleAllDayRange } from '@/lib/integrations/google-calendar';
 import { pushCalDAVEventDelete } from '@/lib/services/calendar-sync';
 import { decrypt, encrypt } from '@/lib/utils/crypto';
 import { logActivity } from '@/lib/services/auditLog';
@@ -29,6 +30,70 @@ import { logError } from '@/lib/utils/logError';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+type CalendarSourceRow = typeof calendarSources.$inferSelect;
+
+/**
+ * Decrypt a Google source's access token, refreshing and persisting it when
+ * expired. Callers pre-check accessToken/refreshToken presence so the 401
+ * responses stay consistent with the rest of this route.
+ */
+async function ensureFreshGoogleToken(source: CalendarSourceRow): Promise<string> {
+  let accessToken = decrypt(source.accessToken!);
+
+  if (source.tokenExpiresAt && source.tokenExpiresAt <= new Date() && source.refreshToken) {
+    const newTokens = await refreshAccessToken(decrypt(source.refreshToken));
+    accessToken = newTokens.access_token;
+
+    await db
+      .update(calendarSources)
+      .set({
+        accessToken: encrypt(newTokens.access_token),
+        refreshToken: newTokens.refresh_token ? encrypt(newTokens.refresh_token) : source.refreshToken,
+        tokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
+        updatedAt: new Date(),
+      })
+      .where(eq(calendarSources.id, source.id));
+  }
+
+  return accessToken;
+}
+
+/**
+ * Build the Google event patch from the fields this request actually carries.
+ * A clear has to travel as an empty string — Google reads a missing key as
+ * "leave it alone", so sending undefined cleared the field locally and let the
+ * next sync pull the old text straight back. Returns null when nothing
+ * Google-visible changed.
+ */
+function buildGoogleFieldUpdate(
+  body: Record<string, unknown>,
+  effTitle: string,
+  effDesc: string | null | undefined,
+  effLoc: string | null | undefined,
+  effStart: Date,
+  effEnd: Date,
+  effAllDay: boolean
+): Record<string, unknown> | null {
+  const googleUpdate: Record<string, unknown> = {};
+
+  if ('title' in body) googleUpdate.summary = effTitle;
+  if ('description' in body) googleUpdate.description = effDesc ?? '';
+  if ('location' in body) googleUpdate.location = effLoc ?? '';
+
+  if ('startTime' in body || 'endTime' in body || 'allDay' in body) {
+    if (effAllDay) {
+      const range = toGoogleAllDayRange(effStart, effEnd);
+      googleUpdate.start = range.start;
+      googleUpdate.end = range.end;
+    } else {
+      googleUpdate.start = { dateTime: effStart.toISOString() };
+      googleUpdate.end = { dateTime: effEnd.toISOString() };
+    }
+  }
+
+  return Object.keys(googleUpdate).length > 0 ? googleUpdate : null;
 }
 
 
@@ -132,9 +197,10 @@ export async function GET(
  * }
  *
  * SYNC NOTE:
- * If this event has an externalEventId (synced from external calendar),
- * the changes should be pushed to the external calendar.
- * This would be handled by a separate sync service.
+ * Google events push their edits upstream. Calendar reassignment is followed
+ * too: switching an event onto a Google calendar creates it there, switching
+ * between Google calendars moves it, and switching away from Google deletes
+ * the upstream copy (tombstoned so the sync won't re-import it).
  */
 export async function PATCH(
   request: NextRequest,
@@ -178,6 +244,17 @@ export async function PATCH(
       existingEvent.createdBy === auth.userId ? 'canEditOwnEvent' : 'canEditAnyEvent'
     );
     if (canEdit) return canEdit;
+
+    // Until now PATCH validated title, the two dates and color by hand and let
+    // everything else through untouched, so description and location had no
+    // length bound at all: `updateEventSchema` existed and was never imported.
+    const validation = validateRequest(patchEventSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.error.issues },
+        { status: 400 }
+      );
+    }
 
     // Build update object
     const updateData: Record<string, unknown> = {
@@ -250,10 +327,12 @@ export async function PATCH(
       updateData.reminderMinutes = body.reminderMinutes;
     }
 
+    let reassignedSource: CalendarSourceRow | null = null;
+
     if ('calendarSourceId' in body) {
       if (body.calendarSourceId) {
         const [calendar] = await db
-          .select({ id: calendarSources.id })
+          .select()
           .from(calendarSources)
           .where(eq(calendarSources.id, body.calendarSourceId));
 
@@ -263,85 +342,205 @@ export async function PATCH(
             { status: 400 }
           );
         }
+        reassignedSource = calendar;
       }
       updateData.calendarSourceId = body.calendarSourceId || null;
     }
 
-    // If event is linked to a Google Calendar, push updates to Google
-    if (existingEvent.calendarSourceId && existingEvent.externalEventId) {
-      const [calendarSource] = await db
+    // POST refuses an end before its start; PATCH did not, so moving one edge
+    // of an existing event could invert it. Compare against what the event will
+    // actually be, not only against what this request carries.
+    const effectiveStart = (updateData.startTime as Date | undefined) ?? existingEvent.startTime;
+    const effectiveEnd = (updateData.endTime as Date | undefined) ?? existingEvent.endTime;
+    if (effectiveEnd < effectiveStart) {
+      return NextResponse.json(
+        { error: 'End time must be after start time' },
+        { status: 400 }
+      );
+    }
+
+    // Google is the only provider with a write path from this route. An event
+    // on any other synced calendar changes locally and nowhere else, so the next
+    // sync pulls the original back and the edit vanishes with no explanation.
+    // Say so at save time rather than letting it silently revert.
+    //
+    // Wiring the CalDAV writeback in here is its own piece of work: the endpoint
+    // at /api/caldav/events/[sourceId] rebuilds the VEVENT from uid, summary,
+    // description, location and dates alone, which would strip alarms,
+    // attendees and recurrence rules off a shared event.
+    let localOnlyWarning: string | null = null;
+
+    // Resolve which calendar the event lives on before and after this request,
+    // so a reassignment can follow the event upstream: switching onto a Google
+    // calendar creates it there, switching between Google calendars moves it,
+    // and switching away from Google deletes it there — otherwise the next
+    // sync re-imports the stale copy as a duplicate.
+    const oldSourceId = existingEvent.calendarSourceId;
+    const newSourceId = 'calendarSourceId' in body ? (body.calendarSourceId || null) : oldSourceId;
+    const reassigning = newSourceId !== oldSourceId;
+
+    let oldSource: CalendarSourceRow | null = null;
+    if (oldSourceId) {
+      const [row] = await db
         .select()
         .from(calendarSources)
-        .where(eq(calendarSources.id, existingEvent.calendarSourceId));
+        .where(eq(calendarSources.id, oldSourceId));
+      oldSource = row ?? null;
+    }
+    const targetSource = reassigning ? reassignedSource : oldSource;
 
-      if (calendarSource?.provider === 'google' && calendarSource.accessToken) {
-        try {
-          let accessToken = decrypt(calendarSource.accessToken);
-
-          // Check if token needs refresh
-          if (calendarSource.tokenExpiresAt && calendarSource.tokenExpiresAt <= new Date()) {
-            if (!calendarSource.refreshToken) {
-              return NextResponse.json(
-                { error: 'Google Calendar token expired. Please re-authenticate.' },
-                { status: 401 }
-              );
-            }
-            const refreshToken = decrypt(calendarSource.refreshToken);
-            const newTokens = await refreshAccessToken(refreshToken);
-            accessToken = newTokens.access_token;
-
-            // Update stored tokens
-            await db
-              .update(calendarSources)
-              .set({
-                accessToken: encrypt(newTokens.access_token),
-                refreshToken: newTokens.refresh_token ? encrypt(newTokens.refresh_token) : calendarSource.refreshToken,
-                tokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
-                updatedAt: new Date(),
-              })
-              .where(eq(calendarSources.id, existingEvent.calendarSourceId));
-          }
-
-          // Build Google Calendar update payload
-          const googleUpdate: Record<string, unknown> = {};
-          const newTitle = updateData.title as string | undefined;
-          const newDesc = updateData.description as string | null | undefined;
-          const newLoc = updateData.location as string | null | undefined;
-          const newStart = updateData.startTime as Date | undefined;
-          const newEnd = updateData.endTime as Date | undefined;
-          const newAllDay = updateData.allDay as boolean | undefined;
-
-          if (newTitle !== undefined) googleUpdate.summary = newTitle;
-          if (newDesc !== undefined) googleUpdate.description = newDesc || undefined;
-          if (newLoc !== undefined) googleUpdate.location = newLoc || undefined;
-
-          // Handle date/time updates
-          const finalAllDay = newAllDay !== undefined ? newAllDay : existingEvent.allDay;
-          const finalStart = newStart || existingEvent.startTime;
-          const finalEnd = newEnd || existingEvent.endTime;
-
-          if (newStart !== undefined || newEnd !== undefined || newAllDay !== undefined) {
-            if (finalAllDay) {
-              googleUpdate.start = { date: finalStart.toISOString().split('T')[0] };
-              googleUpdate.end = { date: finalEnd.toISOString().split('T')[0] };
-            } else {
-              googleUpdate.start = { dateTime: finalStart.toISOString() };
-              googleUpdate.end = { dateTime: finalEnd.toISOString() };
-            }
-          }
-
-          // Update on Google Calendar
-          await updateCalendarEvent(
-            accessToken,
-            calendarSource.sourceCalendarId,
-            existingEvent.externalEventId,
-            googleUpdate
-          );
-        } catch (error) {
-          logError('Failed to update event on Google Calendar:', error);
-          // Continue with local update even if Google fails
-        }
+    if (targetSource?.provider === 'google') {
+      if (!targetSource.accessToken) {
+        return NextResponse.json(
+          { error: 'Google Calendar is not authenticated. Reconnect it before editing this event.' },
+          { status: 401 }
+        );
       }
+      if (targetSource.tokenExpiresAt && targetSource.tokenExpiresAt <= new Date() && !targetSource.refreshToken) {
+        return NextResponse.json(
+          { error: 'Google Calendar token expired. Please re-authenticate.' },
+          { status: 401 }
+        );
+      }
+
+      try {
+        const accessToken = await ensureFreshGoogleToken(targetSource);
+
+        // The field values the event will have once this PATCH applies.
+        const effTitle = (updateData.title as string | undefined) ?? existingEvent.title;
+        // Read the nullable fields by presence in the body, not with ??. A
+        // clear stores null, and `null ?? existingEvent.description` falls
+        // back to the old text — so the clear saved locally but the previous
+        // value went up to Google, and the next sync pulled it straight back.
+        // That is the bug the empty-string rule below exists to prevent.
+        const effDesc = 'description' in body
+          ? (updateData.description as string | null)
+          : existingEvent.description;
+        const effLoc = 'location' in body
+          ? (updateData.location as string | null)
+          : existingEvent.location;
+        const effStart = (updateData.startTime as Date | undefined) ?? existingEvent.startTime;
+        const effEnd = (updateData.endTime as Date | undefined) ?? existingEvent.endTime;
+        const effAllDay = (updateData.allDay as boolean | undefined) ?? existingEvent.allDay;
+
+        // A create is needed when the event never went external, or when its
+        // external id belongs to a non-Google source (an iCal/CalDAV id that
+        // Google knows nothing about).
+        const needsCreate =
+          !existingEvent.externalEventId ||
+          (reassigning && oldSource?.provider !== 'google');
+
+        if (needsCreate) {
+          const allDayRange = effAllDay ? toGoogleAllDayRange(effStart, effEnd) : null;
+          const created = await createCalendarEvent(
+            accessToken,
+            targetSource.sourceCalendarId,
+            {
+              summary: effTitle,
+              description: effDesc?.trim() || undefined,
+              location: effLoc?.trim() || undefined,
+              start: effAllDay ? allDayRange!.start : { dateTime: effStart.toISOString() },
+              end: effAllDay ? allDayRange!.end : { dateTime: effEnd.toISOString() },
+            }
+          );
+          updateData.externalEventId = created.id;
+
+          // The row no longer references its old synced source, so that
+          // source's next pull would re-import the very same event as a new
+          // row. Tombstone the old identity to keep it out.
+          if (reassigning && oldSource && existingEvent.externalEventId) {
+            await db
+              .insert(dismissedEvents)
+              .values({
+                calendarSourceId: oldSource.id,
+                externalEventId: existingEvent.externalEventId,
+              })
+              .onConflictDoNothing();
+          }
+        } else if (reassigning && oldSource?.provider === 'google') {
+          // Google → Google: a move keeps the event id, then any field edits
+          // from this request are applied on the destination calendar.
+          const oldToken = oldSource.accessToken
+            ? await ensureFreshGoogleToken(oldSource)
+            : accessToken;
+          await moveCalendarEvent(
+            oldToken,
+            oldSource.sourceCalendarId,
+            existingEvent.externalEventId!,
+            targetSource.sourceCalendarId
+          );
+
+          const googleUpdate = buildGoogleFieldUpdate(body, effTitle, effDesc, effLoc, effStart, effEnd, effAllDay);
+          if (googleUpdate) {
+            await updateCalendarEvent(
+              accessToken,
+              targetSource.sourceCalendarId,
+              existingEvent.externalEventId!,
+              googleUpdate
+            );
+          }
+        } else if (existingEvent.externalEventId) {
+          // Same Google calendar as before: push the field changes.
+          const googleUpdate = buildGoogleFieldUpdate(body, effTitle, effDesc, effLoc, effStart, effEnd, effAllDay);
+          if (googleUpdate) {
+            await updateCalendarEvent(
+              accessToken,
+              targetSource.sourceCalendarId,
+              existingEvent.externalEventId,
+              googleUpdate
+            );
+          }
+        }
+      } catch (error) {
+        logError('Failed to update event on Google Calendar:', error);
+
+        // Google will not move one occurrence of a repeating event, and the
+        // rows here are occurrences: sync expands series with
+        // singleEvents: true, so externalEventId is an instance id. Google
+        // answers 400 cannotChangeOrganizerOfInstance. Say what happened,
+        // because the generic message below sends people looking at tokens
+        // and permissions for something no retry can fix.
+        if (error instanceof Error && error.message.includes('cannotChangeOrganizerOfInstance')) {
+          return NextResponse.json(
+            {
+              error:
+                'Google does not allow moving a single occurrence of a repeating event to another calendar. Move the whole series in Google Calendar instead.',
+            },
+            { status: 400 }
+          );
+        }
+
+        return NextResponse.json(
+          {
+            error: 'Google Calendar could not be updated. Your local event was left unchanged.',
+          },
+          { status: 502 }
+        );
+      }
+    } else if (reassigning && oldSource?.provider === 'google' && existingEvent.externalEventId) {
+      // Google → local/other: remove the upstream copy so the next sync does
+      // not re-import it as a duplicate. Best-effort like DELETE — the
+      // tombstone keeps the removal sticky even when Google is unreachable.
+      try {
+        if (oldSource.accessToken) {
+          const oldToken = await ensureFreshGoogleToken(oldSource);
+          await deleteCalendarEvent(oldToken, oldSource.sourceCalendarId, existingEvent.externalEventId);
+        }
+      } catch (error) {
+        logError('Failed to delete event from Google Calendar during reassignment:', error);
+      }
+
+      await db
+        .insert(dismissedEvents)
+        .values({
+          calendarSourceId: oldSource.id,
+          externalEventId: existingEvent.externalEventId,
+        })
+        .onConflictDoNothing();
+      updateData.externalEventId = null;
+    } else if (!reassigning && oldSource && oldSource.provider !== 'google' && existingEvent.externalEventId) {
+      localOnlyWarning =
+        'Prism cannot write to this calendar. The change is saved here, but the next sync will replace it with the version from that calendar.';
     }
 
     // Execute update
@@ -415,6 +614,7 @@ export async function PATCH(
         : null,
       createdAt: updatedEvent.createdAt.toISOString(),
       updatedAt: updatedEvent.updatedAt.toISOString(),
+      ...(localOnlyWarning ? { warning: localOnlyWarning } : {}),
     });
   } catch (error) {
     logError('Error updating event:', error);

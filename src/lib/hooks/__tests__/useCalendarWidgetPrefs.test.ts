@@ -3,14 +3,29 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
+import * as React from 'react';
+import { TimeFormatProvider } from '@/components/providers';
 import { useCalendarWidgetPrefs } from '../useCalendarWidgetPrefs';
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(TimeFormatProvider, null, children);
+
+beforeAll(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve({ settings: {} }) }),
+  ) as unknown as typeof fetch;
+});
+
+afterAll(() => {
+  delete (global as { fetch?: unknown }).fetch;
+});
 
 describe('useCalendarWidgetPrefs', () => {
   beforeEach(() => localStorage.clear());
 
   it('isolates view preferences by calendar instance', () => {
-    const first = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar'));
-    const second = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar-2'));
+    const first = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar'), { wrapper });
+    const second = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar-2'), { wrapper });
 
     act(() => first.result.current.setViewType('multiWeek4'));
     act(() => second.result.current.setViewType('day'));
@@ -26,21 +41,21 @@ describe('useCalendarWidgetPrefs', () => {
 
   it('retains the legacy key for the original calendar instance', () => {
     localStorage.setItem('prism-calendar-view', 'multiWeek4');
-    const hook = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar'));
+    const hook = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar'), { wrapper });
     expect(hook.result.current.viewType).toBe('multiWeek4');
   });
 
   it('uses the legacy namespace when no instance ID is supplied', () => {
     localStorage.setItem('prism-calendar-display-mode', 'cards');
-    const hook = renderHook(() => useCalendarWidgetPrefs(48, 48));
+    const hook = renderHook(() => useCalendarWidgetPrefs(48, 48), { wrapper });
 
     expect(hook.result.current.displayMode).toBe('cards');
     expect(localStorage.getItem('prism-calendar-display-mode')).toBe('cards');
   });
 
   it('isolates every persisted preference, not only the selected view', () => {
-    const first = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar'));
-    const second = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar-2'));
+    const first = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar'), { wrapper });
+    const second = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar-2'), { wrapper });
 
     act(() => {
       first.result.current.setWidgetBordered(true);

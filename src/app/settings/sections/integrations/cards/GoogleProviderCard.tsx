@@ -9,6 +9,9 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
 import { ProviderCardShell } from '../shared/ProviderCardShell';
 import { CollapsibleSubSection } from '../shared/CollapsibleSubSection';
+import { GoogleCredentialsForm } from './GoogleCredentialsForm';
+import { GoogleManualTokenForm } from './GoogleManualTokenForm';
+import { browserOAuthUsable } from '@/lib/utils/googleRedirectSupport';
 import type { IntegrationStatus } from '../shared/useIntegrationStatus';
 import type { ConnectionStatus } from '../shared/ConnectionStatusBadge';
 import { connectedAsLabel } from '../shared/connectedAs';
@@ -61,6 +64,13 @@ export function GoogleProviderCard({
   // Treat "still loading" as configured so the common case (already set up)
   // never flashes the gated state — only downgrade once we know for sure.
   const configured = oauthStatus === null ? true : oauthStatus.google;
+
+  // Google refuses a private address as a sign-in redirect, so on a LAN-only
+  // install the browser flow cannot work at all. Checked after mount so the
+  // server render does not disagree with the client.
+  const [origin, setOrigin] = React.useState<string | null>(null);
+  React.useEffect(() => setOrigin(window.location.origin), []);
+  const browserFlowUnusable = origin !== null && !browserOAuthUsable(origin);
 
   const g = status?.google;
   const connected = !!g?.connected;
@@ -167,22 +177,26 @@ export function GoogleProviderCard({
           <CollapsibleSubSection
             id="google-setup"
             label="One-time admin setup"
-            summary="Requires a Google Cloud OAuth client"
+            summary="Enter your Google Cloud OAuth credentials"
             defaultOpen
           >
-            <p className="text-sm text-muted-foreground">
-              An admin needs to create a Google Cloud OAuth client and set{' '}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">GOOGLE_CLIENT_ID</code>,{' '}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">GOOGLE_CLIENT_SECRET</code>, and{' '}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">GOOGLE_REDIRECT_URI</code> in{' '}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">.env</code> (see{' '}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">.env.example</code>). No credentials?
-              Use{' '}
+            <GoogleCredentialsForm onSaved={() => window.location.reload()} />
+            <p className="text-xs text-muted-foreground mt-3">
+              Prefer no setup? Use{' '}
               <Link href="/calendar?manage=calendars" className="text-primary hover:underline">
                 iCal subscriptions
               </Link>{' '}
-              for keyless, read-only calendars in the meantime.
+              for keyless, read-only calendars.
             </p>
+          </CollapsibleSubSection>
+        )}
+        {configured && !connected && (
+          <CollapsibleSubSection
+            id="google-credentials"
+            label="App credentials (advanced)"
+            summary="Update the Google client ID / secret / redirect — e.g. after a secret rotates"
+          >
+            <GoogleCredentialsForm onSaved={() => window.location.reload()} />
           </CollapsibleSubSection>
         )}
         {connected && (
@@ -203,6 +217,21 @@ export function GoogleProviderCard({
             </Button>
           </CollapsibleSubSection>
         )}
+        <CollapsibleSubSection
+          id="google-manual-token"
+          label="Connect without a public URL (advanced)"
+          summary={
+            browserFlowUnusable
+              ? "Google will not accept this address for its sign-in. Use this, or reopen Prism on a public https address or localhost"
+              : "Paste a refresh token from Google's OAuth Playground — for LAN-only installs, or to re-paste an expired one"
+          }
+          // Opened by default where it is the only flow that can work, so a
+          // LAN user is not left hunting behind a collapsed "advanced" label
+          // for the one thing that will succeed.
+          forceOpen={forceSubSectionOpen === 'google-manual-token' || browserFlowUnusable}
+        >
+          <GoogleManualTokenForm onSaved={() => window.location.reload()} />
+        </CollapsibleSubSection>
         <CollapsibleSubSection
           id="google-calendars"
           label="Calendars"

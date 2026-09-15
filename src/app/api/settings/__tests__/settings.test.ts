@@ -60,6 +60,38 @@ const mockIsSetupComplete = isSetupComplete as jest.Mock;
 
 const parentAuth = { userId: 'parent-1', role: 'parent' };
 
+const validThemeTokens = {
+  background: '0 0% 100%',
+  foreground: '222 47% 11%',
+  card: '0 0% 100%',
+  'card-foreground': '222 47% 11%',
+  popover: '0 0% 100%',
+  'popover-foreground': '222 47% 11%',
+  primary: '222 47% 31%',
+  'primary-foreground': '210 40% 98%',
+  secondary: '210 40% 96%',
+  'secondary-foreground': '222 47% 11%',
+  muted: '210 40% 96%',
+  'muted-foreground': '215 16% 47%',
+  accent: '210 40% 96%',
+  'accent-foreground': '222 47% 11%',
+  destructive: '0 84% 60%',
+  'destructive-foreground': '210 40% 98%',
+  border: '214 32% 91%',
+  input: '214 32% 91%',
+  ring: '222 47% 31%',
+};
+
+function makeInstalledTheme(id = 'custom-theme') {
+  return {
+    id,
+    name: 'Custom theme',
+    description: 'A valid installed theme for route tests.',
+    light: validThemeTokens,
+    dark: validThemeTokens,
+  };
+}
+
 function makePatchRequest(body: object) {
   return new NextRequest('http://localhost:3000/api/settings', {
     method: 'PATCH',
@@ -149,6 +181,55 @@ describe('PATCH /api/settings', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.value).toBe('light');
+  });
+
+  it('preserves installed themes when changing the selected palette', async () => {
+    const installed = makeInstalledTheme();
+    const existingValue = {
+      mode: 'light',
+      paletteId: installed.id,
+      installed: [installed],
+    };
+    const mockSet = jest.fn().mockReturnValue({
+      where: jest.fn().mockResolvedValue(undefined),
+    });
+    mockWhere.mockResolvedValue([{ key: 'theme', value: existingValue }]);
+    mockUpdate.mockReturnValue({ set: mockSet });
+
+    const res = await PATCH(
+      makePatchRequest({ key: 'theme', value: { mode: 'dark', paletteId: 'daybook' } })
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.value).toEqual({ mode: 'dark', paletteId: 'daybook', installed: [installed] });
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        value: { mode: 'dark', paletteId: 'daybook', installed: [installed] },
+      })
+    );
+  });
+
+  it('accepts an installed palette when it is already stored on the theme row', async () => {
+    const installed = makeInstalledTheme('installed-palette');
+    const mockSet = jest.fn().mockReturnValue({
+      where: jest.fn().mockResolvedValue(undefined),
+    });
+    mockWhere.mockResolvedValue([
+      {
+        key: 'theme',
+        value: { mode: 'light', paletteId: 'daybook', installed: [installed] },
+      },
+    ]);
+    mockUpdate.mockReturnValue({ set: mockSet });
+
+    const res = await PATCH(
+      makePatchRequest({ key: 'theme', value: { mode: 'light', paletteId: installed.id } })
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.value).toEqual({ mode: 'light', paletteId: installed.id, installed: [installed] });
   });
 
   it('invalidates weather cache when location setting changes', async () => {

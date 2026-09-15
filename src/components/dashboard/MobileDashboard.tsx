@@ -105,7 +105,7 @@ export const MobileDashboard = memo(function MobileDashboard({ data }: MobileDas
 
   const tileMap: Record<string, React.ReactNode> = useMemo(() => ({
     weather: <WeatherTile data={data.weather} />,
-    clock: <ClockTile />,
+    clock: <ClockTile data={data.birthdays} />,
     calendar: <CalendarTile data={data.calendar} />,
     chores: <ChoresTile data={data.chores} />,
     tasks: <TasksTile data={data.tasks} />,
@@ -122,7 +122,7 @@ export const MobileDashboard = memo(function MobileDashboard({ data }: MobileDas
 
   const cardMap: Record<string, React.ReactNode> = useMemo(() => ({
     weather: <WeatherCard data={data.weather} />,
-    clock: <ClockCard />,
+    clock: <ClockCard data={data.birthdays} />,
     calendar: <CalendarCard data={data.calendar} />,
     chores: <ChoresCard data={data.chores} />,
     tasks: <TasksCard data={data.tasks} />,

@@ -11,6 +11,8 @@ import { useWifiConfig } from '@/lib/hooks/useWifiConfig';
 import { ExitBabysitterModeModal } from './ExitBabysitterModeModal';
 import { WifiQRCode } from '@/components/ui/WifiQRCode';
 import { cn } from '@/lib/utils';
+import { useTimeFormat } from '@/components/providers';
+import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 
 interface EmergencyContact {
   name: string;
@@ -174,6 +176,7 @@ export function BabysitterModeOverlay({ toggle }: BabysitterModeOverlayProps) {
 }
 
 function BabysitterClock() {
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -184,11 +187,10 @@ function BabysitterClock() {
   return (
     <div className="text-white">
       <div className="text-4xl font-light tabular-nums">
-        {format(time, 'h:mm')}
-        <span className="text-xl ml-2 opacity-70">{format(time, 'a')}</span>
+        {formatDisplayTime(time, timeFormat, {}, displayTimezone)}
       </div>
       <div className="text-sm text-white/60">
-        {format(time, 'EEEE, MMMM d')}
+        {format(toDisplayDate(time, displayTimezone), 'EEEE, MMMM d')}
       </div>
     </div>
   );
@@ -286,7 +288,7 @@ function EmergencyContactCard({ content }: { content: EmergencyContact }) {
         <div className="flex items-center gap-2">
           <span className="font-medium text-white">{content.name}</span>
           {content.isPrimary === 'true' && (
-            <span className="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded">
+            <span className="text-xs bg-success/30 text-success px-2 py-0.5 rounded">
               Primary
             </span>
           )}
@@ -328,8 +330,8 @@ function ChildInfoCard({ content }: { content: ChildInfo }) {
       </div>
       {content.allergies && (
         <div className="flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <span className="text-sm text-red-300">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+          <span className="text-sm text-destructive">
             <strong>Allergies:</strong> {content.allergies}
           </span>
         </div>

@@ -16,6 +16,7 @@
 import * as React from 'react';
 import SunCalc from 'suncalc';
 import { Droplets } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import type { ForecastDay, WeatherUnits, WeatherCondition } from './WeatherWidget';
 
 // ---------------------------------------------------------------------------
@@ -23,14 +24,14 @@ import type { ForecastDay, WeatherUnits, WeatherCondition } from './WeatherWidge
 // ---------------------------------------------------------------------------
 
 const TEMP_COLOR_STOPS: Array<{ temp: number; cssVar: string }> = [
-  { temp:  0, cssVar: '--weather-temp-very-cold' },
-  { temp: 32, cssVar: '--weather-temp-freezing' },
-  { temp: 45, cssVar: '--weather-temp-cold' },
-  { temp: 55, cssVar: '--weather-temp-cool' },
-  { temp: 65, cssVar: '--weather-temp-mild' },
-  { temp: 75, cssVar: '--weather-temp-warm' },
-  { temp: 85, cssVar: '--weather-temp-hot' },
-  { temp: 95, cssVar: '--weather-temp-very-hot' },
+  { temp:  0, cssVar: '--weather-forecast-very-cold' },
+  { temp: 32, cssVar: '--weather-forecast-freezing' },
+  { temp: 45, cssVar: '--weather-forecast-cold' },
+  { temp: 55, cssVar: '--weather-forecast-cool' },
+  { temp: 65, cssVar: '--weather-forecast-mild' },
+  { temp: 75, cssVar: '--weather-forecast-warm' },
+  { temp: 85, cssVar: '--weather-forecast-hot' },
+  { temp: 95, cssVar: '--weather-forecast-very-hot' },
 ];
 
 function tempToColor(fahrenheit: number): string {
@@ -73,6 +74,18 @@ function WeatherIcon({ condition, className }: { condition: WeatherCondition; cl
   return <>{icons[condition] ?? <Cloud className={className} />}</>;
 }
 
+function conditionIconClass(condition: WeatherCondition): string {
+  const classes: Record<WeatherCondition, string> = {
+    sunny: 'weather-condition-icon-sunny',
+    'partly-cloudy': 'weather-condition-icon-partly-cloudy',
+    cloudy: 'weather-condition-icon-cloudy',
+    rainy: 'weather-condition-icon-rainy',
+    snowy: 'weather-condition-icon-snowy',
+    stormy: 'weather-condition-icon-stormy',
+  };
+  return classes[condition];
+}
+
 // ---------------------------------------------------------------------------
 // MoonGlyph
 // ---------------------------------------------------------------------------
@@ -96,11 +109,22 @@ function MoonGlyph({ phase, size = 14, color = 'currentColor' }: { phase: number
   );
 }
 
+function localizeDayName(dayName: string, locale: string): string {
+  const dayIndex = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dayName);
+  if (dayIndex < 0) return dayName;
+  return new Date(Date.UTC(2024, 0, 7 + dayIndex)).toLocaleDateString(locale, {
+    weekday: 'short',
+    timeZone: 'UTC',
+  });
+}
+
 // ---------------------------------------------------------------------------
 // DayHeader — the exported component
 // ---------------------------------------------------------------------------
 
 export function DayHeader({ days, units }: { days: ForecastDay[]; units: WeatherUnits }) {
+  const t = useTranslations('weather');
+  const locale = useLocale();
   const now = new Date();
   const todayLocalStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -117,7 +141,7 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
         const d = new Date(day.date);
         const dayLocalStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
         const isToday = dayLocalStr === todayLocalStr;
-        const label = isToday ? 'TODAY' : day.dayName.toUpperCase();
+        const label = isToday ? t('today') : localizeDayName(day.dayName, locale).toUpperCase();
 
         const leftPct  = ((day.low  - globalMin) / span) * 100;
         const widthPct = ((day.high - day.low)   / span) * 100;
@@ -128,23 +152,23 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
         const dayPhase = SunCalc.getMoonIllumination(dayNoon).phase;
 
         return (
-          <div key={i} className="flex items-center gap-2 py-1">
+          <div key={i} data-day-row className="flex items-center gap-2.5 py-1.5">
 
             {/* Day label + precip % + weather icon + moon phase glyph */}
             <div className="flex items-center gap-1.5 w-28 flex-shrink-0">
               <div className="w-12 flex-shrink-0 h-8 flex flex-col justify-center">
-                <div className="text-[14px] font-bold tracking-wide text-foreground leading-tight whitespace-nowrap">
+                <div className="text-[15px] font-semibold tracking-[0.01em] text-foreground leading-tight whitespace-nowrap">
                   {label}
                 </div>
                 {day.precipProbability !== undefined && (
-                  <div className="flex items-center gap-0.5 text-[14px] text-primary leading-tight">
+                  <div className="flex items-center gap-0.5 text-[14px] font-medium text-[hsl(var(--weather-forecast-precipitation))] leading-tight">
                     <Droplets className="h-2.5 w-2.5 flex-shrink-0" />
                     <span>{day.precipProbability}%</span>
                   </div>
                 )}
               </div>
-              <WeatherIcon condition={day.condition} className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-              <span className="text-primary/70">
+              <WeatherIcon condition={day.condition} className={`h-5 w-5 flex-shrink-0 ${conditionIconClass(day.condition)}`} />
+              <span className="text-sky-500/80 dark:text-sky-300/80">
                 <MoonGlyph phase={dayPhase} size={14} />
               </span>
             </div>
@@ -153,19 +177,19 @@ export function DayHeader({ days, units }: { days: ForecastDay[]; units: Weather
                 adjacent to the bar at its position within the week's range. */}
             <div className="flex-1 flex items-center min-w-0">
               <div style={{ flex: leftPct }} />
-              <span className="flex-none text-[14px] text-muted-foreground tabular-nums pr-1">
+              <span className="flex-none text-[15px] text-muted-foreground tabular-nums pr-1">
                 {fmt(day.low)}°
               </span>
               <div
-                className="h-3 rounded-full ring-1 ring-inset ring-foreground/10"
+                className="h-3.5 rounded-full ring-1 ring-inset ring-foreground/10"
                 data-weather-temperature-range
                 style={{
                   flex: Math.max(widthPct, 4),
                   background: `linear-gradient(to right, ${colorFor(day.low)}, ${colorFor(day.high)})`,
-                  filter: 'saturate(1.18)',
+                  filter: 'saturate(1.22) brightness(1.03)',
                 }}
               />
-              <span className="flex-none text-[14px] font-semibold tabular-nums pl-1">
+              <span className="flex-none text-[15px] font-semibold tabular-nums pl-1">
                 {fmt(day.high)}°
               </span>
               <div style={{ flex: Math.max(100 - rightPct, 0) }} />

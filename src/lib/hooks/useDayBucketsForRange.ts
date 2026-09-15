@@ -12,6 +12,8 @@ import type { CalendarEvent } from '@/types/calendar';
 import type { Chore, Meal, Task } from '@/types';
 import type { WeatherData } from '@/components/widgets/WeatherWidget';
 import type { DayBucket } from './useWeekViewData';
+import { useTimeFormat } from '@/components/providers';
+import { eventOccursOnDisplayDay } from '@/lib/utils/timeFormat';
 
 export interface OverlayFlags {
   events: boolean;
@@ -68,6 +70,16 @@ function dateKey(d: Date): string {
   return format(d, 'yyyy-MM-dd');
 }
 
+function eventOnDay(event: CalendarEvent, day: Date, displayTimezone: string): boolean {
+  return eventOccursOnDisplayDay(
+    event.startTime,
+    event.endTime,
+    event.allDay,
+    day,
+    displayTimezone,
+  );
+}
+
 function choreDateKey(chore: Chore): string | null {
   if (!chore.nextDue) return null;
   // chore.nextDue is a YYYY-MM-DD DATE column; parse as local to avoid the
@@ -99,6 +111,7 @@ export function useDayBucketsForRange({
   refreshChores: refreshExternalChores,
   refreshTasks: refreshExternalTasks,
 }: UseDayBucketsForRangeOptions): UseDayBucketsForRangeResult {
+  const { displayTimezone } = useTimeFormat();
   const fromKey = useMemo(() => dateKey(from), [from]);
   const toKey = useMemo(() => dateKey(to), [to]);
   const hasExternalMeals = externalMeals !== undefined;
@@ -161,24 +174,31 @@ export function useDayBucketsForRange({
     const start = startOfDay(from);
     const end = startOfDay(to);
 
-    // Index streams once per data change. The previous implementation scanned
-    // every event/meal/chore/task for every day in the range, which became
-    // needlessly expensive for month and multi-week views.
+    // Pre-filter events that overlap the requested range (with a timezone
+    // safety pad), then index each event by the displayed day it occupies.
+    // This keeps the calendar's range work bounded while honoring the selected
+    // display timezone for timed and all-day events.
+    const DAY_MS = 86_400_000;
+    const filterStartMs = start.getTime() - DAY_MS;
+    const filterEndMs = end.getTime() + 2 * DAY_MS;
+    const rangeEvents = overlays.events
+      ? events.filter(
+          (event) => event.startTime.getTime() <= filterEndMs && event.endTime.getTime() >= filterStartMs,
+        )
+      : EMPTY_EVENTS;
+
     const eventsByDate = new Map<string, CalendarEvent[]>();
     if (overlays.events) {
-      for (const event of events) {
-        if (event.endTime <= event.startTime) continue;
-        const firstDay = startOfDay(event.startTime);
-        const lastDay = startOfDay(new Date(event.endTime.getTime() - 1));
-        let cursor = firstDay < start ? start : firstDay;
-        const finalDay = lastDay > end ? end : lastDay;
-        while (cursor <= finalDay) {
-          const key = dateKey(cursor);
+      let eventDay = start;
+      while (eventDay <= end) {
+        const key = dateKey(eventDay);
+        for (const event of rangeEvents) {
+          if (!eventOnDay(event, eventDay, displayTimezone)) continue;
           const bucket = eventsByDate.get(key);
           if (bucket) bucket.push(event);
           else eventsByDate.set(key, [event]);
-          cursor = addDays(cursor, 1);
         }
+        eventDay = addDays(eventDay, 1);
       }
     }
 
@@ -277,6 +297,7 @@ export function useDayBucketsForRange({
     overlays.meals,
     overlays.chores,
     overlays.tasks,
+    displayTimezone,
   ]);
 
   const loading =

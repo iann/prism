@@ -117,7 +117,7 @@ export function TaskItem({
           variant="ghost"
           size="icon"
           onClick={onEdit}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          className="wall-touch-control h-8 w-8 text-muted-foreground hover:text-foreground"
           aria-label="Edit task"
         >
           <Edit2 className="h-4 w-4" />
@@ -126,7 +126,7 @@ export function TaskItem({
           variant="ghost"
           size="icon"
           onClick={onDelete}
-          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          className="wall-touch-control h-8 w-8 text-muted-foreground hover:text-destructive"
           aria-label="Delete task"
         >
           <Trash2 className="h-4 w-4" />

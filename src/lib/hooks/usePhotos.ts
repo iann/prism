@@ -61,6 +61,7 @@ interface UsePhotosOptions {
   favorite?: boolean;
   usage?: string; // single tag to filter by (e.g., 'wallpaper'), matched against comma-separated field
   orientation?: PhotoOrientation;
+  belowHd?: boolean; // only photos under 1920×1080 (sub-green resolution)
   sort?: 'random' | 'chronological';
   limit?: number;
   refreshInterval?: number;
@@ -84,6 +85,7 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
     favorite,
     usage,
     orientation,
+    belowHd,
     sort = 'chronological',
     limit = 50,
     refreshInterval = 0,
@@ -97,11 +99,12 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
     if (favorite !== undefined) params.set('favorite', String(favorite));
     if (usage) params.set('usage', usage);
     if (orientation) params.set('orientation', orientation);
+    if (belowHd) params.set('belowHd', 'true');
     params.set('sort', sort);
     params.set('limit', String(limit));
     params.set('offset', '0');
     return `/api/photos?${params}`;
-  }, [sourceId, favorite, usage, orientation, sort, limit]);
+  }, [sourceId, favorite, usage, orientation, belowHd, sort, limit]);
 
   const cached = navCacheGet<{ photos: Photo[]; total: number }>(cacheKey);
   const [photos, setPhotos] = useState<Photo[]>(() => cached?.photos ?? []);
@@ -120,6 +123,7 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
       if (favorite !== undefined) params.set('favorite', String(favorite));
       if (usage) params.set('usage', usage);
       if (orientation) params.set('orientation', orientation);
+      if (belowHd) params.set('belowHd', 'true');
       params.set('sort', sort);
       params.set('limit', String(limit));
       params.set('offset', String(requestOffset));
@@ -141,7 +145,7 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
     } finally {
       setLoading(false);
     }
-  }, [sourceId, favorite, usage, orientation, sort, limit, cacheKey]);
+  }, [sourceId, favorite, usage, orientation, belowHd, sort, limit, cacheKey]);
 
   const loadMore = useCallback(() => {
     const newOffset = offsetRef.current + limit;

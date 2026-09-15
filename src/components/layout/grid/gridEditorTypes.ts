@@ -42,6 +42,12 @@ export interface CssGridDisplayProps {
   headerOffset?: number;
   /** Offset from bottom for portrait nav */
   bottomOffset?: number;
+  /**
+   * Presentation-only vertical scale for display rows. This keeps the saved
+   * grid coordinates unchanged while allowing tall wall displays to give
+   * stacked widget content more breathing room.
+   */
+  rowHeightScale?: number;
   minVisibleRows?: number;
   /**
    * Canonical row count of the design's target screen (e.g. 27 for 1080p). When

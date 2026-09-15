@@ -50,6 +50,7 @@ import { BackupSection } from './sections/BackupSection';
 import { BusTrackingSection } from './sections/BusTrackingSection';
 import { InputSection } from './sections/InputSection';
 import { FeaturesSection } from './sections/FeaturesSection';
+import { TelemetryCard } from './sections/TelemetryCard';
 import { ActivityLogSection } from './sections/ActivityLogSection';
 import { PartyModeSection } from './sections/PartyModeSection';
 
@@ -191,7 +192,6 @@ export function SettingsView() {
     { id: 'general', label: 'General', icon: SlidersHorizontal },
     { id: 'integrations', label: 'Integrations', icon: Link2 },
     // Calendar management moved onto the Calendar page (Manage calendars button).
-    { id: 'displays', label: 'Displays', icon: Monitor },
     { id: 'display', label: 'Appearance', icon: Palette },
     { id: 'photos', label: 'Photos', icon: ImageIcon },
     { id: 'bus', label: 'Bus Tracking', icon: Bus },
@@ -201,6 +201,7 @@ export function SettingsView() {
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'backups', label: 'Backups & Data', icon: Database },
     { id: 'activity', label: 'Activity Log', icon: ClipboardList },
+    { id: 'displays', label: 'Text Size', icon: Monitor },
     { id: 'about', label: 'About', icon: Info },
   ];
 
@@ -268,7 +269,12 @@ export function SettingsView() {
                 ))}
               </select>
             </div>
-            <div className="max-w-2xl">
+            {/* Appearance is long enough to be worth a second column on a wide
+                screen, and only it: widening every section would leave the
+                short ones as a thin strip of controls across a lot of nothing.
+                The column itself keeps its width — the space goes into a new
+                column beside it, not into stretching the old one. */}
+            <div className={activeSection === 'display' ? 'max-w-2xl xl:max-w-none' : 'max-w-2xl'}>
               {activeSection === 'account' && <AccountSection />}
               {activeSection === 'family' && <FamilySection />}
               {activeSection === 'party-mode' && <PartyModeSection />}
@@ -351,6 +357,7 @@ export function SettingsView() {
                       </Button>
                     </CardContent>
                   </Card>
+                  <TelemetryCard />
                 </div>
               )}
             </div>

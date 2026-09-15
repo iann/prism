@@ -1,32 +1,65 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export function localDateKey(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+/**
+ * A value that changes when the local date does.
+ *
+ * Several hooks compute a request window from `new Date()` inside a `useMemo`
+ * whose dependencies are all constants, so the window is fixed at mount. On a
+ * page someone opens and closes that is invisible. On a wall display, which is
+ * never reloaded, it means the dashboard is still asking for the window it
+ * computed whenever it last started — days or weeks ago. "Today" on screen
+ * quietly stops being today.
+ *
+ * Depending on this key in that memo makes the window roll over at midnight.
+ *
+ * Deliberately a date string rather than a timestamp: it changes exactly once
+ * per day, so it cannot cause a refetch for any other reason.
+ */
+export function localDateKey(now: Date = new Date()): string {
+  // Local components, not toISOString — that is UTC, and would roll over at
+  // the wrong moment for anyone not on UTC.
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
-/** Tracks the browser-local calendar date and rolls over at the next midnight. */
+/** Milliseconds until the next local midnight, plus a second of slack. */
+export function msUntilNextLocalMidnight(now: Date = new Date()): number {
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1, 0);
+  // Date arithmetic on local components handles daylight-saving shifts: the
+  // clock jumping an hour changes the distance to midnight, not the date.
+  return Math.max(1000, next.getTime() - now.getTime());
+}
+
 export function useLocalDateKey(): string {
-  const [dateKey, setDateKey] = useState(() => localDateKey());
+  const [key, setKey] = useState(() => localDateKey());
 
   useEffect(() => {
-    const update = () => setDateKey(localDateKey());
-    update();
-    const now = new Date();
-    const nextMidnight = new Date(now);
-    nextMidnight.setHours(24, 0, 0, 0);
-    const timeout = setTimeout(
-      () => {
-        update();
-      },
-      Math.max(nextMidnight.getTime() - now.getTime(), 1_000)
-    );
-    return () => clearTimeout(timeout);
-  }, [dateKey]);
+    let timer: ReturnType<typeof setTimeout>;
 
-  return dateKey;
+    const schedule = () => {
+      timer = setTimeout(() => {
+        // Recomputed from the clock rather than incremented, so a device that
+        // slept through midnight still lands on the correct date.
+        setKey(localDateKey());
+        schedule();
+      }, msUntilNextLocalMidnight());
+    };
+
+    schedule();
+
+    // A machine waking from sleep may have missed the timer entirely.
+    const onWake = () => setKey(localDateKey());
+    document.addEventListener('visibilitychange', onWake);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onWake);
+    };
+  }, []);
+
+  return key;
 }

@@ -19,18 +19,20 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, getDisplayAuth } from '@/lib/auth';
+import { requireAuth, requireRole, getDisplayAuth } from '@/lib/auth';
 import { db } from '@/lib/db/client';
 import { events, calendarSources, users, calendarGroups } from '@/lib/db/schema';
 import { eq, and, or, gte, lte, asc, isNotNull, isNull } from 'drizzle-orm';
 import { createEventSchema, validateRequest } from '@/lib/validations';
+import { eventDescriptionToText } from '@/lib/utils/eventDescriptionText';
 import { getCached } from '@/lib/cache/redis';
 import { invalidateEntity } from '@/lib/cache/cacheKeys';
-import { createCalendarEvent, refreshAccessToken } from '@/lib/integrations/google-calendar';
+import { createCalendarEvent, refreshAccessToken, toGoogleAllDayRange } from '@/lib/integrations/google-calendar';
 import { decrypt, encrypt } from '@/lib/utils/crypto';
 import { formatEventRow } from '@/lib/utils/formatters';
 import { logActivity } from '@/lib/services/auditLog';
 import { logError } from '@/lib/utils/logError';
+import { MAX_CALENDAR_EVENTS } from '@/lib/utils/calendarRange';
 
 // Cache events for 5 minutes
 const EVENTS_CACHE_TTL = 5 * 60;
@@ -70,7 +72,7 @@ export async function GET(request: NextRequest) {
     const endDateStr = searchParams.get('endDate');
     const calendarId = searchParams.get('calendarId');
     const allDay = searchParams.get('allDay');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 500);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), MAX_CALENDAR_EVENTS);
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Validate required date range
@@ -181,6 +183,15 @@ export async function GET(request: NextRequest) {
         .limit(limit)
         .offset(offset);
 
+      // If a fetch fills the row ceiling, events may be silently omitted — the
+      // exact failure mode of #250. Surface it in logs rather than dropping
+      // events quietly, so the cap can be raised or the fetch paginated.
+      if (results.length >= limit) {
+        console.warn(
+          `[events] fetch hit the ${limit}-row ceiling for ${startDateStr}..${endDateStr}; some events may be omitted.`,
+        );
+      }
+
       // Format response
       // Color priority: event color > user color > calendar color > default
       const formattedEvents: EventResponse[] = results.map((row) => formatEventRow(row));
@@ -196,6 +207,25 @@ export async function GET(request: NextRequest) {
         offset,
       };
     }, EVENTS_CACHE_TTL);
+
+    // A Bearer token means the caller is not a browser: `scopes` is set only by
+    // API-token auth. The one token consumer that exists hands this straight to
+    // a language model, and there markup is an instruction channel rather than
+    // an XSS risk, because a title attribute or an HTML comment is text a
+    // person cannot see and a model still reads. Descriptions are stored
+    // exactly as the invite sender wrote them (the sync path writes upstream
+    // HTML to the row untouched), so this is the boundary that has to flatten
+    // them. Done after the cache read so one cached payload serves both kinds
+    // of caller.
+    if (auth.scopes !== undefined) {
+      return NextResponse.json({
+        ...data,
+        events: data.events.map((event) => ({
+          ...event,
+          description: event.description === null ? null : eventDescriptionToText(event.description),
+        })),
+      });
+    }
 
     return NextResponse.json(data);
   } catch (error) {
@@ -248,6 +278,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+
+  // PATCH and DELETE have always checked a role; POST never did, so a guest
+  // account (canAddEvent: false) could put an event on the family display.
+  const denied = requireRole(auth, 'canAddEvent');
+  if (denied) return denied;
 
   const { rateLimitGuard } = await import('@/lib/cache/rateLimit');
   const limited = await rateLimitGuard(auth.userId, 'events', 30, 60);
@@ -333,6 +368,8 @@ export async function POST(request: NextRequest) {
               .where(eq(calendarSources.id, calendarSourceId));
           }
 
+          const allDayRange = allDay ? toGoogleAllDayRange(startTime, endTime) : null;
+
           // Create event on Google Calendar
           const googleEvent = await createCalendarEvent(
             accessToken,
@@ -342,10 +379,10 @@ export async function POST(request: NextRequest) {
               description: description?.trim() || undefined,
               location: location?.trim() || undefined,
               start: allDay
-                ? { date: startTime.toISOString().split('T')[0] }
+                ? allDayRange!.start
                 : { dateTime: startTime.toISOString() },
               end: allDay
-                ? { date: endTime.toISOString().split('T')[0] }
+                ? allDayRange!.end
                 : { dateTime: endTime.toISOString() },
             }
           );
@@ -353,7 +390,14 @@ export async function POST(request: NextRequest) {
           externalEventId = googleEvent.id;
         } catch (error) {
           logError('Failed to create event on Google Calendar:', error);
-          googleWarning = `Event was saved locally but could not be synced to Google Calendar: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          // A scope failure is permanent — the token cannot write, and retrying
+          // will fail identically. Saying "could not be synced" invites a retry
+          // that cannot work, so name the cause and the fix instead.
+          const msg = error instanceof Error ? error.message : '';
+          googleWarning = /insufficient|forbidden|\b403\b/i.test(msg)
+            ? 'Event saved locally. This Google connection is read-only, so it was not added to Google Calendar. ' +
+              'Reconnect with the calendar.events scope to create events there.'
+            : 'Event was saved locally but could not be synced to Google Calendar.';
         }
       }
     }

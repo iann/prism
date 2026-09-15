@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useTransition } from 'react';
 import {
-  format,
   startOfWeek,
   endOfWeek,
   addDays,
@@ -12,10 +11,15 @@ import {
   subWeeks,
   subDays,
 } from 'date-fns';
+import { useTranslations } from 'next-intl';
 import { useCalendarEvents, useCalendarFilter } from '@/lib/hooks';
+import { useDateLabels } from '@/lib/hooks/useDateLabels';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import { deduplicateEvents } from '@/lib/utils/calendarDedup';
+import { getFullCalendarRange, MAX_CALENDAR_EVENTS } from '@/lib/utils/calendarRange';
 import type { CalendarEvent } from '@/types/calendar';
+import { useTimeFormat } from '@/components/providers';
+import { toDisplayDate } from '@/lib/utils/timeFormat';
 
 export type CalendarViewType = 'agenda' | 'day' | 'week' | 'weekVertical' | 'multiWeek' | 'month' | 'threeMonth';
 export type MultiWeekCount = 1 | 2 | 3 | 4;
@@ -23,9 +27,20 @@ export type MultiWeekCount = 1 | 2 | 3 | 4;
 export type { CalendarGroup } from '@/lib/hooks';
 
 export function useCalendarViewData() {
+  const t = useTranslations('calendar');
+  const d = useDateLabels();
   const { weekStartsOn } = useWeekStartsOn();
+  const { displayTimezone } = useTimeFormat();
+  // View/date changes trigger a heavy re-bucket + grid re-render. Running those
+  // as a transition keeps the switcher/nav responsive (and lets us show a subtle
+  // pending state) instead of freezing while the new view computes.
+  const [isNavPending, startTransition] = useTransition();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewType, setViewType] = useState<CalendarViewType>(() => {
+
+  useEffect(() => {
+    setCurrentDate(toDisplayDate(new Date(), displayTimezone));
+  }, [displayTimezone]);
+  const [viewType, setViewTypeState] = useState<CalendarViewType>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('prism-calendar-view-type') as CalendarViewType | null;
       const valid: CalendarViewType[] = ['agenda', 'day', 'week', 'weekVertical', 'multiWeek', 'month', 'threeMonth'];
@@ -33,6 +48,10 @@ export function useCalendarViewData() {
     }
     return 'month';
   });
+  const setViewType = useCallback(
+    (next: CalendarViewType) => startTransition(() => setViewTypeState(next)),
+    [],
+  );
 
   useEffect(() => {
     localStorage.setItem('prism-calendar-view-type', viewType);
@@ -108,7 +127,16 @@ export function useCalendarViewData() {
   }, [overlays]);
 
   const { selectedCalendarIds, toggleCalendar, filterEvents, calendarGroups } = useCalendarFilter();
-  const { events: apiEvents, loading, error, refresh: refreshEvents } = useCalendarEvents({ daysToShow: 60 });
+  // Fetch a wide, static window (Jan 1 last year … Dec 31 +2yr) rather than a
+  // rolling today-anchored one, so events don't vanish from the views once
+  // they're more than a couple months out (#250). Fixed window => navigation
+  // reuses one cached dataset instead of refetching on every prev/next.
+  const fetchRange = useMemo(() => getFullCalendarRange(new Date()), []);
+  const { events: apiEvents, loading, error, refresh: refreshEvents } = useCalendarEvents({
+    rangeStart: fetchRange.start,
+    rangeEnd: fetchRange.end,
+    limit: MAX_CALENDAR_EVENTS,
+  });
 
   const events: CalendarEvent[] = useMemo(() => {
     const mapped = apiEvents.map((event) => ({
@@ -118,6 +146,12 @@ export function useCalendarViewData() {
       endTime: event.endTime,
       allDay: event.allDay,
       color: event.color,
+      // Carried, not dropped. This map rebuilds each event field by field, and
+      // description was missing from the list while location was present — so a
+      // synced event arrived at the edit modal with empty notes and no clue
+      // why. Everything upstream had it: Google, the row, the API and
+      // useCalendarEvents all carry description; it died here.
+      description: event.description,
       location: event.location,
       recurring: event.recurring,
       recurrenceRule: event.recurrenceRule,
@@ -128,10 +162,13 @@ export function useCalendarViewData() {
     return deduplicateEvents(filterEvents(mapped));
   }, [apiEvents, filterEvents]);
 
-  const goToToday = useCallback(() => setCurrentDate(new Date()), []);
+  const goToToday = useCallback(
+    () => startTransition(() => setCurrentDate(toDisplayDate(new Date(), displayTimezone))),
+    [displayTimezone],
+  );
 
   const goToPrevious = useCallback(() => {
-    setCurrentDate(prev => {
+    startTransition(() => setCurrentDate(prev => {
       switch (viewType) {
         case 'agenda': return prev; // no navigation
         case 'day': return subDays(prev, 1);
@@ -141,11 +178,11 @@ export function useCalendarViewData() {
         case 'month': return subMonths(prev, 1);
         case 'threeMonth': return subMonths(prev, 1);
       }
-    });
+    }));
   }, [viewType, weekCount]);
 
   const goToNext = useCallback(() => {
-    setCurrentDate(prev => {
+    startTransition(() => setCurrentDate(prev => {
       switch (viewType) {
         case 'agenda': return prev; // no navigation
         case 'day': return addDays(prev, 1);
@@ -155,31 +192,33 @@ export function useCalendarViewData() {
         case 'month': return addMonths(prev, 1);
         case 'threeMonth': return addMonths(prev, 1);
       }
-    });
+    }));
   }, [viewType, weekCount]);
 
+  // The header reads in the interface language: Intl picks the field order as
+  // well as the names, so German gets "4. September 2026", not "September 4".
   const getDateRangeTitle = useCallback((): string => {
     switch (viewType) {
       case 'agenda':
-        return 'Upcoming Events';
+        return t('upcoming');
       case 'day':
-        return format(currentDate, 'EEEE, MMMM d, yyyy');
+        return d.fullDate(currentDate);
       case 'week':
-      case 'weekVertical': {
-        const ws = startOfWeek(currentDate, { weekStartsOn });
-        const we = endOfWeek(currentDate, { weekStartsOn });
-        return `${format(ws, 'MMM d')} - ${format(we, 'MMM d, yyyy')}`;
-      }
-      case 'multiWeek': {
-        const tws = startOfWeek(currentDate, { weekStartsOn });
-        const twe = endOfWeek(addWeeks(currentDate, weekCount - 1), { weekStartsOn });
-        return `${format(tws, 'MMM d')} - ${format(twe, 'MMM d, yyyy')}`;
-      }
+      case 'weekVertical':
+        return d.range(
+          startOfWeek(currentDate, { weekStartsOn }),
+          endOfWeek(currentDate, { weekStartsOn }),
+        );
+      case 'multiWeek':
+        return d.range(
+          startOfWeek(currentDate, { weekStartsOn }),
+          endOfWeek(addWeeks(currentDate, weekCount - 1), { weekStartsOn }),
+        );
       case 'month':
       case 'threeMonth':
-        return format(currentDate, 'MMMM yyyy');
+        return d.monthYear(currentDate);
     }
-  }, [viewType, weekCount, currentDate, weekStartsOn]);
+  }, [viewType, weekCount, currentDate, weekStartsOn, t, d]);
 
   return {
     currentDate, setCurrentDate,
@@ -198,5 +237,6 @@ export function useCalendarViewData() {
     overlays, setOverlays,
     events, loading, error, refreshEvents,
     goToToday, goToPrevious, goToNext, getDateRangeTitle,
+    isNavPending,
   };
 }

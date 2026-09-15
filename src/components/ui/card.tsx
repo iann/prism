@@ -48,12 +48,18 @@ const Card = React.forwardRef<
     ref={ref}
     className={cn(
       // Background and border
-      'bg-card dark:bg-card/85 dark:backdrop-blur-sm text-card-foreground',
-      'border border-border',
-      // Shape
-      'rounded-xl',
-      // Shadow for depth (subtle)
-      'shadow-sm',
+      'bg-card/85 backdrop-blur-sm text-card-foreground',
+      // Border and rounding come from the active theme rather than a fixed
+      // utility. A theme that wants a square, heavily outlined look has to
+      // reach the surface people actually see, and on a dashboard that is
+      // the card.
+      'border-border border-[length:var(--border-width,1px)]',
+      'rounded-[var(--radius,0.5rem)]',
+      // Depth comes from the theme too. A flat look is not "a card with a
+      // smaller shadow" — it is the difference between reading as software and
+      // reading as a board on a wall, which is most of what separates a
+      // dashboard from a wall display.
+      'shadow-[var(--surface-shadow)] wall-card',
       // Allow custom classes to override
       className
     )}
@@ -84,7 +90,7 @@ const CardHeader = React.forwardRef<
       // Flex column for title + description
       'flex flex-col space-y-1.5',
       // Padding
-      'p-4 pb-0',
+      'p-[calc(1rem*var(--density,1))] pb-0',
       className
     )}
     {...props}
@@ -109,7 +115,7 @@ const CardTitle = React.forwardRef<
     ref={ref}
     className={cn(
       // Typography
-      'text-lg font-semibold leading-none tracking-tight',
+      'text-lg font-semibold leading-tight tracking-[-0.01em]',
       className
     )}
     {...props}
@@ -134,7 +140,7 @@ const CardDescription = React.forwardRef<
     ref={ref}
     className={cn(
       // Typography
-      'text-sm text-muted-foreground',
+      'text-sm leading-6 text-muted-foreground',
       className
     )}
     {...props}
@@ -161,7 +167,7 @@ const CardContent = React.forwardRef<
     ref={ref}
     className={cn(
       // Padding (top padding is smaller because header has padding)
-      'p-4 pt-2',
+      'p-[calc(1rem*var(--density,1))] pt-2',
       className
     )}
     {...props}
@@ -191,7 +197,7 @@ const CardFooter = React.forwardRef<
       // Flex row with spacing
       'flex items-center gap-2',
       // Padding
-      'p-4 pt-0',
+      'p-[calc(1rem*var(--density,1))] pt-0',
       className
     )}
     {...props}

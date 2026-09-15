@@ -2,12 +2,11 @@
 
 import {
   format,
-  isToday,
-  isTomorrow,
   isSameDay,
   addDays,
   startOfDay,
 } from 'date-fns';
+import { useTranslations } from 'next-intl';
 import { Calendar, UtensilsCrossed } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -17,6 +16,16 @@ import type { CalendarEvent } from '@/types/calendar';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { useDayDroppable, getMealTime, getChoreTime, getTaskTime, parseTimeOfDay, formatTimeOfDay, type OverlayItemRef } from './cells';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
+import { useTimeFormat } from '@/components/providers';
+import {
+  eventOccursOnDisplayDay,
+  eventStartsOnDisplayDay,
+  formatDisplayTime,
+  toDisplayDate,
+  type TimeFormat,
+} from '@/lib/utils/timeFormat';
+import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
+import { useDateLabels, type DateLabels } from '@/lib/hooks/useDateLabels';
 
 const MEAL_FALLBACK_COLOR = '#10b981';
 const CHORE_FALLBACK_COLOR = '#f59e0b';
@@ -66,27 +75,33 @@ export function AgendaView({
   days = 14,
   maxEventsPerDay = 0,
   onEventClick,
-  emptyMessage = 'No upcoming events',
+  emptyMessage,
   displayMode = 'inline',
   bucketsByDate,
   enableDnd = false,
   mealColor,
   onItemClick,
 }: AgendaViewProps) {
+  const { displayTimezone } = useTimeFormat();
+  const t = useTranslations('calendar');
   const cards = displayMode === 'cards';
-  const startDate = startOfDay(new Date());
-  const endDate = addDays(startDate, days);
+  const startDate = startOfDay(toDisplayDate(new Date(), displayTimezone));
 
-  const filteredEvents = events
-    .filter(e => {
-      if (e.allDay) {
-        return e.startTime < endDate && e.endTime > startDate;
-      }
-      const ed = startOfDay(e.startTime);
-      return ed >= startDate && ed < endDate;
-    })
+  // Scope the wide event list to the agenda horizon once, so the per-day
+  // membership check below iterates a small slice instead of thousands.
+  const scopedEvents = eventsOverlappingRange(events, startDate, addDays(startDate, days));
+  const filteredEvents = scopedEvents
+    .filter(e => Array.from({ length: days }, (_, i) => addDays(startDate, i))
+      .some(date => eventOccursOnDisplayDay(
+        e.startTime,
+        e.endTime,
+        e.allDay,
+        date,
+        displayTimezone,
+      )))
     .sort((a, b) => {
-      const dc = startOfDay(a.startTime).getTime() - startOfDay(b.startTime).getTime();
+      const dc = startOfDay(toDisplayDate(a.startTime, displayTimezone)).getTime()
+        - startOfDay(toDisplayDate(b.startTime, displayTimezone)).getTime();
       if (dc !== 0) return dc;
       if (a.allDay && !b.allDay) return -1;
       if (!a.allDay && b.allDay) return 1;
@@ -96,12 +111,13 @@ export function AgendaView({
   const eventsByDay: Array<{ date: Date; events: CalendarEvent[]; bucket?: DayBucket }> = [];
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
-    const dayStart = startOfDay(date);
-    const dayEvents = filteredEvents.filter(e =>
-      e.allDay
-        ? e.startTime <= dayStart && e.endTime > dayStart
-        : isSameDay(e.startTime, date)
-    );
+    const dayEvents = filteredEvents.filter(e => eventOccursOnDisplayDay(
+      e.startTime,
+      e.endTime,
+      e.allDay,
+      date,
+      displayTimezone,
+    ));
     const bucket = bucketsByDate?.get(format(date, 'yyyy-MM-dd'));
     const hasOverlay = bucket && (bucket.meals.length + bucket.chores.length + bucket.tasks.length > 0);
     if (dayEvents.length > 0 || hasOverlay) {
@@ -113,14 +129,14 @@ export function AgendaView({
     return (
       <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
         <Calendar className="h-8 w-8" />
-        <span className="text-sm">{emptyMessage}</span>
+        <span className="text-sm">{emptyMessage ?? t('noUpcomingEvents')}</span>
       </div>
     );
   }
 
   return (
     <div className="overflow-auto h-full -mr-2 pr-2">
-      <div className="space-y-4">
+      <div className="flex flex-col gap-[var(--agenda-group-gap)]">
         {eventsByDay.map(({ date, events: dayEvts, bucket }) => (
           <AgendaDaySection
             key={date.toISOString()}
@@ -161,8 +177,11 @@ function AgendaDaySection({
   mealColor?: string;
   onItemClick?: (ref: OverlayItemRef) => void;
 }) {
+  const { timeFormat, displayTimezone } = useTimeFormat();
+  const t = useTranslations('calendar');
+  const d = useDateLabels();
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
-  const rows = buildAgendaRows({ events, bucket, onEventClick, mealColor, onItemClick });
+  const rows = buildAgendaRows({ date, events, bucket, onEventClick, mealColor, onItemClick, timeFormat, displayTimezone, t });
   const displayRows = maxEvents > 0 ? rows.slice(0, maxEvents) : rows;
   const remainingCount = maxEvents > 0 ? rows.length - maxEvents : 0;
 
@@ -179,25 +198,25 @@ function AgendaDaySection({
         <span
           className={cn(
             'text-sm font-semibold',
-            isToday(date) && 'text-foreground'
+            isSameDay(date, toDisplayDate(new Date(), displayTimezone)) && 'text-foreground'
           )}
         >
-          {formatAgendaDayHeader(date)}
+          {formatAgendaDayHeader(date, displayTimezone, t, d)}
         </span>
-        {isToday(date) && (
+        {isSameDay(date, toDisplayDate(new Date(), displayTimezone)) && (
           <Badge className="text-[12px] px-1.5 py-0 bg-calendar-today text-foreground">
-            Today
+            {t('today')}
           </Badge>
         )}
       </div>
 
-      <div className="space-y-1.5 pl-2 border-l-2 border-border">
+      <div className="flex flex-col gap-[var(--agenda-row-gap)] pl-2 border-l-2 border-border">
         {displayRows.map((row) => (
           <AgendaRowItem key={row.key} row={row} cards={cards} />
         ))}
         {remainingCount > 0 && (
           <div className="text-xs text-muted-foreground pl-2">
-            +{remainingCount} more events
+            {t('moreItems', { count: remainingCount })}
           </div>
         )}
       </div>
@@ -206,31 +225,51 @@ function AgendaDaySection({
 }
 
 function buildAgendaRows({
+  date,
   events,
   bucket,
   onEventClick,
   mealColor,
   onItemClick,
+  timeFormat,
+  displayTimezone,
+  t,
 }: {
+  date: Date;
   events: CalendarEvent[];
   bucket?: DayBucket;
   onEventClick?: (event: CalendarEvent) => void;
   mealColor?: string;
   onItemClick?: (ref: OverlayItemRef) => void;
+  timeFormat: TimeFormat;
+  displayTimezone: string;
+  t: (key: string, values?: Record<string, string | number | Date>) => string;
 }): AgendaRow[] {
   const rows: AgendaRow[] = [];
 
   for (const event of events) {
     const allDay = event.allDay;
+    const startsToday = eventStartsOnDisplayDay(
+      event.startTime,
+      event.allDay,
+      date,
+      displayTimezone,
+    );
+    const floating = allDay || !startsToday;
     rows.push({
       key: `event-${event.id}`,
-      sortMinutes: allDay
+      sortMinutes: floating
         ? -1
-        : event.startTime.getHours() * 60 + event.startTime.getMinutes(),
-      floating: allDay,
+        : toDisplayDate(event.startTime, displayTimezone).getHours() * 60
+          + toDisplayDate(event.startTime, displayTimezone).getMinutes(),
+      floating,
       filled: allDay,
       stripeColor: event.color,
-      timeLabel: allDay ? 'All day' : format(event.startTime, 'h:mm a'),
+      timeLabel: allDay
+        ? t('allDay')
+        : startsToday
+          ? formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)
+          : t('continues'),
       title: event.title,
       subtitle: event.location,
       onClick: onEventClick ? () => onEventClick(event) : undefined,
@@ -239,31 +278,31 @@ function buildAgendaRows({
 
   if (bucket) {
     for (const meal of bucket.meals) {
-      const t = getMealTime(meal);
-      const min = parseTimeOfDay(t);
+      const mealTime = getMealTime(meal);
+      const min = parseTimeOfDay(mealTime);
       rows.push({
         key: `meal-${meal.id}`,
         sortMinutes: min ?? -1,
         floating: min === null,
         dragId: `meal:${meal.id}`,
         stripeColor: mealColor ?? meal.cookedBy?.color ?? meal.createdBy?.color ?? MEAL_FALLBACK_COLOR,
-        timeLabel: min !== null ? formatTimeLabel(t) : meal.mealType,
+        timeLabel: min !== null ? formatTimeLabel(mealTime, timeFormat) : meal.mealType,
         title: meal.name,
-        subtitle: meal.cookedBy?.name ? `Cooked by ${meal.cookedBy.name}` : undefined,
+        subtitle: meal.cookedBy?.name ? t('cookedBy', { name: meal.cookedBy.name }) : undefined,
         muted: Boolean(meal.cookedAt),
         onClick: onItemClick ? () => onItemClick({ kind: 'meal', id: meal.id }) : undefined,
       });
     }
     for (const chore of bucket.chores) {
-      const t = getChoreTime(chore);
-      const min = parseTimeOfDay(t);
+      const choreTime = getChoreTime(chore);
+      const min = parseTimeOfDay(choreTime);
       rows.push({
         key: `chore-${chore.id}`,
         sortMinutes: min ?? -1,
         floating: min === null,
         dragId: `chore:${chore.id}`,
         stripeColor: chore.assignedTo?.color || CHORE_FALLBACK_COLOR,
-        timeLabel: min !== null ? formatTimeLabel(t!) : 'Chore',
+        timeLabel: min !== null ? formatTimeLabel(choreTime!, timeFormat) : t('chore'),
         title: chore.title,
         subtitle: chore.assignedTo?.name,
         pendingApproval: Boolean(chore.pendingApproval),
@@ -271,15 +310,15 @@ function buildAgendaRows({
       });
     }
     for (const task of bucket.tasks) {
-      const t = getTaskTime(task);
-      const min = parseTimeOfDay(t);
+      const taskTime = getTaskTime(task);
+      const min = parseTimeOfDay(taskTime);
       rows.push({
         key: `task-${task.id}`,
         sortMinutes: min ?? -1,
         floating: min === null,
         dragId: `task:${task.id}`,
         stripeColor: task.assignedTo?.color || TASK_FALLBACK_COLOR,
-        timeLabel: min !== null ? formatTimeLabel(t!) : 'Task',
+        timeLabel: min !== null ? formatTimeLabel(taskTime!, timeFormat) : t('task'),
         title: task.title,
         subtitle: task.assignedTo?.name,
         muted: task.completed,
@@ -298,8 +337,8 @@ function buildAgendaRows({
   return rows;
 }
 
-function formatTimeLabel(hhmm: string): string {
-  return formatTimeOfDay(hhmm);
+function formatTimeLabel(hhmm: string, timeFormat: TimeFormat): string {
+  return formatTimeOfDay(hhmm, timeFormat);
 }
 
 function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean }) {
@@ -333,7 +372,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
       {...(row.dragId ? draggable.listeners : {})}
       {...(row.dragId ? draggable.attributes : {})}
       className={cn(
-        'relative w-full text-left flex items-start gap-2 p-1.5 rounded',
+        'relative w-full text-left flex items-start gap-2 rounded p-[var(--agenda-row-padding)]',
         cards
           ? 'border-border bg-calendar-surface border shadow-sm hover:bg-accent text-foreground'
           : 'hover:opacity-90',
@@ -354,7 +393,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
         <div className={cn('text-xs', cards ? 'text-muted-foreground' : 'opacity-80')}>
           {row.timeLabel}
         </div>
-        <div className={cn('flex items-center gap-1 text-sm font-medium', cards ? 'text-foreground' : 'text-white', row.muted && 'line-through')}>
+        <div className={cn('flex items-center gap-1 text-sm font-medium', cards ? 'text-foreground' : 'text-inherit', row.muted && 'line-through')}>
           {row.dragId?.startsWith('meal:') && (
             <UtensilsCrossed aria-hidden className="h-3 w-3 shrink-0" style={cards ? { color: row.stripeColor } : undefined} />
           )}
@@ -370,9 +409,15 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
   );
 }
 
-function formatAgendaDayHeader(date: Date): string {
-  const dayName = format(date, 'EEEE, MMMM d, yyyy');
-  if (isToday(date)) return `Today - ${dayName}`;
-  if (isTomorrow(date)) return `Tomorrow - ${dayName}`;
+function formatAgendaDayHeader(
+  date: Date,
+  displayTimezone: string,
+  t: (key: string, values?: Record<string, string | number | Date>) => string,
+  d: DateLabels,
+): string {
+  const displayNow = toDisplayDate(new Date(), displayTimezone);
+  const dayName = d.fullDate(date);
+  if (isSameDay(date, displayNow)) return t('dayHeader', { label: t('today'), date: dayName });
+  if (isSameDay(date, addDays(displayNow, 1))) return t('dayHeader', { label: t('tomorrow'), date: dayName });
   return dayName;
 }

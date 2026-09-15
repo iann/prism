@@ -1,7 +1,7 @@
 'use client';
 
 import { format, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
-import { CalendarDays, Settings } from 'lucide-react';
+import { CalendarDays, Settings, Trash2 } from 'lucide-react';
 import { UserAvatar } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ export function TaskRow({
   task,
   onToggle,
   onEdit,
+  onDelete,
   showAvatar = false,
   showList = false,
   taskLists = [],
@@ -19,6 +20,8 @@ export function TaskRow({
   task: Task;
   onToggle: () => void;
   onEdit: () => void;
+  /** Omitted where a row is not deletable; the button is then not rendered. */
+  onDelete?: () => void;
   showAvatar?: boolean;
   showList?: boolean;
   taskLists?: Array<{ id: string; name: string; color?: string | null }>;
@@ -32,8 +35,8 @@ export function TaskRow({
     <div
       className={cn(
         'p-2 rounded-md border cursor-pointer hover:bg-muted/50 transition-colors',
-        task.completed ? 'opacity-60 bg-green-50/50 dark:bg-green-950/20 border-green-500/30' : '',
-        isOverdue ? 'border-red-500/50 bg-red-50/50 dark:bg-red-950/20' : !task.completed ? 'border-border' : ''
+        task.completed ? 'opacity-60 bg-success/10 border-success/30' : '',
+        isOverdue ? 'border-destructive/50 bg-destructive/10' : !task.completed ? 'border-border' : ''
       )}
       onClick={onToggle}
     >
@@ -54,7 +57,7 @@ export function TaskRow({
                 {dueDate && (
                   <div className={cn(
                     'flex items-center gap-1 text-xs',
-                    isOverdue ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+                    isOverdue ? 'text-destructive' : 'text-muted-foreground'
                   )}>
                     <CalendarDays className="h-3 w-3" />
                     {isOverdue ? (
@@ -85,7 +88,8 @@ export function TaskRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+            className="wall-touch-control h-6 w-6 p-0 opacity-50 hover:opacity-100"
+            aria-label="Edit task"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
@@ -93,6 +97,22 @@ export function TaskRow({
           >
             <Settings className="h-3 w-3" />
           </Button>
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 opacity-50 hover:opacity-100 hover:text-destructive"
+              onClick={(e) => {
+                // The row itself toggles completion, so a delete tap must not
+                // also mark the task done on its way out.
+                e.stopPropagation();
+                onDelete();
+              }}
+              aria-label="Delete task"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

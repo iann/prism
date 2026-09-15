@@ -67,9 +67,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           // Padding
           'px-3 py-2',
           // Border and background
-          'border border-input bg-background',
+          'border border-input/70 bg-card',
           // Shape
-          'rounded-md',
+          'rounded-xl',
           // Typography
           'text-base',
           // Placeholder styling

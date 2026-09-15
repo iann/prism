@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/client';
-import { photos, photoSources } from '@/lib/db/schema';
+import { photos, photoSources, excludedPhotos } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import {
   listPhotosInFolder,
@@ -12,6 +12,7 @@ import { clearPhotoCache } from './photo-cache';
 import { promises as fs } from 'fs';
 import { decrypt, encrypt } from '@/lib/utils/crypto';
 import exifr from 'exifr';
+import { orientationFromDimensions } from '@/lib/utils/photoOrientation';
 
 async function extractGps(buffer: Buffer): Promise<{ latitude: string; longitude: string } | null> {
   try {
@@ -100,9 +101,21 @@ export async function syncOneDriveSource(sourceId: string) {
   const existingExternalIds = new Set(existingPhotos.map((p) => p.externalId));
   const remoteIds = new Set(remotePhotos.map((p) => p.id));
 
+  // Photos the user removed from Prism — skip re-adding them (they stay in
+  // OneDrive, just not pulled back into Prism). See excludedPhotos tombstones.
+  const excludedIds = new Set(
+    (
+      await db
+        .select({ externalId: excludedPhotos.externalId })
+        .from(excludedPhotos)
+        .where(eq(excludedPhotos.sourceId, sourceId))
+    ).map((r) => r.externalId),
+  );
+
   // Download new photos (or record metadata-only if OneDrive already has GPS)
   for (const remotePhoto of remotePhotos) {
     if (existingExternalIds.has(remotePhoto.id)) continue;
+    if (excludedIds.has(remotePhoto.id)) continue;
 
     try {
       const facetLat = remotePhoto.location?.latitude;
@@ -134,6 +147,7 @@ export async function syncOneDriveSource(sourceId: string) {
           longitude: facetLng.toString(),
           isExternal: true,
           usage: '',
+          orientation: orientationFromDimensions(mdWidth, mdHeight),
           dedupeKey: computeDedupeKey(takenAt, mdWidth, mdHeight),
         });
       } else {
@@ -157,6 +171,7 @@ export async function syncOneDriveSource(sourceId: string) {
           latitude: gps?.latitude ?? null,
           longitude: gps?.longitude ?? null,
           isExternal: false,
+          orientation: orientationFromDimensions(result.width, result.height),
           dedupeKey: computeDedupeKey(takenAt, result.width, result.height),
         });
       }
@@ -284,10 +299,22 @@ export async function syncImmichSource(sourceId: string) {
     existingPhotos.map((p) => p.externalId).filter((x): x is string => !!x),
   );
 
+  // Photos the user removed from Prism — skip re-adding them (they stay in
+  // Immich, just not pulled back into Prism). See excludedPhotos tombstones.
+  const excludedIds = new Set(
+    (
+      await db
+        .select({ externalId: excludedPhotos.externalId })
+        .from(excludedPhotos)
+        .where(eq(excludedPhotos.sourceId, sourceId))
+    ).map((r) => r.externalId),
+  );
+
   // Insert new assets as external metadata-only records (proxy serves bytes
   // on demand, with the local cache absorbing repeat requests).
   for (const asset of remoteImages) {
     if (existingExternalIds.has(asset.id)) continue;
+    if (excludedIds.has(asset.id)) continue;
 
     const takenAt = asset.fileCreatedAt ? new Date(asset.fileCreatedAt) : null;
 
@@ -306,6 +333,7 @@ export async function syncImmichSource(sourceId: string) {
       longitude: asset.longitude != null ? asset.longitude.toString() : null,
       isExternal: true,
       usage: 'wallpaper,gallery,screensaver',
+      orientation: orientationFromDimensions(asset.width, asset.height),
       dedupeKey: computeDedupeKey(takenAt, asset.width, asset.height),
     });
   }

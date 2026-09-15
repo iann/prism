@@ -133,7 +133,8 @@ export function ChoreGroupGrid({
                     type="button"
                     onClick={() => moveUp(key)}
                     disabled={idx === 0}
-                    className="p-0.5 text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors"
+                    className="wall-touch-control flex items-center justify-center text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors"
+                    aria-label={`Move ${user?.name || 'unassigned'} group up`}
                   >
                     <ChevronUp className="h-3.5 w-3.5" />
                   </button>
@@ -141,7 +142,8 @@ export function ChoreGroupGrid({
                     type="button"
                     onClick={() => moveDown(key)}
                     disabled={idx === sortedGroups.length - 1}
-                    className="p-0.5 text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors"
+                    className="wall-touch-control flex items-center justify-center text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors"
+                    aria-label={`Move ${user?.name || 'unassigned'} group down`}
                   >
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>

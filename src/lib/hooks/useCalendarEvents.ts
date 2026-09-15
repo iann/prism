@@ -13,10 +13,20 @@ import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
 import { useDistinctState } from './useDistinctState';
+import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 
 interface UseCalendarEventsOptions {
-  /** Number of days to fetch events for */
+  /** Number of days to fetch events for (used only when rangeStart/rangeEnd are omitted). */
   daysToShow?: number;
+  /**
+   * Explicit fetch window. When both are provided they override the
+   * today-anchored daysToShow window — used by the full calendar page so events
+   * far from today (past a rolling horizon) don't disappear from the views.
+   */
+  rangeStart?: Date;
+  rangeEnd?: Date;
+  /** Max events to request. Defaults to 500; the calendar page raises this. */
+  limit?: number;
   /** Auto-refresh interval in milliseconds (0 = disabled) */
   refreshInterval?: number;
   refreshOffsetMs?: number;
@@ -49,7 +59,7 @@ export type CalendarSource = {
   groupName: string | null;
   groupColor: string | null;
   lastSynced: string | null;
-  syncErrors: { needsReauth?: boolean; lastError?: string; timestamp?: string } | null;
+  syncErrors: { needsReauth?: boolean; removedAtSource?: boolean; lastError?: string; timestamp?: string } | null;
   providerConfig: Record<string, unknown> | null;
   user: { id: string; name: string; color: string } | null;
 };
@@ -80,15 +90,43 @@ function requestCalendarSources(): Promise<CalendarSource[]> {
 export function useCalendarEvents(
   options: UseCalendarEventsOptions = {}
 ): UseCalendarEventsResult {
-  const { daysToShow = 7, refreshInterval = 5 * 60 * 1000, refreshOffsetMs = 0, useDemoFallback = true, autoSyncMinutes = 10, enabled = true } = options;
+  const {
+    daysToShow = 7,
+    rangeStart,
+    rangeEnd,
+    limit = 500,
+    refreshInterval = 5 * 60 * 1000,
+    refreshOffsetMs = 0,
+    useDemoFallback = true,
+    autoSyncMinutes = 10,
+    enabled = true,
+  } = options;
 
-  // Stable cache key for today's date range — same across remounts within the same day
+  // The request URL doubles as the cache key. When an explicit range is given
+  // it wins; otherwise fall back to the today-anchored daysToShow window.
+  // Stable across remounts within the same day (deps are primitives).
+  const dateKey = useLocalDateKey();
+  const rangeStartMs = rangeStart?.getTime();
+  const rangeEndMs = rangeEnd?.getTime();
   const cacheKey = useMemo(() => {
-    const today = startOfDay(new Date());
-    const startDate = startOfDay(subDays(today, 30));
-    const endDate = endOfDay(addDays(today, daysToShow));
-    return `/api/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&limit=500`;
-  }, [daysToShow]);
+    let startDate: Date;
+    let endDate: Date;
+    if (rangeStartMs !== undefined && rangeEndMs !== undefined) {
+      startDate = new Date(rangeStartMs);
+      endDate = new Date(rangeEndMs);
+    } else {
+      const today = startOfDay(new Date());
+      startDate = startOfDay(subDays(today, 30));
+      endDate = endOfDay(addDays(today, daysToShow));
+    }
+    return `/api/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&limit=${limit}`;
+    // dateKey is in the dependency list on purpose. Without it this memo's
+    // deps are all constants, so the window computed from `new Date()` above
+    // is frozen at mount — invisible on a page someone opens and closes, and
+    // wrong for weeks on a display that is never reloaded. It changes exactly
+    // once per local midnight, so it cannot trigger a refetch for any other
+    // reason. Irrelevant when an explicit range was passed, but harmless.
+  }, [daysToShow, rangeStartMs, rangeEndMs, limit, dateKey]);
 
   const cached = navCacheGet<CalendarEvent[]>(cacheKey);
   const [events, setEvents] = useState<CalendarEvent[]>(() => cached ?? []);
@@ -107,13 +145,9 @@ export function useCalendarEvents(
     try {
       setError(null);
 
-      const today = startOfDay(new Date());
-      const startDate = startOfDay(subDays(today, 30));
-      const endDate = endOfDay(addDays(today, daysToShow));
-
-      const response = await fetch(
-        `/api/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&limit=500`
-      );
+      // cacheKey IS the request URL (same window + limit), so the fetch can
+      // never diverge from what's cached.
+      const response = await fetch(cacheKey);
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -169,7 +203,7 @@ export function useCalendarEvents(
     } finally {
       setLoading(false);
     }
-  }, [daysToShow, useDemoFallback, cacheKey]);
+  }, [cacheKey]);
 
   /**
    * Trigger calendar sync

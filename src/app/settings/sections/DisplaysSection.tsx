@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Monitor, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Monitor, ExternalLink, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,9 +12,21 @@ const FONT_SCALE_OPTIONS = [75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 130, 14
 
 export function DisplaysSection() {
   const { layouts, loading } = useLayouts();
+  const [homeAssistantConfigured, setHomeAssistantConfigured] = useState<boolean | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   // Optimistic local scale values — keyed by layout id
   const [localScales, setLocalScales] = useState<Record<string, number>>({});
+  const [localMediaPlayer, setLocalMediaPlayer] = useState<Record<string, boolean>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/integrations/home-assistant/config-status')
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('status unavailable')))
+      .then((status: { configured?: boolean }) => { if (active) setHomeAssistantConfigured(status.configured === true); })
+      .catch(() => { if (active) setHomeAssistantConfigured(false); });
+    return () => { active = false; };
+  }, []);
 
   // Initialise local scales from loaded layouts (only once per layout)
   useEffect(() => {
@@ -28,38 +40,85 @@ export function DisplaysSection() {
     });
   }, [layouts]);
 
-  const saveTimers = useState<Record<string, ReturnType<typeof setTimeout>>>({});
+  useEffect(() => {
+    if (homeAssistantConfigured === null) return;
+    setLocalMediaPlayer((prev) => {
+      const next = { ...prev };
+      for (const layout of layouts) next[layout.id] ??= homeAssistantConfigured
+        ? layout.floatingCardSettings?.mediaPlayerPlayback?.enabled ??
+          layout.floatingCardSettings?.appleTvPlayback?.enabled ??
+          true
+        : false;
+      return next;
+    });
+  }, [homeAssistantConfigured, layouts]);
+
+  const updateMediaPlayer = async (layoutId: string, enabled: boolean) => {
+    const previous = localMediaPlayer[layoutId] ?? true;
+    setLocalMediaPlayer((prev) => ({ ...prev, [layoutId]: enabled }));
+    setSaveError(null);
+    setSaving(layoutId);
+    try {
+      const response = await fetch(`/api/layouts/${layoutId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ floatingCardSettings: { mediaPlayerPlayback: { enabled } } }) });
+      if (!response.ok) throw new Error('Media-player setting could not be saved.');
+    } catch (error) {
+      setLocalMediaPlayer((prev) => ({ ...prev, [layoutId]: previous }));
+      setSaveError(error instanceof Error ? error.message : 'Media-player setting could not be saved.');
+    } finally { setSaving(null); }
+  };
+
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const saveVersions = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimers.current).forEach((timer) => clearTimeout(timer));
+    };
+  }, []);
 
   const updateFontScale = (layoutId: string, scale: number) => {
     // Update local state immediately — slider stays responsive
     setLocalScales((prev) => ({ ...prev, [layoutId]: scale }));
 
+    const version = (saveVersions.current[layoutId] ?? 0) + 1;
+    saveVersions.current[layoutId] = version;
+
     // Debounce DB write so rapid slider drags don't spam the API
-    const timers = saveTimers[0];
-    if (timers[layoutId]) clearTimeout(timers[layoutId]);
-    timers[layoutId] = setTimeout(async () => {
+    if (saveTimers.current[layoutId]) clearTimeout(saveTimers.current[layoutId]);
+    const timer = setTimeout(async () => {
       setSaving(layoutId);
       try {
-        await fetch(`/api/layouts/${layoutId}`, {
+        const response = await fetch(`/api/layouts/${layoutId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fontScale: scale === 100 ? null : scale }),
         });
+        if (!response.ok) throw new Error(`Font scale save failed (${response.status})`);
       } catch {
-        setLocalScales((prev) => ({ ...prev, [layoutId]: layouts.find(l => l.id === layoutId)?.fontScale ?? 100 }));
+        // Do not let an older request undo a newer slider selection.
+        if (saveVersions.current[layoutId] === version) {
+          setLocalScales((prev) => ({
+            ...prev,
+            [layoutId]: layouts.find((l) => l.id === layoutId)?.fontScale ?? 100,
+          }));
+        }
       } finally {
-        setSaving(null);
+        if (saveTimers.current[layoutId] === timer) delete saveTimers.current[layoutId];
+        if (saveVersions.current[layoutId] === version) setSaving(null);
       }
     }, 400);
+    saveTimers.current[layoutId] = timer;
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Displays</h2>
+        <h2 className="text-2xl font-bold">Text Size</h2>
         <p className="text-muted-foreground">
-          Configure per-display settings for each of your named dashboards.
-          Font scale lets you tune text size for screens that are farther away or have unusual DPI.
+          How large everything reads on each of your dashboards. This scales the whole
+          board at once, which is different from the per-widget text size in the layout
+          editor. Most screens never need it — reach for it only if one is read from
+          further away than the rest.
         </p>
       </div>
 
@@ -106,16 +165,31 @@ export function DisplaysSection() {
                   )}
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Font Scale</span>
+                  <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm">
+                    <input type="checkbox" className="h-5 w-5 shrink-0 accent-primary" checked={homeAssistantConfigured === true && (localMediaPlayer[layout.id] ?? true)} disabled={homeAssistantConfigured !== true} onChange={(e) => void updateMediaPlayer(layout.id, e.target.checked)} aria-label={`Show media-player playback card on ${layout.name}`} />
+                    <span>{homeAssistantConfigured === true ? 'Show media-player playback card on this dashboard' : 'Media-player playback unavailable until Home Assistant is configured'}</span>
+                  </label>
+                  {saveError && saving === null && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+                  {/* Collapsed by default. Reading a dashboard from across a room is a
+                      real case but an uncommon one, and leaving the control open put a
+                      slider in front of everyone to serve the few who need it.
+                      Deliberately open when the value is not 100%: a display someone has
+                      already tuned should not have that hidden, or the setting becomes
+                      something you can change and then never find again. */}
+                  <details open={scale !== 100} className="group">
+                    <summary className="flex cursor-pointer list-none items-center justify-between py-0.5 [&::-webkit-details-marker]:hidden">
+                      <span className="flex items-center gap-1 text-sm font-medium">
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-open:rotate-90" />
+                        Text size
+                      </span>
                       <span className={cn(
                         'text-sm tabular-nums',
                         scale !== 100 ? 'text-primary font-medium' : 'text-muted-foreground'
                       )}>
                         {scale}%
                       </span>
-                    </div>
+                    </summary>
+                  <div className="space-y-1.5 pt-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground w-6">A</span>
                       <div className="flex-1 relative">
@@ -171,6 +245,7 @@ export function DisplaysSection() {
                       </>
                     )}
                   </div>
+                  </details>
                 </CardContent>
               </Card>
             );
@@ -181,7 +256,8 @@ export function DisplaysSection() {
       <Card className="border-dashed">
         <CardContent className="py-4">
           <p className="text-sm text-muted-foreground">
-            <strong>Tip:</strong> Set a dedicated device to open <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">/d/your-slug</code> as its home page, then tune font scale here to match its viewing distance and screen size.
+            <strong>Tip:</strong> Set a dedicated device to open <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">/d/your-slug</code> as its home page, then set the text size here to match how far away it is read from.
+            Larger text means fewer rows fit on the screen, so a dashboard read from across the room holds less than one read at the counter.
             Each named dashboard is independent — changes here don&apos;t affect other displays.
           </p>
         </CardContent>

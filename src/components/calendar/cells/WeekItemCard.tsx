@@ -22,6 +22,8 @@ interface WeekItemCardProps {
   subtitle?: string;
   /** Strike-through and dim, for completed/cooked items */
   muted?: boolean;
+  /** Dim without marking complete, for items whose time has passed. */
+  subdued?: boolean;
   /** Diagonal-stripe overlay for items awaiting parent approval. */
   pendingApproval?: boolean;
   /** Click handler — opens detail modal in caller */
@@ -54,6 +56,17 @@ const PENDING_APPROVAL_OVERLAY = 'repeating-linear-gradient(45deg, rgba(168,85,2
  * 5px left stripe, and 1em title — we map those onto Tailwind tokens that
  * remain theme-aware.
  */
+/**
+ * The colour stripe carries NO radius of its own.
+ *
+ * It runs the full height and the card's `overflow-hidden` plus its own
+ * `rounded-md` mask it, so the curve you see on the stripe is literally the
+ * card's corner. Giving the stripe its own radius meant the same value read as
+ * much rounder on a short row than a tall one; letting the card do the masking
+ * makes it correct at every height by construction.
+ */
+export const STRIPE_SHAPE = 'shrink-0 self-stretch';
+
 const SIZE_STYLES: Record<WeekItemSize, {
   padding: string;
   titleText: string;
@@ -101,6 +114,19 @@ const SIZE_STYLES: Record<WeekItemSize, {
   },
 };
 
+/**
+ * The type a card's title is set in, for anything that has to sit beside one.
+ *
+ * Exported so the all-day band can read it rather than restate it. Restating a
+ * card's metrics somewhere else is how the band ended up with different
+ * padding, a different stripe width and, here, lighter and smaller titles than
+ * the cards directly beneath them.
+ */
+export function cardTitleClasses(size: WeekItemSize): string {
+  const styles = SIZE_STYLES[size];
+  return `${styles.titleText} ${styles.titleWeight}`;
+}
+
 export function WeekItemCard({
   variant,
   stripeColor,
@@ -108,6 +134,7 @@ export function WeekItemCard({
   timeLabel,
   subtitle,
   muted,
+  subdued,
   pendingApproval,
   onClick,
   ariaLabel,
@@ -140,6 +167,7 @@ export function WeekItemCard({
     transform: CSS.Translate.toString(draggable.transform),
     touchAction: dragId ? 'none' : undefined,
     zIndex: draggable.isDragging ? 50 : undefined,
+    ['--wall-event-color' as string]: stripeColor,
   };
 
   // For row layout, render: [stripe][time][title][subtitle aside]
@@ -156,6 +184,7 @@ export function WeekItemCard({
         {...(dragId ? draggable.listeners : {})}
         {...(dragId ? draggable.attributes : {})}
         className={cn(
+          'wall-event-card',
           'group relative flex w-full items-center gap-2',
           'overflow-hidden rounded-md',
           'bg-calendar-surface',
@@ -166,13 +195,14 @@ export function WeekItemCard({
           dragId && 'cursor-grab active:cursor-grabbing',
           draggable.isDragging && 'opacity-60 ring-2 ring-seasonal-accent shadow-xl',
           muted && 'opacity-60',
+          subdued && 'opacity-55 saturate-[0.65]',
           styles.padding,
         )}
       >
         {pendingApproval && (
           <span aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: PENDING_APPROVAL_OVERLAY }} />
         )}
-        <span aria-hidden className={cn('shrink-0 self-stretch rounded-full', styles.stripeWidth)} style={{ backgroundColor: stripeColor }} />
+        <span aria-hidden className={cn(STRIPE_SHAPE, styles.stripeWidth)} style={{ backgroundColor: stripeColor }} />
         {styles.showTime && timeLabel && (
           <span className={cn('shrink-0 font-medium tabular-nums text-muted-foreground', styles.metaText)}>
             {timeLabel}
@@ -204,6 +234,7 @@ export function WeekItemCard({
       {...(dragId ? draggable.listeners : {})}
       {...(dragId ? draggable.attributes : {})}
       className={cn(
+        'wall-event-card',
         'group relative flex w-full items-stretch gap-2',
         'overflow-hidden rounded-md',
         'bg-calendar-surface',
@@ -214,12 +245,13 @@ export function WeekItemCard({
         dragId && 'cursor-grab active:cursor-grabbing',
         draggable.isDragging && 'opacity-60 ring-2 ring-seasonal-accent shadow-xl',
         muted && 'opacity-60',
+        subdued && 'opacity-55 saturate-[0.65]',
       )}
     >
       {pendingApproval && (
         <span aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: PENDING_APPROVAL_OVERLAY }} />
       )}
-      <span aria-hidden className={cn('shrink-0 rounded-l-md', styles.stripeWidth)} style={{ backgroundColor: stripeColor }} />
+      <span aria-hidden className={cn(STRIPE_SHAPE, styles.stripeWidth)} style={{ backgroundColor: stripeColor }} />
 
       <div className={cn('flex min-w-0 flex-1 flex-col', styles.padding)}>
         {styles.showTime && timeLabel && (

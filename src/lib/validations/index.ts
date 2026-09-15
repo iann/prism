@@ -17,7 +17,19 @@ export const isoDateSchema = z.string().datetime();
 const eventBaseSchema = z.object({
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().max(5000).optional(),
-  location: z.string().max(255).optional(),
+  // 255 was too tight to hold what calendars actually send. Google writes the
+  // whole venue block into location — name, full address, suite, sometimes
+  // parking directions — and the sync path stores it unbounded, because the
+  // column is `text` and sync does not go through this schema. PATCH does, so
+  // any event whose location had grown past 255 could not be saved at all: the
+  // form sends the existing value back untouched and validation rejected it,
+  // with "Validation failed" naming no field. Ten events on one household
+  // instance were uneditable that way, the longest 335 characters.
+  //
+  // Matches description's bound, since both are free text from an external
+  // source landing in a `text` column. The limit is here to refuse absurd
+  // payloads, not to second-guess a venue address.
+  location: z.string().max(5000).optional(),
   startTime: isoDateSchema,
   endTime: isoDateSchema,
   allDay: z.boolean().optional().default(false),
@@ -38,6 +50,31 @@ export const createEventSchema = eventBaseSchema.refine(
 );
 
 export const updateEventSchema = eventBaseSchema.partial();
+
+/**
+ * PATCH /api/events/[id].
+ *
+ * PATCH semantics are not POST semantics: an absent key means "leave this
+ * alone", and an explicit null means "clear it". `.partial()` can only express
+ * the first, so every field a person can empty out is nullable here. Without
+ * that, a cleared description had no way to reach the server at all.
+ *
+ * startTime and endTime are omitted on purpose. The route parses them with
+ * `new Date()` and rejects NaN, which accepts more shapes than
+ * `z.string().datetime()` does, and tightening that is a separate decision
+ * from bounding the text fields.
+ */
+export const patchEventSchema = eventBaseSchema
+  .omit({ startTime: true, endTime: true })
+  .partial()
+  .extend({
+    description: eventBaseSchema.shape.description.unwrap().nullish(),
+    location: eventBaseSchema.shape.location.unwrap().nullish(),
+    recurrenceRule: eventBaseSchema.shape.recurrenceRule.unwrap().nullish(),
+    color: hexColorSchema.nullish(),
+    reminderMinutes: eventBaseSchema.shape.reminderMinutes.unwrap().nullish(),
+    calendarSourceId: uuidSchema.nullish(),
+  });
 
 // TASK SCHEMAS
 
@@ -408,6 +445,11 @@ export const createLayoutSchema = z.object({
   screensaverWidgets: widgetConfigsSchema.nullable().optional(),
   orientation: z.enum(['landscape', 'portrait']).optional().default('landscape'),
   fontScale: z.number().int().min(50).max(200).nullable().optional(),
+  floatingCardSettings: z.object({
+    mediaPlayerPlayback: z.object({ enabled: z.boolean() }).strict().optional(),
+    /** Legacy key retained for layouts saved before the media-player rename. */
+    appleTvPlayback: z.object({ enabled: z.boolean() }).strict().optional(),
+  }).strict().optional(),
   createdBy: uuidSchema.optional(),
 });
 

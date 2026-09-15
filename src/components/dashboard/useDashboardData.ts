@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
 import {
   useCalendarEvents,
@@ -18,6 +18,8 @@ import type { Chore } from '@/types';
 
 const AUTO_SYNC_STALE_MINUTES = 5;
 const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+/** Delay (ms) before enabling non-visible widget data loading. */
+const DEFERRED_LOAD_DELAY_MS = 2000;
 export const DASHBOARD_POLL_OFFSETS = {
   weather: 0,
   messages: 5_000,
@@ -44,6 +46,13 @@ const WIDGET_DOMAIN_MAP: Record<string, string[]> = {
   points: ['goals', 'points'],
 };
 
+/**
+ * When a task-source sync last ran, shared across every consumer of this hook.
+ * Deliberately module-level: it must survive a component remounting, or an
+ * overlay appearing re-triggers a provider write.
+ */
+let lastAutoSyncAt = 0;
+
 export function getEnabledDashboardDomains(visibleWidgets?: Set<string>) {
   const enabled = new Set<string>();
   if (!visibleWidgets) return enabled;
@@ -57,13 +66,32 @@ export function getEnabledDashboardDomains(visibleWidgets?: Set<string>) {
   return enabled;
 }
 
-export function useDashboardData(visibleWidgets?: Set<string>) {
-  const enabledDomains = useMemo(
-    () => getEnabledDashboardDomains(visibleWidgets),
-    [visibleWidgets]
-  );
+/**
+ * @param visibleWidgets Which widgets are on screen. Omitted means "unknown",
+ *   which enables every data domain.
+ * @param opts.deferRest Whether to enable the remaining domains after a short
+ *   delay. This is useful for the dashboard, but not for the fixed screensaver
+ *   layout, where the extra fetches would never be rendered.
+ */
+export function useDashboardData(
+  visibleWidgets?: Set<string>,
+  opts: { deferRest?: boolean } = {},
+) {
+  const { deferRest = true } = opts;
+  const [deferredEnabled, setDeferredEnabled] = useState(false);
 
-  const isEnabled = (domain: string) => enabledDomains.has(domain);
+  useEffect(() => {
+    if (!visibleWidgets || !deferRest) return;
+    const timer = setTimeout(() => setDeferredEnabled(true), DEFERRED_LOAD_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [visibleWidgets, deferRest]);
+
+  const enabledDomains = useMemo(() => {
+    if (!visibleWidgets || deferredEnabled) return null;
+    return getEnabledDashboardDomains(visibleWidgets);
+  }, [visibleWidgets, deferredEnabled]);
+
+  const isEnabled = (domain: string) => enabledDomains === null || enabledDomains.has(domain);
   const calendarEnabled = isEnabled('calendar');
   const weatherEnabled = isEnabled('weather');
   const choresEnabled = isEnabled('chores');
@@ -192,8 +220,6 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
   } = useLayouts();
 
   // Auto-sync task sources when dashboard is visible
-  const lastAutoSyncRef = useRef<number>(0);
-
   const autoSyncTasks = useCallback(async () => {
     if (!tasksEnabled) return;
 
@@ -201,7 +227,7 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
     if (typeof document !== 'undefined' && !document.cookie.includes('prism_session')) return;
 
     const now = Date.now();
-    if (now - lastAutoSyncRef.current < AUTO_SYNC_INTERVAL_MS) return;
+    if (now - lastAutoSyncAt < AUTO_SYNC_INTERVAL_MS) return;
 
     try {
       const res = await fetch(
@@ -215,7 +241,7 @@ export function useDashboardData(visibleWidgets?: Set<string>) {
         if (data.synced > 0) {
           refreshTasks();
         }
-        lastAutoSyncRef.current = now;
+        lastAutoSyncAt = now;
       }
     } catch {
       // Silently fail auto-sync

@@ -8,12 +8,12 @@ Family message board for shared updates. Lower-friction than texting (no notific
 
 ## What a message has
 
-- **Message text** — what you're saying. No length limit.
-- **Author** — whoever was logged in when it was posted.
-- **Pinned** — boolean. Pinned messages sort to the top regardless of age.
-- **Important** — boolean. Renders with red accent / icon for visual emphasis.
-- **Expires at** — optional timestamp. Auto-deletes after the window passes.
-- **Created at** / **Updated at** — auto.
+- **Message text**: what you're saying. Up to 500 characters (a live counter shows remaining length while posting/editing).
+- **Author**: whoever was logged in when it was posted.
+- **Pinned**: boolean. Pinned messages sort to the top regardless of age.
+- **Important**: boolean. Renders with red accent / icon for visual emphasis.
+- **Expires at**: optional timestamp. After the window passes the message is hidden from all views (filtered server-side on read); the row stays in the database.
+- **Created at** / **Updated at**: auto.
 
 ---
 
@@ -21,8 +21,8 @@ Family message board for shared updates. Lower-friction than texting (no notific
 
 Two ways:
 
-1. **From the dashboard MessagesWidget** — inline input at the top of the widget. Type, press Enter.
-2. **From the full Messages page** — *nav → Messages* → input at the top.
+1. **From the dashboard MessagesWidget**: the **+** (Add message) button opens the Post Message dialog.
+2. **From the full Messages page**: *nav → Messages* → input at the top.
 
 Both require login. The author is auto-set to the logged-in user; you can't impersonate someone else.
 
@@ -39,20 +39,20 @@ Pick from a dropdown when posting:
 - **3 days**
 - **7 days**
 
-Useful for temporary notices: "Pizza in the fridge from tonight" (expires in 12h), "Snow day — no school" (expires in 1d), "Hosting brunch Sunday, RSVP by Friday" (expires in 3d).
+Useful for temporary notices: "Pizza in the fridge from tonight" (expires in 12h), "Snow day: no school" (expires in 1d), "Hosting brunch Sunday, RSVP by Friday" (expires in 3d).
 
-Expired messages are deleted by a periodic cleanup job. They don't accumulate as zombie rows.
+Once a message's expiration window passes it is hidden from every view (the server filters expired rows out on read). The rows themselves remain in the database. There is no periodic purge job.
 
 ---
 
 ## Pinning
 
-Tap the **pin icon** on any message to pin / unpin. Pinned messages:
+Pinning is chosen **when you post**, via the **Pin to top** checkbox in the Post Message dialog. There is currently no in-list pin/unpin toggle. To change a message's pinned state you re-post it. Pinned messages:
 
 - Sort to the top of the list (above everything, regardless of age).
 - Render with a slight visual highlight (pin icon, subtle background tint).
 
-Pin the standing-house-rules-style notes ("WiFi: TacosForever42", "Gate code: 4297"). Unpin the time-sensitive stuff once it's no longer relevant.
+Pin the standing-house-rules-style notes ("WiFi: TacosForever42", "Gate code: 4297").
 
 ---
 
@@ -64,7 +64,7 @@ Mark a message **important** for visual emphasis:
 - Slightly darker background tint.
 - Reads as a louder version of "you should look at this."
 
-Independent from pinning — a message can be pinned + important, just pinned, just important, or neither.
+Independent from pinning, a message can be pinned + important, just pinned, just important, or neither.
 
 ---
 
@@ -89,7 +89,7 @@ Trash icon on each message (visible on hover/long-press):
 - **Parents** can delete any message.
 - Children cannot delete others' messages.
 
-Deletion is immediate. No "are you sure" prompt (the message can be re-typed if it was wrong). An undo button briefly appears in the nav bar for ~5 seconds via the global undo stack.
+A confirmation dialog ("Delete this message?" / "This action cannot be undone.") appears before the message is removed. Deletion is permanent. There is no undo.
 
 ---
 
@@ -97,8 +97,8 @@ Deletion is immediate. No "are you sure" prompt (the message can be re-typed if 
 
 The Messages page has a **Group by Person** toggle:
 
-- **Off** — one chronological list, newest first (pinned first within that).
-- **On** — messages organize into person-colored cards (one card per family member). Each card shows that person's recent messages.
+- **Off**: one chronological list, newest first (pinned first within that).
+- **On**: messages organize into person-colored cards (one card per family member). Each card shows that person's recent messages.
 
 Group-by mode is useful when you have a lot of message traffic and want to see "what has Jordan posted recently?" at a glance.
 
@@ -111,9 +111,9 @@ The widget shows the most-recent N messages with:
 - Author avatar + name (color-coded).
 - Message text (truncated if very long; tap to expand).
 - Pinned / important badges where applicable.
-- Inline input at the top to post directly without navigating to the full page.
+- A **+** (Add message) button that opens the Post Message dialog. There is no inline text input on the widget.
 
-Sized for a corner of the dashboard. Auto-scrolls to top when a new message arrives.
+Sized for a corner of the dashboard.
 
 ---
 
@@ -136,7 +136,7 @@ These pinned messages function as a lightweight house wiki.
 Expire-in-1-day messages for things that matter today and not tomorrow:
 
 - "Pizza in fridge from tonight."
-- "Don't use the upstairs shower — fixing it Wednesday."
+- "Don't use the upstairs shower. Fixing it Wednesday."
 - "Mom's at the dentist 'til 3."
 
 ### Encouragement / "great job"
@@ -151,9 +151,9 @@ Sometimes you and your spouse need a shared note that's more durable than a text
 
 ## Privacy
 
-Messages are family-internal — only logged-in family members see them. The babysitter and away-mode views do not show messages.
+Messages are family-internal: only logged-in family members see them. The babysitter and away-mode views do not show messages.
 
-Messages live in your Prism database. No external sync to MS To Do, Google, or anywhere else (intentionally — messages are ephemeral; they're not lists, they don't belong in a task-tracking system).
+Messages live in your Prism database. No external sync to MS To Do, Google, or anywhere else (intentionally: messages are ephemeral; they're not lists, they don't belong in a task-tracking system).
 
 ---
 
@@ -161,7 +161,7 @@ Messages live in your Prism database. No external sync to MS To Do, Google, or a
 
 ### Message vanished after a few hours
 
-Most likely an expiration was set. Check the expiration dropdown when posting — default is "No expiration."
+Most likely an expiration was set. Check the expiration dropdown when posting. The default is "No expiration."
 
 ### Edit pencil doesn't appear
 
@@ -169,18 +169,10 @@ Either:
 - Not logged in. (Messages are read-only when no user is authenticated.)
 - Not the author and not a parent. Children can't edit others' messages.
 
-### Pin icon does nothing
-
-Was a transient issue in some pre-v1.4 versions. If you still see this, refresh — most likely a stale tab with a cached JS chunk.
-
 ### Message order looks weird
 
-Sort is: pinned first (within pinned, newest first), then non-pinned by created_at descending. If you're seeing different order, you're probably looking at the per-person grouped view — each person's section sorts independently.
-
-### Deleted a message by accident
-
-Hit the **Undo** button in the nav bar within ~5 seconds. After that, the message is gone for good.
+Sort is: pinned first (within pinned, newest first), then non-pinned by created_at descending. If you're seeing different order, you're probably looking at the per-person grouped view, where each person's section sorts independently.
 
 ### Important badge color clashes with theme
 
-The important-message accent uses your theme's destructive color (typically red). On the default light theme it's pure red; on dark theme it's slightly muted. Custom theme palettes may override — check *Settings → Display → Theme Palette*.
+The important-message accent uses your theme's destructive color (typically red). On the default light theme it's pure red; on dark theme it's slightly muted. Custom theme palettes may override, so check *Settings → Appearance*.

@@ -313,7 +313,7 @@ export function TravelView() {
           <button
             onClick={() => setActiveTab('globe')}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
+              'wall-tab-control flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
               activeTab === 'globe' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
@@ -323,7 +323,7 @@ export function TravelView() {
           <button
             onClick={() => setActiveTab('places')}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
+              'wall-tab-control flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
               activeTab === 'places' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
@@ -359,7 +359,7 @@ export function TravelView() {
                   onClick={() => setShowAllChildren((v) => !v)}
                   title={showAllChildren ? 'Hide all sub-locations' : 'Show all sub-locations on map'}
                   className={cn(
-                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium shadow transition-colors',
+                    'wall-map-control flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium shadow transition-colors',
                     showAllChildren ? 'bg-primary text-primary-foreground' : 'bg-background/90 text-foreground border border-border hover:bg-muted'
                   )}
                 >
@@ -368,7 +368,8 @@ export function TravelView() {
                 </button>
                 <button
                   onClick={() => setGlobeDarkMode((v) => !v)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium shadow transition-colors bg-background/90 text-foreground border border-border hover:bg-muted"
+                  className="wall-map-control flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium shadow transition-colors bg-background/90 text-foreground border border-border hover:bg-muted"
+                  aria-label={globeDarkMode ? 'Use light map' : 'Use dark map'}
                 >
                   {globeDarkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
                 </button>

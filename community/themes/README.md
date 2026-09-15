@@ -1,0 +1,105 @@
+# Community themes
+
+A theme is a set of colours. Nineteen values for light mode, nineteen for dark,
+a name and a short description. No CSS, no fonts, no images — a theme cannot
+contain anything but colour values, deliberately.
+
+Four more are optional: `success`, `success-foreground`, `warning` and
+`warning-foreground`, the colours behind "this worked" and "this needs
+attention". Leave them out and Prism's own values apply, so a theme written
+before they existed is still complete and still correct. Set them and they are
+checked for contrast like every other pair.
+
+## Installing one
+
+*Settings → Appearance → Palette → Browse* lists everything in this directory,
+with both light and dark previewed on the card, and installs one in a tap. An
+installed theme is copied into your instance rather than linked, so a display
+that boots without a network still comes up in the palette it was left on. It
+then sits in the palette picker next to the built-in five, marked *Community*,
+and can be removed again from the same place.
+
+Cards say how many colour pairs came out between 3:1 and 4.5:1 — legible, but
+tiring on a screen read from a distance. See *Contrast, in practice* below.
+
+## Two ways to share one
+
+Pick whichever suits you. They differ in who owns the theme afterwards, and it
+is worth understanding the difference before choosing.
+
+### The gallery — your theme stays yours
+
+Open a submission from inside Prism (*Settings → Appearance → Palette → Share*)
+and it becomes available for anyone to install. You keep the rights to it. It
+is licensed to this project for distribution in the gallery and nothing more.
+
+Choose this if you want people to be able to use your theme and you would
+rather keep it.
+
+### A pull request under the CLA — it ships with Prism
+
+If you would like your theme to be one of the palettes everyone gets in the
+box, open a pull request adding it to `src/lib/themes/appThemes.ts` and sign
+the Contributor License Agreement.
+
+The CLA is required for this route and not for the other, because a built-in
+theme becomes part of what Prism itself distributes. That means the project
+needs the right to keep shipping it, including if Prism is ever hosted
+commercially or moves to a different licence.
+
+Choose this if you would rather your theme just *be* one of Prism's looks.
+
+Neither route is better. The first keeps your work yours; the second puts it
+in front of everyone.
+
+## What is checked
+
+Automatically, on submission:
+
+- **Every colour is a bare HSL triple.** Anything else is rejected. This is
+  what makes a theme unable to carry CSS.
+- **Text has to be readable.** Contrast is measured on eight foreground and
+  background pairs in both modes. Below 3:1 is rejected. Between 3:1 and 4.5:1
+  is accepted but shown on the gallery card, so whoever installs it can judge.
+  Prism is read from across a room, often by someone without their glasses.
+- **Name, description, tags** are length-limited and must be plain text.
+
+Keys may be written either way — `background` or `--background`. The bare form
+is what gets stored, but a theme exported from a fork, or copied out of a
+stylesheet, spells them the way CSS does and there is no reason to reject it
+over a prefix.
+
+A theme may also carry keys this project has no surface for — a fork that
+themes its own weather ramp or widget tints, say. Those are not an error and
+do not block anything; they are named back to you on the submission, and are
+not carried into the gallery copy, so the theme will look plainer here than it
+does where you made it. If one of them is a surface Prism ought to theme, that
+is worth an issue of its own.
+
+By a person, before it merges:
+
+Every submission becomes a pull request that a maintainer reviews. Themes are
+declined if they are profane, bigoted, politically partisan, or built to divide
+people. This is a display in a family kitchen, and it is read by children.
+
+**Name it for what it looks like, not for what it reminds you of.** A palette
+cannot really be owned — nobody has a claim on blue and light blue — so the
+colours are never the problem. The name is, because a name is the thing that
+suggests somebody endorsed it, and that is what attracts a complaint.
+
+So: keep the *name* descriptive, and say what inspired it in the
+*description*. "Blue Bomber" with a description mentioning the games it evokes
+is fine. The same theme called after the character is not, and neither is one
+that sets out to pass as a real product's interface — a name, a wordmark, or a
+copy of a recognisable layout.
+
+If a rights holder ever asks for something to be removed, it is removed. No
+argument, no delay.
+
+## Contrast, in practice
+
+The bar is deliberately not WCAG AA everywhere. Hard-failing every pair below
+4.5:1 would reject a lot of themes that are genuinely pleasant to look at, and
+the first thing it would reject is the work of the people most likely to
+contribute. So the rule is: below 3:1 nobody can read it and it does not ship;
+between 3:1 and 4.5:1 it ships with the warning visible.

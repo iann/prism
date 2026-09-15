@@ -50,7 +50,6 @@ export function LayoutEditorShareDialog({
     name: layoutName || '',
     description: '',
     author: '',
-    screenSizes: [] as string[],
     orientation: 'landscape' as 'landscape' | 'portrait',
     tags: '',
   });
@@ -63,7 +62,6 @@ export function LayoutEditorShareDialog({
         name: layoutName || '',
         description: '',
         author: '',
-        screenSizes: [],
         orientation: 'landscape',
         tags: '',
       });
@@ -113,7 +111,6 @@ export function LayoutEditorShareDialog({
       name: shareForm.name,
       description: shareForm.description,
       author: shareForm.author,
-      screenSizes: shareForm.screenSizes,
       orientation: shareForm.orientation,
       tags: shareForm.tags
         .split(',')
@@ -127,21 +124,18 @@ export function LayoutEditorShareDialog({
       return;
     }
 
-    const title = encodeURIComponent(`Community Layout: ${shareForm.name}`);
-    const body = encodeURIComponent(
-      '```json\n' +
-        JSON.stringify(submissionData, null, 2) +
-        '\n```\n\n' +
-        `**Author:** ${shareForm.author}\n` +
-        `**Screen Sizes:** ${shareForm.screenSizes.join(', ')}\n` +
-        `**Orientation:** ${shareForm.orientation}\n`
-    );
-    const url = `https://github.com/sandydargoport/prism/issues/new?labels=layout-submission&title=${title}&body=${body}`;
-    window.open(url, '_blank');
+    // Route to the "Community Layout Submission" issue FORM and prefill its
+    // fields by id — forms ignore ?body=. Field ids come from
+    // .github/ISSUE_TEMPLATE/layout-submission.yml.
+    const params = new URLSearchParams({
+      template: 'layout-submission.yml',
+      title: `Community Layout: ${shareForm.name}`,
+      'layout-json': JSON.stringify(submissionData, null, 2),
+      'author-name': shareForm.author,
+    });
+    window.open(`https://github.com/sandydargoport/prism/issues/new?${params.toString()}`, '_blank');
     onClose();
   };
-
-  const presetSizes = ['1920x1080', '2560x1440', '3840x2160', '2560x1600', '2048x1536', '1366x768'];
 
   return (
     <div
@@ -190,66 +184,7 @@ export function LayoutEditorShareDialog({
         </div>
         <div className="flex items-center gap-4">
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Target Resolutions *</label>
-            <div className="flex flex-wrap items-center gap-1">
-              {presetSizes.map((size) => (
-                <button
-                  key={size}
-                  onClick={() =>
-                    setShareForm((f) => ({
-                      ...f,
-                      screenSizes: f.screenSizes.includes(size)
-                        ? f.screenSizes.filter((s) => s !== size)
-                        : [...f.screenSizes, size],
-                    }))
-                  }
-                  className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
-                    shareForm.screenSizes.includes(size)
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-muted hover:bg-accent'
-                  }`}
-                >
-                  {size}
-                </button>
-              ))}
-              <input
-                type="text"
-                placeholder="Custom (e.g. 2736x1824)"
-                className="w-[155px] rounded-full border border-border bg-muted px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const val = (e.target as HTMLInputElement).value.trim();
-                    if (/^\d{3,5}x\d{3,5}$/.test(val) && !shareForm.screenSizes.includes(val)) {
-                      setShareForm((f) => ({ ...f, screenSizes: [...f.screenSizes, val] }));
-                      (e.target as HTMLInputElement).value = '';
-                    }
-                  }
-                }}
-              />
-            </div>
-            {shareForm.screenSizes.filter((s) => !presetSizes.includes(s)).length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-1">
-                {shareForm.screenSizes
-                  .filter((s) => !presetSizes.includes(s))
-                  .map((size) => (
-                    <button
-                      key={size}
-                      onClick={() =>
-                        setShareForm((f) => ({
-                          ...f,
-                          screenSizes: f.screenSizes.filter((s) => s !== size),
-                        }))
-                      }
-                      className="rounded-full border border-primary bg-primary px-2 py-0.5 text-xs text-primary-foreground transition-colors"
-                    >
-                      {size} &times;
-                    </button>
-                  ))}
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Orientation *</label>
+            <label className="text-xs text-muted-foreground block mb-1">Orientation *</label>
             <div className="flex gap-1">
               {(['landscape', 'portrait'] as const).map((orient) => (
                 <button

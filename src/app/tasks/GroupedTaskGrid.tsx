@@ -16,6 +16,7 @@ export function GroupedTaskGrid({
   groups,
   toggleTask,
   editTask,
+  deleteTask,
   setCelebratingUser,
   taskLists,
   isMobile = false,
@@ -23,6 +24,7 @@ export function GroupedTaskGrid({
   groups: GroupDef[];
   toggleTask: (id: string) => Promise<boolean>;
   editTask: (task: Task) => void;
+  deleteTask: (taskId: string) => void;
   setCelebratingUser: (user: { id: string; name: string } | null) => void;
   taskLists: Array<{ id: string; name: string; color?: string | null }>;
   isMobile?: boolean;
@@ -102,10 +104,10 @@ export function GroupedTaskGrid({
             >
               {isTouch || isMobile ? (
                 <div className="flex flex-col shrink-0">
-                  <button type="button" onClick={() => moveUp(group.key)} disabled={idx === 0} className="p-0.5 text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors">
+                  <button type="button" onClick={() => moveUp(group.key)} disabled={idx === 0} className="wall-touch-control flex items-center justify-center text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors" aria-label={`Move ${group.label} group up`}>
                     <ChevronUp className="h-3.5 w-3.5" />
                   </button>
-                  <button type="button" onClick={() => moveDown(group.key)} disabled={idx === sortedGroups.length - 1} className="p-0.5 text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors">
+                  <button type="button" onClick={() => moveDown(group.key)} disabled={idx === sortedGroups.length - 1} className="wall-touch-control flex items-center justify-center text-muted-foreground/50 hover:text-foreground disabled:opacity-20 transition-colors" aria-label={`Move ${group.label} group down`}>
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -153,6 +155,7 @@ export function GroupedTaskGrid({
                     }
                   }}
                   onEdit={() => editTask(task)}
+                  onDelete={() => deleteTask(task.id)}
                   showList={true}
                   taskLists={taskLists}
                 />

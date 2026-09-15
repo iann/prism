@@ -13,15 +13,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { optionalAuth } from '@/lib/auth';
 import { fetchWeatherData, type LocationParam } from '@/lib/integrations/weather';
+import { fetchActiveWeatherAlerts } from '@/lib/integrations/weatherAlerts';
 import { getCached } from '@/lib/cache/redis';
 import { db } from '@/lib/db/client';
 import { settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logError } from '@/lib/utils/logError';
-import type { WeatherUnits } from '@/components/widgets/WeatherWidget';
+import type { WeatherCurrentSource, WeatherUnits } from '@/components/widgets/WeatherWidget';
+import {
+  applyAirGradientCurrent,
+  fetchAirGradientMeasurement,
+  syncCurrentHourlyTemperature,
+} from '@/lib/integrations/airgradient';
 
-// Cache weather data for 30 minutes
+// Keep provider responses cached longer than the local sensor. The dashboard
+// polls every minute, while Pirate Weather's response can stay cached for
+// five minutes to avoid unnecessary provider quota usage.
 const WEATHER_CACHE_TTL = 30 * 60;
+const PIRATE_WEATHER_CACHE_TTL = 5 * 60;
+const WEATHER_ALERT_CACHE_TTL = 5 * 60;
+const AIRGRADIENT_CACHE_TTL = 60;
 
 /**
  * Resolve location: query param > DB setting (lat/lon preferred, legacy string fallback) > env var > default
@@ -39,11 +50,14 @@ async function resolveLocation(queryLocation: string | null): Promise<LocationPa
         zipCode?: string; city?: string; state?: string; country?: string;
       };
       if (val.lat !== undefined && val.lon !== undefined) {
-        return { lat: val.lat, lon: val.lon };
+        // Pass displayName through. Dropping it here is what pinned the
+        // widget's label to WEATHER_LOCATION regardless of the saved
+        // location (#295).
+        return { lat: val.lat, lon: val.lon, displayName: val.displayName };
       }
       // Legacy fallback — still works for existing installs
-      if (val.zipCode) return `${val.zipCode},US`;
       if (val.city) return [val.city, val.state, val.country || 'US'].filter(Boolean).join(',');
+      if (val.zipCode) return `${val.zipCode},US`;
     }
   } catch { /* fall through */ }
 
@@ -75,7 +89,8 @@ async function resolveUnits(): Promise<WeatherUnits> {
 
 /**
  * GET /api/weather
- * Fetches weather data for a location (cached for 30 minutes)
+ * Fetches weather data for a location (Pirate cached for 5 minutes;
+ * other providers cached for 30 minutes)
  */
 export async function GET(request: NextRequest) {
   // Weather is available to everyone - no auth required for read-only
@@ -93,15 +108,55 @@ export async function GET(request: NextRequest) {
       ? location.toLowerCase().replace(/\s+/g, '-')
       : `${location.lat.toFixed(2)},${location.lon.toFixed(2)}`;
     const cacheKey = `weather:${provider}:${units.temperature}:${locationKey}`;
+    const cacheTtl = provider === 'pirate' ? PIRATE_WEATHER_CACHE_TTL : WEATHER_CACHE_TTL;
 
     // Get from cache or fetch fresh
-    const weatherData = await getCached(
+    let weatherData = await getCached(
       cacheKey,
       () => fetchWeatherData(location, { units }),
-      WEATHER_CACHE_TTL
+      cacheTtl
     );
 
-    return NextResponse.json(weatherData);
+    if (weatherData.lat !== undefined && weatherData.lon !== undefined) {
+      const alertCacheKey = `weather-alerts:${weatherData.lat.toFixed(2)},${weatherData.lon.toFixed(2)}`;
+      try {
+        const alerts = await getCached(
+          alertCacheKey,
+          () => fetchActiveWeatherAlerts({ lat: weatherData.lat!, lon: weatherData.lon! }),
+          WEATHER_ALERT_CACHE_TTL,
+        );
+        weatherData = { ...weatherData, alerts };
+      } catch (error) {
+        // Alerts are an enhancement to the forecast. A provider outage or a
+        // location outside NWS coverage must never make weather unavailable.
+        logError('Weather alerts unavailable; continuing without alerts:', error);
+        weatherData = { ...weatherData, alerts: [] };
+      }
+    } else {
+      weatherData = { ...weatherData, alerts: [] };
+    }
+
+    let currentSource: WeatherCurrentSource = provider === 'pirate' ? 'pirate' : 'provider';
+    try {
+      const airGradientCacheTarget = process.env.AIRGRADIENT_URL?.trim() || 'default';
+      const airGradient = await getCached(
+        `airgradient:${airGradientCacheTarget}:current`,
+        fetchAirGradientMeasurement,
+        AIRGRADIENT_CACHE_TTL,
+      );
+      weatherData = applyAirGradientCurrent(weatherData, airGradient, units);
+      currentSource = 'airgradient';
+    } catch (error) {
+      // The local monitor is deliberately best-effort. Keep provider data
+      // available when it is offline, but expose the fallback state to UI.
+      logError('AirGradient unavailable; using weather provider current data:', error);
+    }
+
+    // Whichever source supplied the current reading, make the timeline's
+    // "Now" point use that exact displayed temperature too.
+    weatherData = syncCurrentHourlyTemperature(weatherData);
+
+    return NextResponse.json({ ...weatherData, currentSource });
   } catch (error) {
     logError('Weather API error:', error);
 

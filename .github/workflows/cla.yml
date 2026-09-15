@@ -1,0 +1,57 @@
+# CLA Assistant — asks first-time contributors to sign the Prism CLA (CLA.md)
+# with a one-click PR comment, and records signatures in signatures/cla.json.
+#
+# One-time setup by the maintainer:
+#   - Create a fine-grained/classic Personal Access Token with `repo` scope and
+#     add it as a repository secret named CLA_PAT (needed so the bot can commit
+#     the signature file). GITHUB_TOKEN alone can't push the signature commit.
+name: CLA Assistant
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, closed, synchronize]
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  cla:
+    # Never run in a fork. Workflow files travel with a fork, so without this
+    # guard the bot fires inside contributors' own repos: it walks the commit
+    # authors of their private PRs (including upstream authors picked up by a
+    # routine master sync) and nags each one to sign a CLA they aren't party
+    # to. Signing there can't work either, since CLA_PAT only exists here.
+    #
+    # Tested against the repository's own fork flag rather than its name, so a
+    # rename or a transfer to an org can't silently disable the bot here. Note
+    # this reads the event payload: it holds for the issue_comment and
+    # pull_request_target triggers above, but a schedule or workflow_dispatch
+    # trigger carries no `repository` object and would skip the job.
+    if: github.event.repository.fork == false
+    # Keep the guard at job scope so fork PRs skip before the action or secrets
+    # are evaluated.
+    runs-on: ubuntu-latest
+    steps:
+      - name: CLA Assistant
+        if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA and I agree') || github.event_name == 'pull_request_target'
+        uses: contributor-assistant/github-action@v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_PAT }}
+        with:
+          path-to-signatures: 'signatures/cla.json'
+          path-to-document: 'https://github.com/sandydargoport/prism/blob/master/CLA.md'
+          # Signatures are committed to this dedicated, UNPROTECTED branch — the
+          # bot cannot push to master (branch protection ruleset).
+          branch: 'cla-signatures'
+          allowlist: sandydargoport,dependabot[bot],github-actions[bot]
+          custom-notsigned-prcomment: 'Thanks for the contribution! One thing before it can be merged: Prism needs a CLA signature from you, once, for all time. Read the [Contributor License Agreement](https://github.com/sandydargoport/prism/blob/master/CLA.md) and, if you agree, post a comment below with exactly this text. It has to be your own comment rather than a tick-box, because the signature needs to be your affirmative act:'
+          custom-allsigned-prcomment: 'All contributors have signed the CLA. Thank you! ✅'
+          # The bot only re-evaluates on a new comment or a push. Someone who
+          # signs and then waits sees a red check with no way to clear it, so
+          # say what unsticks it.
+          custom-pr-sign-comment: 'I have read the CLA and I agree'

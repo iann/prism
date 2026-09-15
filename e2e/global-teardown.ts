@@ -1,5 +1,5 @@
-import { execSync } from 'child_process';
-import { writeFileSync, unlinkSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -12,12 +12,25 @@ function runSQL(sql: string) {
   const tmpFile = join(tmpdir(), `prism-e2e-teardown-${Date.now()}.sql`);
   writeFileSync(tmpFile, sql, 'utf-8');
   try {
-    execSync(`docker exec -i prism-db psql -U prism -d prism < "${tmpFile}"`, {
-      stdio: 'pipe',
-      shell: 'cmd.exe',
-    });
+    if (process.env.DATABASE_URL && hasCommand('psql')) {
+      execFileSync('psql', [process.env.DATABASE_URL, '-f', tmpFile], { stdio: 'pipe' });
+    } else {
+      execFileSync('docker', ['exec', '-i', 'prism-db', 'psql', '-U', 'prism', '-d', 'prism'], {
+        input: readFileSync(tmpFile),
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    }
   } finally {
     try { unlinkSync(tmpFile); } catch { /* ignore */ }
+  }
+}
+
+function hasCommand(command: string): boolean {
+  try {
+    execFileSync(command, ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
   }
 }
 

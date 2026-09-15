@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { Emoji } from '@/components/ui/Emoji';
 import { cn } from '@/lib/utils';
 import { WidgetContainer, WidgetEmpty } from './WidgetContainer';
 import { Check } from 'lucide-react';
@@ -26,7 +27,7 @@ export const PointsWidget = React.memo(function PointsWidget({
   return (
     <WidgetContainer
       title="Points"
-      icon={<span className="text-sm">🏆</span>}
+      icon={<span className="text-sm"><Emoji e="🏆" /></span>}
       loading={loading}
       error={error}
       titleHref={titleHref}
@@ -58,9 +59,9 @@ export const PointsWidget = React.memo(function PointsWidget({
             <div key={goal.id} className="space-y-1">
               <div className="flex items-center gap-1.5 text-sm">
                 {goal.fullyAchieved && (
-                  <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <Check className="h-3.5 w-3.5 text-success shrink-0" />
                 )}
-                <span>{goal.emoji || '🎯'}</span>
+                <span><Emoji e={goal.emoji || '🎯'} /></span>
                 <span className="font-medium truncate">{goal.name}</span>
                 <span className="ml-auto text-xs text-muted-foreground tabular-nums shrink-0">
                   {goal.pointCost}pts
