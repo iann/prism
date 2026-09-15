@@ -10,19 +10,19 @@ const mockInstance = Object.assign(
 const mockCreate = jest.fn(() => mockInstance);
 
 const birthday = {
-  name: 'Emma',
-  birthDate: '2014-09-12',
+  name: 'Sample Person',
+  birthDate: '2014-02-15',
   eventType: 'birthday' as const,
   partyModeEnabled: true,
-  userId: 'emma',
+  userId: 'sample-person',
 };
 
 const anniversary = {
-  name: 'Alex & Jordan',
-  birthDate: '2010-09-12',
+  name: 'Example Couple',
+  birthDate: '2010-02-15',
   eventType: 'anniversary' as const,
   partyModeEnabled: true,
-  userId: 'alex',
+  userId: 'example-couple',
 };
 
 let reducedMotionPreference = false;
@@ -54,7 +54,7 @@ import {
 describe('BirthdayCelebration', () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-09-12T09:30:00'));
+    jest.setSystemTime(new Date('2026-02-15T09:30:00'));
     reducedMotionPreference = false;
     mediaQueryListeners = new Set();
     Object.defineProperty(window, 'matchMedia', {
@@ -117,7 +117,7 @@ describe('BirthdayCelebration', () => {
   it('ignores the trigger on a date without a family celebration', () => {
     const { container } = render(
       <BirthdayCelebration
-        celebrations={[{ ...birthday, birthDate: '2014-09-13' }]}
+        celebrations={[{ ...birthday, birthDate: '2014-02-16' }]}
         random={() => 0}
       />
     );

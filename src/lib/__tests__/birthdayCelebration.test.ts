@@ -10,38 +10,38 @@ import {
 } from '../birthdayCelebration';
 
 const birthday = {
-  name: 'Emma',
-  birthDate: '2014-09-12',
+  name: 'Sample Person',
+  birthDate: '2014-02-15',
   eventType: 'birthday' as const,
   partyModeEnabled: true,
-  userId: 'family-emma',
+  userId: 'family-sample-person',
 };
 
 const anniversary = {
-  name: 'Alex & Jordan',
-  birthDate: '2010-09-12',
+  name: 'Example Couple',
+  birthDate: '2010-02-15',
   eventType: 'anniversary' as const,
   partyModeEnabled: true,
-  user: { id: 'family-alex', name: 'Alex & Jordan' },
+  user: { id: 'family-example-couple', name: 'Example Couple' },
 };
 
 describe('family celebration policy', () => {
   it('activates birthdays and anniversaries for linked family members', () => {
-    const date = new Date(2026, 8, 12, 23, 59);
+    const date = new Date(2026, 1, 15, 23, 59);
 
     expect(isFamilyCelebrationDate(birthday, date)).toBe(true);
     expect(isFamilyCelebrationDate(anniversary, date)).toBe(true);
     expect(getTodaysFamilyCelebrations([birthday, anniversary], date)).toHaveLength(2);
-    expect(hasFamilyCelebrationOnDate([birthday], '2026-09-12')).toBe(true);
+    expect(hasFamilyCelebrationOnDate([birthday], '2026-02-15')).toBe(true);
   });
 
   it('includes unlinked extended-family records but ignores milestones', () => {
-    const extendedFamilyBirthday = { ...birthday, name: 'Grandma Helen', userId: null };
+    const extendedFamilyBirthday = { ...birthday, name: 'Extended Family', userId: null };
     const milestone = { ...birthday, eventType: 'milestone' as const };
 
-    expect(isFamilyCelebrationDate(extendedFamilyBirthday, new Date(2026, 8, 12))).toBe(true);
-    expect(isFamilyCelebrationDate(milestone, new Date(2026, 8, 12))).toBe(false);
-    expect(getTodaysFamilyCelebrations([extendedFamilyBirthday, milestone], '2026-09-12')).toEqual([
+    expect(isFamilyCelebrationDate(extendedFamilyBirthday, new Date(2026, 1, 15))).toBe(true);
+    expect(isFamilyCelebrationDate(milestone, new Date(2026, 1, 15))).toBe(false);
+    expect(getTodaysFamilyCelebrations([extendedFamilyBirthday, milestone], '2026-02-15')).toEqual([
       extendedFamilyBirthday,
     ]);
   });
@@ -49,14 +49,14 @@ describe('family celebration policy', () => {
   it('ignores birthday and anniversary records that are not opted in', () => {
     const unmarked = { ...birthday, partyModeEnabled: false };
 
-    expect(isFamilyCelebrationDate(unmarked, '2026-09-12')).toBe(false);
-    expect(getTodaysFamilyCelebrations([unmarked], '2026-09-12')).toEqual([]);
+    expect(isFamilyCelebrationDate(unmarked, '2026-02-15')).toBe(false);
+    expect(getTodaysFamilyCelebrations([unmarked], '2026-02-15')).toEqual([]);
     expect(formatFamilyCelebrationGreeting([unmarked])).toBeNull();
   });
 
   it('formats birthday and anniversary greetings together', () => {
     expect(formatFamilyCelebrationGreeting([birthday, anniversary])).toBe(
-      '🎉 Happy Birthday Emma 🎉 · 💍 Happy Anniversary Alex & Jordan 💍'
+      '🎉 Happy Birthday Sample Person 🎉 · 💍 Happy Anniversary Example Couple 💍'
     );
   });
 

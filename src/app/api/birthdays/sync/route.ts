@@ -252,11 +252,10 @@ export async function POST() {
       const calSource = calendarSourceLabel[event.id] || 'google';
       rows.push({ name: parsed.name, birthDate, eventType: parsed.eventType, googleCalendarSource: calSource });
     }
-    // upsertBirthday handles the prefix-aware merge so that a calendar
-    // event titled "Alex's birthday" (which the regex strips down to
-    // "Alex") collapses onto an iCloud contact with FN "Alex Doe"
-    // when both share a birth month/day, instead of becoming a separate
-    // row. See src/lib/services/birthday-merge.ts.
+    // upsertBirthday handles prefix-aware merging so a calendar event's
+    // short name can collapse onto a matching full contact name when both
+    // share a birth month/day, instead of becoming a separate row. See
+    // src/lib/services/birthday-merge.ts.
     let added = 0;
     let updated = 0;
     for (const row of rows) {

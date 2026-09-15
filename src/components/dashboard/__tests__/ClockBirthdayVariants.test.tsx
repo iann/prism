@@ -4,25 +4,25 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { BIRTHDAY_PARTY_EVENT } from '@/lib/birthdayCelebration';
 
 jest.mock('@/lib/hooks/useLocalDateKey', () => ({
-  useLocalDateKey: () => '2026-09-12',
+  useLocalDateKey: () => '2026-02-15',
 }));
 
 import { PartyModeButton } from '@/components/birthday';
 
 const birthday = {
-  name: 'Emma',
-  birthDate: '2014-09-12',
+  name: 'Sample Person',
+  birthDate: '2014-02-15',
   eventType: 'birthday' as const,
   partyModeEnabled: true,
-  userId: 'emma',
+  userId: 'sample-person',
 };
 
 const anniversary = {
-  name: 'Alex & Jordan',
-  birthDate: '2010-09-12',
+  name: 'Example Couple',
+  birthDate: '2010-02-15',
   eventType: 'anniversary' as const,
   partyModeEnabled: true,
-  userId: 'alex',
+  userId: 'example-couple',
 };
 
 describe('universal party mode button', () => {
@@ -35,7 +35,7 @@ describe('universal party mode button', () => {
   });
 
   it('stays hidden for an unrelated date and triggers the universal event', () => {
-    render(<PartyModeButton celebrations={[{ ...birthday, birthDate: '2014-09-13' }]} />);
+    render(<PartyModeButton celebrations={[{ ...birthday, birthDate: '2014-02-16' }]} />);
     expect(screen.queryByRole('button', { name: 'Start family celebration' })).toBeNull();
 
     const dispatchSpy = jest.spyOn(window, 'dispatchEvent');

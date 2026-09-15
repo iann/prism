@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
  *
  * REQUEST BODY:
  * {
- *   name: string (required, e.g., "Grandma Helen")
+ *   name: string (required)
  *   birthDate: string (required, YYYY-MM-DD format)
  *   userId?: string (optional link to family member)
  *   partyModeEnabled?: boolean (opt this event into dashboard party mode)

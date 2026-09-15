@@ -2,19 +2,19 @@ import { millisecondsUntilNextClockTick, shouldShowClockGreeting } from '../Cloc
 import { getClockGreeting } from '../ClockGreeting';
 
 const familyBirthday = {
-  name: 'Emma',
-  birthDate: '2014-09-12',
+  name: 'Sample Person',
+  birthDate: '2014-02-15',
   eventType: 'birthday' as const,
   partyModeEnabled: true,
-  userId: 'emma',
+  userId: 'sample-person',
 };
 
 const familyAnniversary = {
-  name: 'Alex & Jordan',
-  birthDate: '2010-09-12',
+  name: 'Example Couple',
+  birthDate: '2010-02-15',
   eventType: 'anniversary' as const,
   partyModeEnabled: true,
-  userId: 'alex',
+  userId: 'example-couple',
 };
 
 describe('millisecondsUntilNextClockTick', () => {
@@ -36,15 +36,15 @@ describe('millisecondsUntilNextClockTick', () => {
 
 describe('family celebration clock greeting', () => {
   it('shows a family birthday even when the normal greeting is disabled', () => {
-    const date = new Date(2026, 8, 12, 9, 30);
+    const date = new Date(2026, 1, 15, 9, 30);
     expect(shouldShowClockGreeting(false, date, [familyBirthday])).toBe(true);
-    expect(getClockGreeting(date, [familyBirthday])).toBe('🎉 Happy Birthday Emma 🎉');
+    expect(getClockGreeting(date, [familyBirthday])).toBe('🎉 Happy Birthday Sample Person 🎉');
   });
 
   it('shows anniversaries and ignores adjacent dates', () => {
-    expect(getClockGreeting(new Date(2026, 8, 12, 9, 30), [familyAnniversary])).toBe(
-      '💍 Happy Anniversary Alex & Jordan 💍'
+    expect(getClockGreeting(new Date(2026, 1, 15, 9, 30), [familyAnniversary])).toBe(
+      '💍 Happy Anniversary Example Couple 💍'
     );
-    expect(shouldShowClockGreeting(false, new Date(2026, 8, 13), [familyBirthday])).toBe(false);
+    expect(shouldShowClockGreeting(false, new Date(2026, 1, 16), [familyBirthday])).toBe(false);
   });
 });
