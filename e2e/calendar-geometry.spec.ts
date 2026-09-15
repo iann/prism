@@ -85,29 +85,57 @@ test.describe('calendar grid geometry', () => {
         }
         return null;
       };
+      // Everything a failure needs in order to name the two boxes it measured.
+      // Without this the report is a bare pair of numbers, and diagnosing it
+      // means guessing which elements produced them.
+      const describe = (el: Element) => {
+        const cs = getComputedStyle(el);
+        return {
+          text: (el.textContent || '').trim().slice(0, 30),
+          cls: el.className.toString().slice(0, 120),
+          left: +el.getBoundingClientRect().left.toFixed(1),
+          padL: cs.paddingLeft,
+          borderL: cs.borderLeftWidth,
+        };
+      };
       const out: Array<{
         band: number;
         card: number | null;
         expectedBand: number | null;
+        slice: ReturnType<typeof describe>;
+        cardEl?: ReturnType<typeof describe>;
       }> = [];
       document.querySelectorAll('[data-spanning-events]').forEach((band) => {
         const cell = band.parentElement!;
         const slice = [...band.children].find((e) => e.getBoundingClientRect().width && e.textContent?.trim());
         if (!slice) return;
-
-        // The personal calendar puts timed one-day events in the shared lane
-        // band as well as all-day and multi-day events. When there is a regular
-        // calendar card below it, compare those two content offsets; otherwise
-        // compare the band title with its own stripe + flex gap. Looking for any
-        // button here used to select a chore/meal card, which is a different
-        // surface and produced a misleading 5px failure.
-        const card = [...cell.querySelectorAll('button[data-variant="event"]')]
-          .find((b) => !b.closest('[data-spanning-events]') && b.textContent?.trim());
+        // Two things in a cell are not the day's event cards and must not be
+        // measured against a band title:
+        //   - the "+N more" trigger, a wider control with its own padding, and
+        //     the only button left on a day whose events all collapsed into it;
+        //   - the meals/chores planning group, which is deliberately inset
+        //     inside its own band (p-1.5), so its cards sit 5.25px in.
+        // Both were read as misalignment, and which one a run hit depended on
+        // the date, so the suite passed or failed with the calendar.
+        // Timed one-day events use the shared lane too, so when there is no
+        // separate event card below the lane, compare the title to its own
+        // stripe and flex gap instead.
+        const card = [...cell.querySelectorAll('button[data-variant="event"]')].find(
+          (b) => !b.closest('[data-spanning-events]')
+            && !b.closest('[data-day-overlay]')
+            && !b.hasAttribute('data-day-overflow')
+            && b.textContent?.trim());
         const bandLeft = textLeft(slice);
         if (bandLeft === null) return;
         if (card) {
           const cardLeft = textLeft(card);
-          if (cardLeft !== null) out.push({ band: bandLeft, card: cardLeft, expectedBand: null });
+          if (cardLeft === null) return;
+          out.push({
+            band: bandLeft,
+            card: cardLeft,
+            expectedBand: null,
+            slice: describe(slice), cardEl: describe(card),
+          });
           return;
         }
 
@@ -118,15 +146,16 @@ test.describe('calendar grid geometry', () => {
           band: bandLeft,
           card: null,
           expectedBand: +(stripe.getBoundingClientRect().right + gap).toFixed(1),
+          slice: describe(slice),
         });
       });
       return out;
     });
 
     expect(offsets.length).toBeGreaterThan(0);
-    for (const o of offsets) {
-      expect(o.band).toBeCloseTo(o.card ?? o.expectedBand!, 0);
-    }
+    const misaligned = offsets.filter(
+      (o) => Math.abs(o.band - (o.card ?? o.expectedBand!)) > 0.5);
+    expect(misaligned, `misaligned band/card pairs:\n${JSON.stringify(misaligned, null, 1)}`).toEqual([]);
   });
 
   test('a lane sits at the same height in every column of a row', async ({ page }) => {
@@ -169,18 +198,22 @@ test.describe('calendar grid geometry', () => {
     await openCalendar(page, 'cards');
     const cells = await page.evaluate(() => {
       const out: Array<{ label: string; free: number; cardHeight: number }> = [];
-      const triggers = [...document.querySelectorAll('*')].filter(
-        (e) => e.children.length === 0 && /^\+\s*\d+\s*more$/.test((e.textContent || '').trim()),
-      );
+      // Matching the label text found nothing on a non-English instance, so the
+      // assertion below quietly measured zero cells instead of failing.
+      const triggers = [...document.querySelectorAll('[data-day-overflow]')];
       for (const trigger of triggers) {
         const cell = trigger.closest('[data-droppable-day]') ?? trigger.closest('div.relative.flex.flex-col');
         if (!cell) continue;
-        const cards = [...cell.querySelectorAll('button')].filter((b) => !b.closest('[data-spanning-events]'));
+        const cards = [...cell.querySelectorAll('button')].filter(
+          (b) => !b.closest('[data-spanning-events]')
+            && !b.closest('[data-day-overlay]')
+            && !b.hasAttribute('data-day-overflow'));
         if (!cards.length) continue;
         const cardHeight = Math.max(...cards.map((c) => c.getBoundingClientRect().height));
         // Anything pinned to the bottom of the cell (the meals/chores overlay)
         // is not free space, so measure up to whichever comes first.
-        const floors = [...cell.querySelectorAll('.mt-auto')].map((o) => o.getBoundingClientRect().top);
+        const floors = [...cell.querySelectorAll('[data-day-overlay], .mt-auto')]
+          .map((o) => o.getBoundingClientRect().top);
         const floor = Math.min(cell.getBoundingClientRect().bottom, ...floors);
         out.push({
           label: (trigger.textContent || '').trim(),
