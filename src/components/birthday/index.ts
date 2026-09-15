@@ -1,9 +1,9 @@
 export {
   BirthdayCelebration,
-  cancelCameronBirthdayParty,
-  triggerCameronBirthdayParty,
+  cancelBirthdayParty,
+  triggerBirthdayParty,
 } from './BirthdayCelebration';
-export { CameronBirthdayPartyButton } from './CameronBirthdayPartyButton';
+export { PartyModeButton } from './PartyModeButton';
 export type { BirthdayCelebrationProps, BirthdayPartyTriggerDetail } from './BirthdayCelebration';
 export {
   selectBirthdayIntensity,

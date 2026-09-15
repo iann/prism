@@ -866,45 +866,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: b02fd90f
 
-104. **Cameron birthday party mode**
+104. **Universal, opt-in party mode**
 
-    Adds a September 12 browser-local birthday greeting and a calm,
-    child-friendly celebration mode with a welcome scene, one-tap Party!
-    control, named confetti-and-balloon recipes, randomized recurring scenes,
-    reduced-motion support, and Performance Mode compatibility.
+    Generalizes party mode for birthday and anniversary events, adds a
+    per-event opt-in flag with a Settings → Party Mode control, and keeps new
+    synced events disabled by default so each Prism installation can choose
+    its own celebrations.
 
-    Commit: ad1b0cea
-
-105. **Compact Cameron birthday controls**
-
-    Removes emojis from the birthday greeting so it fits more reliably,
-    places the Party! control on its own line in every clock layout, and
-    keeps auto-hidden navigation collapsed while the celebration control is
-    used.
-
-    Commit: 747c61cb
-
-106. **Floating birthday party control and shorter cadence**
-
-    Moves the birthday trigger to one circular floating party-emoji button at
-    the bottom-left of the dashboard and shortens automatic celebrations to a
-    randomized three-to-five-minute cadence.
-
-    Commit: 69b107c0
-
-107. **Birthday greeting emoji framing**
-
-    Frames Cameron's birthday greeting with party emojis while preserving the
-    wrapping behavior used by the full and compact clock layouts.
-
-    Commit: c68fd10c
-
-108. **One-line birthday greeting layout**
-
-    Keeps the emoji-framed birthday greeting on one line by using birthday-
-    specific compact sizing and no-wrap styling across clock layouts.
-
-    Commit: c48d5821
+    Commits: 6d4c3284, 008e9bf3
 
 109. **Readable and wider precipitation radar popover**
 

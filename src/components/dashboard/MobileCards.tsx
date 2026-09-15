@@ -32,7 +32,10 @@ import type { BusRouteStatus, BusPrediction } from '@/lib/hooks/useBusTracking';
 import { getBusStatusColorClass } from '@/components/widgets/busStatusColors';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
-import { CAMERON_BIRTHDAY_GREETING, isCameronBirthdayDateKey } from '@/lib/cameronBirthday';
+import {
+  formatFamilyCelebrationGreeting,
+  getTodaysFamilyCelebrations,
+} from '@/lib/birthdayCelebration';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 
 type DashData = ReturnType<typeof useDashboardData>;
@@ -92,7 +95,7 @@ export function WeatherCard({ data }: { data: DashData['weather'] }) {
   );
 }
 
-export function ClockCard() {
+export function ClockCard({ data }: { data: DashData['birthdays'] }) {
   const { timeFormat, displayTimezone } = useTimeFormat();
   const dateKey = useLocalDateKey();
   const [now, setNow] = useState(new Date());
@@ -101,15 +104,17 @@ export function ClockCard() {
     return () => clearInterval(timer);
   }, []);
   const displayNow = toDisplayDate(now, displayTimezone);
-  const isBirthday = isCameronBirthdayDateKey(dateKey);
+  const celebrationGreeting = formatFamilyCelebrationGreeting(
+    getTodaysFamilyCelebrations(data.birthdays, dateKey)
+  );
   return (
     <div className="wall-card bg-card rounded-xl border border-border/55 shadow-sm p-3 flex flex-wrap items-center gap-3">
       <Clock className="h-5 w-5 text-muted-foreground" />
       <span className="text-2xl font-light tabular-nums">{formatDisplayTime(now, timeFormat, {}, displayTimezone)}</span>
       <span className="text-sm text-muted-foreground">{format(displayNow, 'EEEE, MMM d')}</span>
-      {isBirthday && (
+      {celebrationGreeting && (
         <span className="block w-full whitespace-nowrap text-center text-sm font-medium">
-          {CAMERON_BIRTHDAY_GREETING}
+          {celebrationGreeting}
         </span>
       )}
     </div>

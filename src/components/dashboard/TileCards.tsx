@@ -15,7 +15,10 @@ import type { useDashboardData } from './useDashboardData';
 import type { BusRouteStatus, BusPrediction } from '@/lib/hooks/useBusTracking';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
-import { CAMERON_BIRTHDAY_GREETING, isCameronBirthdayDateKey } from '@/lib/cameronBirthday';
+import {
+  formatFamilyCelebrationGreeting,
+  getTodaysFamilyCelebrations,
+} from '@/lib/birthdayCelebration';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 
 type DashData = ReturnType<typeof useDashboardData>;
@@ -78,7 +81,7 @@ export function WeatherTile({ data }: { data: DashData['weather'] }) {
   );
 }
 
-export function ClockTile() {
+export function ClockTile({ data }: { data: DashData['birthdays'] }) {
   const { timeFormat, displayTimezone } = useTimeFormat();
   const dateKey = useLocalDateKey();
   const [now, setNow] = useState(new Date());
@@ -87,14 +90,16 @@ export function ClockTile() {
     return () => clearInterval(t);
   }, []);
   const displayNow = toDisplayDate(now, displayTimezone);
-  const isBirthday = isCameronBirthdayDateKey(dateKey);
+  const celebrationGreeting = formatFamilyCelebrationGreeting(
+    getTodaysFamilyCelebrations(data.birthdays, dateKey)
+  );
   return (
     <TileShell icon={<Clock className="h-4 w-4 text-violet-500" />} title="Clock">
       <TileLine>{formatDisplayTime(now, timeFormat, {}, displayTimezone)}</TileLine>
       <TileLine dim>{format(displayNow, 'EEE, MMM d')}</TileLine>
-      {isBirthday && (
+      {celebrationGreeting && (
         <div className="text-xs leading-snug">
-          <span className="whitespace-nowrap">{CAMERON_BIRTHDAY_GREETING}</span>
+          <span className="whitespace-nowrap">{celebrationGreeting}</span>
         </div>
       )}
     </TileShell>

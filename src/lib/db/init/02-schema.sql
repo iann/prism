@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS public.birthdays (
     name character varying(100) NOT NULL,
     birth_date date NOT NULL,
     event_type character varying(20) DEFAULT 'birthday'::character varying NOT NULL,
+    party_mode_enabled boolean DEFAULT false NOT NULL,
     user_id uuid,
     gift_ideas text,
     send_card_days_before integer DEFAULT 7,

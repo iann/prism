@@ -245,6 +245,7 @@ export const createBirthdaySchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
   userId: uuidSchema.optional(),
+  partyModeEnabled: z.boolean().optional(),
   giftIdeas: z.string().max(2000).optional(),
   sendCardDaysBefore: z.number().int().min(0).max(30).optional().default(7),
 });

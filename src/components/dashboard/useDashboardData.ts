@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
-import { useCalendarEvents, useWeather, useMessages, useTasks, useChores, useShoppingLists, useMeals, useBirthdays, useLayouts, useGoals, usePoints } from '@/lib/hooks';
+import {
+  useCalendarEvents,
+  useWeather,
+  useMessages,
+  useTasks,
+  useChores,
+  useShoppingLists,
+  useMeals,
+  useBirthdays,
+  useLayouts,
+  useGoals,
+  usePoints,
+} from '@/lib/hooks';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import type { Chore } from '@/types';
 
@@ -91,7 +103,11 @@ export function useDashboardData(
     loading: calendarLoading,
     error: calendarError,
     refresh: refreshCalendar,
-  } = useCalendarEvents({ daysToShow: 30, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.calendar, enabled: calendarEnabled });
+  } = useCalendarEvents({
+    daysToShow: 30,
+    refreshOffsetMs: DASHBOARD_POLL_OFFSETS.calendar,
+    enabled: calendarEnabled,
+  });
 
   const {
     data: weatherData,
@@ -106,7 +122,11 @@ export function useDashboardData(
     error: messagesError,
     refresh: refreshMessages,
     deleteMessage,
-  } = useMessages({ limit: 10, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.messages, enabled: isEnabled('messages') });
+  } = useMessages({
+    limit: 10,
+    refreshOffsetMs: DASHBOARD_POLL_OFFSETS.messages,
+    enabled: isEnabled('messages'),
+  });
 
   const {
     tasks,
@@ -148,7 +168,10 @@ export function useDashboardData(
     error: shoppingError,
     refresh: refreshShopping,
     toggleItem: toggleShoppingItem,
-  } = useShoppingLists({ refreshOffsetMs: DASHBOARD_POLL_OFFSETS.shopping, enabled: isEnabled('shopping') });
+  } = useShoppingLists({
+    refreshOffsetMs: DASHBOARD_POLL_OFFSETS.shopping,
+    enabled: isEnabled('shopping'),
+  });
 
   const {
     meals,
@@ -163,7 +186,15 @@ export function useDashboardData(
     loading: birthdaysLoading,
     error: birthdaysError,
     syncFromGoogle: syncBirthdays,
-  } = useBirthdays({ limit: 8, refreshOffsetMs: DASHBOARD_POLL_OFFSETS.birthdays, enabled: isEnabled('birthdays') });
+  } = useBirthdays({
+    // Fetch the full family list so a less-common event cannot be hidden
+    // from party mode by the compact widget's display limit.
+    limit: 100,
+    refreshOffsetMs: DASHBOARD_POLL_OFFSETS.birthdays,
+    // Party mode is a dashboard-wide family feature, so it must know about
+    // today's events even when the Birthdays widget is hidden from a layout.
+    enabled: true,
+  });
 
   const {
     goals: goalsList,
@@ -199,9 +230,12 @@ export function useDashboardData(
     if (now - lastAutoSyncAt < AUTO_SYNC_INTERVAL_MS) return;
 
     try {
-      const res = await fetch(`/api/task-sources/sync-all?staleMinutes=${AUTO_SYNC_STALE_MINUTES}`, {
-        method: 'POST',
-      });
+      const res = await fetch(
+        `/api/task-sources/sync-all?staleMinutes=${AUTO_SYNC_STALE_MINUTES}`,
+        {
+          method: 'POST',
+        }
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.synced > 0) {
@@ -221,12 +255,12 @@ export function useDashboardData(
   useVisibilityPolling(
     autoSyncTasks,
     tasksEnabled ? AUTO_SYNC_INTERVAL_MS : 0,
-    DASHBOARD_POLL_OFFSETS.taskSync,
+    DASHBOARD_POLL_OFFSETS.taskSync
   );
 
   const dashboardTasks = useMemo(
     () => (calendarEnabled ? tasks.slice(0, 20) : tasks),
-    [calendarEnabled, tasks],
+    [calendarEnabled, tasks]
   );
   const calendarTasks = calendarEnabled ? tasks : undefined;
 
@@ -253,7 +287,7 @@ export function useDashboardData(
       refresh: refreshCalendar,
       enabled: calendarEnabled,
     }),
-    [calendarEnabled, calendarEvents, calendarError, calendarLoading, refreshCalendar],
+    [calendarEnabled, calendarEvents, calendarError, calendarLoading, refreshCalendar]
   );
   const weather = useMemo(
     () => ({
@@ -263,11 +297,17 @@ export function useDashboardData(
       refresh: refreshWeather,
       enabled: weatherEnabled,
     }),
-    [weatherData, weatherLoading, weatherError, refreshWeather, weatherEnabled],
+    [weatherData, weatherLoading, weatherError, refreshWeather, weatherEnabled]
   );
   const messageData = useMemo(
-    () => ({ messages, loading: messagesLoading, error: messagesError, refresh: refreshMessages, deleteMessage }),
-    [messages, messagesLoading, messagesError, refreshMessages, deleteMessage],
+    () => ({
+      messages,
+      loading: messagesLoading,
+      error: messagesError,
+      refresh: refreshMessages,
+      deleteMessage,
+    }),
+    [messages, messagesLoading, messagesError, refreshMessages, deleteMessage]
   );
   const taskData = useMemo(
     () => ({
@@ -279,7 +319,15 @@ export function useDashboardData(
       toggleTask,
       enabled: tasksEnabled,
     }),
-    [calendarTasks, dashboardTasks, tasksEnabled, tasksError, tasksLoading, refreshTasks, toggleTask],
+    [
+      calendarTasks,
+      dashboardTasks,
+      tasksEnabled,
+      tasksError,
+      tasksLoading,
+      refreshTasks,
+      toggleTask,
+    ]
   );
   const choreData = useMemo(
     () => ({
@@ -292,11 +340,26 @@ export function useDashboardData(
       approveChore,
       enabled: choresEnabled,
     }),
-    [approveChore, calendarChores, choresEnabled, choresError, choresLoading, completeChore, dashboardChores, refreshChores],
+    [
+      approveChore,
+      calendarChores,
+      choresEnabled,
+      choresError,
+      choresLoading,
+      completeChore,
+      dashboardChores,
+      refreshChores,
+    ]
   );
   const shopping = useMemo(
-    () => ({ lists: shoppingLists, loading: shoppingLoading, error: shoppingError, refresh: refreshShopping, toggleItem: toggleShoppingItem }),
-    [shoppingLists, shoppingLoading, shoppingError, refreshShopping, toggleShoppingItem],
+    () => ({
+      lists: shoppingLists,
+      loading: shoppingLoading,
+      error: shoppingError,
+      refresh: refreshShopping,
+      toggleItem: toggleShoppingItem,
+    }),
+    [shoppingLists, shoppingLoading, shoppingError, refreshShopping, toggleShoppingItem]
   );
   const mealData = useMemo(
     () => ({
@@ -307,31 +370,66 @@ export function useDashboardData(
       markCooked,
       enabled: mealsEnabled,
     }),
-    [meals, mealsLoading, mealsError, refreshMeals, markCooked, mealsEnabled],
+    [meals, mealsLoading, mealsError, refreshMeals, markCooked, mealsEnabled]
   );
   const birthdays = useMemo(
-    () => ({ birthdays: birthdaysList, loading: birthdaysLoading, error: birthdaysError, syncFromGoogle: syncBirthdays }),
-    [birthdaysList, birthdaysLoading, birthdaysError, syncBirthdays],
+    () => ({
+      birthdays: birthdaysList,
+      loading: birthdaysLoading,
+      error: birthdaysError,
+      syncFromGoogle: syncBirthdays,
+    }),
+    [birthdaysList, birthdaysLoading, birthdaysError, syncBirthdays]
   );
   const points = useMemo(
-    () => ({ points: pointsList, goals: goalsList, progress: goalsProgress, goalChildren, loading: pointsLoading || goalsLoading, error: pointsError || goalsError }),
-    [pointsList, goalsList, goalsProgress, goalChildren, pointsLoading, goalsLoading, pointsError, goalsError],
+    () => ({
+      points: pointsList,
+      goals: goalsList,
+      progress: goalsProgress,
+      goalChildren,
+      loading: pointsLoading || goalsLoading,
+      error: pointsError || goalsError,
+    }),
+    [
+      pointsList,
+      goalsList,
+      goalsProgress,
+      goalChildren,
+      pointsLoading,
+      goalsLoading,
+      pointsError,
+      goalsError,
+    ]
   );
   const layouts = useMemo(
     () => ({ allLayouts, savedLayout, saveLayout, deleteLayout, loading: layoutsLoading }),
-    [allLayouts, savedLayout, saveLayout, deleteLayout, layoutsLoading],
+    [allLayouts, savedLayout, saveLayout, deleteLayout, layoutsLoading]
   );
 
-  return useMemo(() => ({
-    calendar,
-    weather,
-    messages: messageData,
-    tasks: taskData,
-    chores: choreData,
-    shopping,
-    meals: mealData,
-    birthdays,
-    points,
-    layouts,
-  }), [calendar, weather, messageData, taskData, choreData, shopping, mealData, birthdays, points, layouts]);
+  return useMemo(
+    () => ({
+      calendar,
+      weather,
+      messages: messageData,
+      tasks: taskData,
+      chores: choreData,
+      shopping,
+      meals: mealData,
+      birthdays,
+      points,
+      layouts,
+    }),
+    [
+      calendar,
+      weather,
+      messageData,
+      taskData,
+      choreData,
+      shopping,
+      mealData,
+      birthdays,
+      points,
+      layouts,
+    ]
+  );
 }

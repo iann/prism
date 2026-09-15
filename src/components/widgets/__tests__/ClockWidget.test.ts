@@ -1,6 +1,21 @@
 import { millisecondsUntilNextClockTick, shouldShowClockGreeting } from '../ClockWidget';
 import { getClockGreeting } from '../ClockGreeting';
-import { CAMERON_BIRTHDAY_GREETING } from '@/lib/cameronBirthday';
+
+const familyBirthday = {
+  name: 'Sample Person',
+  birthDate: '2014-02-15',
+  eventType: 'birthday' as const,
+  partyModeEnabled: true,
+  userId: 'sample-person',
+};
+
+const familyAnniversary = {
+  name: 'Example Couple',
+  birthDate: '2010-02-15',
+  eventType: 'anniversary' as const,
+  partyModeEnabled: true,
+  userId: 'example-couple',
+};
 
 describe('millisecondsUntilNextClockTick', () => {
   it('aligns minute-only clocks to the next minute', () => {
@@ -19,27 +34,17 @@ describe('millisecondsUntilNextClockTick', () => {
   });
 });
 
-describe('Cameron birthday clock greeting', () => {
-  it('uses the exact birthday greeting before the normal daily selection', () => {
-    expect(getClockGreeting(new Date(2026, 8, 12, 9, 30))).toBe(CAMERON_BIRTHDAY_GREETING);
+describe('family celebration clock greeting', () => {
+  it('shows a family birthday even when the normal greeting is disabled', () => {
+    const date = new Date(2026, 1, 15, 9, 30);
+    expect(shouldShowClockGreeting(false, date, [familyBirthday])).toBe(true);
+    expect(getClockGreeting(date, [familyBirthday])).toBe('🎉 Happy Birthday Sample Person 🎉');
   });
 
-  it('shows the birthday greeting even when the normal greeting is disabled', () => {
-    expect(shouldShowClockGreeting(false, new Date(2026, 8, 12, 9, 30))).toBe(true);
-  });
-
-  it('uses the browser-local date at the birthday boundary', () => {
-    const justBeforeLocalBirthday = new Date(2026, 8, 11, 23, 59, 59);
-    const atLocalBirthday = new Date(2026, 8, 12, 0, 0, 0);
-
-    expect(shouldShowClockGreeting(false, justBeforeLocalBirthday)).toBe(false);
-    expect(shouldShowClockGreeting(false, atLocalBirthday)).toBe(true);
-    expect(getClockGreeting(atLocalBirthday)).toBe(CAMERON_BIRTHDAY_GREETING);
-  });
-
-  it('preserves normal greeting visibility on adjacent dates', () => {
-    expect(shouldShowClockGreeting(false, new Date(2026, 8, 11, 9, 30))).toBe(false);
-    expect(shouldShowClockGreeting(false, new Date(2026, 8, 13, 9, 30))).toBe(false);
-    expect(getClockGreeting(new Date(2026, 8, 11, 9, 30))).not.toBe(CAMERON_BIRTHDAY_GREETING);
+  it('shows anniversaries and ignores adjacent dates', () => {
+    expect(getClockGreeting(new Date(2026, 1, 15, 9, 30), [familyAnniversary])).toBe(
+      '💍 Happy Anniversary Example Couple 💍'
+    );
+    expect(shouldShowClockGreeting(false, new Date(2026, 1, 16), [familyBirthday])).toBe(false);
   });
 });

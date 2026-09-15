@@ -8,7 +8,10 @@ const dashboardSource = readFileSync(
 
 describe('dashboard birthday celebration integration', () => {
   it('mounts the celebration in both normal responsive branches', () => {
-    const celebrationMounts = dashboardSource.match(/<BirthdayCelebration \/>/g) ?? [];
+    const celebrationMounts =
+      dashboardSource.match(
+        /<BirthdayCelebration celebrations=\{data\.birthdays\.birthdays\} \/>/g
+      ) ?? [];
     const mobileBranch = dashboardSource.slice(
       dashboardSource.indexOf('if (isMobile) {'),
       dashboardSource.indexOf('\n  return (', dashboardSource.indexOf('if (isMobile) {'))
@@ -18,14 +21,22 @@ describe('dashboard birthday celebration integration', () => {
     );
 
     expect(celebrationMounts).toHaveLength(2);
-    expect(mobileBranch.match(/<BirthdayCelebration \/>/g)).toHaveLength(1);
-    expect(mobileBranch.match(/<CameronBirthdayPartyButton \/>/g)).toHaveLength(1);
-    expect(mobileBranch.indexOf('<BirthdayCelebration />')).toBeLessThan(
+    expect(
+      mobileBranch.match(/<BirthdayCelebration celebrations=\{data\.birthdays\.birthdays\} \/>/g)
+    ).toHaveLength(1);
+    expect(
+      mobileBranch.match(/<PartyModeButton celebrations=\{data\.birthdays\.birthdays\} \/>/g)
+    ).toHaveLength(1);
+    expect(mobileBranch.indexOf('<BirthdayCelebration celebrations=')).toBeLessThan(
       mobileBranch.indexOf('<LCARSFrame')
     );
-    expect(desktopBranch.match(/<BirthdayCelebration \/>/g)).toHaveLength(1);
-    expect(desktopBranch.match(/<CameronBirthdayPartyButton \/>/g)).toHaveLength(1);
-    expect(desktopBranch.indexOf('<BirthdayCelebration />')).toBeLessThan(
+    expect(
+      desktopBranch.match(/<BirthdayCelebration celebrations=\{data\.birthdays\.birthdays\} \/>/g)
+    ).toHaveLength(1);
+    expect(
+      desktopBranch.match(/<PartyModeButton celebrations=\{data\.birthdays\.birthdays\} \/>/g)
+    ).toHaveLength(1);
+    expect(desktopBranch.indexOf('<BirthdayCelebration celebrations=')).toBeLessThan(
       desktopBranch.indexOf('<DashboardLayout')
     );
 
