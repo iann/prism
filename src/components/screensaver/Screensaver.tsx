@@ -30,6 +30,8 @@ import { EffectStage } from './EffectStage';
 import { ScreensaverQuickSettings } from './ScreensaverQuickSettings';
 import { getEffect } from './effects';
 import { scaledDuration } from './screensaverPrefs';
+import { setDisplayIdle } from '@/lib/hooks/useDisplayIdle';
+import { PollingScopeContext } from '@/lib/hooks/pollingScope';
 
 /**
  * Wrapper classes that make any dashboard widget legible as a screensaver
@@ -92,6 +94,13 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
     usage: 'screensaver',
     orientation: autoOrientation ? effectiveOrientation : undefined,
   });
+  // Tell the polling layer the display is covered. On a wall-mounted screen
+  // this is the only pause signal that ever fires: document.hidden cannot,
+  // because the tab is never hidden. See useDisplayIdle.
+  useEffect(() => {
+    setDisplayIdle(isIdle);
+    return () => setDisplayIdle(false);
+  }, [isIdle]);
   const [visible, setVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fadingOut, setFadingOut] = useState(false);
@@ -146,7 +155,11 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
         />
       )}
       <div className="pointer-events-none absolute inset-0 bg-black/40" />
-      <ScreensaverGrid />
+      {/* Screensaver widgets are the only visible copy while idle, so their
+          data polling remains active while the dashboard copy pauses. */}
+      <PollingScopeContext.Provider value="screensaver">
+        <ScreensaverGrid />
+      </PollingScopeContext.Provider>
       <ScreensaverQuickSettings />
     </div>
   );

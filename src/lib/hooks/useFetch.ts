@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useState, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
+import { usePollingInterval } from './usePollingInterval';
+import { useCachedMountFetch } from './useCachedMountFetch';
 import { navCacheGet, navCacheSet, navCacheDedupe } from '@/lib/utils/navCache';
 import { preserveEqual } from '@/lib/utils/preserveEqual';
 
@@ -14,8 +16,10 @@ interface UseFetchOptions<T> {
   label?: string;
   /** Keep the requested polling cadence even when Performance Mode is on. */
   respectPerformanceMode?: boolean;
-  /** When false, skip initial fetch and polling. Fetch triggers when enabled transitions to true. */
+  /** When false, skip initial fetch and polling. */
   enabled?: boolean;
+  /** Keep polling while the screensaver is up. */
+  pollWhileIdle?: boolean;
 }
 
 interface UseFetchResult<T> {
@@ -25,6 +29,9 @@ interface UseFetchResult<T> {
   error: string | null;
   refresh: () => Promise<void>;
 }
+
+/** Do not refetch a second live instance that mounted shortly after the first. */
+const POLL_REUSE_RATIO = 0.5;
 
 export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
   const {
@@ -36,6 +43,7 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
     label = 'data',
     respectPerformanceMode = true,
     enabled = true,
+    pollWhileIdle = false,
   } = options;
 
   const transformRef = useRef(transform);
@@ -43,13 +51,15 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
   const labelRef = useRef(label);
   labelRef.current = label;
 
-  // Seed state from navigation cache so the page renders immediately on revisit
-  const cached = navCacheGet<T>(url);
+  // A cached value younger than this hook's own interval is as fresh as a poll
+  // that had remained mounted, so a remount can adopt it without a request.
+  const maxAgeMs = usePollingInterval(refreshInterval);
+  const cached = navCacheGet<T>(url, maxAgeMs);
   const [data, setDataState] = useState<T>(() => cached ?? initialData);
   const dataRef = useRef(data);
   dataRef.current = data;
   const setData: Dispatch<SetStateAction<T>> = useCallback((update) => {
-    setDataState(current => {
+    setDataState((current) => {
       const next = typeof update === 'function'
         ? (update as (value: T) => T)(current)
         : update;
@@ -57,34 +67,52 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
       return next;
     });
   }, []);
-  const [loading, setLoadingState] = useState(enabled && !cached);
-  const loadingRef = useRef(loading);
-  loadingRef.current = loading;
+
+  const [loadingState, setLoadingState] = useState(enabled && !cached);
+  const loadingRef = useRef(loadingState);
+  loadingRef.current = loadingState;
   const setLoading = useCallback((next: boolean) => {
     if (loadingRef.current === next) return;
     loadingRef.current = next;
     setLoadingState(next);
   }, []);
-  const [error, setErrorState] = useState<string | null>(null);
-  const errorRef = useRef(error);
-  errorRef.current = error;
+  const [errorState, setErrorState] = useState<string | null>(null);
+  const errorRef = useRef(errorState);
+  errorRef.current = errorState;
   const setError = useCallback((next: string | null) => {
     if (errorRef.current === next) return;
     errorRef.current = next;
     setErrorState(next);
   }, []);
-  // Track the URL that has successfully loaded data so background polls stay
-  // stale-while-revalidate even after the short-lived navigation cache expires.
-  // A URL change is treated as a cold load and shows the spinner when needed.
+
+  // Once a URL has loaded, polling stays stale-while-revalidate even when the
+  // cache entry ages past the short navigation window.
   const loadedUrlRef = useRef<string | null>(cached ? url : null);
 
-  const fetchData = useCallback(async () => {
-    if (loadedUrlRef.current !== url && !navCacheGet(url)) setLoading(true);
+  const applyResult = useCallback((result: T) => {
+    loadedUrlRef.current = url;
+    const next = preserveEqual(dataRef.current, result);
+    if (next !== dataRef.current) {
+      dataRef.current = next;
+      setDataState(next);
+    }
+    setLoading(false);
+  }, [url, setLoading]);
+
+  const fetchData = useCallback(async (opts?: { force?: boolean }) => {
+    // Several live instances can share a poll. Explicit refreshes still go to
+    // the network because they are asking about a known mutation.
+    if (!opts?.force && maxAgeMs > 0) {
+      const justFetched = navCacheGet<T>(url, maxAgeMs * POLL_REUSE_RATIO);
+      if (justFetched !== undefined) {
+        applyResult(justFetched);
+        return;
+      }
+    }
+
+    if (loadedUrlRef.current !== url && !navCacheGet(url, maxAgeMs)) setLoading(true);
     try {
       setError(null);
-      // Joined rather than duplicated: two components polling the same URL on
-      // the same tick make one request. The transform runs per consumer, since
-      // two callers of the same endpoint can shape the response differently.
       const json = await navCacheDedupe(url, async () => {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Failed to fetch ${labelRef.current}`);
@@ -92,23 +120,22 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
       });
       const result = transformRef.current ? transformRef.current(json as never) : (json as T);
       navCacheSet(url, result);
-      loadedUrlRef.current = url;
-      const next = preserveEqual(dataRef.current, result);
-      if (next !== dataRef.current) {
-        dataRef.current = next;
-        setDataState(next);
-      }
+      applyResult(result);
     } catch (err) {
       console.error(`Error fetching ${labelRef.current}:`, err);
       setError(err instanceof Error ? err.message : `Failed to fetch ${labelRef.current}`);
     } finally {
       setLoading(false);
     }
-  }, [url]);
+  }, [url, maxAgeMs, applyResult, setError, setLoading]);
 
-  useEffect(() => {
-    if (enabled) fetchData();
-  }, [fetchData, enabled]);
+  useCachedMountFetch<T>({
+    key: url,
+    enabled,
+    maxAgeMs,
+    fetch: fetchData,
+    adopt: applyResult,
+  });
 
   useVisibilityPolling(
     fetchData,
@@ -117,5 +144,7 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
     respectPerformanceMode,
   );
 
-  return { data, setData, loading, error, refresh: fetchData };
+  const refresh = useCallback(() => fetchData({ force: true }), [fetchData]);
+
+  return { data, setData, loading: loadingState, error: errorState, refresh };
 }
