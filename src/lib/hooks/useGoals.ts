@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
+import { usePollingInterval } from './usePollingInterval';
+import { useCachedMountFetch } from './useCachedMountFetch';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
 import { useDistinctState } from './useDistinctState';
@@ -70,7 +72,8 @@ interface UseGoalsResult {
 
 export function useGoals(options: { refreshInterval?: number; refreshOffsetMs?: number; enabled?: boolean } = {}): UseGoalsResult {
   const { refreshInterval = 2 * 60 * 1000, refreshOffsetMs = 0, enabled = true } = options;
-  const cached = navCacheGet<GoalsResponse>('/api/goals');
+  const maxAgeMs = usePollingInterval(refreshInterval);
+  const cached = navCacheGet<GoalsResponse>('/api/goals', maxAgeMs);
   const [goals, setGoals] = useState<Goal[]>(() => cached?.goals ?? []);
   const [progress, setProgress] = useState<Record<string, Record<string, ChildProgress>>>(() => cached?.progress ?? {});
   const [goalChildren, setGoalChildren] = useState<GoalChild[]>(() => cached?.children ?? []);
@@ -172,7 +175,20 @@ export function useGoals(options: { refreshInterval?: number; refreshOffsetMs?: 
     await fetchGoals();
   }, [fetchGoals]);
 
-  useEffect(() => { if (enabled) fetchGoals(); }, [fetchGoals, enabled]);
+  const adoptGoals = useCallback((data: GoalsResponse) => {
+    setGoals(data.goals);
+    setProgress(data.progress);
+    setGoalChildren(data.children);
+    setLoading(false);
+  }, []);
+
+  useCachedMountFetch<GoalsResponse>({
+    key: '/api/goals',
+    enabled,
+    maxAgeMs,
+    fetch: fetchGoals,
+    adopt: adoptGoals,
+  });
 
   useVisibilityPolling(fetchGoals, enabled ? refreshInterval : 0, refreshOffsetMs);
 

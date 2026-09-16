@@ -291,6 +291,11 @@ jobs:
       ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       E2E_HAS_TEST_DB: '1'
       E2E_PIN: '1234'
+      # Keep the seeded fixtures and browser calendar on the same instant as
+      # the committed visual baselines.
+      # Mid-morning in the seeded Illinois location keeps the Sunset visual
+      # case in its light phase while leaving the calendar date deterministic.
+      PRISM_SEED_NOW: '2026-06-17T15:00:00Z'
 
     steps:
       - uses: actions/checkout@v7
@@ -341,7 +346,9 @@ jobs:
       #     manual commit.
       - name: Run visual regression suite (compare)
         if: ${{ steps.check-baselines.outputs.found == 'true' && (github.event_name != 'workflow_dispatch' || inputs.update_visual_baselines != true) }}
-        run: npx playwright test e2e/visual-regression.spec.ts e2e/upstream-visual-regression.spec.ts --reporter=list
+        # Keep the upstream HTML report as well as the concise test list so
+        # failed pixel comparisons include their actual/expected/diff images.
+        run: npx playwright test e2e/visual-regression.spec.ts e2e/upstream-visual-regression.spec.ts --reporter=list,html
 
       # Fail, do not skip. This is a required check: for months it reported
       # success while comparing nothing, because no Linux baselines existed and
@@ -370,7 +377,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: visual-regression-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7
 
       # always(): Playwright exits non-zero when it writes a snapshot that did
