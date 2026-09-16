@@ -17,6 +17,8 @@ import {
   waitForStableUi,
 } from './helpers/upstream';
 
+const FIXED_NOW = process.env.PRISM_SEED_NOW;
+
 test.describe('Upstream visual regression', () => {
   // Visual fixtures share one seeded DB and Redis session store.
   test.describe.configure({ mode: 'serial' });
@@ -30,8 +32,12 @@ test.describe('Upstream visual regression', () => {
     }
   });
 
-  test.beforeEach(() => {
+  test.beforeEach(async ({ page }) => {
     test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a fresh-seeded DB');
+    // Sunset mode resolves brightness from the browser clock. Keep it aligned
+    // with the seeded fixtures so a run after local sunset does not turn the
+    // light baseline into a dark screenshot.
+    if (FIXED_NOW) await page.clock.setFixedTime(new Date(FIXED_NOW));
   });
 
   test.use({
