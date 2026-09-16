@@ -6,9 +6,11 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
-import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
+import { usePollingInterval } from './usePollingInterval';
+import { useCachedMountFetch } from './useCachedMountFetch';
+import { navCacheGet, navCacheSet, navCacheUpdate } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
 import { useDistinctState } from './useDistinctState';
 
@@ -52,7 +54,8 @@ export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShop
   } = options;
 
   const CACHE_KEY = '/api/shopping-lists?includeItems=true';
-  const cached = navCacheGet<ShoppingList[]>(CACHE_KEY);
+  const maxAgeMs = usePollingInterval(refreshInterval);
+  const cached = navCacheGet<ShoppingList[]>(CACHE_KEY, maxAgeMs);
   const [lists, setLists] = useState<ShoppingList[]>(() => cached ?? []);
   const listsRef = useRef(lists);
   listsRef.current = lists;
@@ -149,15 +152,18 @@ export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShop
    */
   const toggleItem = useCallback(
     async (itemId: string, checked: boolean) => {
-      // Optimistically update UI immediately
-      setLists((prev) =>
-        prev.map((list) => ({
+      const setChecked = (value: boolean) => (lists: ShoppingList[]) =>
+        lists.map((list) => ({
           ...list,
           items: list.items.map((item) =>
-            item.id === itemId ? { ...item, checked } : item
+            item.id === itemId ? { ...item, checked: value } : item
           ),
-        }))
-      );
+        }));
+
+      // Keep the shared cache in step with the optimistic state so a widget
+      // mounting during the mutation does not briefly show the old checkbox.
+      setLists(setChecked(checked));
+      navCacheUpdate<ShoppingList[]>(CACHE_KEY, setChecked(checked));
 
       try {
         const response = await fetch(`/api/shopping-items/${itemId}`, {
@@ -173,14 +179,8 @@ export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShop
       } catch (err) {
         console.error('Error updating item:', err);
         // Revert optimistic update on failure
-        setLists((prev) =>
-          prev.map((list) => ({
-            ...list,
-            items: list.items.map((item) =>
-              item.id === itemId ? { ...item, checked: !checked } : item
-            ),
-          }))
-        );
+        setLists(setChecked(!checked));
+        navCacheUpdate<ShoppingList[]>(CACHE_KEY, setChecked(!checked));
         throw err;
       }
     },
@@ -269,10 +269,19 @@ export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShop
     [fetchLists]
   );
 
-  // Initial fetch (skipped when disabled)
-  useEffect(() => {
-    if (enabled) fetchLists();
-  }, [fetchLists, enabled]);
+  const adoptLists = useCallback((cachedLists: ShoppingList[]) => {
+    setLists(cachedLists);
+    setLoading(false);
+  }, []);
+
+  // Avoid a second cold request when the screensaver mounts its own copy.
+  useCachedMountFetch<ShoppingList[]>({
+    key: CACHE_KEY,
+    enabled,
+    maxAgeMs,
+    fetch: fetchLists,
+    adopt: adoptLists,
+  });
 
   // Set up refresh interval with visibility-based pause (disabled when not enabled)
   useVisibilityPolling(fetchLists, enabled ? refreshInterval : 0, refreshOffsetMs);

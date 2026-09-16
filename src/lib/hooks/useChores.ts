@@ -6,8 +6,10 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
+import { usePollingInterval } from './usePollingInterval';
+import { useCachedMountFetch } from './useCachedMountFetch';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
 import { useDistinctState } from './useDistinctState';
@@ -78,7 +80,8 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
     ...(!showDisabled ? { enabled: 'true' } : {}),
     ...(includeFuture ? { includeFuture: 'true' } : {}),
   }).toString()}`;
-  const cached = navCacheGet<Chore[]>(cacheKey);
+  const maxAgeMs = usePollingInterval(refreshInterval);
+  const cached = navCacheGet<Chore[]>(cacheKey, maxAgeMs);
   const [chores, setChores] = useState<Chore[]>(() => cached ?? []);
   const choresRef = useRef(chores);
   choresRef.current = chores;
@@ -234,10 +237,20 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
     [fetchChores]
   );
 
-  // Initial fetch (skipped when disabled)
-  useEffect(() => {
-    if (enabled) fetchChores();
-  }, [fetchChores, enabled]);
+  const adoptChores = useCallback((cachedChores: Chore[]) => {
+    setChores(cachedChores);
+    setLoading(false);
+  }, []);
+
+  // Mounting a second copy (most often the screensaver) reuses a recent
+  // response instead of cold-loading the widget again.
+  useCachedMountFetch<Chore[]>({
+    key: cacheKey,
+    enabled,
+    maxAgeMs,
+    fetch: fetchChores,
+    adopt: adoptChores,
+  });
 
   // Set up refresh interval with visibility-based pause (disabled when not enabled)
   useVisibilityPolling(fetchChores, enabled ? refreshInterval : 0, refreshOffsetMs);

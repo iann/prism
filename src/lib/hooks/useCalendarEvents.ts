@@ -10,6 +10,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { addDays, subDays, startOfDay, endOfDay } from 'date-fns';
 import type { CalendarEvent } from '@/types/calendar';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
+import { usePollingInterval } from '@/lib/hooks/usePollingInterval';
+import { useCachedMountFetch } from '@/lib/hooks/useCachedMountFetch';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
 import { useDistinctState } from './useDistinctState';
@@ -128,7 +130,8 @@ export function useCalendarEvents(
     // reason. Irrelevant when an explicit range was passed, but harmless.
   }, [daysToShow, rangeStartMs, rangeEndMs, limit, dateKey]);
 
-  const cached = navCacheGet<CalendarEvent[]>(cacheKey);
+  const maxAgeMs = usePollingInterval(refreshInterval);
+  const cached = navCacheGet<CalendarEvent[]>(cacheKey, maxAgeMs);
   const [events, setEvents] = useState<CalendarEvent[]>(() => cached ?? []);
   const eventsRef = useRef(events);
   eventsRef.current = events;
@@ -237,10 +240,21 @@ export function useCalendarEvents(
     }
   }, [fetchEvents]);
 
-  // Initial fetch (skipped when disabled)
-  useEffect(() => {
-    if (enabled) fetchEvents();
-  }, [fetchEvents, enabled]);
+  const adoptEvents = useCallback((cachedEvents: CalendarEvent[]) => {
+    hasEventsRef.current = true;
+    replaceDistinct(eventsRef, setEvents, cachedEvents);
+    setLoading(false);
+  }, []);
+
+  // Mounting a second calendar copy can reuse a recent response from the
+  // shared cache; explicit refreshes and periodic polls still hit the API.
+  useCachedMountFetch<CalendarEvent[]>({
+    key: cacheKey,
+    enabled,
+    maxAgeMs,
+    fetch: fetchEvents,
+    adopt: adoptEvents,
+  });
 
   // Refetch whenever a calendar sync or add completes anywhere in the app
   // (Settings "Sync Now", adding an iCal subscription, the Calendar page's
