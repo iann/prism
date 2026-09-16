@@ -293,7 +293,9 @@ jobs:
       E2E_PIN: '1234'
       # Keep the seeded fixtures and browser calendar on the same instant as
       # the committed visual baselines.
-      PRISM_SEED_NOW: '2026-06-17T09:30:00Z'
+      # Mid-morning in the seeded Illinois location keeps the Sunset visual
+      # case in its light phase while leaving the calendar date deterministic.
+      PRISM_SEED_NOW: '2026-06-17T15:00:00Z'
 
     steps:
       - uses: actions/checkout@v7
