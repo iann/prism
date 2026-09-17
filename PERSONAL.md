@@ -359,6 +359,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 24381bb
 
+49. **Correct SunCalc v2 celestial arc geometry**
+
+    Converts SunCalc v2's degree-based solar and lunar altitudes to the
+    radians expected by the weather widget, restoring correctly positioned sun
+    and moon arcs after the dependency upgrade.
+
+    Commit: 17a168d1
+
 41. **Readable synced form and travel labels**
 
     Kept Microsoft credential help text and travel park/photo labels at the
