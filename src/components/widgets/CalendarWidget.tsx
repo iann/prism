@@ -335,7 +335,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
               ? 'bg-primary text-primary-foreground'
               : transparentMode
                 ? 'text-current hover:text-current'
-                : 'bg-muted text-muted-foreground hover:bg-accent'
+              : 'bg-muted text-muted-foreground hover:bg-accent'
           )}
         >
           {t('toolbar.all')}

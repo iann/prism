@@ -321,7 +321,7 @@ export function DisplaySection() {
                     )}
                   >
                     <div
-                      className="h-3 w-3 flex-shrink-0 rounded-full"
+                      className="h-3 w-3 rounded-full shrink-0"
                       style={{ backgroundColor: `hsl(${p.light.accent})` }}
                     />
                     {name.slice(0, 3)}

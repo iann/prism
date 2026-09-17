@@ -419,7 +419,7 @@ export function WidgetContainer({
     >
       {/* WIDGET HEADER */}
       {showHeader && title && (
-        <CardHeader className="wall-widget-header flex flex-shrink-0 flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="wall-widget-header flex shrink-0 flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center gap-2">
             {/* Icon */}
             {icon && <span className="text-seasonal-accent">{icon}</span>}

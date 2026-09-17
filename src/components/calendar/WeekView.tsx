@@ -194,7 +194,7 @@ export function WeekView({
                 onClick={() => onEventClick(event)}
                 className={cn(
                   'w-full text-left text-xs px-1 py-px rounded truncate hover:opacity-80 transition-all',
-                  cards && 'bg-calendar-surface border border-border shadow-sm',
+                 cards && 'bg-calendar-surface border border-border shadow-sm',
                 )}
                 style={
                   cards
@@ -230,7 +230,7 @@ export function WeekView({
                       onClick={() => onEventClick(event)}
                       className={cn(
                         'absolute text-left text-xs px-0.5 pt-0.5 rounded overflow-hidden hover:opacity-90 hover:ring-1 hover:ring-seasonal-accent/50 transition-all z-10 flex flex-col items-start',
-                        cards && 'bg-calendar-surface border border-border shadow-sm',
+                       cards && 'bg-calendar-surface border border-border shadow-sm',
                       )}
                       style={
                         cards
@@ -276,7 +276,7 @@ export function WeekView({
   if (isPortrait) {
     return (
       <div className="h-full grid gap-1 overflow-auto" style={{ gridTemplateRows: `repeat(2, minmax(${48 + hours.length * 20}px, 1fr))` }}>
-        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-calendar-surface')}>
+       <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-calendar-surface')}>
           {/* Time column */}
           <div className="w-8 shrink-0 flex flex-col">
             {/* Header with toggle button */}
@@ -308,7 +308,7 @@ export function WeekView({
           </div>
           {row1Days.map((date) => renderDayColumn(date, true))}
         </div>
-        <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-calendar-surface')}>
+       <div className={cn('flex gap-px rounded-md', !transparentMode && 'bg-calendar-surface')}>
           {/* Time column */}
           <div className="w-8 shrink-0 flex flex-col">
             <div className="h-12 shrink-0" /> {/* Header spacer */}
@@ -334,7 +334,7 @@ export function WeekView({
   // The inner min-h-full flex-col wrapper makes the hourly grid stretch to fill available
   // space; 1fr rows distribute the remaining height so hours grow when fewer are visible.
   return (
-    <div className={cn('h-full rounded-md overflow-hidden', !transparentMode && 'bg-calendar-surface')}>
+   <div className={cn('h-full rounded-md overflow-hidden', !transparentMode && 'bg-calendar-surface')}>
       <div className="h-full overflow-y-auto">
         <div className="h-full min-h-full flex flex-col">
           {/* Sticky day headers */}
@@ -420,8 +420,8 @@ export function WeekView({
                           key={event.id}
                           onClick={() => onEventClick(event)}
                           className={cn(
-                            'w-full text-left text-[12px] font-medium px-1 py-px rounded truncate hover:opacity-80 transition-all leading-tight',
-                            cards && 'bg-calendar-surface border border-border shadow-sm',
+                           'w-full text-left text-[12px] font-medium px-1 py-px rounded truncate hover:opacity-80 transition-all leading-tight',
+                           cards && 'bg-calendar-surface border border-border shadow-sm',
                           )}
                           style={
                             cards
@@ -501,7 +501,7 @@ export function WeekView({
                               onClick={() => onEventClick(event)}
                               className={cn(
                                 'absolute p-0.5 rounded text-left text-xs z-10 overflow-hidden hover:opacity-90 hover:ring-2 hover:ring-seasonal-accent/50 transition-all flex flex-col items-start',
-                                cards && 'bg-calendar-surface border border-border shadow-sm',
+                               cards && 'bg-calendar-surface border border-border shadow-sm',
                               )}
                               style={
                                 cards

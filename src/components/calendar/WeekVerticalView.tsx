@@ -341,7 +341,7 @@ function WeekListDayRow({
             dateKey={format(day, 'yyyy-MM-dd')}
             content={notesByDate?.get(format(day, 'yyyy-MM-dd'))?.content || ''}
             onNoteChange={onNoteChange}
-            className="px-3 py-2 min-h-[48px] h-full"
+            className="px-3 py-2 min-h-touch h-full"
           />
         </div>
       )}
@@ -412,8 +412,8 @@ function DayEventList({
             className={cn(
               'w-full text-left text-xs px-1.5 py-1 rounded hover:opacity-90 transition-opacity truncate block',
               cards
-                ? 'bg-calendar-surface border border-border shadow-sm text-foreground'
-                : undefined,
+               ? 'bg-calendar-surface border border-border shadow-sm text-foreground'
+               : undefined,
               isPastEvent && 'opacity-70',
             )}
             style={

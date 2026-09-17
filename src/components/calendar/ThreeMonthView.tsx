@@ -96,7 +96,7 @@ function MiniMonth({
       </div>
 
       {/* Day name headers */}
-      <div className="grid grid-cols-7 gap-px px-1 flex-shrink-0">
+      <div className="grid grid-cols-7 gap-px px-1 shrink-0">
         {dayIndices.map((index) => (
           <div key={index} className="text-center text-[12px] font-medium text-muted-foreground py-1">
             {d.weekdayByIndex(index, 'weekdayNarrow')}
@@ -169,7 +169,7 @@ function MiniMonth({
                   )}
                   {/* Event list — scrollable within day cell */}
                   {inMonth && dayEvents.length > 0 && (
-                    <ul className="flex-1 overflow-y-auto mt-0.5 scrollbar-thin list-none m-0 p-0 flex flex-col gap-[var(--event-gap)]">
+                    <ul className="flex-1 overflow-y-auto mt-0.5 scrollbar-thin list-none m-0 p-0 flex flex-col gap-(--event-gap)">
                       {dayEvents.map((event) => (
                         <li
                           key={event.id}

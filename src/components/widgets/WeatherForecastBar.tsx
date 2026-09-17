@@ -14,7 +14,7 @@
  */
 
 import * as React from 'react';
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 import { Droplets } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ForecastDay, WeatherUnits, WeatherCondition } from './WeatherWidget';

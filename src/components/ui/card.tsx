@@ -53,13 +53,13 @@ const Card = React.forwardRef<
       // utility. A theme that wants a square, heavily outlined look has to
       // reach the surface people actually see, and on a dashboard that is
       // the card.
-      'border-border border-[length:var(--border-width,1px)]',
-      'rounded-[var(--radius,0.5rem)]',
+      'border-border border-(length:--border-width,1px)',
+      'rounded-(--radius,0.5rem)',
       // Depth comes from the theme too. A flat look is not "a card with a
       // smaller shadow" — it is the difference between reading as software and
       // reading as a board on a wall, which is most of what separates a
       // dashboard from a wall display.
-      'shadow-[var(--surface-shadow)] wall-card',
+      'shadow-(--surface-shadow) wall-card',
       // Allow custom classes to override
       className
     )}

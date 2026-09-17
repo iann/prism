@@ -301,7 +301,7 @@ function DayCell({
               stays the layout's call. The roomy branch is the theme's. */}
           <span className={cn(
             'font-bold leading-none',
-            compact ? 'text-base' : 'text-[length:var(--daynum-large)]',
+            compact ? 'text-base' : 'text-(length:--daynum-large)',
           )}>
             {format(date, 'd')}
           </span>
@@ -347,7 +347,7 @@ function DayCell({
         className={cn(
           cards
             ? 'flex flex-col gap-1 flex-1 min-h-0 overflow-hidden'
-            : 'flex flex-col gap-[var(--event-gap)]',
+            : 'flex flex-col gap-(--event-gap)',
           compact ? 'px-1 pb-1' : 'px-1.5 pb-1.5',
         )}
       >

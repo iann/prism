@@ -8,8 +8,16 @@
 
 import React from 'react';
 import { act, render as rtlRender, screen, within, type RenderOptions } from '@testing-library/react';
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 import { TimeFormatProvider } from '@/components/providers';
+
+// Keep getTimes replaceable for the midnight rollover test. SunCalc v2's
+// namespace import exposes read-only accessor properties under ts-jest, so a
+// module-level mock is more reliable than spying on the namespace object.
+jest.mock('suncalc', () => {
+  const actual = jest.requireActual<typeof import('suncalc')>('suncalc');
+  return { ...actual, getTimes: jest.fn(actual.getTimes) };
+});
 
 // WeatherWidget consumes useTimeFormat(), which requires a TimeFormatProvider
 // ancestor. Wrap every render so the widget mounts the way it does in the app.
@@ -1040,7 +1048,8 @@ describe('sun and moon day rollover', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date(2026, 6, 17, 23, 59, 59, 900));
 
-    const getTimes = jest.spyOn(SunCalc, 'getTimes');
+    const getTimes = jest.mocked(SunCalc.getTimes);
+    getTimes.mockClear();
     const sunrise = new Date(2026, 6, 17, 5, 30);
     const sunset = new Date(2026, 6, 17, 20, 15);
 

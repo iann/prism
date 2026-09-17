@@ -83,7 +83,7 @@ export function CalendarFilterPopover({
                 style={isSelected ? { backgroundColor: group.color, color: contrastText(group.color) } : undefined}
               >
                 <span
-                  className="w-2 h-2 rounded-full flex-shrink-0 bg-current"
+                  className="w-2 h-2 rounded-full shrink-0 bg-current"
                   style={isSelected ? { opacity: 0.6 } : { backgroundColor: group.color }}
                 />
                 {group.name}

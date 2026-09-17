@@ -1,4 +1,4 @@
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 
 export type SolarCoordinates = {
   lat: number;
@@ -31,8 +31,8 @@ function hasSolarCoordinates(value: SolarCoordinates | undefined): value is Sola
   );
 }
 
-function isValidDate(value: Date | undefined): value is Date {
-  return value !== undefined && Number.isFinite(value.getTime());
+function isValidDate(value: Date | null | undefined): value is Date {
+  return value instanceof Date && Number.isFinite(value.getTime());
 }
 
 export function applySunsetOffset(sunset: Date, offsetMinutes = 0): Date {
@@ -53,7 +53,10 @@ function getSolarEvents(now: Date, coordinates: SolarCoordinates, offsetMinutes:
 
     return [
       { type: 'sunrise' as const, time: times.sunrise },
-      { type: 'sunset' as const, time: applySunsetOffset(times.sunset, offsetMinutes) },
+      {
+        type: 'sunset' as const,
+        time: times.sunset instanceof Date ? applySunsetOffset(times.sunset, offsetMinutes) : null,
+      },
     ];
   });
 }
@@ -74,20 +77,22 @@ export function resolveSunsetTheme(
 ): 'light' | 'dark' | null {
   if (hasSolarCoordinates(coordinates)) {
     const events = getSolarEvents(now, coordinates, sunsetOffsetMinutes);
-    const latestSunset = events
-      .filter((event) => event.type === 'sunset' && isValidDate(event.time))
-      .filter((event) => event.time.getTime() <= now.getTime())
+    const sunsets = events.flatMap((event) =>
+      event.type === 'sunset' && isValidDate(event.time) ? [event.time] : []
+    );
+    const sunrises = events.flatMap((event) =>
+      event.type === 'sunrise' && isValidDate(event.time) ? [event.time] : []
+    );
+    const latestSunset = sunsets
+      .filter((time) => time.getTime() <= now.getTime())
       .reduce<Date | null>(
-        (latest, event) =>
-          latest === null || event.time.getTime() > latest.getTime() ? event.time : latest,
+        (latest, time) => latest === null || time.getTime() > latest.getTime() ? time : latest,
         null
       );
-    const nextSunrise = events
-      .filter((event) => event.type === 'sunrise' && isValidDate(event.time))
-      .filter((event) => latestSunset !== null && event.time.getTime() > latestSunset.getTime())
+    const nextSunrise = sunrises
+      .filter((time) => latestSunset !== null && time.getTime() > latestSunset.getTime())
       .reduce<Date | null>(
-        (next, event) =>
-          next === null || event.time.getTime() < next.getTime() ? event.time : next,
+        (next, time) => next === null || time.getTime() < next.getTime() ? time : next,
         null
       );
 
@@ -135,7 +140,7 @@ export function getNextSolarTransition(
     );
     for (const transition of [
       times.sunrise,
-      applySunsetOffset(times.sunset, sunsetOffsetMinutes),
+      times.sunset instanceof Date ? applySunsetOffset(times.sunset, sunsetOffsetMinutes) : null,
     ]) {
       if (transition instanceof Date && transition.getTime() > now.getTime()) {
         candidates.push(transition);

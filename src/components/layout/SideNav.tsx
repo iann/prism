@@ -123,7 +123,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
         onClick={handleAsideClick}
         className={cn(
           'wall-side-nav',
-          'fixed left-0 top-0 z-40 h-[var(--app-vh,100vh)]',
+          'fixed left-0 top-0 z-40 h-(--app-vh,100vh)',
           'bg-card',
           'border-r border-border/45',
           'flex flex-col',
@@ -135,7 +135,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
         )}
       >
         {/* HEADER WITH LOGO */}
-        <div className={cn('flex items-center h-12 [@media(pointer:coarse)]:h-16 px-2', expanded ? 'justify-start' : 'justify-center')}>
+        <div className={cn('flex items-center h-12 pointer-coarse:h-16 px-2', expanded ? 'justify-start' : 'justify-center')}>
           <Link href={scopedHref('/', pathname)} prefetch={false} className="flex items-center gap-2" aria-label="Prism home">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
               <PrismIcon size={24} />
@@ -161,7 +161,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                       'wall-nav-item',
                       active && 'wall-nav-item-active',
                       expanded && 'wall-nav-item-expanded',
-                      'flex items-center gap-3 px-3 py-1.5 [@media(pointer:coarse)]:py-2.5 rounded-lg',
+                      'flex items-center gap-3 px-3 py-1.5 pointer-coarse:py-2.5 rounded-lg',
                       'text-sm font-medium',
                       'transition-colors duration-200',
                       'touch-target',
@@ -171,7 +171,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
                       expanded ? 'justify-start' : 'justify-center'
                     )}
                   >
-                    <Icon className="wall-nav-icon h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                    <Icon className="wall-nav-icon h-5 w-5 shrink-0" aria-hidden="true" />
                     {expanded && <span className="whitespace-nowrap">
                       {t(item.i18nKey)}
                     </span>}
@@ -195,7 +195,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
               expanded ? 'justify-start' : 'justify-center'
             )}
           >
-            <HelpCircle className="h-4 w-4 flex-shrink-0" />
+            <HelpCircle className="h-4 w-4 shrink-0" />
             {expanded && <span>Help</span>}
           </Link>
         </div>
@@ -206,7 +206,8 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
             onClick={user ? onLogout : onLogin}
             className={cn(
               'wall-user-button',
-              'flex items-center gap-3 px-3 py-1.5 [@media(pointer:coarse)]:py-2.5 rounded-lg w-full',
+              'wall-user-button',
+              'flex items-center gap-3 px-3 py-1.5 pointer-coarse:py-2.5 rounded-lg w-full',
               'text-sm font-medium',
               'transition-colors duration-200',
               'touch-target',
@@ -218,7 +219,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
             {user ? (
               <>
                 <div
-                  className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0"
+                  className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shrink-0"
                   style={{ backgroundColor: user.color || '#6B7280', color: contrastText(user.color || '#6B7280') }}
                 >
                   {user.avatarUrl?.startsWith('emoji:') ? (
@@ -241,7 +242,7 @@ export function SideNav({ user, onLogout, onLogin, uiHidden, className }: SideNa
               </>
             ) : (
               <>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-destructive/10 border-2 border-dashed border-destructive flex-shrink-0">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-destructive/10 border-2 border-dashed border-destructive shrink-0">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"

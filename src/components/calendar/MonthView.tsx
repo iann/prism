@@ -236,10 +236,10 @@ function MonthDayCell({
       )}
       style={cellBgStyle}
     >
-      <div className="flex shrink-0 items-center justify-center h-[var(--daynum-row)]">
+      <div className="flex shrink-0 items-center justify-center h-(--daynum-row)">
         <span className={cn(
           'inline-flex items-center justify-center rounded-full px-1 font-medium',
-          'h-[var(--daynum-box)] min-w-[var(--daynum-box)] text-[length:var(--daynum-size)]',
+          'h-(--daynum-box) min-w-(--daynum-box) text-(length:--daynum-size)',
           today && 'bg-primary font-bold text-primary-foreground',
           !today && isPast && 'text-muted-foreground',
           !today && !isSameMonth(date, currentDate) && 'text-muted-foreground/55',
@@ -269,7 +269,7 @@ function MonthDayCell({
       ) : (
         // Row gap follows the theme's events mode; the fallback is the
         // 0.125rem that space-y-0.5 used to hard-code.
-        <ul className="flex-1 overflow-y-auto list-none m-0 px-1 pb-1 pt-0 flex flex-col gap-[var(--event-gap,0.125rem)]">
+        <ul className="flex-1 overflow-y-auto list-none m-0 px-1 pb-1 pt-0 flex flex-col gap-(--event-gap,0.125rem)">
           {dayEvents.map((event) => (
             <li
               key={event.id}

@@ -26,7 +26,7 @@
 'use client';
 
 import * as React from 'react';
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 import {
   Cloud,
   CloudRain,
@@ -663,7 +663,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
             {/* Multi-day summary — the day list fills the remaining space and
                 clips to WHOLE rows (maxDayRows) so a day is never half-cut. */}
             <div className="flex-1 min-h-0 flex flex-col">
-              <span className="flex-shrink-0 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              <span className="shrink-0 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 {shownForecast.length}-Day Forecast
               </span>
               <div ref={dayListRef} className="flex-1 min-h-0 overflow-hidden">
@@ -673,7 +673,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
             {/* Sun + moon arc — replaced by precip chart when rain is imminent. */}
             {showSunArc && (
-              <div className="flex-shrink-0 flex flex-col gap-1">
+              <div className="shrink-0 flex flex-col gap-1">
                 <SunriseSunsetArc
                   sunrise={weatherData.sunrise!}
                   sunset={weatherData.sunset!}
@@ -689,7 +689,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
 
             {/* Precipitation chart — replaces sunrise/sunset arc when rain is coming in the next hour */}
             {showPrecipChart && (
-              <div className="flex-shrink-0 flex flex-col gap-1">
+              <div className="shrink-0 flex flex-col gap-1">
                 <PrecipitationChart
                   minutely={weatherData.minutely!}
                   units={units}
@@ -772,7 +772,7 @@ function WeatherAlerts({ alerts }: { alerts: WeatherAlert[] }) {
               tone.container,
             )}
           >
-            <AlertTriangle className={cn('h-5 w-5 flex-shrink-0 self-center', tone.icon)} aria-hidden="true" />
+            <AlertTriangle className={cn('h-5 w-5 shrink-0 self-center', tone.icon)} aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-baseline justify-between gap-2">
                 <span className="truncate text-xs font-bold uppercase tracking-wide">{alert.title}</span>
@@ -859,7 +859,7 @@ function CurrentConditions({
         <div className="flex items-center gap-3">
           <WeatherIcon
             condition={weather.condition}
-            className={`h-10 w-10 flex-shrink-0 ${conditionIconClass(weather.condition)}`}
+            className={`h-10 w-10 shrink-0 ${conditionIconClass(weather.condition)}`}
           />
           <div className="min-w-0">
             <div
@@ -875,7 +875,7 @@ function CurrentConditions({
                     role="img"
                     aria-label="Using Pirate Weather fallback data"
                     title="Using Pirate Weather fallback data"
-                    className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-red-500"
+                    className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500"
                   />
                 )}
               </div>
@@ -1846,8 +1846,12 @@ function SunriseSunsetArc({
     () => SunCalc.getTimes(new Date(midnightMs), useLat, useLon),
     [midnightMs, useLat, useLon],
   );
-  const sunRiseFrac = (sunCalcTimes.sunrise.getTime() - midnightMs) / dayMs;
-  const sunSetFrac  = (sunCalcTimes.sunset.getTime()  - midnightMs) / dayMs;
+  const sunRiseFrac = sunCalcTimes.sunrise instanceof Date
+    ? (sunCalcTimes.sunrise.getTime() - midnightMs) / dayMs
+    : null;
+  const sunSetFrac = sunCalcTimes.sunset instanceof Date
+    ? (sunCalcTimes.sunset.getTime() - midnightMs) / dayMs
+    : null;
   const moonRiseRaw = moonrise ? (moonrise.getTime() - midnightMs) / dayMs : null;
   const moonSetRaw  = moonset  ? (moonset.getTime()  - midnightMs) / dayMs : null;
   const inWindow = (f: number | null): f is number => f !== null && f >= 0 && f <= 1;
