@@ -79,6 +79,10 @@ function nextLocalDayStartMs(dayStartMs: number): number {
   return next.getTime();
 }
 
+// SunCalc v2 reports solar and lunar altitudes in degrees. Keep the widget's
+// geometry in radians because the SVG scale is defined against π/2 (zenith).
+const altitudeToRadians = (degrees: number): number => degrees * Math.PI / 180;
+
 function useLocalDayStartMs(): number {
   const [dayStartMs, setDayStartMs] = React.useState(localDayStartMs);
 
@@ -1734,8 +1738,8 @@ function SunriseSunsetArc({
     for (let i = 0; i <= SUN_PATH_SAMPLES; i++) {
       const frac = i / SUN_PATH_SAMPLES;
       const t = new Date(midnightMs + frac * dayMs);
-      const sAlt = SunCalc.getPosition(t, useLat, useLon).altitude;
-      const mAlt = SunCalc.getMoonPosition(t, useLat, useLon).altitude;
+      const sAlt = altitudeToRadians(SunCalc.getPosition(t, useLat, useLon).altitude);
+      const mAlt = altitudeToRadians(SunCalc.getMoonPosition(t, useLat, useLon).altitude);
       sun.push({ frac, alt: sAlt, y: altToY(sAlt) });
       moon.push({ frac, alt: mAlt, y: altToY(mAlt) });
     }
@@ -1828,13 +1832,15 @@ function SunriseSunsetArc({
   // samples — accurate to the second instead of the 15-min sample grid).
   const sunPos = SunCalc.getPosition(new Date(nowMs), useLat, useLon);
   const sunX = xOf(nowFrac);
-  const sunY = altToY(sunPos.altitude);
-  const isDay = sunPos.altitude >= 0;
+  const sunAltitude = altitudeToRadians(sunPos.altitude);
+  const sunY = altToY(sunAltitude);
+  const isDay = sunAltitude >= 0;
 
   const moonPos = moonSamples ? SunCalc.getMoonPosition(new Date(nowMs), useLat, useLon) : null;
   const moonX = moonPos ? xOf(nowFrac) : 0;
-  const moonY = moonPos ? altToY(moonPos.altitude) : 0;
-  const isMoonUp = moonPos ? moonPos.altitude >= 0 : false;
+  const moonAltitude = moonPos ? altitudeToRadians(moonPos.altitude) : 0;
+  const moonY = moonPos ? altToY(moonAltitude) : 0;
+  const isMoonUp = moonAltitude >= 0;
   const moonGlyphR = isMoonUp ? 6 : 4;
   const showMoonGlyph = moonSamples !== null && moonPhase !== undefined;
 
@@ -1871,9 +1877,9 @@ function SunriseSunsetArc({
   // — red near the horizon, amber high in the sky. Bucketed (rather than
   // smoothly interpolated) for legibility against a small dot.
   const sunDotColor = isDay
-    ? sunPos.altitude < 0.087 // ~5°
+    ? sunAltitude < 0.087 // ~5°
       ? SUN_HORIZON
-      : sunPos.altitude < 0.314 // ~18°
+      : sunAltitude < 0.314 // ~18°
         ? SUN_LOW
         : SUN_COLOR
     : SUN_NIGHT;
