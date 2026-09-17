@@ -69,6 +69,19 @@ export async function setClientFlags(
     localStorage.setItem('prism-theme', flags.theme);
     localStorage.setItem('prism-perf-mode', String(flags.perfMode));
     localStorage.setItem('prism:auto-hide-ui', 'false');
+    // The radar is an external, time-varying iframe. Keep visual snapshots
+    // deterministic; its rendering is covered by the component tests.
+    localStorage.setItem('prism:weather-radar-dismissed-until', String(Number.MAX_SAFE_INTEGER));
+    const hideRadar = () => {
+      const root = document.head || document.documentElement;
+      if (!root || document.getElementById('pw-hide-weather-radar')) return;
+      const style = document.createElement('style');
+      style.id = 'pw-hide-weather-radar';
+      style.textContent = '[data-testid="weather-radar-widget"] { display: none !important; }';
+      root.appendChild(style);
+    };
+    document.addEventListener('DOMContentLoaded', hideRadar, { once: true });
+    hideRadar();
 
     if (flags.colorTheme) localStorage.setItem('prism-color-theme', flags.colorTheme);
     if (flags.screensaverShortcut !== undefined) {
