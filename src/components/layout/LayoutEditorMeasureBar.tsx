@@ -154,10 +154,10 @@ export function LayoutEditorMeasureBar({
   const [showScreens, setShowScreens] = useState(false);
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-2">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-200 flex flex-col items-center gap-2">
       {showScreens && <ScreensPanel />}
 
-      <div className="flex items-center gap-2 bg-card dark:bg-card/90 dark:backdrop-blur-sm border border-border rounded-full px-4 py-2 shadow-lg">
+      <div className="flex items-center gap-2 bg-card dark:bg-card/90 backdrop-blur-xs dark:backdrop-blur-sm border border-border rounded-full px-4 py-2 shadow-lg">
         <button
           onClick={() => setShowScreens(prev => !prev)}
           className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs transition-colors ${
@@ -183,12 +183,12 @@ export function LayoutEditorMeasureBar({
                     title={`Preview as ${zone.name}`}
                     className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs transition-colors ${
                       isActive
-                        ? 'bg-card border border-border text-foreground shadow-sm'
+                        ? 'bg-card border border-border text-foreground shadow-xs'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
                     <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: zone.color, boxShadow: isActive ? `0 0 6px ${zone.color}` : undefined }}
                     />
                     {zone.name}

@@ -181,7 +181,7 @@ export function DayViewSideBySide({
           {/* Sticky all-day / group-label header */}
           <div className={cn('flex sticky top-0 z-20', !transparentMode && (isCurrentDay ? 'bg-calendar-today' : 'bg-calendar-surface'))}>
             {/* Time column header with toggle button */}
-            <div className="w-16 flex-shrink-0 flex items-center justify-center">
+            <div className="w-16 shrink-0 flex items-center justify-center">
               <button
                 onClick={toggleHidden}
                 data-screensaver-keep
@@ -293,7 +293,7 @@ export function DayViewSideBySide({
           {/* Hourly grid — flex-1 fills remaining space; 1fr rows stretch when hours are hidden */}
           <div ref={hourGridRef} className="flex-1 flex">
             {/* Time column */}
-            <div className="w-16 flex-shrink-0 h-full grid" style={{ gridTemplateRows: `repeat(${hours.length}, 1fr)` }}>
+            <div className="w-16 shrink-0 h-full grid" style={{ gridTemplateRows: `repeat(${hours.length}, 1fr)` }}>
               {hours.map((hour) => {
                 const isPastHour = isPastDay || (isCurrentDay && hour < currentHour);
                 const isNowHour = isCurrentDay && hour === currentHour;

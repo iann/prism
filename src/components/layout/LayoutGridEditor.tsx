@@ -627,7 +627,7 @@ export function LayoutGridEditor({
 
     return (
       <div
-        className="relative z-[150] border-b border-border bg-card dark:bg-card/95 dark:backdrop-blur-sm"
+        className="relative z-150 border-b border-border bg-card dark:bg-card/95 backdrop-blur-xs dark:backdrop-blur-sm"
         onPointerDown={(e) => e.stopPropagation()}
       >
         {/* Single row: Widget name + property buttons + close */}
@@ -681,7 +681,7 @@ export function LayoutGridEditor({
                 </button>
                 {/* Popover */}
                 {isOpen && (
-                  <div className="absolute left-0 top-full z-[200] mt-1 min-w-[320px] rounded-lg border border-border bg-card shadow-lg">
+                  <div className="absolute left-0 top-full z-200 mt-1 min-w-[320px] rounded-lg border border-border bg-card shadow-lg">
                     {renderColorPopover(id)}
                   </div>
                 )}
@@ -734,7 +734,7 @@ export function LayoutGridEditor({
                   </button>
                   {/* Grid popover */}
                   {isOpen && (
-                    <div className="absolute left-0 top-full z-[200] mt-1 min-w-[280px] space-y-2.5 rounded-lg border border-border bg-card p-2.5 shadow-lg">
+                    <div className="absolute left-0 top-full z-200 min-w-[280px] space-y-2.5 rounded-lg border border-border bg-card p-2.5 shadow-lg">
                       {/* Lines opacity */}
                       <div>
                         <div className="mb-1 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -906,7 +906,7 @@ export function LayoutGridEditor({
 
     return (
       <div
-        className="pointer-events-none absolute z-[5]"
+        className="pointer-events-none absolute z-5"
         style={{ left: containerPadding, top: containerPadding, width: gridW, height: gridH }}
       >
         {safeZones.map((zone) => {

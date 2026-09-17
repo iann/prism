@@ -52,7 +52,7 @@ const buttonVariants = cva(
     // Transitions (smooth hover/focus effects)
     'transition-[background-color,color,border-color,box-shadow,transform] duration-200',
     // Focus state (accessibility)
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+    'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
     // Disabled state
     'disabled:pointer-events-none disabled:opacity-50',
     // Touch optimization

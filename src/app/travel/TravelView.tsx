@@ -390,7 +390,7 @@ export function TravelView() {
                         onClick={() => setOverlay({ mode: 'add', latLng: overlay.mode === 'add' ? overlay.latLng : undefined })}
                         className={cn(
                           'flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                          overlay.mode === 'add' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+                          overlay.mode === 'add' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                         )}
                       >
                         <MapPin className="h-3 w-3" />Place
@@ -399,7 +399,7 @@ export function TravelView() {
                         onClick={() => setOverlay({ mode: 'trip-add' })}
                         className={cn(
                           'flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                          overlay.mode === 'trip-add' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+                          overlay.mode === 'trip-add' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                         )}
                       >
                         <Route className="h-3 w-3" />Trip

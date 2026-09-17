@@ -136,7 +136,7 @@ export function AgendaView({
 
   return (
     <div className="overflow-auto h-full -mr-2 pr-2">
-      <div className="flex flex-col gap-[var(--agenda-group-gap)]">
+      <div className="flex flex-col gap-(--agenda-group-gap)">
         {eventsByDay.map(({ date, events: dayEvts, bucket }) => (
           <AgendaDaySection
             key={date.toISOString()}
@@ -210,7 +210,7 @@ function AgendaDaySection({
         )}
       </div>
 
-      <div className="flex flex-col gap-[var(--agenda-row-gap)] pl-2 border-l-2 border-border">
+      <div className="flex flex-col gap-(--agenda-row-gap) pl-2 border-l-2 border-border">
         {displayRows.map((row) => (
           <AgendaRowItem key={row.key} row={row} cards={cards} />
         ))}
@@ -372,7 +372,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
       {...(row.dragId ? draggable.listeners : {})}
       {...(row.dragId ? draggable.attributes : {})}
       className={cn(
-        'relative w-full text-left flex items-start gap-2 rounded p-[var(--agenda-row-padding)]',
+        'relative w-full text-left flex items-start gap-2 rounded p-(--agenda-row-padding)',
         cards
           ? 'border-border bg-calendar-surface border shadow-sm hover:bg-accent text-foreground'
           : 'hover:opacity-90',

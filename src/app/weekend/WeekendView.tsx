@@ -130,7 +130,7 @@ export function WeekendView() {
     <PageWrapper>
     <div className="h-screen flex flex-col">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background/80 backdrop-blur shrink-0 flex-wrap">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background/80 backdrop-blur-sm shrink-0 flex-wrap">
         {/* Status tabs */}
         <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
           {(['all', 'backlog', 'visited'] as const).map((s) => (
