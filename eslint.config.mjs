@@ -72,6 +72,10 @@ const eslintConfig = [
       'dist/**',
       'build/**',
       'node_modules/**',
+      // Claude's auxiliary worktrees are complete repository copies managed
+      // outside the project source tree. They are not part of this checkout's
+      // lint target and can contain unrelated generated or stale code.
+      '.claude/worktrees/**',
       'drizzle/**',
       // mkdocs writes the built docs site here, bundled lunr/glightbox and all.
       'site/**',
