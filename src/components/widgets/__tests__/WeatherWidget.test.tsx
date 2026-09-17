@@ -16,8 +16,15 @@ import { TimeFormatProvider } from '@/components/providers';
 // module-level mock is more reliable than spying on the namespace object.
 jest.mock('suncalc', () => {
   const actual = jest.requireActual<typeof import('suncalc')>('suncalc');
-  return { ...actual, getTimes: jest.fn(actual.getTimes) };
+  return {
+    ...actual,
+    getTimes: jest.fn(actual.getTimes),
+    getPosition: jest.fn(actual.getPosition),
+    getMoonPosition: jest.fn(actual.getMoonPosition),
+  };
 });
+
+const realSunCalc = jest.requireActual<typeof import('suncalc')>('suncalc');
 
 // WeatherWidget consumes useTimeFormat(), which requires a TimeFormatProvider
 // ancestor. Wrap every render so the widget mounts the way it does in the app.
@@ -1042,6 +1049,8 @@ describe('sun and moon day rollover', () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
+    jest.mocked(SunCalc.getPosition).mockImplementation(realSunCalc.getPosition);
+    jest.mocked(SunCalc.getMoonPosition).mockImplementation(realSunCalc.getMoonPosition);
   });
 
   it('recalculates the celestial paths after local midnight without a remount', () => {
@@ -1092,5 +1101,37 @@ describe('sun and moon day rollover', () => {
 
     const moonArc = container.querySelector('path[stroke="hsl(var(--weather-temp-freezing))"]');
     expect(moonArc).not.toBeNull();
+  });
+
+  it('converts SunCalc v2 degree altitudes before plotting the arcs', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 6, 17, 12, 0));
+
+    jest.mocked(SunCalc.getPosition).mockReturnValue({ altitude: 45, azimuth: 0 });
+    jest.mocked(SunCalc.getMoonPosition).mockReturnValue({
+      altitude: -30,
+      azimuth: 0,
+      distance: 384_400,
+      parallacticAngle: 0,
+    });
+
+    const { container } = render(
+      <WeatherWidget
+        data={makeWeatherData({
+          sunrise: new Date(2026, 6, 17, 5, 30),
+          sunset: new Date(2026, 6, 17, 20, 15),
+          moonrise: new Date(2026, 6, 17, 21, 0),
+          moonset: new Date(2026, 6, 18, 5, 0),
+          moonPhase: 0.5,
+        })}
+      />
+    );
+
+    const sunPath = Array.from(container.querySelectorAll('path'))
+      .find((path) => path.getAttribute('stroke')?.startsWith('url(#sun-grad-'));
+
+    // 45° must map to y=38 (halfway from the horizon at 66 to the zenith at
+    // 10). Treating SunCalc v2's degrees as radians would clamp it to y=10.
+    expect(sunPath?.getAttribute('d')).toContain('38.0');
   });
 });
