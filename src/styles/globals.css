@@ -43,6 +43,9 @@
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
 
+  --color-calendar-surface: hsl(var(--calendar-surface));
+  --color-calendar-today: hsl(var(--calendar-today));
+
   --color-seasonal-accent: hsl(var(--seasonal-accent));
   --color-seasonal-accent-foreground: hsl(var(--seasonal-accent-foreground));
   --color-seasonal-highlight: hsl(var(--seasonal-highlight));

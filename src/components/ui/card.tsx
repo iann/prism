@@ -48,7 +48,7 @@ const Card = React.forwardRef<
     ref={ref}
     className={cn(
       // Background and border
-      'bg-card/85 backdrop-blur-xs text-card-foreground',
+      'bg-card/85 backdrop-blur-sm text-card-foreground',
       // Border and rounding come from the active theme rather than a fixed
       // utility. A theme that wants a square, heavily outlined look has to
       // reach the surface people actually see, and on a dashboard that is

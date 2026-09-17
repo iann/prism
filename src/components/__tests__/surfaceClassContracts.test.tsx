@@ -34,10 +34,10 @@ function expectThemeCardSurface(element: Element) {
   expect(element.classList.contains('dark:bg-card/85')).toBe(false);
   expect(element.classList.contains('dark:backdrop-blur-sm')).toBe(false);
   expect(element.classList.contains('border-border')).toBe(true);
-  expect(element.classList.contains('border-[length:var(--border-width,1px)]')).toBe(true);
-  expect(element.classList.contains('rounded-[var(--radius,0.5rem)]')).toBe(true);
+  expect(element.classList.contains('border-(length:--border-width,1px)')).toBe(true);
+  expect(element.classList.contains('rounded-(--radius,0.5rem)')).toBe(true);
   expect(element.classList.contains('rounded-xl')).toBe(false);
-  expect(element.classList.contains('shadow-[var(--surface-shadow)]')).toBe(true);
+  expect(element.classList.contains('shadow-(--surface-shadow)')).toBe(true);
 }
 
 function expectMobileCardSurface(element: Element) {
@@ -188,15 +188,9 @@ describe('surface class contracts', () => {
   });
 
   it('maps Tailwind calendar colors to the named-theme surface tokens', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const config = require('../../../tailwind.config.js') as {
-      theme: { extend: { colors: { calendar: Record<string, string> } } };
-    };
-
-    expect(config.theme.extend.colors.calendar).toEqual({
-      surface: 'hsl(var(--calendar-surface))',
-      today: 'hsl(var(--calendar-today))',
-    });
+    const globals = readFileSync(join(process.cwd(), 'src/styles/globals.css'), 'utf8');
+    expect(globals).toContain('--color-calendar-surface: hsl(var(--calendar-surface));');
+    expect(globals).toContain('--color-calendar-today: hsl(var(--calendar-today));');
   });
 
   it('keeps timed inline events on semantic ink while all-day fills choose contrast ink', () => {
