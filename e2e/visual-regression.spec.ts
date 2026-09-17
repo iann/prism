@@ -95,6 +95,9 @@ async function setClientFlags(
       localStorage.setItem('prism-perf-mode', String(p));
       // Disable auto-hide so the toolbar stays visible during screenshots.
       localStorage.setItem('prism:auto-hide-ui', 'false');
+      // The radar is an external, time-varying iframe. Keep visual snapshots
+      // deterministic; its rendering is covered by the component tests.
+      localStorage.setItem('prism:weather-radar-dismissed-until', String(Number.MAX_SAFE_INTEGER));
     },
     [theme, perfMode],
   );

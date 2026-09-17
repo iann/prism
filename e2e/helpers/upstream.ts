@@ -69,6 +69,9 @@ export async function setClientFlags(
     localStorage.setItem('prism-theme', flags.theme);
     localStorage.setItem('prism-perf-mode', String(flags.perfMode));
     localStorage.setItem('prism:auto-hide-ui', 'false');
+    // The radar is an external, time-varying iframe. Keep visual snapshots
+    // deterministic; its rendering is covered by the component tests.
+    localStorage.setItem('prism:weather-radar-dismissed-until', String(Number.MAX_SAFE_INTEGER));
 
     if (flags.colorTheme) localStorage.setItem('prism-color-theme', flags.colorTheme);
     if (flags.screensaverShortcut !== undefined) {
