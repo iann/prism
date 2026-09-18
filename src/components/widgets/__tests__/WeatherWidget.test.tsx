@@ -80,6 +80,12 @@ import type {
   WeatherCondition,
 } from '../WeatherWidget';
 
+afterEach(() => {
+  jest.useRealTimers();
+  jest.mocked(SunCalc.getPosition).mockImplementation(realSunCalc.getPosition);
+  jest.mocked(SunCalc.getMoonPosition).mockImplementation(realSunCalc.getMoonPosition);
+});
+
 // ---------------------------------------------------------------------------
 // Test data helpers
 // ---------------------------------------------------------------------------

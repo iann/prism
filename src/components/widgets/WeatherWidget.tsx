@@ -1831,8 +1831,8 @@ function SunriseSunsetArc({
   // Current positions (uses suncalc directly rather than interpolating
   // samples — accurate to the second instead of the 15-min sample grid).
   const sunPos = SunCalc.getPosition(new Date(nowMs), useLat, useLon);
-  const sunX = xOf(nowFrac);
   const sunAltitude = altitudeToRadians(sunPos.altitude);
+  const sunX = xOf(nowFrac);
   const sunY = altToY(sunAltitude);
   const isDay = sunAltitude >= 0;
 
