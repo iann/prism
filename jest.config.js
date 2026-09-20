@@ -5,6 +5,7 @@ module.exports = {
   setupFiles: ['<rootDir>/jest.setup.js'],
   roots: ['<rootDir>/src'],
   moduleNameMapper: {
+    '\\.module\\.css$': '<rootDir>/src/test-utils/styleMock.ts',
     '^merry-timeline$': '<rootDir>/src/__mocks__/merry-timeline.ts',
     // next-intl ships ESM ts-jest won't transpile; use a lightweight mock in tests.
     '^next-intl$': '<rootDir>/src/test-utils/nextIntlMock.tsx',

@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
 import { useAwayMode } from '@/lib/hooks/useAwayMode';
 import { useBabysitterMode } from '@/lib/hooks/useBabysitterMode';
 import { useIdleDetection } from '@/lib/hooks/useIdleDetection';
@@ -20,6 +21,7 @@ const BabysitterModeOverlay = dynamic(
 );
 
 export function LazyOverlays() {
+  const pathname = usePathname();
   const { isIdle } = useIdleDetection();
   const { isAway, toggle: toggleAway } = useAwayMode();
   const { isActive: babysitterActive, toggle: toggleBabysitter } = useBabysitterMode();
@@ -31,7 +33,8 @@ export function LazyOverlays() {
     <>
       {babysitterActive && <BabysitterModeOverlay toggle={toggleBabysitter} />}
       {isAway && <AwayModeOverlay toggle={toggleAway} />}
-      {isIdle && <Screensaver idleOverride={isIdle} />}
+      {/* The solar observatory is itself an always-on wall display. */}
+      {isIdle && pathname !== '/solar' && <Screensaver idleOverride={isIdle} />}
     </>
   );
 }

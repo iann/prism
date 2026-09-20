@@ -26,15 +26,12 @@
 'use client';
 
 import * as React from 'react';
-import * as SunCalc from 'suncalc';
 import {
   Cloud,
   CloudRain,
   CloudSnow,
   Sun,
   CloudSun,
-  Sunrise,
-  Sunset,
   Wind,
   Droplets,
   Zap,
@@ -51,11 +48,10 @@ import { getTemperatureTrend } from '@/lib/weather/temperatureTrend';
 import { formatWeatherSummary } from '@/lib/weather/weatherSummary';
 import { getUvIndexTrend, type UvIndexTrend } from '@/lib/weather/uvIndexTrend';
 import { WidgetContainer } from './WidgetContainer';
+import { SolarWorldMap } from './SolarWorldMap';
 import { DayHeader } from './WeatherForecastBar';
 import { useTranslations } from 'next-intl';
 
-const SUN_PATH_SAMPLES = 48;
-const MIDNIGHT_ROLLOVER_BUFFER_MS = 50;
 const MILLIMETERS_PER_INCH = 25.4;
 // Use the NWS heavy-rain boundary as the visual ceiling, then apply a
 // square-root curve so light and moderate rain remain legible without making
@@ -66,46 +62,8 @@ const PRECIPITATION_WAVE_UNDULATION_PX = 4;
 const PRECIPITATION_WAVE_PRIMARY_FREQUENCY = 0.36;
 const PRECIPITATION_WAVE_SECONDARY_FREQUENCY = 0.14;
 const RAIN_THRESHOLD_MM_PER_HOUR = 0.1;
-
-function localDayStartMs(nowMs = Date.now()): number {
-  const start = new Date(nowMs);
-  start.setHours(0, 0, 0, 0);
-  return start.getTime();
-}
-
-function nextLocalDayStartMs(dayStartMs: number): number {
-  const next = new Date(dayStartMs);
-  next.setDate(next.getDate() + 1);
-  return next.getTime();
-}
-
-// SunCalc v2 reports solar and lunar altitudes in degrees. Keep the widget's
-// geometry in radians because the SVG scale is defined against π/2 (zenith).
-const altitudeToRadians = (degrees: number): number => degrees * Math.PI / 180;
-
-function useLocalDayStartMs(): number {
-  const [dayStartMs, setDayStartMs] = React.useState(localDayStartMs);
-
-  React.useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-
-    const scheduleRollover = () => {
-      const nowMs = Date.now();
-      const nextDayStartMs = nextLocalDayStartMs(localDayStartMs(nowMs));
-      timeoutId = setTimeout(() => {
-        setDayStartMs(localDayStartMs());
-        scheduleRollover();
-      }, nextDayStartMs - nowMs + MIDNIGHT_ROLLOVER_BUFFER_MS);
-    };
-
-    scheduleRollover();
-    return () => clearTimeout(timeoutId);
-  }, []);
-
-  return dayStartMs;
-}
 import { useTimeFormat } from '@/components/providers';
-import { formatDisplayHour, formatDisplayTime } from '@/lib/utils/timeFormat';
+import { formatDisplayHour } from '@/lib/utils/timeFormat';
 
 /**
  * WEATHER DATA TYPES
@@ -373,8 +331,7 @@ export interface WeatherData {
   moonIllumination?: number;
   /** Human-readable phase label, e.g. "Waning Gibbous". */
   moonPhaseName?: string;
-  /** Latitude of the weather location — used client-side by suncalc to draw
-   *  the sun/moon arcs at their true altitudes. */
+  /** Latitude of the weather location, used to render its solar path on the world map. */
   lat?: number;
   /** Longitude of the weather location. Pair with lat. */
   lon?: number;
@@ -406,51 +363,6 @@ export interface WeatherWidgetProps {
   gridW?: number;
   gridH?: number;
   className?: string;
-}
-
-
-/**
- * MOON PHASE GLYPH GEOMETRY (shared)
- *
- * Returns an SVG path string for the illuminated portion of the moon at the
- * given phase: a half-circle on the lit side plus an elliptical arc whose
- * x-radius shrinks toward zero at the quarter phases. At new moon (phase=0)
- * the two arcs overlap and the closed path has zero area — caller should
- * combine with an outlined disc so new moon reads as an empty circle.
- *
- * Used in two places: inline in the SunriseSunsetArc SVG, and as the body
- * of the standalone <MoonGlyph> component (forecast day rows).
- */
-function moonPhasePath(cx: number, cy: number, r: number, phase: number): string {
-  const ph = ((phase % 1) + 1) % 1;
-  const rxAbs = Math.abs(Math.cos(2 * Math.PI * ph)) * r;
-  const outerSweep = ph < 0.5 ? 1 : 0;
-  const innerSweep = Math.floor(ph * 4) % 2 === 1 ? 1 : 0;
-  return `M ${cx},${cy - r} A ${r},${r} 0 0 ${outerSweep} ${cx},${cy + r} A ${rxAbs},${r} 0 0 ${innerSweep} ${cx},${cy - r} Z`;
-}
-
-/**
- * Small standalone moon glyph — outlined disc + lit fraction. Used next to
- * each forecast day to show the night's moon phase at a glance.
- */
-function MoonGlyph({
-  phase,
-  size = 14,
-  color = '#60A5FA',
-}: {
-  phase: number;
-  size?: number;
-  color?: string;
-}) {
-  const r = size / 2 - 0.5;
-  const c = size / 2;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
-      <circle cx={c} cy={c} r={r} fill="none" stroke={color}
-        strokeOpacity={0.5} strokeWidth={0.8} />
-      <path d={moonPhasePath(c, c, r, phase)} fill={color} opacity={0.9} />
-    </svg>
-  );
 }
 
 
@@ -615,10 +527,9 @@ export const WeatherWidget = React.memo(function WeatherWidget({
     precipitationToMillimeters(m.precipIntensity, units) >= RAIN_THRESHOLD_MM_PER_HOUR
   );
   const showPrecipChart = hasImminentRain && !!weatherData.minutely?.length;
-  // The sun/moon arc is a nice-to-have; only show it when the widget is tall
-  // enough that it doesn't squeeze the actual forecast. Below that, favor the
-  // forecast (e.g. the small weather tile on School Mornings).
-  const showSunArc = !!weatherData.sunrise && !!weatherData.sunset && !showPrecipChart && gridH >= 12;
+  // The solar map is an extra; only show it when the widget is tall enough
+  // that it doesn't squeeze the actual forecast. Below that, favor the forecast.
+  const showSolarMap = !showPrecipChart && gridH >= 12;
 
   return (
     <WidgetContainer
@@ -675,18 +586,14 @@ export const WeatherWidget = React.memo(function WeatherWidget({
               </div>
             </div>
 
-            {/* Sun + moon arc — replaced by precip chart when rain is imminent. */}
-            {showSunArc && (
-              <div className="shrink-0 flex flex-col gap-1">
-                <SunriseSunsetArc
-                  sunrise={weatherData.sunrise!}
-                  sunset={weatherData.sunset!}
+            {/* Earth illumination and the local solar path share one compact map. */}
+            {showSolarMap && (
+              <div className="shrink-0">
+                <SolarWorldMap
+                  compact
                   lat={weatherData.lat}
                   lon={weatherData.lon}
-                  moonrise={weatherData.moonrise}
-                  moonset={weatherData.moonset}
-                  moonPhase={weatherData.moonPhase}
-                  timezone={weatherData.timezone}
+                  locationName={weatherData.location}
                 />
               </div>
             )}
@@ -1647,386 +1554,6 @@ function precipitationWavePath(
 }
 
 
-/**
- * SUN + MOON ARC
- *
- * Plots true celestial altitudes for both the sun and (optionally) the moon
- * across a 24-hour timeline (left edge = today's local midnight, right edge
- * = next midnight). Altitudes come from suncalc, so the visual peak height
- * of each arc reflects how high the body actually reaches in the sky on
- * the given day and latitude — summer sun arcs higher than winter sun,
- * and the moon arc varies with declination.
- *
- * Scale: π/2 (90°, the zenith) maps to `ryTop` pixels above the horizon;
- * sub-zenith altitudes shrink proportionally. Same scale below the horizon
- * capped at `ryBot`.
- *
- * Sun: amber for the elapsed portion of today (matches the prior look —
- * dashed background for future positions, slate-gray for elapsed below-
- * horizon nighttime).
- * Moon: blue for the entire above-horizon arc, with a phase-glyph dot at
- * the moon's current position. Below-horizon segments use the dashed
- * background only.
- */
-function SunriseSunsetArc({
-  sunrise,
-  sunset,
-  lat,
-  lon,
-  moonrise,
-  moonset,
-  moonPhase,
-  timezone,
-}: {
-  sunrise: Date;
-  sunset: Date;
-  lat?: number;
-  lon?: number;
-  moonrise?: Date;
-  moonset?: Date;
-  moonPhase?: number;
-  timezone?: string;
-}) {
-  const { timeFormat } = useTimeFormat();
-  const [width, setWidth] = React.useState(220);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  // Unique gradient ID so multiple weather widgets on a page (e.g., dashboard
-  // + lite mode) don't share a single <defs> entry.
-  const gradientId = `sun-grad-${React.useId()}`;
-  const moonMaskId = `moon-mask-${React.useId()}`;
-
-  React.useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(entry.contentRect.width);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const H        = 110;
-  const horizonY = 66;
-  const pad      = 8;
-  const arcWidth = width - 2 * pad;
-  const ryTop    = horizonY - 10;      // pixels representing zenith (alt = π/2)
-  const ryBot    = H - horizonY - 10;  // pixels representing antizenith (alt = -π/2)
-  const midnightMs = useLocalDayStartMs();
-  const nextMidnightMs = nextLocalDayStartMs(midnightMs);
-  const dayMs = nextMidnightMs - midnightMs;
-  const nowMs = Date.now();
-
-  // X helper — frac 0..1 of today's 24h window maps to the SVG width.
-  const xOf = (frac: number) => pad + frac * arcWidth;
-  const nowFrac = Math.max(0, Math.min(1, (nowMs - midnightMs) / dayMs));
-
-  // Map a celestial altitude (radians, -π/2..π/2) to a Y pixel.
-  // FIXED scale: zenith = ryTop above horizonY. Sub-zenith altitudes shrink
-  // proportionally so winter sun visibly arcs lower than summer sun.
-  const altToY = React.useCallback((altRad: number): number => {
-    if (altRad >= 0) return horizonY - ryTop * Math.min(1, altRad / (Math.PI / 2));
-    return horizonY + ryBot * Math.min(1, -altRad / (Math.PI / 2));
-  }, [horizonY, ryTop, ryBot]);
-
-  // Resolve coords: fall back to Chicago for demo data without lat/lon.
-  const useLat = lat ?? 41.8781;
-  const useLon = lon ?? -87.6298;
-
-  const samples = React.useMemo(() => {
-    const sun: { frac: number; alt: number; y: number }[] = [];
-    const moon: { frac: number; alt: number; y: number }[] = [];
-    for (let i = 0; i <= SUN_PATH_SAMPLES; i++) {
-      const frac = i / SUN_PATH_SAMPLES;
-      const t = new Date(midnightMs + frac * dayMs);
-      const sAlt = altitudeToRadians(SunCalc.getPosition(t, useLat, useLon).altitude);
-      const mAlt = altitudeToRadians(SunCalc.getMoonPosition(t, useLat, useLon).altitude);
-      sun.push({ frac, alt: sAlt, y: altToY(sAlt) });
-      moon.push({ frac, alt: mAlt, y: altToY(mAlt) });
-    }
-    return { sun, moon };
-  }, [midnightMs, dayMs, useLat, useLon, altToY]);
-
-  // Generic helpers — convert a sample list into one or more SVG paths,
-  // optionally filtering by above/below horizon and elapsed/future.
-  const samplesToPath = (pts: { frac: number; y: number }[]): string =>
-    pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xOf(p.frac).toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
-
-  const segmentBy = (
-    pts: { frac: number; alt: number; y: number }[],
-    keep: (s: { alt: number; frac: number }) => boolean,
-  ): string[] => {
-    const out: string[] = [];
-    let buf: { frac: number; y: number }[] = [];
-    for (const s of pts) {
-      if (keep(s)) buf.push({ frac: s.frac, y: s.y });
-      else if (buf.length > 1) { out.push(samplesToPath(buf)); buf = []; }
-      else buf = [];
-    }
-    if (buf.length > 1) out.push(samplesToPath(buf));
-    return out;
-  };
-
-  // Insert a synthetic point at every alt=0 crossing (horizon) so adjacent
-  // segments (above/below) share the exact crossing point and connect without
-  // a gap. The interpolated y lands exactly on horizonY.
-  const withAltCrossings = (pts: { frac: number; alt: number; y: number }[]) => {
-    const out: { frac: number; alt: number; y: number }[] = [];
-    for (let i = 0; i < pts.length; i++) {
-      const p = pts[i]!;
-      if (i > 0) {
-        const prev = pts[i - 1]!;
-        if ((prev.alt < 0) !== (p.alt < 0)) {
-          const t = -prev.alt / (p.alt - prev.alt);
-          out.push({ frac: prev.frac + t * (p.frac - prev.frac), alt: 0, y: horizonY });
-        }
-      }
-      out.push(p);
-    }
-    return out;
-  };
-
-  // Insert a synthetic point at nowFrac so the elapsed/future split lands
-  // exactly at the current-time marker with no gap between the two segments.
-  const withNowCrossing = (pts: { frac: number; alt: number; y: number }[]) => {
-    const out: { frac: number; alt: number; y: number }[] = [];
-    let inserted = false;
-    for (let i = 0; i < pts.length; i++) {
-      const p = pts[i]!;
-      if (!inserted && i > 0 && pts[i - 1]!.frac < nowFrac && p.frac > nowFrac) {
-        const prev = pts[i - 1]!;
-        const t = (nowFrac - prev.frac) / (p.frac - prev.frac);
-        out.push({ frac: nowFrac, alt: prev.alt + t * (p.alt - prev.alt), y: prev.y + t * (p.y - prev.y) });
-        inserted = true;
-      }
-      out.push(p);
-    }
-    return out;
-  };
-
-  // Sun arc segments. "Elapsed" portions (frac ≤ nowFrac) get the bright
-  // amber / slate treatment; future portions sit on the dashed background.
-  // Dashes are drawn only for the future portion so the dotted path never
-  // shows through the solid elapsed lines on top.
-  // Inclusive boundary conditions (<=/>= on both sides of each crossing) ensure
-  // adjacent segments share the synthetic crossing point so there's no gap.
-  const sunPts = withNowCrossing(withAltCrossings(samples.sun));
-  const sunFuturePaths = segmentBy(sunPts, s => s.frac >= nowFrac);
-  const sunElapsedAbove = segmentBy(sunPts, s => s.frac <= nowFrac && s.alt >= 0);
-  const sunElapsedBelow = segmentBy(sunPts, s => s.frac <= nowFrac && s.alt <= 0);
-
-  // Moon: light up the whole above-horizon portion in blue (we don't track
-  // elapsed/future for moon — the curve is short enough that it reads as a
-  // single "moon-up" highlight). Dashes drawn only for below-horizon so they
-  // don't show through the solid blue above-horizon arc.
-  // Moon: same elapsed/future split as the sun.
-  // Elapsed above-horizon → solid bright blue.
-  // Elapsed below-horizon → solid dim blue.
-  // Future (any altitude)  → dashed.
-  const moonSamples = moonrise || moonset || moonPhase !== undefined ? samples.moon : null;
-  const moonPts = moonSamples ? withNowCrossing(withAltCrossings(moonSamples)) : null;
-  const moonFuturePaths  = moonPts ? segmentBy(moonPts, s => s.frac >= nowFrac) : [];
-  const moonElapsedAbove = moonPts ? segmentBy(moonPts, s => s.frac <= nowFrac && s.alt >= 0) : [];
-  const moonElapsedBelow = moonPts ? segmentBy(moonPts, s => s.frac <= nowFrac && s.alt <= 0) : [];
-
-  // Current positions (uses suncalc directly rather than interpolating
-  // samples — accurate to the second instead of the 15-min sample grid).
-  const sunPos = SunCalc.getPosition(new Date(nowMs), useLat, useLon);
-  const sunAltitude = altitudeToRadians(sunPos.altitude);
-  const sunX = xOf(nowFrac);
-  const sunY = altToY(sunAltitude);
-  const isDay = sunAltitude >= 0;
-
-  const moonPos = moonSamples ? SunCalc.getMoonPosition(new Date(nowMs), useLat, useLon) : null;
-  const moonX = moonPos ? xOf(nowFrac) : 0;
-  const moonAltitude = moonPos ? altitudeToRadians(moonPos.altitude) : 0;
-  const moonY = moonPos ? altToY(moonAltitude) : 0;
-  const isMoonUp = moonAltitude >= 0;
-  const moonGlyphR = isMoonUp ? 6 : 4;
-  const showMoonGlyph = moonSamples !== null && moonPhase !== undefined;
-
-  // Rise/set fractions: derived from SunCalc (same source as the arc samples)
-  // so the ticks land exactly where the arc crosses the horizon line.
-  // Using the API-provided sunrise/sunset times caused a visible offset because
-  // the two algorithms disagree by a few minutes.
-  const sunCalcTimes = React.useMemo(
-    () => SunCalc.getTimes(new Date(midnightMs), useLat, useLon),
-    [midnightMs, useLat, useLon],
-  );
-  const sunRiseFrac = sunCalcTimes.sunrise instanceof Date
-    ? (sunCalcTimes.sunrise.getTime() - midnightMs) / dayMs
-    : null;
-  const sunSetFrac = sunCalcTimes.sunset instanceof Date
-    ? (sunCalcTimes.sunset.getTime() - midnightMs) / dayMs
-    : null;
-  const moonRiseRaw = moonrise ? (moonrise.getTime() - midnightMs) / dayMs : null;
-  const moonSetRaw  = moonset  ? (moonset.getTime()  - midnightMs) / dayMs : null;
-  const inWindow = (f: number | null): f is number => f !== null && f >= 0 && f <= 1;
-
-
-  // Reuse the weather ramp so the celestial arcs feel like part of the same
-  // temperature story: warm-to-hot colors for the sun, cool blue for moonlight.
-  // The active named theme supplies brighter values in dark mode automatically.
-  const SUN_COLOR = 'hsl(var(--weather-temp-warm))';
-  const SUN_LOW = 'hsl(var(--weather-temp-hot))';
-  const SUN_HORIZON = 'hsl(var(--weather-temp-very-hot))';
-  const SUN_NIGHT = 'hsl(var(--weather-temp-cold))';
-  const MOON_COLOR = 'hsl(var(--weather-temp-freezing))';
-  const MOON_MUTED = 'hsl(var(--weather-temp-cold))';
-
-  // Pick a sun-dot color that matches where it sits on the altitude gradient
-  // — red near the horizon, amber high in the sky. Bucketed (rather than
-  // smoothly interpolated) for legibility against a small dot.
-  const sunDotColor = isDay
-    ? sunAltitude < 0.087 // ~5°
-      ? SUN_HORIZON
-      : sunAltitude < 0.314 // ~18°
-        ? SUN_LOW
-        : SUN_COLOR
-    : SUN_NIGHT;
-
-  return (
-    <div ref={containerRef} className="flex flex-col gap-1 w-full">
-      <svg width={width} height={H} style={{ display: 'block', overflow: 'visible' }}>
-        {/* Altitude-based color gradient for the sun arc — red at the
-            horizon, orange at low altitude, amber at zenith. Matches the
-            atmospheric-scattering color shift you'd actually see in the sky. */}
-        <defs>
-          <linearGradient id={gradientId} gradientUnits="userSpaceOnUse"
-            x1={0} y1={horizonY} x2={0} y2={horizonY - ryTop}>
-            <stop offset="0" stopColor={SUN_HORIZON} />
-            <stop offset="0.3" stopColor={SUN_LOW} />
-            <stop offset="1" stopColor={SUN_COLOR} />
-          </linearGradient>
-          {/* Punches a hole in the moon arc around the phase glyph so the
-              line stops at the disc's perimeter instead of crossing the
-              unlit (unfilled) part of the moon. */}
-          {showMoonGlyph && (
-            <mask id={moonMaskId} maskUnits="userSpaceOnUse" x={0} y={0} width={width} height={H}>
-              <rect x={0} y={0} width={width} height={H} fill="white" />
-              {/* Hole radius = glyph radius + half its outline stroke, so the
-                  arc is clipped exactly at the outline's outer edge. */}
-              <circle cx={moonX} cy={moonY} r={moonGlyphR + 0.5} fill="black" />
-            </mask>
-          )}
-        </defs>
-
-        {/* Horizon line */}
-        <line
-          x1={pad - 4} y1={horizonY} x2={width - pad + 4} y2={horizonY}
-          stroke="currentColor" strokeOpacity={0.12} strokeWidth={1}
-        />
-
-        {/* Sun: future arc — dashed amber */}
-        {sunFuturePaths.map((d, i) => (
-          <path key={`sun-future-${i}`} d={d} fill="none" stroke={SUN_COLOR}
-            strokeOpacity={0.2} strokeWidth={2} strokeDasharray="2 4" />
-        ))}
-
-        {/* Sun: elapsed below-horizon — solid dim amber */}
-        {sunElapsedBelow.map((d, i) => (
-          <path key={`sun-down-${i}`} d={d} fill="none" stroke={SUN_COLOR}
-            strokeOpacity={0.25} strokeWidth={2.5} strokeLinecap="round" />
-        ))}
-
-        {/* Sun: elapsed above-horizon — gradient by altitude (red→orange→amber) */}
-        {sunElapsedAbove.map((d, i) => (
-          <path key={`sun-up-${i}`} d={d} fill="none" stroke={`url(#${gradientId})`}
-            strokeOpacity={0.85} strokeWidth={2.5} strokeLinecap="round" />
-        ))}
-
-
-        {/* Moon arc — masked so the line stops at the glyph's perimeter
-            rather than running through the unlit part of the disc. */}
-        <g mask={showMoonGlyph ? `url(#${moonMaskId})` : undefined}>
-          {/* Moon arc: future portion — dashed */}
-          {moonFuturePaths.map((d, i) => (
-            <path key={`moon-future-${i}`} d={d} fill="none" stroke={MOON_COLOR}
-              strokeOpacity={0.2} strokeWidth={2} strokeDasharray="2 4" />
-          ))}
-          {/* Moon arc: elapsed below-horizon — solid dim blue */}
-          {moonElapsedBelow.map((d, i) => (
-            <path key={`moon-below-${i}`} d={d} fill="none" stroke={MOON_COLOR}
-              strokeOpacity={0.25} strokeWidth={2.5} strokeLinecap="round" />
-          ))}
-          {/* Moon arc: elapsed above-horizon — solid bright blue */}
-          {moonElapsedAbove.map((d, i) => (
-            <path key={`moon-up-${i}`} d={d} fill="none" stroke={MOON_COLOR}
-              strokeOpacity={0.75} strokeWidth={2.5} strokeLinecap="round" />
-          ))}
-        </g>
-
-
-        {/* Moon glyph at current position — blue when above, muted when below.
-            Disc outline is drawn unfilled so a new moon (lit area collapses to
-            zero) reads as an empty circle rather than a faint disc.
-            Drawn before the sun so the sun sits on top when the two overlap
-            (both ride the same now-X, so near-equal altitudes collide). */}
-        {showMoonGlyph && (
-          <g>
-            {isMoonUp && <circle cx={moonX} cy={moonY} r={11} fill={MOON_COLOR} opacity={0.18} />}
-            <circle cx={moonX} cy={moonY} r={moonGlyphR}
-              fill="none"
-              stroke={isMoonUp ? MOON_COLOR : MOON_MUTED}
-              strokeOpacity={isMoonUp ? 0.65 : 0.4}
-              strokeWidth={1} />
-            <path d={moonPhasePath(moonX, moonY, moonGlyphR, moonPhase!)}
-              fill={isMoonUp ? MOON_COLOR : MOON_MUTED}
-              opacity={isMoonUp ? 1 : 0.55} />
-          </g>
-        )}
-
-        {/* Sun glow + dot — color tracks altitude so a low sun glows red/orange */}
-        {isDay && <circle cx={sunX} cy={sunY} r={16} fill={sunDotColor} opacity={0.2} />}
-        <circle
-          cx={sunX} cy={sunY}
-          r={isDay ? 7 : 4}
-          fill={sunDotColor}
-          opacity={isDay ? 1 : 0.55}
-        />
-      </svg>
-
-      {/* Sun / moon times — a compact evenly-spaced row keeps the sun pair on
-          the left and moon pair on the right, with daylight duration retained
-          between the sun times. */}
-      <div className="flex items-center justify-between gap-3 text-[11px] tabular-nums pt-0.5 whitespace-nowrap">
-        <span className="flex items-center gap-3">
-          <span className="flex items-center gap-1" style={{ color: SUN_COLOR }} title="Sunrise">
-            <Sunrise className="h-3 w-3" />{formatDisplayTime(sunrise, timeFormat, {}, timezone)}
-          </span>
-          {inWindow(sunRiseFrac) && inWindow(sunSetFrac) && (() => {
-            const dayMsSpan = sunset.getTime() - sunrise.getTime();
-            const h = Math.floor(dayMsSpan / 3_600_000);
-            const m = Math.round((dayMsSpan % 3_600_000) / 60_000);
-            return <span className="font-medium opacity-80" style={{ color: SUN_COLOR }}>{h}h {m}m</span>;
-          })()}
-          <span className="flex items-center gap-1" style={{ color: SUN_COLOR }} title="Sunset">
-            <Sunset className="h-3 w-3" />{formatDisplayTime(sunset, timeFormat, {}, timezone)}
-          </span>
-        </span>
-        {(moonrise || moonset) && (
-          <span className="flex items-center gap-3" style={{ color: MOON_COLOR }}>
-            {moonrise && (
-              <span className="flex items-center gap-1" title="Moonrise">
-                <MoonGlyph phase={moonPhase ?? 0} size={11} /><span className="opacity-70">↑</span>{formatDisplayTime(moonrise, timeFormat, {}, timezone)}
-              </span>
-            )}
-            {moonset && (
-              <span className="flex items-center gap-1" title="Moonset">
-                {!moonrise && <MoonGlyph phase={moonPhase ?? 0} size={11} />}<span className="opacity-70">↓</span>{formatDisplayTime(moonset, timeFormat, {}, timezone)}
-              </span>
-            )}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-/**
- * DEMO DATA
- * Realistic variety for development/testing.
- */
 function getDemoWeatherData(location: string): WeatherData {
   const today = new Date();
   const dayNames = DAYS_SHORT_ARRAY;
