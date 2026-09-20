@@ -1,5 +1,4 @@
 .display {
-  /* Theme semantics keep every built-in and gallery palette in sync in both modes. */
   --solar-surface: hsl(var(--card));
   --solar-ocean: color-mix(in srgb, var(--solar-surface) 94%, hsl(var(--primary)));
   --solar-land-day: color-mix(in srgb, hsl(var(--primary)) 78%, var(--solar-surface));
@@ -7,9 +6,10 @@
   --solar-land-nautical: color-mix(in srgb, hsl(var(--primary)) 42%, var(--solar-surface));
   --solar-land-astronomical: color-mix(in srgb, hsl(var(--primary)) 27%, var(--solar-surface));
   --solar-land-night: color-mix(in srgb, hsl(var(--primary)) 15%, var(--solar-surface));
+  --solar-sun: color-mix(in srgb, #d39a2f 82%, hsl(var(--primary)));
   --solar-text: hsl(var(--card-foreground));
   --solar-muted: hsl(var(--muted-foreground));
-  --solar-sun: color-mix(in srgb, #d39a2f 82%, hsl(var(--primary)));
+  --solar-equator: #8d9298;
   --solar-civil: color-mix(in srgb, var(--solar-land-civil) 12%, transparent);
   --solar-nautical: color-mix(in srgb, var(--solar-land-nautical) 20%, transparent);
   --solar-astronomical: color-mix(in srgb, var(--solar-land-astronomical) 30%, transparent);
@@ -44,6 +44,13 @@
   opacity: 0.94;
   pointer-events: none;
 }
+.equator {
+  fill: none;
+  stroke: var(--solar-equator);
+  stroke-width: 0.9;
+  opacity: 0.7;
+  pointer-events: none;
+}
 .solarArcDots {
   fill: none;
   stroke-linecap: round;
@@ -62,6 +69,8 @@
 .compactVisual {
   width: 100%;
   aspect-ratio: 2 / 1;
+  border-radius: var(--radius, 0.5rem);
+  overflow: hidden;
 }
 .compact .drawing {
   width: 100%;

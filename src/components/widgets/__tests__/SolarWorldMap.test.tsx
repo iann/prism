@@ -46,6 +46,18 @@ describe('SolarWorldMap display', () => {
     expect(map?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
   });
 
+  it('uses a solid equator baseline without sunrise or sunset endpoint markers', () => {
+    render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+
+    const equator = screen.getByTestId('solar-equator-line');
+
+    expect(equator.getAttribute('d')).toBe('M0 250H1000');
+    expect(equator.getAttribute('stroke-dasharray')).toBeNull();
+    expect(screen.queryByTestId('solar-event-sunrise')).toBeNull();
+    expect(screen.queryByTestId('solar-event-sunset')).toBeNull();
+    expect(screen.queryByTestId('solar-equator-daylight')).toBeNull();
+  });
+
   it('colors land dots with the same five light bands used by the local solar arc', () => {
     const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
     const bands = ['day', 'civil', 'nautical', 'astronomical', 'night'];
