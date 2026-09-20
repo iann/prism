@@ -1,0 +1,78 @@
+.display {
+  /* Theme semantics keep every built-in and gallery palette in sync in both modes. */
+  --solar-surface: hsl(var(--card));
+  --solar-ocean: color-mix(in srgb, var(--solar-surface) 94%, hsl(var(--primary)));
+  --solar-land-day: color-mix(in srgb, hsl(var(--primary)) 78%, var(--solar-surface));
+  --solar-land-civil: color-mix(in srgb, hsl(var(--primary)) 60%, var(--solar-surface));
+  --solar-land-nautical: color-mix(in srgb, hsl(var(--primary)) 42%, var(--solar-surface));
+  --solar-land-astronomical: color-mix(in srgb, hsl(var(--primary)) 27%, var(--solar-surface));
+  --solar-land-night: color-mix(in srgb, hsl(var(--primary)) 15%, var(--solar-surface));
+  --solar-text: hsl(var(--card-foreground));
+  --solar-muted: hsl(var(--muted-foreground));
+  --solar-sun: color-mix(in srgb, #d39a2f 82%, hsl(var(--primary)));
+  --solar-civil: color-mix(in srgb, var(--solar-land-civil) 12%, transparent);
+  --solar-nautical: color-mix(in srgb, var(--solar-land-nautical) 20%, transparent);
+  --solar-astronomical: color-mix(in srgb, var(--solar-land-astronomical) 30%, transparent);
+  --solar-night: color-mix(in srgb, #10243c 52%, transparent);
+  --solar-arc-civil: var(--solar-land-civil);
+  --solar-arc-nautical: var(--solar-land-nautical);
+  --solar-arc-astronomical: var(--solar-land-astronomical);
+  --solar-arc-night: var(--solar-land-night);
+  --solar-terminator: color-mix(in srgb, var(--solar-sun) 35%, var(--solar-text));
+  color: var(--solar-text);
+  background: var(--solar-surface);
+  border-radius: 24px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  padding: 0;
+}
+:global(.dark) .display {
+  --solar-ocean: color-mix(in srgb, var(--solar-surface) 96%, #000);
+  --solar-sun: color-mix(in srgb, #f2b544 84%, hsl(var(--primary)));
+  --solar-night: color-mix(in srgb, #00060e 76%, transparent);
+}
+.mapFrame {
+  padding: 0 16px;
+}
+.drawing {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.landDots {
+  opacity: 0.94;
+  pointer-events: none;
+}
+.solarArcDots {
+  fill: none;
+  stroke-linecap: round;
+}
+.solarArcFuture {
+  opacity: 0.38;
+}
+.solarArcElapsed {
+  opacity: 0.92;
+}
+.compact {
+  width: 100%;
+  border-radius: 0;
+  background: transparent;
+}
+.compactVisual {
+  width: 100%;
+  aspect-ratio: 2 / 1;
+}
+.compact .drawing {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  margin-inline: auto;
+}
+.loading {
+  min-height: 130px;
+  display: grid;
+  place-items: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}

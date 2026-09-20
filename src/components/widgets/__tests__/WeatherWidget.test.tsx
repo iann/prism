@@ -7,24 +7,8 @@
  */
 
 import React from 'react';
-import { act, render as rtlRender, screen, within, type RenderOptions } from '@testing-library/react';
-import * as SunCalc from 'suncalc';
+import { render as rtlRender, screen, within, type RenderOptions } from '@testing-library/react';
 import { TimeFormatProvider } from '@/components/providers';
-
-// Keep getTimes replaceable for the midnight rollover test. SunCalc v2's
-// namespace import exposes read-only accessor properties under ts-jest, so a
-// module-level mock is more reliable than spying on the namespace object.
-jest.mock('suncalc', () => {
-  const actual = jest.requireActual<typeof import('suncalc')>('suncalc');
-  return {
-    ...actual,
-    getTimes: jest.fn(actual.getTimes),
-    getPosition: jest.fn(actual.getPosition),
-    getMoonPosition: jest.fn(actual.getMoonPosition),
-  };
-});
-
-const realSunCalc = jest.requireActual<typeof import('suncalc')>('suncalc');
 
 // WeatherWidget consumes useTimeFormat(), which requires a TimeFormatProvider
 // ancestor. Wrap every render so the widget mounts the way it does in the app.
@@ -79,12 +63,6 @@ import type {
   HourlyForecast,
   WeatherCondition,
 } from '../WeatherWidget';
-
-afterEach(() => {
-  jest.useRealTimers();
-  jest.mocked(SunCalc.getPosition).mockImplementation(realSunCalc.getPosition);
-  jest.mocked(SunCalc.getMoonPosition).mockImplementation(realSunCalc.getMoonPosition);
-});
 
 // ---------------------------------------------------------------------------
 // Test data helpers
@@ -1047,97 +1025,15 @@ describe('demo data fallback', () => {
   });
 });
 
-// ===========================================================================
-// 8. Sun and moon day rollover
-// ===========================================================================
-
-describe('sun and moon day rollover', () => {
-  afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
-    jest.mocked(SunCalc.getPosition).mockImplementation(realSunCalc.getPosition);
-    jest.mocked(SunCalc.getMoonPosition).mockImplementation(realSunCalc.getMoonPosition);
-  });
-
-  it('recalculates the celestial paths after local midnight without a remount', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2026, 6, 17, 23, 59, 59, 900));
-
-    const getTimes = jest.mocked(SunCalc.getTimes);
-    getTimes.mockClear();
-    const sunrise = new Date(2026, 6, 17, 5, 30);
-    const sunset = new Date(2026, 6, 17, 20, 15);
-
-    render(<WeatherWidget data={makeWeatherData({ sunrise, sunset, lat: 42.46, lon: -71.06 })} />);
-
-    const initialDay = getTimes.mock.calls.at(-1)?.[0];
-    expect(initialDay).toEqual(new Date(2026, 6, 17, 0, 0, 0, 0));
-
-    act(() => {
-      jest.advanceTimersByTime(200);
-    });
-
-    const rolledDay = getTimes.mock.calls.at(-1)?.[0];
-    expect(rolledDay).toEqual(new Date(2026, 6, 18, 0, 0, 0, 0));
-  });
-
-  it('uses the weather temperature ramp for sun and moon arc colors', () => {
-    const sunrise = new Date(2026, 6, 17, 5, 30);
-    const sunset = new Date(2026, 6, 17, 20, 15);
-    const { container } = render(
+describe('solar map integration', () => {
+  it('shows a control-free solar map in the weather widget', () => {
+    render(
       <WeatherWidget
-        data={makeWeatherData({
-          sunrise,
-          sunset,
-          moonrise: new Date(2026, 6, 17, 21, 0),
-          moonset: new Date(2026, 6, 18, 5, 0),
-          moonPhase: 0.5,
-          lat: 42.46,
-          lon: -71.06,
-        })}
+        data={makeWeatherData({ sunrise: undefined, sunset: undefined, lat: 78.2, lon: 15.6 })}
       />
     );
-
-    const gradientStops = Array.from(container.querySelectorAll('linearGradient stop'));
-    expect(gradientStops.map((stop) => stop.getAttribute('stop-color'))).toEqual([
-      'hsl(var(--weather-temp-very-hot))',
-      'hsl(var(--weather-temp-hot))',
-      'hsl(var(--weather-temp-warm))',
-    ]);
-
-    const moonArc = container.querySelector('path[stroke="hsl(var(--weather-temp-freezing))"]');
-    expect(moonArc).not.toBeNull();
-  });
-
-  it('converts SunCalc v2 degree altitudes before plotting the arcs', () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2026, 6, 17, 12, 0));
-
-    jest.mocked(SunCalc.getPosition).mockReturnValue({ altitude: 45, azimuth: 0 });
-    jest.mocked(SunCalc.getMoonPosition).mockReturnValue({
-      altitude: -30,
-      azimuth: 0,
-      distance: 384_400,
-      parallacticAngle: 0,
-    });
-
-    const { container } = render(
-      <WeatherWidget
-        data={makeWeatherData({
-          sunrise: new Date(2026, 6, 17, 5, 30),
-          sunset: new Date(2026, 6, 17, 20, 15),
-          moonrise: new Date(2026, 6, 17, 21, 0),
-          moonset: new Date(2026, 6, 18, 5, 0),
-          moonPhase: 0.5,
-        })}
-      />
-    );
-
-    const sunPath = Array.from(container.querySelectorAll('path'))
-      .find((path) => path.getAttribute('stroke')?.startsWith('url(#sun-grad-'));
-
-    // 45° must map to y=38 (halfway from the horizon at 66 to the zenith at
-    // 10). Treating SunCalc v2's degrees as radians would clamp it to y=10.
-    expect(sunPath?.getAttribute('d')).toContain('38.0');
+    expect(screen.getByRole('img', { name: 'Solar world map for Chicago, IL' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Explore solar world map' })).toBeNull();
+    expect(screen.queryByRole('slider')).toBeNull();
   });
 });

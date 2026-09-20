@@ -29,23 +29,10 @@ upstream-sync-only commits are omitted unless they changed behavior.
    Fixed forecast grouping and day labels across provider timezones, filtered
    past-day entries before rendering, kept the visible day count accurate,
    handled stale OpenWeatherMap and Pirate Weather entries, and prevented the
-   celestial chart from becoming stale across local midnight.
+   time-sensitive weather data from becoming stale across local midnight.
 
    Commits: ff50403, 4a5590f, 991d620, a1dd592, e71beb6,
    3cd0d5d, 93f7e8c, 4f1e776
-
-3. **Weather celestial chart and moon-phase presentation**
-
-   Added the sunrise/sunset arc, true SunCalc-based solar and lunar altitude
-   paths, a fixed absolute altitude scale, elapsed-versus-future styling,
-   moon-phase glyphs, and responsive SVG sizing. Subsequent fixes close gaps at
-   horizon and current-time crossings, align ticks, keep line styles consistent,
-   mask the moon path at the glyph, and size the below-horizon moon marker
-   appropriately.
-
-   Commits: 4242329, f19dd72, 3107b15, 8270bb3, 60fbf4a,
-   42b7f15, 5b25bca, f998d61, af2c404, 533fd48, d3720c9,
-   f101303, cb0582d, 9fd26e3, 4f1e776
 
 4. **Weather precipitation visualization and timing messages**
 
@@ -891,6 +878,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 61fff0fc
 
+110. **Solar world illumination map and local Sun path**
+
+    Replaces the weather widget's standalone Sun and Moon chart with one
+    theme-aware dotted world map showing daylight, twilight, and night, plus
+    the selected location's local solar-altitude path. Adds a full-screen
+    `/solar` display with location URL parameters and seasonal date controls.
+
+    Commit: 0b7b0ec9
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
@@ -907,6 +903,11 @@ current UI behavior:
   aa5491c, and e115bd0.
 - The precipitation view moved through line, SVG-area, and bar-chart forms;
   the current form is the bar chart described in item 4.
+- The weather widget's standalone Sun and Moon chart (commits: 4242329,
+  f19dd72, 3107b15, 8270bb3, 60fbf4a, 42b7f15, 5b25bca, f998d61,
+  af2c404, 533fd48, d3720c9, f101303, cb0582d, 9fd26e3, 4f1e776) was
+  replaced by the combined world illumination map and local Sun path in item
+  110.
 - Item 76, the first cool sea-glass Daybook dark-palette pass (9f188c95), was
   replaced by the burnished-gold treatment in item 77 after visual review.
 - The Podman-specific local-services notes were retired after the development
