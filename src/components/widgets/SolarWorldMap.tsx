@@ -43,7 +43,9 @@ function mapSolarArcPoint(sample: SolarArcSample, day: SolarDay) {
   const altitude = Math.max(-90, Math.min(90, sample.altitude));
   return {
     x: 24 + 952 * Math.max(0, Math.min(1, progress)),
-    y: altitude >= 0 ? 300 - (altitude / 90) * 254.5 : 300 + (-altitude / 90) * 154.5,
+    // Altitude zero sits on the map's equator. Positive solar altitude rises
+    // above it; below-horizon twilight/night dips below it.
+    y: altitude >= 0 ? 250 - (altitude / 90) * 207 : 250 + (-altitude / 90) * 145,
   };
 }
 
@@ -160,8 +162,9 @@ function SolarMapDrawing({
       <title>Earth illumination and the local Sun path</title>
       <desc>
         Earth&apos;s illumination and twilight are shown behind the selected location&apos;s daily
-        solar-altitude arc. The dotted arc follows the Sun&apos;s local path through daylight,
-        twilight, and night; it is not a geographic route.
+        solar-altitude arc. The equator is a thin reference line for zero altitude. The dotted arc
+        follows the Sun&apos;s local path through daylight, twilight, and night; it is not a
+        geographic route.
       </desc>
       <defs>
         <clipPath id={`${id}-map`}>
@@ -260,6 +263,12 @@ function SolarMapDrawing({
             />
           ))}
         </g>
+        <path
+          d="M0 250H1000"
+          className={styles.equator}
+          data-testid="solar-equator-line"
+          aria-label="Equator, used as the solar arc's zero-altitude baseline"
+        />
         {[-1000, 0, 1000].map((shift) => (
           <path
             key={shift}
