@@ -887,6 +887,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 0b7b0ec9
 
+111. **Equator-linked local solar path**
+
+    Aligns the local solar arc's zero-altitude point with the world map's
+    equator, marks that baseline with a thin solid gray line, removes sunrise
+    and sunset endpoint circles, and matches the map's rounded corners to the
+    active theme radius.
+
+    Commit: 7998ea02
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
