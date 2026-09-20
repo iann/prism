@@ -353,6 +353,18 @@ describe('active weather alerts', () => {
   });
 });
 describe('precipitation notice', () => {
+  it('matches the compact solar map with a 2:1 chart footprint', () => {
+    const minutely = Array.from({ length: 61 }, (_, index) => ({
+      time: index * 60,
+      precipIntensity: 0.2,
+      precipProbability: 1,
+    }));
+    const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
+
+    const slot = container.querySelector('[data-testid="precipitation-chart-slot"]');
+    expect((slot as HTMLDivElement | null)?.style.aspectRatio).toBe('2 / 1');
+  });
+
   it('renders a compact themed next-hour header and timing message', () => {
     const minutely = Array.from({ length: 61 }, (_, index) => ({
       time: index * 60,
@@ -384,7 +396,9 @@ describe('precipitation notice', () => {
     const line = container.querySelector('[data-precipitation-line]');
     expect(chart?.getAttribute('data-precipitation-scale')).toBe('7.62');
     // 0.0583 in/hr = 1.48 mm/hr, which is ~44% after the square-root curve.
-    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 37\.[0-9]/);
+    const baseline = Number(chart?.getAttribute('data-precipitation-baseline'));
+    const firstY = Number(line?.getAttribute('d')?.match(/^M 4\.0 ([\d.]+)/)?.[1]);
+    expect((baseline - firstY) / (baseline - 4)).toBeCloseTo(0.44, 1);
   });
 
   it('leaves headroom for a moderate shower instead of clipping it at full scale', () => {
@@ -399,7 +413,9 @@ describe('precipitation notice', () => {
     const line = container.querySelector('[data-precipitation-line]');
     expect(chart?.getAttribute('data-precipitation-scale')).toBe('7.62');
     // 0.1343 in/hr = 3.41 mm/hr, which lands around 67% of the height.
-    expect(line?.getAttribute('d')).toMatch(/^M 4\.0 23\.[0-9]/);
+    const baseline = Number(chart?.getAttribute('data-precipitation-baseline'));
+    const firstY = Number(line?.getAttribute('d')?.match(/^M 4\.0 ([\d.]+)/)?.[1]);
+    expect((baseline - firstY) / (baseline - 4)).toBeCloseTo(0.67, 1);
   });
 
   it('renders the precipitation forecast as a smooth animated wave', () => {

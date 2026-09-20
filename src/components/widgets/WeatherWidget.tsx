@@ -1240,8 +1240,11 @@ function PrecipitationChart({
   const PAD_LEFT  = 4;
   const PAD_RIGHT = 4;
   const PAD_TOP   = 4;
-  const CHART_H   = 60;
   const AXIS_H    = 22;
+  // Keep the rain state in the same 2:1 footprint as the compact solar map.
+  // The chart plot grows with the available width after reserving space for
+  // the header, axis labels, and top padding.
+  const CHART_H   = Math.max(24, width / 2 - PAD_TOP - AXIS_H - 24);
   const totalH    = PAD_TOP + CHART_H + AXIS_H;
   const chartW    = Math.max(1, width - PAD_LEFT - PAD_RIGHT);
   const baseY     = PAD_TOP + CHART_H;
@@ -1341,7 +1344,11 @@ function PrecipitationChart({
   })();
 
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      className="flex w-full flex-col gap-2"
+      data-testid="precipitation-chart-slot"
+      style={{ aspectRatio: '2 / 1' }}
+    >
       <div
         className="flex items-center justify-between gap-4"
         data-precipitation-header
