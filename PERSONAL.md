@@ -892,9 +892,10 @@ upstream-sync-only commits are omitted unless they changed behavior.
     Aligns the local solar arc's zero-altitude point with the world map's
     equator, marks that baseline with a thin solid gray line, removes sunrise
     and sunset endpoint circles, and matches the map's rounded corners to the
-    active theme radius.
+    active theme radius. The precipitation chart now uses the same 2:1
+    footprint as the compact solar map.
 
-    Commit: 7998ea02
+    Commits: 7998ea02, 35c3f3d5
 
 ## Superseded personal iterations
 
