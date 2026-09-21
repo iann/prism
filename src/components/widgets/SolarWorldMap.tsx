@@ -10,6 +10,7 @@ import {
   MAP_WIDTH,
   nightPath,
   solarDayKey,
+  sunFixedMapOffset,
   validCoordinates,
   type Coordinates,
   type SolarDay,
@@ -20,7 +21,9 @@ import styles from './SolarWorldMap.module.css';
 
 const DEFAULT_LOCATION = { lat: 41.8781, lon: -87.6298 };
 export const COMPACT_SOLAR_MAP_ASPECT_RATIO = 2.5;
-const LAND_DOT_SPACING = 14;
+// Keep the tile an exact divisor of the map width so the dot phase wraps
+// seamlessly when the map crosses the date line.
+const LAND_DOT_SPACING = MAP_WIDTH / Math.round(MAP_WIDTH / 14);
 const LAND_DOT_DIAMETER = 4.2;
 const SOLAR_ARC_DOT_INTERVAL = 20 * 60 * 1000;
 const SOLAR_ARC_DOT_COUNT = DAY_MS / SOLAR_ARC_DOT_INTERVAL + 1;
@@ -126,11 +129,18 @@ function SolarMapDrawing({
 }) {
   const id = React.useId().replace(/:/g, '');
   const subsolar = React.useMemo(() => getSubsolarPoint(new Date(time)), [time]);
-  const caps = React.useMemo(
-    () => [0, -6, -12, -18].map((altitude) => nightPath(subsolar, altitude)),
-    [subsolar]
+  const mapOffset = sunFixedMapOffset(subsolar.lon);
+  // Freeze the shadow's seasonal tilt for the selected solar day. Only the
+  // land layer follows the live subsolar longitude during that day.
+  const shadowSubsolar = React.useMemo(
+    () => ({ lat: getSubsolarPoint(new Date(day.noon)).lat, lon: 0 }),
+    [day.noon]
   );
-  const terminator = React.useMemo(() => nightPath(subsolar, 0, true), [subsolar]);
+  const caps = React.useMemo(
+    () => [0, -6, -12, -18].map((altitude) => nightPath(shadowSubsolar, altitude)),
+    [shadowSubsolar]
+  );
+  const terminator = React.useMemo(() => nightPath(shadowSubsolar, 0, true), [shadowSubsolar]);
   const current: SolarSample = {
     time,
     ...SunCalc.getPosition(new Date(time), location.lat, location.lon),
@@ -174,18 +184,29 @@ function SolarMapDrawing({
     >
       <title>Earth illumination and the local Sun path</title>
       <desc>
-        Earth&apos;s illumination and twilight are shown behind the selected location&apos;s daily
-        solar-altitude arc. The equator is a thin reference line for zero altitude. Evenly spaced
-        dots follow the Sun&apos;s local path through daylight, twilight, and night; it is not a
-        geographic route. A restrained gold trail highlights the daylight already traveled, and a
-        gold marker shows the current Sun position along the arc.
+        Earth&apos;s dotted land moves beneath fixed illumination and twilight, centered on the
+        subsolar meridian. The selected location&apos;s daily solar-altitude arc stays centered over
+        daylight. The equator is a thin reference line for zero altitude. Evenly spaced dots follow
+        the Sun&apos;s local path through daylight, twilight, and night; it is not a geographic
+        route. A restrained gold trail highlights the daylight already traveled, and a gold marker
+        shows the current Sun position along the arc.
       </desc>
       <defs>
         <clipPath id={`${id}-map`}>
           <rect width={MAP_WIDTH} height={MAP_HEIGHT} />
         </clipPath>
-        <clipPath id={`${id}-land`} clipPathUnits="userSpaceOnUse">
-          <path d={land.path} />
+        <clipPath
+          id={`${id}-land`}
+          clipPathUnits="userSpaceOnUse"
+          data-map-offset={mapOffset.toFixed(3)}
+        >
+          {[-MAP_WIDTH, 0, MAP_WIDTH].map((shift) => (
+            <path
+              key={shift}
+              d={land.path}
+              transform={`translate(${(mapOffset + shift).toFixed(3)} 0)`}
+            />
+          ))}
         </clipPath>
         {LAND_DOT_BANDS.map((band) => (
           <React.Fragment key={band.key}>
@@ -194,6 +215,7 @@ function SolarMapDrawing({
               width={LAND_DOT_SPACING}
               height={LAND_DOT_SPACING}
               patternUnits="userSpaceOnUse"
+              patternTransform={`translate(${mapOffset.toFixed(3)} 0)`}
             >
               <circle cx="2.2" cy="2.2" r="2.1" fill={band.color} />
             </pattern>
@@ -263,7 +285,11 @@ function SolarMapDrawing({
             ))
           )}
         </g>
-        <g className={styles.landDots}>
+        <g
+          className={styles.landDots}
+          data-testid="world-map-land"
+          data-map-offset={mapOffset.toFixed(3)}
+        >
           {LAND_DOT_BANDS.map((band) => (
             <rect
               key={band.key}
@@ -292,6 +318,7 @@ function SolarMapDrawing({
             stroke="var(--solar-terminator)"
             strokeWidth="1.3"
             opacity=".3"
+            data-testid="solar-terminator"
           />
         ))}
       </g>

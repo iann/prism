@@ -921,6 +921,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 84b270c0
 
+115. **Sun-fixed illumination with a moving dotted world map**
+
+    Keeps the day/night and twilight bands stationary while moving the dotted
+    continents beneath them to center the live subsolar meridian. Holds the
+    shadow's seasonal tilt for the selected solar day and aligns the existing
+    calculated local Sun arc approximately between the sunrise and sunset
+    edges, including seamless date-line wrapping.
+
+    Commit: 39bcdcc1
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

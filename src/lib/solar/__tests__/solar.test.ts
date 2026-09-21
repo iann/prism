@@ -4,12 +4,14 @@ import {
   geometricAltitude,
   getSolarDay,
   getSubsolarPoint,
+  MAP_WIDTH,
   nightHalfWidth,
   nightPath,
   project,
   seasonInstant,
   skyPath,
   skyPoint,
+  sunFixedMapOffset,
   solarDayKey,
   solarElevation,
   unproject,
@@ -78,6 +80,23 @@ describe('global solar geometry', () => {
     expect(project({ lat: 30, lon: 0 }).y).toBeCloseTo(100, 5);
     expect(project({ lat: 90, lon: 0 }).y).toBeCloseTo(0, 8);
     expect(project({ lat: -90, lon: 0 }).y).toBeCloseTo(400, 8);
+  });
+
+  it('centers the subsolar meridian with a periodic horizontal map offset', () => {
+    for (const longitude of [-180, -123.4, 0, 71.2, 179.999, 180, 236.6]) {
+      const wrapped = wrapLongitude(longitude);
+      const offset = sunFixedMapOffset(longitude);
+      expect(project({ lat: 0, lon: wrapped }).x + offset).toBeCloseTo(MAP_WIDTH / 2, 8);
+      expect(offset).toBeGreaterThanOrEqual(-MAP_WIDTH / 2);
+      expect(offset).toBeLessThanOrEqual(MAP_WIDTH / 2);
+    }
+    expect(sunFixedMapOffset(42)).toBeCloseTo(sunFixedMapOffset(402), 8);
+
+    // Crossing the date line changes the chosen repeated world copy by one
+    // full map width, which is visually equivalent in the wrapped frame.
+    const east = sunFixedMapOffset(179.999);
+    const west = sunFixedMapOffset(-180);
+    expect(Math.abs(Math.abs(east - west) - MAP_WIDTH)).toBeLessThan(0.01);
   });
 
   it('round-trips coordinates at the poles and date line', () => {

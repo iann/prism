@@ -28,6 +28,14 @@ export function project({ lat, lon }: Coordinates) {
   };
 }
 
+/** Horizontal translation that places a longitude at the center of the map.
+ * The result is intentionally periodic by MAP_WIDTH so wrapped map copies can
+ * scroll continuously as the subsolar meridian crosses the date line. */
+export function sunFixedMapOffset(subsolarLongitude: number): number {
+  const longitude = wrapLongitude(subsolarLongitude);
+  return MAP_WIDTH / 2 - project({ lat: 0, lon: longitude }).x;
+}
+
 export function unproject(x: number, y: number): Coordinates {
   const normalizedY = Math.max(0, Math.min(1, y / MAP_HEIGHT));
   return {

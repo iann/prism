@@ -10,14 +10,22 @@ configured weather coordinates, with Chicago as the fallback. Imminent rain
 still takes priority over the map, and short weather tiles prioritize the
 forecast. The display follows Prism's light/dark theme.
 
-The equirectangular map uses theme-colored dots clipped to the bundled Natural
-Earth land shape, with no map tiles or large image asset. Twilight shading shows
-geometric solar elevation: daylight above 0°, civil twilight to −6°, nautical
-to −12°, astronomical to −18°, then night. The local altitude arc spans the
-full day, rises with the Sun's altitude, and dips below the horizon at night.
-Its dots share the map's spacing and size and use matching twilight colors. A
-single Sun marker travels along this local-sky arc; the map itself has no point
-markers. The arc is a local sky path, not a geographic route.
+The map uses a 5:2 Lambert cylindrical equal-area projection and theme-colored
+dots clipped to the bundled Natural Earth land shape, with no map tiles or large
+image asset. The subsolar meridian stays centered while the land and its dot
+pattern scroll horizontally underneath the fixed illumination, twilight,
+terminator, equator, and local arc. The shadow tilt is sampled at solar noon and
+held for that solar day; the map offset follows the live subsolar longitude.
+Wrapped land copies and a periodic dot-pattern tile prevent gaps or texture jumps
+at the date line. Twilight shading shows geometric solar elevation: daylight
+above 0°, civil twilight to −6°, nautical to −12°, astronomical to −18°, then
+night. The local altitude arc spans the full day, rises with the Sun's altitude,
+and dips below the horizon at night. Its dots share the map's spacing and size
+and use matching twilight colors. A single Sun marker travels along this
+local-sky arc; the map itself has no point markers. The arc is a local sky path,
+not a geographic route. Its noon-centered 24-hour scale puts sunrise and sunset
+near the corresponding shadow edges, with a small visual offset from the arc's
+inset and SunCalc's apparent rise/set refraction.
 
 SunCalc v2 provides apparent local elevations and refraction-adjusted rise/set
 times; a geometric terminator does not exactly coincide with apparent sunrise.
