@@ -32,6 +32,7 @@
 // Import global styles (including Tailwind CSS)
 import '@/styles/globals.css';
 import '@/styles/lcars.css';
+import '@/styles/fonts.css';
 
 // Bundle a color emoji webfont so emoji (🎯 🎂 🛒 🏆 …) render even on clients
 // with no system emoji font — e.g. a bare Raspberry Pi OS / minimal Chromium
@@ -41,10 +42,6 @@ import '@fontsource/noto-color-emoji/index.css';
 
 // Next.js types for metadata
 import type { Metadata, Viewport } from 'next';
-
-// Keep the theme fonts local so production builds do not depend on Google
-// Fonts being reachable or returning a format that Next.js can parse.
-import localFont from 'next/font/local';
 
 // Providers (theme, auth, etc.)
 import { Providers } from '@/components/providers';
@@ -62,67 +59,13 @@ import { Toaster } from '@/components/ui/toaster';
 import { getServerTheme } from '@/lib/themes/serverTheme';
 import { themeCss } from '@/lib/themes/applyTheme';
 
-
-/**
- * FONT CONFIGURATION
- * DM Sans gives the wall display a friendlier, more open rhythm than a
- * desktop-first UI font while remaining highly legible at distance. The Latin
- * variable fonts are bundled with the app and emitted by next/font/local.
- *
- * Configuration options:
- * - src: The locally bundled Latin variable font for this family
- * - variable: CSS variable name for using the font in Tailwind
- * - display: 'swap' shows fallback font immediately, then swaps when loaded
- *
- * WHY DM SANS:
- * - Friendly geometry without decorative quirks
- * - Clear numerals and punctuation for dates and weather
- * - Comfortable rhythm at large display sizes
- * - Open source and free to use
- */
-const dmSans = localFont({
-  src: '../../node_modules/@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2',
-  variable: '--font-dm-sans',
-  display: 'swap',
-  weight: '400 700',
-});
-
-const inter = localFont({
-  src: '../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
-  variable: '--font-inter',
-  display: 'swap',
-  weight: '100 900',
-});
-
-/**
- * The other faces a theme may ask for, by role.
- *
- * Declared here because next/font resolves at build time — a face has to be in
- * the image to be usable at all, which is also why a theme picks a role from a
- * fixed list rather than naming a family. The browser only fetches the one a
- * theme actually selects, so the cost of the three unused ones is disk in the
- * container, not bytes on a display.
- */
-const fraunces = localFont({
-  src: '../../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2',
-  variable: '--font-serif',
-  display: 'swap',
-  weight: '100 900',
-});
-
-const nunito = localFont({
-  src: '../../node_modules/@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2',
-  variable: '--font-rounded',
-  display: 'swap',
-  weight: '200 1000',
-});
-
-const jetbrainsMono = localFont({
-  src: '../../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2',
-  variable: '--font-mono-theme',
-  display: 'swap',
-  weight: '100 800',
-});
+const THEME_FONT_PRELOADS = [
+  '/fonts/13971731025ec697-s.p.woff2',
+  '/fonts/e4af272ccee01ff0-s.p.woff2',
+  '/fonts/af4bf8399d1aacdf-s.p.woff2',
+  '/fonts/ee40bb094c99a29a-s.p.woff2',
+  '/fonts/bb3ef058b751a6ad-s.p.woff2',
+];
 
 
 /**
@@ -288,6 +231,16 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {THEME_FONT_PRELOADS.map((href) => (
+          <link
+            key={href}
+            rel="preload"
+            href={href}
+            as="font"
+            type="font/woff2"
+            crossOrigin="anonymous"
+          />
+        ))}
         {/*
           Two things have to be right before the first paint: which palette,
           and whether it is the light or dark half of it. The palette comes
@@ -331,8 +284,7 @@ export default async function RootLayout({
         The body element with our font applied.
 
         CLASSES EXPLAINED:
-        - dmSans.variable: Adds CSS variable for DM Sans
-        - font-sans: Uses our sans-serif font stack
+        - font-sans: Uses our theme-aware sans-serif font stack
         - antialiased: Smooth font rendering
         - bg-background: Background color from theme
         - text-foreground: Text color from theme
@@ -342,21 +294,7 @@ export default async function RootLayout({
         NOTE: overflow-hidden is specific to our kiosk-style dashboard.
         Remove this if you want pages to scroll.
       */}
-      <body
-        className={`
-          ${dmSans.variable}
-          ${inter.variable}
-          ${fraunces.variable}
-          ${nunito.variable}
-          ${jetbrainsMono.variable}
-          font-sans
-          antialiased
-          bg-background
-          text-foreground
-          min-h-screen
-          md:overflow-hidden
-        `}
-      >
+      <body className="font-sans antialiased bg-background text-foreground min-h-screen md:overflow-hidden">
         {/*
           PROVIDERS
           Wrap children with application providers (theme, auth, etc.)
