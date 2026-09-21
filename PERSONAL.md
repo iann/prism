@@ -904,6 +904,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 12cd4573
 
+113. **Sun-led clear channel for the local solar arc**
+
+    Clears a theme-matched channel beneath the local SunCalc path and places a
+    gold Sun marker at the current calculated position, keeping twilight,
+    elapsed, and upcoming arc segments readable over the world map.
+
+    Commit: 62ab821c
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
