@@ -937,6 +937,24 @@
     will-change: opacity, transform;
   }
 
+  @keyframes network-offline-dot-pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(0.78);
+    }
+  }
+
+  .network-offline-dot--pulse {
+    animation: network-offline-dot-pulse 1.4s ease-in-out infinite;
+    box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.18);
+    transform-origin: center;
+    will-change: opacity, transform;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
