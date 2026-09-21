@@ -2,7 +2,15 @@
 import React from 'react';
 import * as SunCalc from 'suncalc';
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { DAY_MS, getSolarDay, MAP_HEIGHT, solarDayKey } from '@/lib/solar/solar';
+import {
+  DAY_MS,
+  getSolarDay,
+  getSubsolarPoint,
+  MAP_HEIGHT,
+  MAP_WIDTH,
+  nightHalfWidth,
+  solarDayKey,
+} from '@/lib/solar/solar';
 import { SolarWorldMap } from '../SolarWorldMap';
 
 describe('SolarWorldMap display', () => {
@@ -15,19 +23,34 @@ describe('SolarWorldMap display', () => {
     window.history.replaceState({}, '', '/');
   });
 
-  it('updates global illumination and elapsed arc progress live', () => {
+  it('keeps illumination fixed while the dotted map and local Sun position update live', () => {
     const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
     const elapsedTrail = screen.getByTestId('solar-arc-elapsed-trail');
     const trailPath = elapsedTrail.getAttribute('d');
     const sunDisc = screen.getByTestId('solar-arc-sun-disc');
     const sunX = sunDisc.getAttribute('cx');
     const cap = container.querySelector('[data-solar-band="0"]')?.getAttribute('d');
+    const terminator = screen.getAllByTestId('solar-terminator')[0]?.getAttribute('d');
+    const land = screen.getByTestId('world-map-land');
+    const mapOffset = land.getAttribute('data-map-offset');
+    const patternTransform = container.querySelector('pattern')?.getAttribute('patternTransform');
+    const maskMarkup = container.querySelector('mask[id$="-land-mask-civil"]')?.outerHTML;
+    const firstArcDot = screen.getAllByTestId('solar-arc-dot')[0]!;
+    const firstArcDotPosition = [firstArcDot.getAttribute('cx'), firstArcDot.getAttribute('cy')];
 
     act(() => jest.advanceTimersByTime(60_000));
 
     expect(elapsedTrail.getAttribute('d')).not.toBe(trailPath);
     expect(sunDisc.getAttribute('cx')).not.toBe(sunX);
-    expect(container.querySelector('[data-solar-band="0"]')?.getAttribute('d')).not.toBe(cap);
+    expect(container.querySelector('[data-solar-band="0"]')?.getAttribute('d')).toBe(cap);
+    expect(screen.getAllByTestId('solar-terminator')[0]?.getAttribute('d')).toBe(terminator);
+    expect(land.getAttribute('data-map-offset')).not.toBe(mapOffset);
+    expect(container.querySelector('pattern')?.getAttribute('patternTransform')).not.toBe(
+      patternTransform
+    );
+    expect(container.querySelector('mask[id$="-land-mask-civil"]')?.outerHTML).toBe(maskMarkup);
+    expect(firstArcDot.getAttribute('cx')).toBe(firstArcDotPosition[0]);
+    expect(firstArcDot.getAttribute('cy')).toBe(firstArcDotPosition[1]);
   });
 
   it('shows the current Sun on the local arc without geographic markers or control chrome', () => {
@@ -101,6 +124,77 @@ describe('SolarWorldMap display', () => {
     expect(screen.queryByTestId('solar-event-sunrise')).toBeNull();
     expect(screen.queryByTestId('solar-event-sunset')).toBeNull();
     expect(screen.queryByTestId('solar-equator-daylight')).toBeNull();
+  });
+
+  it('keeps local sunrise and sunset near the fixed shadow edges across seasons', () => {
+    const scenarios = [
+      { instant: '2026-06-21T16:00:00Z', location: { lat: 42.36, lon: -71.06 } },
+      { instant: '2026-03-20T12:00:00Z', location: { lat: 0, lon: 0 } },
+      { instant: '2026-12-21T12:00:00Z', location: { lat: -33.87, lon: 151.2 } },
+    ];
+
+    scenarios.forEach(({ instant, location }) => {
+      jest.setSystemTime(new Date(instant));
+      const view = render(<SolarWorldMap {...location} />);
+      const day = getSolarDay(solarDayKey(Date.now(), location.lon), location);
+      const declination = getSubsolarPoint(new Date(day.noon)).lat;
+      const terminatorHourAngle = 180 - nightHalfWidth(location.lat, declination, 0);
+      const shadowSunriseX = MAP_WIDTH / 2 - (terminatorHourAngle / 360) * MAP_WIDTH;
+      const shadowSunsetX = MAP_WIDTH / 2 + (terminatorHourAngle / 360) * MAP_WIDTH;
+      const xForTime = (time: number) => 24 + (952 * (time - (day.noon - DAY_MS / 2))) / DAY_MS;
+      const daylightDots = [
+        ...screen
+          .getByTestId('solar-dotted-arc')
+          .querySelectorAll('[data-solar-arc-band="daylight"]'),
+      ];
+
+      expect(day.times.sunrise).toBeInstanceOf(Date);
+      expect(day.times.sunset).toBeInstanceOf(Date);
+      expect(daylightDots.length).toBeGreaterThan(0);
+      expect(
+        Math.abs(
+          Number(daylightDots[0]!.getAttribute('cx')) - xForTime(day.times.sunrise!.getTime())
+        )
+      ).toBeLessThan(26);
+      expect(
+        Math.abs(
+          Number(daylightDots.at(-1)!.getAttribute('cx')) - xForTime(day.times.sunset!.getTime())
+        )
+      ).toBeLessThan(26);
+      expect(Math.abs(xForTime(day.times.sunrise!.getTime()) - shadowSunriseX)).toBeLessThan(20);
+      expect(Math.abs(xForTime(day.times.sunset!.getTime()) - shadowSunsetX)).toBeLessThan(20);
+      view.unmount();
+    });
+  });
+
+  it('wraps the moving land with three periodic copies while masks stay screen-anchored', () => {
+    jest.setSystemTime(new Date('2026-06-21T00:00:00Z'));
+    const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    const landClip = container.querySelector('clipPath[id$="-land"]');
+    const copies = landClip?.querySelectorAll('path');
+    const mask = container.querySelector('mask[id$="-land-mask-civil"]');
+    const land = screen.getByTestId('world-map-land');
+    const startOffset = Number(land.getAttribute('data-map-offset'));
+    const pattern = container.querySelector('pattern');
+    const maskPathTransforms = [...(mask?.querySelectorAll('path') ?? [])].map((path) =>
+      path.getAttribute('transform')
+    );
+
+    expect(copies).toHaveLength(3);
+    const offsets = [...copies!].map((path) =>
+      Number(path.getAttribute('transform')?.match(/translate\(([-\d.]+)/)?.[1])
+    );
+    expect(offsets[1]! - offsets[0]!).toBe(MAP_WIDTH);
+    expect(offsets[2]! - offsets[1]!).toBe(MAP_WIDTH);
+    expect(maskPathTransforms).toHaveLength(6);
+    expect(maskPathTransforms.every((transform) => transform?.match(/^translate\(/))).toBe(true);
+    expect(Number(pattern?.getAttribute('width')) * 71).toBeCloseTo(MAP_WIDTH, 8);
+
+    act(() => jest.advanceTimersByTime(5 * 60_000));
+
+    const endOffset = Number(land.getAttribute('data-map-offset'));
+    expect(Math.abs(Math.abs(endOffset - startOffset) - MAP_WIDTH)).toBeLessThan(4);
+    expect(mask?.outerHTML).toContain('translate(-1000 0)');
   });
 
   it('colors land dots with the same five light bands used by the local solar arc', () => {
