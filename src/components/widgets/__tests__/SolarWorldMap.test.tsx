@@ -4,6 +4,7 @@ import * as SunCalc from 'suncalc';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import {
   DAY_MS,
+  geometricAltitude,
   getSolarDay,
   getSubsolarPoint,
   MAP_HEIGHT,
@@ -112,6 +113,20 @@ describe('SolarWorldMap display', () => {
     expect(frame.style.aspectRatio).toBe('2.5');
     expect(map?.getAttribute('viewBox')).toBe('0 0 1000 400');
     expect(map?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
+  });
+
+  it('keeps the astronomical-night core crisp beneath blurred twilight', () => {
+    const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    const twilight = screen.getByTestId('solar-twilight-blur');
+    const nightCore = screen.getByTestId('solar-night-core');
+
+    expect(twilight.querySelectorAll('[data-solar-band]')).toHaveLength(9);
+    expect(twilight.querySelector('[data-solar-band="3"]')).toBeNull();
+    expect(nightCore.querySelectorAll('[data-solar-band="3"]')).toHaveLength(3);
+    expect(nightCore.querySelectorAll('[data-solar-cap-altitude="-18.0000"]')).toHaveLength(3);
+    expect(nightCore.getAttribute('filter')).toBeNull();
+    expect(nightCore.querySelector('path')?.getAttribute('fill')).toBe('var(--solar-night)');
+    expect(container.querySelector('[data-solar-band="3"]')?.parentElement).toBe(nightCore);
   });
 
   it('uses a solid equator baseline without sunrise or sunset endpoint markers', () => {
@@ -249,6 +264,39 @@ describe('SolarWorldMap display', () => {
     expect(night?.getAttribute('fill')).toBe('var(--solar-arc-night)');
     expect(container.querySelector('[data-solar-arc-phase="future"]')).toBeTruthy();
     expect(container.querySelector('[data-solar-arc-phase="elapsed"]')).toBeTruthy();
+  });
+
+  it('colors local arc twilight by geometric altitude without changing apparent arc positions', () => {
+    const location = { lat: 42.4584, lon: -71.0662 };
+    jest.setSystemTime(new Date('2026-02-04T16:00:00Z'));
+    render(<SolarWorldMap {...location} />);
+
+    const sunriseBoundaryDot = [...screen.getAllByTestId('solar-arc-dot')].find((dot) => {
+      const time = Number(dot.getAttribute('data-solar-arc-time'));
+      const apparentAltitude = SunCalc.getPosition(
+        new Date(time),
+        location.lat,
+        location.lon
+      ).altitude;
+      return apparentAltitude >= 0 && geometricAltitude(apparentAltitude) < 0;
+    });
+
+    expect(sunriseBoundaryDot).toBeDefined();
+    const sampleTime = Number(sunriseBoundaryDot?.getAttribute('data-solar-arc-time'));
+    const apparentAltitude = SunCalc.getPosition(
+      new Date(sampleTime),
+      location.lat,
+      location.lon
+    ).altitude;
+    const geometric = geometricAltitude(apparentAltitude);
+    const expectedApparentY = MAP_HEIGHT / 2 - (apparentAltitude / 90) * MAP_HEIGHT * 0.414;
+
+    expect(sunriseBoundaryDot?.getAttribute('data-solar-arc-band')).toBe('civil');
+    expect(sunriseBoundaryDot?.getAttribute('fill')).toBe('var(--solar-arc-civil)');
+    expect(
+      Number(sunriseBoundaryDot?.getAttribute('data-solar-arc-geometric-altitude'))
+    ).toBeCloseTo(geometric, 4);
+    expect(Number(sunriseBoundaryDot?.getAttribute('cy'))).toBeCloseTo(expectedApparentY, 2);
   });
 
   it('uses valid coordinates from the wall-display URL', async () => {
