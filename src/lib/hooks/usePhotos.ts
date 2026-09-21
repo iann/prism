@@ -207,7 +207,7 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
   const pollPhotos = useCallback(() => { fetchPhotos(0, false); }, [fetchPhotos]);
 
   // Periodic refresh — pauses when tab is hidden
-  useVisibilityPolling(pollPhotos, enabled ? refreshInterval : 0, { refreshOnReconnect: enabled });
+  useVisibilityPolling(pollPhotos, enabled ? refreshInterval : 0);
 
   return { photos, loading, error, total, refresh, loadMore, toggleFavorite, updateUsage };
 }
