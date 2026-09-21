@@ -931,6 +931,24 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 39bcdcc1
 
+116. **Solar-noon-aligned, geometrically accurate world illumination**
+
+    Updates the fixed illumination and twilight bands from the Sun's live
+    declination while the dotted map follows its live longitude, so the
+    configured location sits at the center of the map at its calculated solar
+    noon. Preserves the exact geometric day/night and twilight thresholds
+    while the local sunrise and sunset arc continues to use SunCalc.
+
+    Commit: cec048be
+
+117. **Network-independent theme fonts**
+
+    Bundles the existing theme font subsets and fallback metrics as local
+    assets, preserving the current typography while avoiding production-build
+    failures caused by fetching and parsing Google Fonts.
+
+    Commits: 95b88ae8, d5b5bf74
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

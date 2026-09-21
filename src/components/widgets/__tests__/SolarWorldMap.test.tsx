@@ -126,9 +126,9 @@ describe('SolarWorldMap display', () => {
     expect(screen.queryByTestId('solar-equator-daylight')).toBeNull();
   });
 
-  it('keeps local sunrise and sunset near the fixed shadow edges across seasons', () => {
+  it('keeps geometric shadow edges centered and close to local sunrise and sunset', () => {
     const scenarios = [
-      { instant: '2026-06-21T16:00:00Z', location: { lat: 42.36, lon: -71.06 } },
+      { instant: '2026-06-21T16:00:00Z', location: { lat: 42.4584, lon: -71.0662 } },
       { instant: '2026-03-20T12:00:00Z', location: { lat: 0, lon: 0 } },
       { instant: '2026-12-21T12:00:00Z', location: { lat: -33.87, lon: 151.2 } },
     ];
@@ -137,8 +137,8 @@ describe('SolarWorldMap display', () => {
       jest.setSystemTime(new Date(instant));
       const view = render(<SolarWorldMap {...location} />);
       const day = getSolarDay(solarDayKey(Date.now(), location.lon), location);
-      const declination = getSubsolarPoint(new Date(day.noon)).lat;
-      const terminatorHourAngle = 180 - nightHalfWidth(location.lat, declination, 0);
+      const currentSubsolar = getSubsolarPoint(new Date(instant));
+      const terminatorHourAngle = 180 - nightHalfWidth(location.lat, currentSubsolar.lat, 0);
       const shadowSunriseX = MAP_WIDTH / 2 - (terminatorHourAngle / 360) * MAP_WIDTH;
       const shadowSunsetX = MAP_WIDTH / 2 + (terminatorHourAngle / 360) * MAP_WIDTH;
       const xForTime = (time: number) => 24 + (952 * (time - (day.noon - DAY_MS / 2))) / DAY_MS;
@@ -163,6 +163,17 @@ describe('SolarWorldMap display', () => {
       ).toBeLessThan(26);
       expect(Math.abs(xForTime(day.times.sunrise!.getTime()) - shadowSunriseX)).toBeLessThan(20);
       expect(Math.abs(xForTime(day.times.sunset!.getTime()) - shadowSunsetX)).toBeLessThan(20);
+      expect((shadowSunriseX + shadowSunsetX) / 2).toBeCloseTo(MAP_WIDTH / 2, 8);
+      expect(
+        screen.getAllByTestId('solar-terminator')[0]?.getAttribute('data-solar-declination')
+      ).toBe(currentSubsolar.lat.toFixed(6));
+      expect(
+        new Set(
+          [...view.container.querySelectorAll('[data-solar-cap-altitude]')].map((element) =>
+            element.getAttribute('data-solar-cap-altitude')
+          )
+        )
+      ).toEqual(new Set(['0.0000', '-6.0000', '-12.0000', '-18.0000']));
       view.unmount();
     });
   });

@@ -140,6 +140,17 @@ describe('local solar day and sky', () => {
     expect(skyPoint({ altitude: 90, azimuth: 180 }, 180).y).toBe(530);
   });
 
+  it('centers the selected location on the subsolar meridian at its solar noon', () => {
+    const location = { lat: 42.4584, lon: -71.0662 };
+    for (const date of ['2026-06-21', '2026-09-21', '2026-12-21']) {
+      const day = getSolarDay(date, location);
+      const noonSubsolar = getSubsolarPoint(new Date(day.noon));
+      expect(
+        project({ lat: 0, lon: location.lon }).x + sunFixedMapOffset(noonSubsolar.lon)
+      ).toBeCloseTo(MAP_WIDTH / 2, 5);
+    }
+  });
+
   it.each([90, 78.2, -78.2, -90])('handles polar day and night at latitude %s', (lat) => {
     const summer = getSolarDay(lat > 0 ? '2026-06-21' : '2026-12-21', { lat, lon: 15 });
     const winter = getSolarDay(lat > 0 ? '2026-12-21' : '2026-06-21', { lat, lon: 15 });
