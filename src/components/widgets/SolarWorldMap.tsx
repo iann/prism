@@ -27,6 +27,7 @@ const LAND_DOT_SPACING = MAP_WIDTH / Math.round(MAP_WIDTH / 14);
 const LAND_DOT_DIAMETER = 4.2;
 const SOLAR_ARC_DOT_INTERVAL = 20 * 60 * 1000;
 const SOLAR_ARC_DOT_COUNT = DAY_MS / SOLAR_ARC_DOT_INTERVAL + 1;
+const WORLD_SHADOW_THRESHOLDS = [0, -6, -12, -18] as const;
 const SOLAR_ARC_BANDS = [
   { key: 'daylight', min: 0, max: Number.POSITIVE_INFINITY, color: 'var(--solar-sun)' },
   { key: 'civil', min: -6, max: 0, color: 'var(--solar-arc-civil)' },
@@ -130,14 +131,12 @@ function SolarMapDrawing({
   const id = React.useId().replace(/:/g, '');
   const subsolar = React.useMemo(() => getSubsolarPoint(new Date(time)), [time]);
   const mapOffset = sunFixedMapOffset(subsolar.lon);
-  // Freeze the shadow's seasonal tilt for the selected solar day. Only the
-  // land layer follows the live subsolar longitude during that day.
-  const shadowSubsolar = React.useMemo(
-    () => ({ lat: getSubsolarPoint(new Date(day.noon)).lat, lon: 0 }),
-    [day.noon]
-  );
+  // Center the instantaneous subsolar meridian on the map. At the configured
+  // location's calculated solar noon, that location is centered without
+  // shifting illumination thresholds or changing the underlying geometry.
+  const shadowSubsolar = React.useMemo(() => ({ lat: subsolar.lat, lon: 0 }), [subsolar.lat]);
   const caps = React.useMemo(
-    () => [0, -6, -12, -18].map((altitude) => nightPath(shadowSubsolar, altitude)),
+    () => WORLD_SHADOW_THRESHOLDS.map((altitude) => nightPath(shadowSubsolar, altitude)),
     [shadowSubsolar]
   );
   const terminator = React.useMemo(() => nightPath(shadowSubsolar, 0, true), [shadowSubsolar]);
@@ -184,12 +183,13 @@ function SolarMapDrawing({
     >
       <title>Earth illumination and the local Sun path</title>
       <desc>
-        Earth&apos;s dotted land moves beneath fixed illumination and twilight, centered on the
-        subsolar meridian. The selected location&apos;s daily solar-altitude arc stays centered over
-        daylight. The equator is a thin reference line for zero altitude. Evenly spaced dots follow
-        the Sun&apos;s local path through daylight, twilight, and night; it is not a geographic
-        route. A restrained gold trail highlights the daylight already traveled, and a gold marker
-        shows the current Sun position along the arc.
+        Earth&apos;s dotted land moves beneath illumination and twilight derived from the Sun&apos;s
+        current geometric position, centered on its subsolar meridian. The selected location&apos;s
+        daily solar-altitude arc is centered on its calculated solar noon. The equator is a thin
+        reference line for zero altitude. Evenly spaced dots follow the Sun&apos;s local path
+        through daylight, twilight, and night; it is not a geographic route. Sunrise and sunset on
+        the arc use SunCalc&apos;s apparent-horizon calculation. A restrained gold trail highlights
+        elapsed daylight, and a gold marker shows the current Sun position along the arc.
       </desc>
       <defs>
         <clipPath id={`${id}-map`}>
@@ -271,6 +271,8 @@ function SolarMapDrawing({
               <path
                 key={`${band}-${shift}`}
                 data-solar-band={band}
+                data-solar-cap-altitude={WORLD_SHADOW_THRESHOLDS[band]?.toFixed(4)}
+                data-solar-declination={shadowSubsolar.lat.toFixed(6)}
                 d={path}
                 transform={`translate(${shift} 0)`}
                 fill={
@@ -319,6 +321,7 @@ function SolarMapDrawing({
             strokeWidth="1.3"
             opacity=".3"
             data-testid="solar-terminator"
+            data-solar-declination={shadowSubsolar.lat.toFixed(6)}
           />
         ))}
       </g>
