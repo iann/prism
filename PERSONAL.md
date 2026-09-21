@@ -943,11 +943,11 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
 117. **Network-independent theme fonts**
 
-    Bundles the Latin variable font files used by the dashboard themes and
-    loads them locally through Next.js, avoiding production-build failures
-    caused by fetching and parsing Google Fonts during installation.
+    Bundles the existing theme font subsets and fallback metrics as local
+    assets, preserving the current typography while avoiding production-build
+    failures caused by fetching and parsing Google Fonts.
 
-    Commit: 95b88ae8
+    Commits: 95b88ae8, d5b5bf74
 
 ## Superseded personal iterations
 
