@@ -912,6 +912,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 62ab821c
 
+114. **Evenly spaced dots on the local solar arc**
+
+    Places solar-path dots at consistent 20-minute intervals across the day,
+    avoiding the visual clumping near sunrise and sunset while preserving the
+    SunCalc altitude curve, twilight colors, current Sun marker, and elapsed
+    daylight trail.
+
+    Commit: 84b270c0
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

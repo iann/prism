@@ -17,15 +17,16 @@ describe('SolarWorldMap display', () => {
 
   it('updates global illumination and elapsed arc progress live', () => {
     const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
-    const elapsedArc = screen
-      .getByTestId('solar-dotted-arc')
-      .querySelector('[data-solar-arc-band="daylight"][data-solar-arc-phase="elapsed"]');
-    const elapsedPath = elapsedArc?.getAttribute('d');
+    const elapsedTrail = screen.getByTestId('solar-arc-elapsed-trail');
+    const trailPath = elapsedTrail.getAttribute('d');
+    const sunDisc = screen.getByTestId('solar-arc-sun-disc');
+    const sunX = sunDisc.getAttribute('cx');
     const cap = container.querySelector('[data-solar-band="0"]')?.getAttribute('d');
 
     act(() => jest.advanceTimersByTime(60_000));
 
-    expect(elapsedArc?.getAttribute('d')).not.toBe(elapsedPath);
+    expect(elapsedTrail.getAttribute('d')).not.toBe(trailPath);
+    expect(sunDisc.getAttribute('cx')).not.toBe(sunX);
     expect(container.querySelector('[data-solar-band="0"]')?.getAttribute('d')).not.toBe(cap);
   });
 
@@ -43,16 +44,21 @@ describe('SolarWorldMap display', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
-  it('knocks a clear channel behind the SunCalc arc and pins the Sun to its current sample', () => {
+  it('highlights elapsed daylight behind the SunCalc arc and pins the Sun to its current sample', () => {
     const location = { lat: 42.36, lon: -71.06 };
     render(<SolarWorldMap {...location} />);
 
     const arc = screen.getByTestId('solar-dotted-arc');
-    const channel = screen.getByTestId('solar-arc-clear-channel');
+    const trail = screen.getByTestId('solar-arc-elapsed-trail');
     const marker = screen.getByTestId('solar-arc-sun-marker');
     const disc = screen.getByTestId('solar-arc-sun-disc');
-    const elapsed = screen.getByTestId('solar-arc-daylight-elapsed');
-    const future = screen.getByTestId('solar-arc-daylight-future');
+    const elapsedDaylightDots = arc.querySelectorAll(
+      '[data-solar-arc-band="daylight"][data-solar-arc-phase="elapsed"]'
+    );
+    const futureDaylightDots = arc.querySelectorAll(
+      '[data-solar-arc-band="daylight"][data-solar-arc-phase="future"]'
+    );
+    const allDots = [...arc.querySelectorAll('[data-testid="solar-arc-dot"]')];
     const now = Date.now();
     const day = getSolarDay(solarDayKey(now, location.lon), location);
     const altitude = SunCalc.getPosition(new Date(now), location.lat, location.lon).altitude;
@@ -60,12 +66,19 @@ describe('SolarWorldMap display', () => {
     const expectedX = (24 + 952 * progress).toFixed(2);
     const expectedY = (MAP_HEIGHT / 2 - (altitude / 90) * MAP_HEIGHT * 0.414).toFixed(2);
 
-    expect(arc.firstElementChild).toBe(channel);
+    expect(arc.firstElementChild).toBe(trail);
+    expect(screen.queryByTestId('solar-arc-clear-channel')).toBeNull();
     expect(arc.lastElementChild).toBe(marker);
     expect(disc.getAttribute('cx')).toBe(expectedX);
     expect(disc.getAttribute('cy')).toBe(expectedY);
-    expect(elapsed.getAttribute('d')?.endsWith(`L${expectedX},${expectedY}`)).toBe(true);
-    expect(future.getAttribute('d')?.startsWith(`M${expectedX},${expectedY}`)).toBe(true);
+    expect(trail.getAttribute('d')?.endsWith(`L${expectedX},${expectedY}`)).toBe(true);
+    expect(elapsedDaylightDots.length).toBeGreaterThan(0);
+    expect(futureDaylightDots.length).toBeGreaterThan(0);
+    expect(allDots).toHaveLength(73);
+    allDots.slice(1).forEach((dot, index) => {
+      const gap = Number(dot.getAttribute('cx')) - Number(allDots[index]!.getAttribute('cx'));
+      expect(gap).toBeCloseTo(952 / 72, 1);
+    });
   });
 
   it('uses a full-frame 5:2 Lambert map in compact weather widgets', () => {
@@ -111,19 +124,24 @@ describe('SolarWorldMap display', () => {
   it('uses the map dot cadence and twilight palette for the local solar arc', () => {
     const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
     const arc = screen.getByTestId('solar-dotted-arc');
-    const daylight = arc.querySelector('[data-testid="solar-arc-daylight-elapsed"]');
-    const civil = arc.querySelector('[data-testid="solar-arc-civil-future"]');
-    const nautical = arc.querySelector('[data-testid="solar-arc-nautical-future"]');
-    const astronomical = arc.querySelector('[data-testid="solar-arc-astronomical-future"]');
-    const night = arc.querySelector('[data-testid="solar-arc-night-future"]');
+    const daylight = arc.querySelector(
+      '[data-solar-arc-band="daylight"][data-solar-arc-phase="elapsed"]'
+    );
+    const civil = arc.querySelector('[data-solar-arc-band="civil"][data-solar-arc-phase="future"]');
+    const nautical = arc.querySelector(
+      '[data-solar-arc-band="nautical"][data-solar-arc-phase="future"]'
+    );
+    const astronomical = arc.querySelector(
+      '[data-solar-arc-band="astronomical"][data-solar-arc-phase="future"]'
+    );
+    const night = arc.querySelector('[data-solar-arc-band="night"][data-solar-arc-phase="future"]');
 
-    expect(daylight?.getAttribute('stroke-dasharray')).toBe('0.1 14');
-    expect(daylight?.getAttribute('stroke-width')).toBe('4.2');
-    expect(daylight?.getAttribute('stroke')).toBe('var(--solar-sun)');
-    expect(civil?.getAttribute('stroke')).toBe('var(--solar-arc-civil)');
-    expect(nautical?.getAttribute('stroke')).toBe('var(--solar-arc-nautical)');
-    expect(astronomical?.getAttribute('stroke')).toBe('var(--solar-arc-astronomical)');
-    expect(night?.getAttribute('stroke')).toBe('var(--solar-arc-night)');
+    expect(daylight?.getAttribute('r')).toBe('2.1');
+    expect(daylight?.getAttribute('fill')).toBe('var(--solar-sun)');
+    expect(civil?.getAttribute('fill')).toBe('var(--solar-arc-civil)');
+    expect(nautical?.getAttribute('fill')).toBe('var(--solar-arc-nautical)');
+    expect(astronomical?.getAttribute('fill')).toBe('var(--solar-arc-astronomical)');
+    expect(night?.getAttribute('fill')).toBe('var(--solar-arc-night)');
     expect(container.querySelector('[data-solar-arc-phase="future"]')).toBeTruthy();
     expect(container.querySelector('[data-solar-arc-phase="elapsed"]')).toBeTruthy();
   });

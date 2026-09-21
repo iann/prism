@@ -51,14 +51,14 @@
   opacity: 0.7;
   pointer-events: none;
 }
-.solarArcDots {
-  fill: none;
-  stroke-linecap: round;
+.solarArcDot {
+  pointer-events: none;
 }
-.solarArcChannel {
+.solarArcElapsedTrail {
   fill: none;
-  stroke: var(--solar-ocean);
-  stroke-width: 14;
+  stroke: var(--solar-sun);
+  stroke-width: 5;
+  opacity: 0.3;
   stroke-linecap: round;
   stroke-linejoin: round;
   pointer-events: none;
