@@ -22,6 +22,8 @@ const DEFAULT_LOCATION = { lat: 41.8781, lon: -87.6298 };
 export const COMPACT_SOLAR_MAP_ASPECT_RATIO = 2.5;
 const LAND_DOT_SPACING = 14;
 const LAND_DOT_DIAMETER = 4.2;
+const SOLAR_ARC_DOT_INTERVAL = 20 * 60 * 1000;
+const SOLAR_ARC_DOT_COUNT = DAY_MS / SOLAR_ARC_DOT_INTERVAL + 1;
 const SOLAR_ARC_BANDS = [
   { key: 'daylight', min: 0, max: Number.POSITIVE_INFINITY, color: 'var(--solar-sun)' },
   { key: 'civil', min: -6, max: 0, color: 'var(--solar-arc-civil)' },
@@ -140,20 +142,28 @@ function SolarMapDrawing({
     all.map(({ time: sampleTime, altitude }) => ({ time: sampleTime, altitude }))
   );
   const currentSunPoint = mapSolarArcPoint(current, day);
-  const solarArcChannel = solarArcPath(arcSamples, day);
-  const solarArcPaths = SOLAR_ARC_BANDS.map((band) => ({
-    ...band,
-    future: solarArcSegments(
-      arcSamples,
-      day,
-      (sample) => sample.time >= time && sample.altitude >= band.min && sample.altitude <= band.max
-    ),
-    elapsed: solarArcSegments(
-      arcSamples,
-      day,
-      (sample) => sample.time <= time && sample.altitude >= band.min && sample.altitude <= band.max
-    ),
-  }));
+  const elapsedDaylight = solarArcSegments(
+    arcSamples,
+    day,
+    (sample) => sample.time <= time && sample.altitude >= 0
+  );
+  const solarArcDots = React.useMemo(() => {
+    const start = day.noon - DAY_MS / 2;
+    return Array.from({ length: SOLAR_ARC_DOT_COUNT }, (_, index) => {
+      const sampleTime = start + index * SOLAR_ARC_DOT_INTERVAL;
+      const altitude = SunCalc.getPosition(
+        new Date(sampleTime),
+        location.lat,
+        location.lon
+      ).altitude;
+      const band = SOLAR_ARC_BANDS.find(({ min, max }) => altitude >= min && altitude < max)!;
+      return {
+        time: sampleTime,
+        ...mapSolarArcPoint({ time: sampleTime, altitude }, day),
+        band,
+      };
+    });
+  }, [day, location.lat, location.lon]);
   return (
     <svg
       className={styles.drawing}
@@ -165,9 +175,10 @@ function SolarMapDrawing({
       <title>Earth illumination and the local Sun path</title>
       <desc>
         Earth&apos;s illumination and twilight are shown behind the selected location&apos;s daily
-        solar-altitude arc. The equator is a thin reference line for zero altitude. The dotted arc
-        follows the Sun&apos;s local path through daylight, twilight, and night; it is not a
-        geographic route. A gold marker shows the current Sun position along the arc.
+        solar-altitude arc. The equator is a thin reference line for zero altitude. Evenly spaced
+        dots follow the Sun&apos;s local path through daylight, twilight, and night; it is not a
+        geographic route. A restrained gold trail highlights the daylight already traveled, and a
+        gold marker shows the current Sun position along the arc.
       </desc>
       <defs>
         <clipPath id={`${id}-map`}>
@@ -290,39 +301,30 @@ function SolarMapDrawing({
         aria-label={`Local daily solar-altitude arc for ${name}`}
       >
         <g data-testid="solar-dotted-arc" aria-label="Local solar path with twilight bands">
-          <path
-            d={solarArcChannel}
-            className={styles.solarArcChannel}
-            data-testid="solar-arc-clear-channel"
-            aria-hidden="true"
-          />
-          {solarArcPaths.map((band) => (
-            <React.Fragment key={band.key}>
-              {band.future && (
-                <path
-                  d={band.future}
-                  className={`${styles.solarArcDots} ${styles.solarArcFuture}`}
-                  stroke={band.color}
-                  strokeDasharray={`0.1 ${LAND_DOT_SPACING}`}
-                  strokeWidth={LAND_DOT_DIAMETER}
-                  data-solar-arc-band={band.key}
-                  data-solar-arc-phase="future"
-                  data-testid={`solar-arc-${band.key}-future`}
-                />
-              )}
-              {band.elapsed && (
-                <path
-                  d={band.elapsed}
-                  className={`${styles.solarArcDots} ${styles.solarArcElapsed}`}
-                  stroke={band.color}
-                  strokeDasharray={`0.1 ${LAND_DOT_SPACING}`}
-                  strokeWidth={LAND_DOT_DIAMETER}
-                  data-solar-arc-band={band.key}
-                  data-solar-arc-phase="elapsed"
-                  data-testid={`solar-arc-${band.key}-elapsed`}
-                />
-              )}
-            </React.Fragment>
+          {elapsedDaylight && (
+            <path
+              d={elapsedDaylight}
+              className={styles.solarArcElapsedTrail}
+              data-testid="solar-arc-elapsed-trail"
+              aria-hidden="true"
+            />
+          )}
+          {solarArcDots.map((dot) => (
+            <circle
+              key={dot.time}
+              cx={dot.x.toFixed(2)}
+              cy={dot.y.toFixed(2)}
+              r={LAND_DOT_DIAMETER / 2}
+              className={`${styles.solarArcDot} ${
+                dot.time <= time ? styles.solarArcElapsed : styles.solarArcFuture
+              }`}
+              fill={dot.band.color}
+              data-solar-arc-time={dot.time}
+              data-solar-arc-band={dot.band.key}
+              data-solar-arc-phase={dot.time <= time ? 'elapsed' : 'future'}
+              data-testid="solar-arc-dot"
+              aria-hidden="true"
+            />
           ))}
           <g
             data-testid="solar-arc-sun-marker"
