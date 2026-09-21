@@ -949,6 +949,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: 95b88ae8, d5b5bf74
 
+118. **Clearer solar-map night and twilight rendering**
+
+    Keeps the astronomical-night core crisp beneath the blurred twilight bands
+    and colors the local solar arc from geometric altitude, matching the map's
+    twilight thresholds while preserving its existing SunCalc path and event
+    calculations.
+
+    Commit: baaeaea1
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

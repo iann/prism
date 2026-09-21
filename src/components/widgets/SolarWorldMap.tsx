@@ -4,6 +4,7 @@ import * as React from 'react';
 import * as SunCalc from 'suncalc';
 import {
   DAY_MS,
+  geometricAltitude,
   getSolarDay,
   getSubsolarPoint,
   MAP_HEIGHT,
@@ -28,6 +29,12 @@ const LAND_DOT_DIAMETER = 4.2;
 const SOLAR_ARC_DOT_INTERVAL = 20 * 60 * 1000;
 const SOLAR_ARC_DOT_COUNT = DAY_MS / SOLAR_ARC_DOT_INTERVAL + 1;
 const WORLD_SHADOW_THRESHOLDS = [0, -6, -12, -18] as const;
+const WORLD_SHADOW_FILLS = [
+  'var(--solar-civil)',
+  'var(--solar-nautical)',
+  'var(--solar-astronomical)',
+  'var(--solar-night)',
+] as const;
 const SOLAR_ARC_BANDS = [
   { key: 'daylight', min: 0, max: Number.POSITIVE_INFINITY, color: 'var(--solar-sun)' },
   { key: 'civil', min: -6, max: 0, color: 'var(--solar-arc-civil)' },
@@ -139,6 +146,7 @@ function SolarMapDrawing({
     () => WORLD_SHADOW_THRESHOLDS.map((altitude) => nightPath(shadowSubsolar, altitude)),
     [shadowSubsolar]
   );
+  const nightCore = caps[WORLD_SHADOW_THRESHOLDS.length - 1]!;
   const terminator = React.useMemo(() => nightPath(shadowSubsolar, 0, true), [shadowSubsolar]);
   const current: SolarSample = {
     time,
@@ -165,10 +173,14 @@ function SolarMapDrawing({
         location.lat,
         location.lon
       ).altitude;
-      const band = SOLAR_ARC_BANDS.find(({ min, max }) => altitude >= min && altitude < max)!;
+      // Arc position stays on SunCalc's apparent altitude. Twilight colors use
+      // geometric altitude so their thresholds match the global day/night map.
+      const geometric = geometricAltitude(altitude);
+      const band = SOLAR_ARC_BANDS.find(({ min, max }) => geometric >= min && geometric < max)!;
       return {
         time: sampleTime,
         ...mapSolarArcPoint({ time: sampleTime, altitude }, day),
+        geometricAltitude: geometric,
         band,
       };
     });
@@ -265,27 +277,37 @@ function SolarMapDrawing({
       </defs>
       <g clipPath={`url(#${id}-map)`}>
         <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="var(--solar-ocean)" />
-        <g filter={`url(#${id}-twilight)`}>
-          {caps.map((path, band) =>
-            [-1000, 0, 1000].map((shift) => (
-              <path
-                key={`${band}-${shift}`}
-                data-solar-band={band}
-                data-solar-cap-altitude={WORLD_SHADOW_THRESHOLDS[band]?.toFixed(4)}
-                data-solar-declination={shadowSubsolar.lat.toFixed(6)}
-                d={path}
-                transform={`translate(${shift} 0)`}
-                fill={
-                  [
-                    'var(--solar-civil)',
-                    'var(--solar-nautical)',
-                    'var(--solar-astronomical)',
-                    'var(--solar-night)',
-                  ][band]
-                }
-              />
-            ))
-          )}
+        <g filter={`url(#${id}-twilight)`} data-testid="solar-twilight-blur">
+          {caps
+            .slice(0, -1)
+            .map((path, band) =>
+              [-1000, 0, 1000].map((shift) => (
+                <path
+                  key={`${band}-${shift}`}
+                  data-solar-band={band}
+                  data-solar-cap-altitude={WORLD_SHADOW_THRESHOLDS[band]?.toFixed(4)}
+                  data-solar-declination={shadowSubsolar.lat.toFixed(6)}
+                  d={path}
+                  transform={`translate(${shift} 0)`}
+                  fill={WORLD_SHADOW_FILLS[band]}
+                />
+              ))
+            )}
+        </g>
+        <g data-testid="solar-night-core">
+          {[-1000, 0, 1000].map((shift) => (
+            <path
+              key={shift}
+              data-solar-band={WORLD_SHADOW_THRESHOLDS.length - 1}
+              data-solar-cap-altitude={WORLD_SHADOW_THRESHOLDS[
+                WORLD_SHADOW_THRESHOLDS.length - 1
+              ]?.toFixed(4)}
+              data-solar-declination={shadowSubsolar.lat.toFixed(6)}
+              d={nightCore}
+              transform={`translate(${shift} 0)`}
+              fill={WORLD_SHADOW_FILLS[WORLD_SHADOW_FILLS.length - 1]}
+            />
+          ))}
         </g>
         <g
           className={styles.landDots}
@@ -351,6 +373,7 @@ function SolarMapDrawing({
               fill={dot.band.color}
               data-solar-arc-time={dot.time}
               data-solar-arc-band={dot.band.key}
+              data-solar-arc-geometric-altitude={dot.geometricAltitude.toFixed(4)}
               data-solar-arc-phase={dot.time <= time ? 'elapsed' : 'future'}
               data-testid="solar-arc-dot"
               aria-hidden="true"
