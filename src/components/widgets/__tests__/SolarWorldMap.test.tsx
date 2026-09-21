@@ -1,6 +1,8 @@
 /** @jest-environment jsdom */
 import React from 'react';
+import * as SunCalc from 'suncalc';
 import { act, render, screen, waitFor } from '@testing-library/react';
+import { DAY_MS, getSolarDay, MAP_HEIGHT, solarDayKey } from '@/lib/solar/solar';
 import { SolarWorldMap } from '../SolarWorldMap';
 
 describe('SolarWorldMap display', () => {
@@ -27,10 +29,11 @@ describe('SolarWorldMap display', () => {
     expect(container.querySelector('[data-solar-band="0"]')?.getAttribute('d')).not.toBe(cap);
   });
 
-  it('renders only the map and arc, without sun/location markers or control chrome', () => {
+  it('shows the current Sun on the local arc without geographic markers or control chrome', () => {
     render(<SolarWorldMap lat={42.36} lon={-71.06} locationName="Boston" />);
 
     expect(screen.getByRole('img', { name: 'Solar world map for Boston' })).toBeTruthy();
+    expect(screen.getByTestId('solar-arc-sun-marker')).toBeTruthy();
     expect(screen.queryByTestId('local-sun-position')).toBeNull();
     expect(screen.queryByTestId('subsolar-point')).toBeNull();
     expect(screen.queryByTestId('selected-location')).toBeNull();
@@ -38,6 +41,31 @@ describe('SolarWorldMap display', () => {
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByRole('slider')).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('knocks a clear channel behind the SunCalc arc and pins the Sun to its current sample', () => {
+    const location = { lat: 42.36, lon: -71.06 };
+    render(<SolarWorldMap {...location} />);
+
+    const arc = screen.getByTestId('solar-dotted-arc');
+    const channel = screen.getByTestId('solar-arc-clear-channel');
+    const marker = screen.getByTestId('solar-arc-sun-marker');
+    const disc = screen.getByTestId('solar-arc-sun-disc');
+    const elapsed = screen.getByTestId('solar-arc-daylight-elapsed');
+    const future = screen.getByTestId('solar-arc-daylight-future');
+    const now = Date.now();
+    const day = getSolarDay(solarDayKey(now, location.lon), location);
+    const altitude = SunCalc.getPosition(new Date(now), location.lat, location.lon).altitude;
+    const progress = (now - (day.noon - DAY_MS / 2)) / DAY_MS;
+    const expectedX = (24 + 952 * progress).toFixed(2);
+    const expectedY = (MAP_HEIGHT / 2 - (altitude / 90) * MAP_HEIGHT * 0.414).toFixed(2);
+
+    expect(arc.firstElementChild).toBe(channel);
+    expect(arc.lastElementChild).toBe(marker);
+    expect(disc.getAttribute('cx')).toBe(expectedX);
+    expect(disc.getAttribute('cy')).toBe(expectedY);
+    expect(elapsed.getAttribute('d')?.endsWith(`L${expectedX},${expectedY}`)).toBe(true);
+    expect(future.getAttribute('d')?.startsWith(`M${expectedX},${expectedY}`)).toBe(true);
   });
 
   it('uses a full-frame 5:2 Lambert map in compact weather widgets', () => {

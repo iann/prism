@@ -139,6 +139,8 @@ function SolarMapDrawing({
   const arcSamples = withTwilightCrossings(
     all.map(({ time: sampleTime, altitude }) => ({ time: sampleTime, altitude }))
   );
+  const currentSunPoint = mapSolarArcPoint(current, day);
+  const solarArcChannel = solarArcPath(arcSamples, day);
   const solarArcPaths = SOLAR_ARC_BANDS.map((band) => ({
     ...band,
     future: solarArcSegments(
@@ -165,7 +167,7 @@ function SolarMapDrawing({
         Earth&apos;s illumination and twilight are shown behind the selected location&apos;s daily
         solar-altitude arc. The equator is a thin reference line for zero altitude. The dotted arc
         follows the Sun&apos;s local path through daylight, twilight, and night; it is not a
-        geographic route.
+        geographic route. A gold marker shows the current Sun position along the arc.
       </desc>
       <defs>
         <clipPath id={`${id}-map`}>
@@ -288,6 +290,12 @@ function SolarMapDrawing({
         aria-label={`Local daily solar-altitude arc for ${name}`}
       >
         <g data-testid="solar-dotted-arc" aria-label="Local solar path with twilight bands">
+          <path
+            d={solarArcChannel}
+            className={styles.solarArcChannel}
+            data-testid="solar-arc-clear-channel"
+            aria-hidden="true"
+          />
           {solarArcPaths.map((band) => (
             <React.Fragment key={band.key}>
               {band.future && (
@@ -316,6 +324,34 @@ function SolarMapDrawing({
               )}
             </React.Fragment>
           ))}
+          <g
+            data-testid="solar-arc-sun-marker"
+            role="img"
+            aria-label="Current Sun position on the local solar arc"
+          >
+            <circle
+              cx={currentSunPoint.x.toFixed(2)}
+              cy={currentSunPoint.y.toFixed(2)}
+              r="14"
+              className={styles.solarArcSunHalo}
+              aria-hidden="true"
+            />
+            <circle
+              cx={currentSunPoint.x.toFixed(2)}
+              cy={currentSunPoint.y.toFixed(2)}
+              r="8"
+              className={styles.solarArcSunDisc}
+              data-testid="solar-arc-sun-disc"
+              aria-hidden="true"
+            />
+            <circle
+              cx={currentSunPoint.x.toFixed(2)}
+              cy={currentSunPoint.y.toFixed(2)}
+              r="2.6"
+              className={styles.solarArcSunCore}
+              aria-hidden="true"
+            />
+          </g>
         </g>
       </g>
     </svg>

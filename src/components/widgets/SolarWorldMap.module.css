@@ -55,6 +55,29 @@
   fill: none;
   stroke-linecap: round;
 }
+.solarArcChannel {
+  fill: none;
+  stroke: var(--solar-ocean);
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.solarArcSunHalo {
+  fill: var(--solar-sun);
+  opacity: 0.22;
+  pointer-events: none;
+}
+.solarArcSunDisc {
+  fill: var(--solar-sun);
+  stroke: var(--solar-ocean);
+  stroke-width: 3;
+  pointer-events: none;
+}
+.solarArcSunCore {
+  fill: var(--solar-surface);
+  pointer-events: none;
+}
 .solarArcFuture {
   opacity: 0.38;
 }
