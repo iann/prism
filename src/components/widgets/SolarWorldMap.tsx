@@ -6,6 +6,8 @@ import {
   DAY_MS,
   getSolarDay,
   getSubsolarPoint,
+  MAP_HEIGHT,
+  MAP_WIDTH,
   nightPath,
   solarDayKey,
   validCoordinates,
@@ -17,6 +19,7 @@ import land from '@/lib/solar/world-land.json';
 import styles from './SolarWorldMap.module.css';
 
 const DEFAULT_LOCATION = { lat: 41.8781, lon: -87.6298 };
+export const COMPACT_SOLAR_MAP_ASPECT_RATIO = 2.5;
 const LAND_DOT_SPACING = 14;
 const LAND_DOT_DIAMETER = 4.2;
 const SOLAR_ARC_BANDS = [
@@ -45,7 +48,10 @@ function mapSolarArcPoint(sample: SolarArcSample, day: SolarDay) {
     x: 24 + 952 * Math.max(0, Math.min(1, progress)),
     // Altitude zero sits on the map's equator. Positive solar altitude rises
     // above it; below-horizon twilight/night dips below it.
-    y: altitude >= 0 ? 250 - (altitude / 90) * 207 : 250 + (-altitude / 90) * 145,
+    y:
+      altitude >= 0
+        ? MAP_HEIGHT / 2 - (altitude / 90) * MAP_HEIGHT * 0.414
+        : MAP_HEIGHT / 2 + (-altitude / 90) * MAP_HEIGHT * 0.29,
   };
 }
 
@@ -110,13 +116,11 @@ function SolarMapDrawing({
   location,
   name,
   day,
-  compact = false,
 }: {
   time: number;
   location: Coordinates;
   name: string;
   day: SolarDay;
-  compact?: boolean;
 }) {
   const id = React.useId().replace(/:/g, '');
   const subsolar = React.useMemo(() => getSubsolarPoint(new Date(time)), [time]);
@@ -148,13 +152,10 @@ function SolarMapDrawing({
       (sample) => sample.time <= time && sample.altitude >= band.min && sample.altitude <= band.max
     ),
   }));
-  const sunArcPoint = mapSolarArcPoint(current, day);
-  const currentIsDaylight = current.altitude >= 0;
-
   return (
     <svg
       className={styles.drawing}
-      viewBox="0 0 1000 500"
+      viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label={`Solar world map for ${name}`}
@@ -168,7 +169,7 @@ function SolarMapDrawing({
       </desc>
       <defs>
         <clipPath id={`${id}-map`}>
-          <rect width="1000" height="500" />
+          <rect width={MAP_WIDTH} height={MAP_HEIGHT} />
         </clipPath>
         <clipPath id={`${id}-land`} clipPathUnits="userSpaceOnUse">
           <path d={land.path} />
@@ -187,13 +188,13 @@ function SolarMapDrawing({
               id={`${id}-land-mask-${band.key}`}
               x="0"
               y="0"
-              width="1000"
-              height="500"
+              width={MAP_WIDTH}
+              height={MAP_HEIGHT}
               maskUnits="userSpaceOnUse"
               maskContentUnits="userSpaceOnUse"
             >
               {band.outer === null ? (
-                <rect width="1000" height="500" fill="white" />
+                <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="white" />
               ) : (
                 [-1000, 0, 1000].map((shift) => (
                   <path
@@ -228,7 +229,7 @@ function SolarMapDrawing({
         </filter>
       </defs>
       <g clipPath={`url(#${id}-map)`}>
-        <rect width="1000" height="500" fill="var(--solar-ocean)" />
+        <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="var(--solar-ocean)" />
         <g filter={`url(#${id}-twilight)`}>
           {caps.map((path, band) =>
             [-1000, 0, 1000].map((shift) => (
@@ -253,8 +254,8 @@ function SolarMapDrawing({
           {LAND_DOT_BANDS.map((band) => (
             <rect
               key={band.key}
-              width="1000"
-              height="500"
+              width={MAP_WIDTH}
+              height={MAP_HEIGHT}
               fill={`url(#${id}-land-dots-${band.key})`}
               clipPath={`url(#${id}-land)`}
               mask={`url(#${id}-land-mask-${band.key})`}
@@ -264,7 +265,7 @@ function SolarMapDrawing({
           ))}
         </g>
         <path
-          d="M0 250H1000"
+          d={`M0 ${MAP_HEIGHT / 2}H${MAP_WIDTH}`}
           className={styles.equator}
           data-testid="solar-equator-line"
           aria-label="Equator, used as the solar arc's zero-altitude baseline"
@@ -316,27 +317,6 @@ function SolarMapDrawing({
             </React.Fragment>
           ))}
         </g>
-        {currentIsDaylight && (
-          <ellipse
-            cx={sunArcPoint.x}
-            cy={sunArcPoint.y}
-            rx={compact ? 22 : 12}
-            ry={compact ? 27 : 12}
-            fill="var(--solar-sun)"
-            opacity=".14"
-          />
-        )}
-        <ellipse
-          cx={sunArcPoint.x}
-          cy={sunArcPoint.y}
-          rx={compact ? 10.5 : 6}
-          ry={compact ? 13 : 6}
-          fill={currentIsDaylight ? 'var(--solar-sun)' : 'var(--solar-muted)'}
-          opacity={currentIsDaylight ? 1 : 0.65}
-          data-testid="local-sun-position"
-        >
-          <title>{`Sun on local arc: ${current.azimuth.toFixed(1)}° azimuth, ${current.altitude.toFixed(1)}° elevation`}</title>
-        </ellipse>
       </g>
     </svg>
   );
@@ -412,8 +392,12 @@ export function SolarWorldMap({
       data-testid="solar-display"
     >
       {compact ? (
-        <div className={styles.compactVisual}>
-          <SolarMapDrawing time={clock} location={location} name={name} day={day} compact />
+        <div
+          className={styles.compactVisual}
+          data-testid="solar-map-compact-visual"
+          style={{ aspectRatio: COMPACT_SOLAR_MAP_ASPECT_RATIO }}
+        >
+          <SolarMapDrawing time={clock} location={location} name={name} day={day} />
         </div>
       ) : (
         <div className={styles.mapFrame}>

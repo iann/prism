@@ -3,7 +3,7 @@ import * as SunCalc from 'suncalc';
 export const DAY_MS = 86_400_000;
 const RAD = Math.PI / 180;
 export const MAP_WIDTH = 1000;
-export const MAP_HEIGHT = 500;
+export const MAP_HEIGHT = 400;
 export type Coordinates = { lat: number; lon: number };
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 export type SolarSample = SunCalc.Position & { time: number };
@@ -19,12 +19,19 @@ export function wrapLongitude(value: number): number {
 }
 
 export function project({ lat, lon }: Coordinates) {
-  return { x: ((lon + 180) / 360) * MAP_WIDTH, y: ((90 - lat) / 180) * MAP_HEIGHT };
+  // Lambert cylindrical equal-area, normalized to the widget's 5:2 frame
+  // (about a 27° standard parallel). Longitude stays linear; latitude uses
+  // sin(phi), preserving area while bringing the poles closer together.
+  return {
+    x: ((lon + 180) / 360) * MAP_WIDTH,
+    y: ((1 - Math.sin(lat * RAD)) / 2) * MAP_HEIGHT,
+  };
 }
 
 export function unproject(x: number, y: number): Coordinates {
+  const normalizedY = Math.max(0, Math.min(1, y / MAP_HEIGHT));
   return {
-    lat: Math.max(-90, Math.min(90, 90 - (y / MAP_HEIGHT) * 180)),
+    lat: Math.asin(1 - 2 * normalizedY) / RAD,
     lon: Math.max(-180, Math.min(180, (x / MAP_WIDTH) * 360 - 180)),
   };
 }
@@ -101,7 +108,7 @@ export function nightPath(subsolar: Coordinates, threshold = 0, outline = false)
   const latitudes = new Set([limit, -limit]);
   for (let lat = 90; lat >= -90; lat -= 0.5) latitudes.add(lat);
   for (const lat of [...latitudes].sort((a, b) => b - a)) {
-    const y = ((90 - lat) / 180) * MAP_HEIGHT;
+    const y = project({ lat, lon: 0 }).y;
     const half = (nightHalfWidth(lat, subsolar.lat, threshold) / 360) * MAP_WIDTH;
     left.push(`${(center - half).toFixed(2)},${y.toFixed(2)}`);
     right.push(`${(center + half).toFixed(2)},${y.toFixed(2)}`);

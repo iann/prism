@@ -48,7 +48,7 @@ import { getTemperatureTrend } from '@/lib/weather/temperatureTrend';
 import { formatWeatherSummary } from '@/lib/weather/weatherSummary';
 import { getUvIndexTrend, type UvIndexTrend } from '@/lib/weather/uvIndexTrend';
 import { WidgetContainer } from './WidgetContainer';
-import { SolarWorldMap } from './SolarWorldMap';
+import { COMPACT_SOLAR_MAP_ASPECT_RATIO, SolarWorldMap } from './SolarWorldMap';
 import { DayHeader } from './WeatherForecastBar';
 import { useTranslations } from 'next-intl';
 
@@ -1241,10 +1241,10 @@ function PrecipitationChart({
   const PAD_RIGHT = 4;
   const PAD_TOP   = 4;
   const AXIS_H    = 22;
-  // Keep the rain state in the same 2:1 footprint as the compact solar map.
+  // Keep the rain state in the same 5:2 footprint as the compact solar map.
   // The chart plot grows with the available width after reserving space for
   // the header, axis labels, and top padding.
-  const CHART_H   = Math.max(24, width / 2 - PAD_TOP - AXIS_H - 24);
+  const CHART_H   = Math.max(24, width / COMPACT_SOLAR_MAP_ASPECT_RATIO - PAD_TOP - AXIS_H - 24);
   const totalH    = PAD_TOP + CHART_H + AXIS_H;
   const chartW    = Math.max(1, width - PAD_LEFT - PAD_RIGHT);
   const baseY     = PAD_TOP + CHART_H;
@@ -1347,7 +1347,7 @@ function PrecipitationChart({
     <div
       className="flex w-full flex-col gap-2"
       data-testid="precipitation-chart-slot"
-      style={{ aspectRatio: '2 / 1' }}
+      style={{ aspectRatio: COMPACT_SOLAR_MAP_ASPECT_RATIO }}
     >
       <div
         className="flex items-center justify-between gap-4"

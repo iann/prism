@@ -69,11 +69,18 @@ describe('global solar geometry', () => {
   it('does not draw artificial polar closure lines as part of the terminator', () => {
     const outline = nightPath({ lat: 23.44, lon: 0 }, 0, true);
     expect(outline).not.toContain('Z');
-    expect(outline).not.toMatch(/,0\.00|,500\.00/);
+    expect(outline).not.toMatch(/,0\.00|,400\.00/);
     expect(outline.match(/M/g)).toHaveLength(2);
   });
 
-  it('round-trips clicks at the poles and date line', () => {
+  it('projects the whole world to a 5:2 Lambert equal-area map', () => {
+    expect(project({ lat: 0, lon: 0 })).toEqual({ x: 500, y: 200 });
+    expect(project({ lat: 30, lon: 0 }).y).toBeCloseTo(100, 5);
+    expect(project({ lat: 90, lon: 0 }).y).toBeCloseTo(0, 8);
+    expect(project({ lat: -90, lon: 0 }).y).toBeCloseTo(400, 8);
+  });
+
+  it('round-trips coordinates at the poles and date line', () => {
     for (const location of [
       { lat: 90, lon: 180 },
       { lat: -90, lon: -180 },

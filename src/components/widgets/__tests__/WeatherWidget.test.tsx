@@ -353,7 +353,7 @@ describe('active weather alerts', () => {
   });
 });
 describe('precipitation notice', () => {
-  it('matches the compact solar map with a 2:1 chart footprint', () => {
+  it('matches the compact solar map with a shorter 5:2 chart footprint', () => {
     const minutely = Array.from({ length: 61 }, (_, index) => ({
       time: index * 60,
       precipIntensity: 0.2,
@@ -362,7 +362,7 @@ describe('precipitation notice', () => {
     const { container } = render(<WeatherWidget data={makeWeatherData({ minutely })} />);
 
     const slot = container.querySelector('[data-testid="precipitation-chart-slot"]');
-    expect((slot as HTMLDivElement | null)?.style.aspectRatio).toBe('2 / 1');
+    expect((slot as HTMLDivElement | null)?.style.aspectRatio).toBe('2.5');
   });
 
   it('renders a compact themed next-hour header and timing message', () => {
