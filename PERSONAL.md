@@ -931,6 +931,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 39bcdcc1
 
+116. **Solar-noon-aligned, geometrically accurate world illumination**
+
+    Updates the fixed illumination and twilight bands from the Sun's live
+    declination while the dotted map follows its live longitude, so the
+    configured location sits at the center of the map at its calculated solar
+    noon. Preserves the exact geometric day/night and twilight thresholds
+    while the local sunrise and sunset arc continues to use SunCalc.
+
+    Commit: cec048be
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
