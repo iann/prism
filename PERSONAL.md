@@ -958,6 +958,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: baaeaea1
 
+119. **Graceful widget degradation during network outages**
+
+    Keeps each widget's last successful data visible when a background request
+    fails, pauses polling while the browser is offline, and forces a refresh
+    for all active data hooks when connectivity returns.
+
+    Commit: 042fa0ab
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
