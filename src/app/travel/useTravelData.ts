@@ -31,10 +31,15 @@ export function useTravelData() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const data = await fetchAll();
-    setPins(data.pins);
-    setTrips(data.trips);
-    setLoading(false);
+    try {
+      const data = await fetchAll();
+      setPins(data.pins);
+      setTrips(data.trips);
+    } catch {
+      // Keep the last successful snapshot; the shared poller retries on reconnect.
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);

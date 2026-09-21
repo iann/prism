@@ -88,6 +88,7 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
   const [loading, setLoading] = useDistinctState(enabled && !cached);
   const [error, setError] = useDistinctState<string | null>(null);
   const hasDataRef = useRef(cached !== undefined);
+  const loadedCacheKeyRef = useRef<string | null>(cached !== undefined ? cacheKey : null);
 
   /**
    * Fetch chores from the API
@@ -161,10 +162,13 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
 
       navCacheSet(cacheKey, transformedChores);
       hasDataRef.current = true;
+      loadedCacheKeyRef.current = cacheKey;
       replaceDistinct(choresRef, setChores, transformedChores);
     } catch (err) {
       console.error('Error fetching chores:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch chores');
+      if (loadedCacheKeyRef.current !== cacheKey) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch chores');
+      }
     } finally {
       setLoading(false);
     }
@@ -240,7 +244,9 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
   const adoptChores = useCallback((cachedChores: Chore[]) => {
     setChores(cachedChores);
     setLoading(false);
-  }, []);
+    hasDataRef.current = true;
+    loadedCacheKeyRef.current = cacheKey;
+  }, [cacheKey]);
 
   // Mounting a second copy (most often the screensaver) reuses a recent
   // response instead of cold-loading the widget again.
@@ -253,7 +259,7 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
   });
 
   // Set up refresh interval with visibility-based pause (disabled when not enabled)
-  useVisibilityPolling(fetchChores, enabled ? refreshInterval : 0, refreshOffsetMs);
+  useVisibilityPolling(fetchChores, enabled ? refreshInterval : 0, refreshOffsetMs, true, enabled);
 
   return {
     chores,

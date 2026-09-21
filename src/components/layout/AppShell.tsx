@@ -34,6 +34,7 @@ import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useInactivityRedirect } from '@/lib/hooks/useInactivityRedirect';
+import { NetworkStatusIndicator } from './NetworkStatusIndicator';
 
 /**
  * APP SHELL PROPS
@@ -149,6 +150,9 @@ export function AppShell({
       data-layout-theme={isLCARS ? 'lcars' : 'standard'}
       data-chrome-hidden={showLCARSChrome && chromeHidden ? 'true' : undefined}
     >
+      {/* LCARS renders its own network readout in the status bar. */}
+      {!isLCARS && <NetworkStatusIndicator />}
+
       {/* WALLPAPER BACKGROUND (only on dashboard/screensaver) */}
       {showWallpaper && !isLCARS && <WallpaperBackground />}
 

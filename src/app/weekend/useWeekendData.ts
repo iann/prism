@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import type { WeekendPlace } from './types';
 
@@ -19,15 +19,18 @@ export function useWeekendData() {
   const [places, setPlaces] = useState<WeekendPlace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/weekend/places');
-      const data = res.ok ? await res.json() : { places: [] };
+      if (!res.ok) throw new Error('Failed to load places');
+      const data = await res.json();
       setPlaces(data.places ?? []);
+      hasLoadedRef.current = true;
       setError(null);
     } catch {
-      setError('Failed to load places');
+      if (!hasLoadedRef.current) setError('Failed to load places');
     } finally {
       setLoading(false);
     }

@@ -55,6 +55,7 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
   // that had remained mounted, so a remount can adopt it without a request.
   const maxAgeMs = usePollingInterval(refreshInterval);
   const cached = navCacheGet<T>(url, maxAgeMs);
+  const hasCachedValue = cached !== undefined;
   const [data, setDataState] = useState<T>(() => cached ?? initialData);
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -68,7 +69,7 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
     });
   }, []);
 
-  const [loadingState, setLoadingState] = useState(enabled && !cached);
+  const [loadingState, setLoadingState] = useState(enabled && !hasCachedValue);
   const loadingRef = useRef(loadingState);
   loadingRef.current = loadingState;
   const setLoading = useCallback((next: boolean) => {
@@ -87,7 +88,7 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
 
   // Once a URL has loaded, polling stays stale-while-revalidate even when the
   // cache entry ages past the short navigation window.
-  const loadedUrlRef = useRef<string | null>(cached ? url : null);
+  const loadedUrlRef = useRef<string | null>(hasCachedValue ? url : null);
 
   const applyResult = useCallback((result: T) => {
     loadedUrlRef.current = url;
@@ -123,7 +124,11 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
       applyResult(result);
     } catch (err) {
       console.error(`Error fetching ${labelRef.current}:`, err);
-      setError(err instanceof Error ? err.message : `Failed to fetch ${labelRef.current}`);
+      // Once this endpoint has loaded, keep showing its last good value if a
+      // background refresh fails. The next successful poll will update it.
+      if (loadedUrlRef.current !== url) {
+        setError(err instanceof Error ? err.message : `Failed to fetch ${labelRef.current}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -142,6 +147,7 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
     enabled ? refreshInterval : 0,
     refreshOffsetMs,
     respectPerformanceMode,
+    enabled,
   );
 
   const refresh = useCallback(() => fetchData({ force: true }), [fetchData]);
