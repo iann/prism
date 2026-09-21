@@ -42,10 +42,9 @@ import '@fontsource/noto-color-emoji/index.css';
 // Next.js types for metadata
 import type { Metadata, Viewport } from 'next';
 
-// DM Sans from Google Fonts (loaded by Next.js for performance)
-// Next.js automatically optimizes font loading to prevent layout shift
-import { Inter, Fraunces, Nunito, JetBrains_Mono } from 'next/font/google';
-import { DM_Sans } from 'next/font/google';
+// Keep the theme fonts local so production builds do not depend on Google
+// Fonts being reachable or returning a format that Next.js can parse.
+import localFont from 'next/font/local';
 
 // Providers (theme, auth, etc.)
 import { Providers } from '@/components/providers';
@@ -67,10 +66,11 @@ import { themeCss } from '@/lib/themes/applyTheme';
 /**
  * FONT CONFIGURATION
  * DM Sans gives the wall display a friendlier, more open rhythm than a
- * desktop-first UI font while remaining highly legible at distance.
+ * desktop-first UI font while remaining highly legible at distance. The Latin
+ * variable fonts are bundled with the app and emitted by next/font/local.
  *
  * Configuration options:
- * - subsets: Which character sets to include (latin for English)
+ * - src: The locally bundled Latin variable font for this family
  * - variable: CSS variable name for using the font in Tailwind
  * - display: 'swap' shows fallback font immediately, then swaps when loaded
  *
@@ -80,17 +80,18 @@ import { themeCss } from '@/lib/themes/applyTheme';
  * - Comfortable rhythm at large display sizes
  * - Open source and free to use
  */
-const dmSans = DM_Sans({
-  subsets: ['latin'],
+const dmSans = localFont({
+  src: '../../node_modules/@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2',
   variable: '--font-dm-sans',
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
+  weight: '400 700',
 });
 
-const inter = Inter({
-  subsets: ['latin'],
+const inter = localFont({
+  src: '../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
   variable: '--font-inter',
   display: 'swap',
+  weight: '100 900',
 });
 
 /**
@@ -102,22 +103,25 @@ const inter = Inter({
  * theme actually selects, so the cost of the three unused ones is disk in the
  * container, not bytes on a display.
  */
-const fraunces = Fraunces({
-  subsets: ['latin'],
+const fraunces = localFont({
+  src: '../../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2',
   variable: '--font-serif',
   display: 'swap',
+  weight: '100 900',
 });
 
-const nunito = Nunito({
-  subsets: ['latin'],
+const nunito = localFont({
+  src: '../../node_modules/@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2',
   variable: '--font-rounded',
   display: 'swap',
+  weight: '200 1000',
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
+const jetbrainsMono = localFont({
+  src: '../../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2',
   variable: '--font-mono-theme',
   display: 'swap',
+  weight: '100 800',
 });
 
 
