@@ -113,6 +113,7 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
   const [total, setTotal] = useState(() => cached?.total ?? 0);
   const offsetRef = useRef(0);
   const hasDataRef = useRef(cached !== undefined);
+  const loadedCacheKeyRef = useRef<string | null>(cached !== undefined ? cacheKey : null);
 
   const fetchPhotos = useCallback(async (requestOffset = 0, append = false) => {
     try {
@@ -137,11 +138,14 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
       } else {
         navCacheSet(cacheKey, { photos: data.photos, total: data.total });
         hasDataRef.current = true;
+        loadedCacheKeyRef.current = cacheKey;
         setPhotos(current => preserveEqual(current, data.photos));
       }
       setTotal(data.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch photos');
+      if (loadedCacheKeyRef.current !== cacheKey) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch photos');
+      }
     } finally {
       setLoading(false);
     }
@@ -203,7 +207,7 @@ export function usePhotos(options: UsePhotosOptions = {}): UsePhotosResult {
   const pollPhotos = useCallback(() => { fetchPhotos(0, false); }, [fetchPhotos]);
 
   // Periodic refresh — pauses when tab is hidden
-  useVisibilityPolling(pollPhotos, enabled ? refreshInterval : 0);
+  useVisibilityPolling(pollPhotos, enabled ? refreshInterval : 0, { refreshOnReconnect: enabled });
 
   return { photos, loading, error, total, refresh, loadMore, toggleFavorite, updateUsage };
 }

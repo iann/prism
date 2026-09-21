@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
 import { usePollingInterval } from './usePollingInterval';
 import { useCachedMountFetch } from './useCachedMountFetch';
@@ -49,6 +49,7 @@ export function useWishItems(
   const [items, setItems] = useState<WishItem[]>(() => cached ?? []);
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
+  const loadedCacheKeyRef = useRef<string | null>(cached !== undefined ? cacheKey : null);
 
   const fetchItems = useCallback(async () => {
     if (!navCacheGet(cacheKey, maxAgeMs)) setLoading(true);
@@ -68,10 +69,13 @@ export function useWishItems(
 
       const data = await response.json();
       navCacheSet(cacheKey, data.items || []);
+      loadedCacheKeyRef.current = cacheKey;
       setItems(data.items || []);
     } catch (err) {
       console.error('Error fetching wish items:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch wish items');
+      if (loadedCacheKeyRef.current !== cacheKey) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch wish items');
+      }
     } finally {
       setLoading(false);
     }
@@ -190,7 +194,8 @@ export function useWishItems(
   const adoptItems = useCallback((cachedItems: WishItem[]) => {
     setItems(cachedItems);
     setLoading(false);
-  }, []);
+    loadedCacheKeyRef.current = cacheKey;
+  }, [cacheKey]);
 
   useCachedMountFetch<WishItem[]>({
     key: cacheKey,

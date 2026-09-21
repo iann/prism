@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { normalizeWidgetInstances } from '@/lib/utils/widgetInstances';
+import { useVisibilityPolling } from './useVisibilityPolling';
 
 export interface WidgetConfig {
   /** Unique instance key used by the grid, React, and drag/drop. */
@@ -62,6 +63,7 @@ export function useLayouts(): UseLayoutsResult {
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const fetchLayouts = useCallback(async () => {
     try {
@@ -134,13 +136,20 @@ export function useLayouts(): UseLayoutsResult {
         return { ...l, widgets };
       });
       setLayouts(normalized);
+      hasLoadedRef.current = true;
     } catch (err) {
       console.error('Error fetching layouts:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch layouts');
+      if (!hasLoadedRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch layouts');
+      }
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Layouts are needed to render the dashboard but do not otherwise poll.
+  // Retry a failed initial load as soon as the browser reports reconnection.
+  useVisibilityPolling(fetchLayouts, 0, { refreshOnReconnect: true });
 
   const saveLayout = useCallback(
     async (

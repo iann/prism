@@ -141,7 +141,9 @@ export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShop
       replaceDistinct(listsRef, setLists, listsWithItems);
     } catch (err) {
       console.error('Error fetching shopping lists:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch shopping lists');
+      if (!hasDataRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch shopping lists');
+      }
     } finally {
       setLoading(false);
     }
@@ -284,7 +286,7 @@ export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShop
   });
 
   // Set up refresh interval with visibility-based pause (disabled when not enabled)
-  useVisibilityPolling(fetchLists, enabled ? refreshInterval : 0, refreshOffsetMs);
+  useVisibilityPolling(fetchLists, enabled ? refreshInterval : 0, refreshOffsetMs, true, enabled);
 
   return {
     lists,

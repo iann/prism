@@ -28,6 +28,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const membersRef = React.useRef<FamilyMember[]>([]);
+  const hasLoadedRef = React.useRef(false);
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -72,12 +73,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           membersRef.current = next;
           setMembers(next);
         }
+        hasLoadedRef.current = true;
       } else {
-        setError('Failed to fetch family members');
+        if (!hasLoadedRef.current) setError('Failed to fetch family members');
       }
     } catch (err) {
       console.error('Failed to fetch family members:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch family members');
+      if (!hasLoadedRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch family members');
+      }
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
 
 export interface BusCheckpoint {
@@ -102,6 +102,7 @@ export function useBusTracking() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -110,9 +111,12 @@ export function useBusTracking() {
       const data: BusStatusResponse = await res.json();
       setRoutes(data.routes);
       setConnected(data.connected);
+      hasLoadedRef.current = true;
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      if (!hasLoadedRef.current) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      }
     } finally {
       setLoading(false);
     }
@@ -128,7 +132,7 @@ export function useBusTracking() {
 
   // Adaptive polling
   const pollingInterval = useMemo(() => getPollingInterval(visibleRoutes), [visibleRoutes]);
-  useVisibilityPolling(fetchStatus, pollingInterval);
+  useVisibilityPolling(fetchStatus, pollingInterval, { refreshOnReconnect: true });
 
   const refresh = useCallback(() => {
     setLoading(true);

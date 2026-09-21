@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
 
 export type BabysitterSection = 'emergency_contact' | 'house_info' | 'child_info' | 'house_rule';
@@ -45,21 +45,25 @@ export function useBabysitterInfo(
   const [items, setItems] = useState<BabysitterInfoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedUrlRef = useRef<string | null>(null);
 
   const fetchItems = useCallback(async () => {
+    const url = includeSensitive
+      ? '/api/babysitter-info?includeSensitive=true'
+      : '/api/babysitter-info';
     try {
       setError(null);
-      const url = includeSensitive
-        ? '/api/babysitter-info?includeSensitive=true'
-        : '/api/babysitter-info';
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch babysitter info');
 
       const data = await response.json();
       setItems(data.items);
+      loadedUrlRef.current = url;
     } catch (err) {
       console.error('Error fetching babysitter info:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch babysitter info');
+      if (loadedUrlRef.current !== url) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch babysitter info');
+      }
     } finally {
       setLoading(false);
     }

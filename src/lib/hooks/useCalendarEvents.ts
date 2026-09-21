@@ -139,6 +139,7 @@ export function useCalendarEvents(
   const [error, setError] = useDistinctState<string | null>(null);
   const [lastSyncCheck, setLastSyncCheck] = useState<Date | null>(null);
   const hasEventsRef = useRef(cached !== undefined);
+  const loadedCacheKeyRef = useRef<string | null>(cached !== undefined ? cacheKey : null);
 
   /**
    * Fetch events from the API
@@ -199,10 +200,13 @@ export function useCalendarEvents(
 
       navCacheSet(cacheKey, transformedEvents);
       hasEventsRef.current = true;
+      loadedCacheKeyRef.current = cacheKey;
       replaceDistinct(eventsRef, setEvents, transformedEvents);
     } catch (err) {
       console.error('Error fetching events:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch events');
+      if (loadedCacheKeyRef.current !== cacheKey) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch events');
+      }
     } finally {
       setLoading(false);
     }
@@ -236,15 +240,18 @@ export function useCalendarEvents(
       await fetchEvents();
     } catch (err) {
       console.error('Error syncing calendars:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sync calendars');
+      if (loadedCacheKeyRef.current !== cacheKey) {
+        setError(err instanceof Error ? err.message : 'Failed to sync calendars');
+      }
     }
   }, [fetchEvents]);
 
   const adoptEvents = useCallback((cachedEvents: CalendarEvent[]) => {
     hasEventsRef.current = true;
+    loadedCacheKeyRef.current = cacheKey;
     replaceDistinct(eventsRef, setEvents, cachedEvents);
     setLoading(false);
-  }, []);
+  }, [cacheKey]);
 
   // Mounting a second calendar copy can reuse a recent response from the
   // shared cache; explicit refreshes and periodic polls still hit the API.
@@ -269,7 +276,7 @@ export function useCalendarEvents(
   }, [enabled, fetchEvents]);
 
   // Periodic data refresh — pauses when tab is hidden
-  useVisibilityPolling(fetchEvents, enabled ? refreshInterval : 0, refreshOffsetMs);
+  useVisibilityPolling(fetchEvents, enabled ? refreshInterval : 0, refreshOffsetMs, true, enabled);
 
   // Auto-sync: check if any Google calendar is stale and trigger sync if needed
   const checkAndSync = useCallback(async () => {

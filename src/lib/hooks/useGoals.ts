@@ -102,7 +102,9 @@ export function useGoals(options: { refreshInterval?: number; refreshOffsetMs?: 
       replaceDistinct(childrenRef, setGoalChildren, data.children);
     } catch (err) {
       console.error('Error fetching goals:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch goals');
+      if (!hasDataRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch goals');
+      }
     } finally {
       setLoading(false);
     }
@@ -190,7 +192,7 @@ export function useGoals(options: { refreshInterval?: number; refreshOffsetMs?: 
     adopt: adoptGoals,
   });
 
-  useVisibilityPolling(fetchGoals, enabled ? refreshInterval : 0, refreshOffsetMs);
+  useVisibilityPolling(fetchGoals, enabled ? refreshInterval : 0, refreshOffsetMs, true, enabled);
 
   return {
     goals, progress, goalChildren, loading, error,
