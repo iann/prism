@@ -1,6 +1,11 @@
-// Rebuild the bundled equirectangular land path. Natural Earth is public domain.
+// Rebuild the bundled 5:2 Lambert cylindrical equal-area land path (about a
+// 27° standard parallel). Natural Earth is public domain.
 // No map service or runtime network request is required by the solar display.
 import { writeFile } from 'node:fs/promises';
+
+const MAP_WIDTH = 1000;
+const MAP_HEIGHT = 400;
+const RAD = Math.PI / 180;
 
 const source =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_land.geojson';
@@ -18,7 +23,7 @@ for (const { geometry } of data.features) {
             ring
               .map(
                 ([lon, lat], index) =>
-                  `${index ? 'L' : 'M'}${(((lon + 180) / 360) * 1000).toFixed(2)},${(((90 - lat) / 180) * 500).toFixed(2)}`
+                  `${index ? 'L' : 'M'}${(((lon + 180) / 360) * MAP_WIDTH).toFixed(2)},${(((1 - Math.sin(lat * RAD)) / 2) * MAP_HEIGHT).toFixed(2)}`
               )
               .join('') + 'Z'
         )

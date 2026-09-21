@@ -68,13 +68,13 @@
 }
 .compactVisual {
   width: 100%;
-  aspect-ratio: 2 / 1;
   border-radius: var(--radius, 0.5rem);
   overflow: hidden;
 }
 .compact .drawing {
+  /* The Lambert equal-area viewBox matches the compact frame's 5:2 ratio. */
   width: 100%;
-  height: auto;
+  height: 100%;
   max-width: 100%;
   margin-inline: auto;
 }

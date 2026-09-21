@@ -13,23 +13,25 @@ describe('SolarWorldMap display', () => {
     window.history.replaceState({}, '', '/');
   });
 
-  it('updates global illumination and the local Sun position live', () => {
+  it('updates global illumination and elapsed arc progress live', () => {
     const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
-    const localSun = screen.getByTestId('local-sun-position');
-    const localX = localSun.getAttribute('cx');
+    const elapsedArc = screen
+      .getByTestId('solar-dotted-arc')
+      .querySelector('[data-solar-arc-band="daylight"][data-solar-arc-phase="elapsed"]');
+    const elapsedPath = elapsedArc?.getAttribute('d');
     const cap = container.querySelector('[data-solar-band="0"]')?.getAttribute('d');
 
     act(() => jest.advanceTimersByTime(60_000));
 
-    expect(localSun.getAttribute('cx')).not.toBe(localX);
+    expect(elapsedArc?.getAttribute('d')).not.toBe(elapsedPath);
     expect(container.querySelector('[data-solar-band="0"]')?.getAttribute('d')).not.toBe(cap);
   });
 
-  it('renders only the map and arc, without point markers or control chrome', () => {
+  it('renders only the map and arc, without sun/location markers or control chrome', () => {
     render(<SolarWorldMap lat={42.36} lon={-71.06} locationName="Boston" />);
 
     expect(screen.getByRole('img', { name: 'Solar world map for Boston' })).toBeTruthy();
-    expect(screen.getByTestId('local-sun-position')).toBeTruthy();
+    expect(screen.queryByTestId('local-sun-position')).toBeNull();
     expect(screen.queryByTestId('subsolar-point')).toBeNull();
     expect(screen.queryByTestId('selected-location')).toBeNull();
     expect(screen.queryByText('LOCAL SKY')).toBeNull();
@@ -38,11 +40,13 @@ describe('SolarWorldMap display', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
-  it('keeps the compact map at its natural 2:1 projection ratio', () => {
+  it('uses a full-frame 5:2 Lambert map in compact weather widgets', () => {
     const { container } = render(<SolarWorldMap compact lat={42.36} lon={-71.06} />);
     const map = container.querySelector('svg[role="img"]');
+    const frame = screen.getByTestId('solar-map-compact-visual') as HTMLDivElement;
 
-    expect(map?.getAttribute('viewBox')).toBe('0 0 1000 500');
+    expect(frame.style.aspectRatio).toBe('2.5');
+    expect(map?.getAttribute('viewBox')).toBe('0 0 1000 400');
     expect(map?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
   });
 
@@ -51,7 +55,7 @@ describe('SolarWorldMap display', () => {
 
     const equator = screen.getByTestId('solar-equator-line');
 
-    expect(equator.getAttribute('d')).toBe('M0 250H1000');
+    expect(equator.getAttribute('d')).toBe('M0 200H1000');
     expect(equator.getAttribute('stroke-dasharray')).toBeNull();
     expect(screen.queryByTestId('solar-event-sunrise')).toBeNull();
     expect(screen.queryByTestId('solar-event-sunset')).toBeNull();

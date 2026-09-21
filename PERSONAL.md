@@ -892,10 +892,17 @@ upstream-sync-only commits are omitted unless they changed behavior.
     Aligns the local solar arc's zero-altitude point with the world map's
     equator, marks that baseline with a thin solid gray line, removes sunrise
     and sunset endpoint circles, and matches the map's rounded corners to the
-    active theme radius. The precipitation chart now uses the same 2:1
-    footprint as the compact solar map.
+    active theme radius.
 
     Commits: 7998ea02, 35c3f3d5
+
+112. **Lambert equal-area solar map and compact weather charts**
+
+    Projects the dotted world map and day/night twilight bands with a Lambert
+    cylindrical equal-area projection, keeps the compact solar map in a 5:2
+    frame, and matches the precipitation chart to that shorter widget height.
+
+    Commit: 12cd4573
 
 ## Superseded personal iterations
 
