@@ -65,6 +65,7 @@ beforeEach(() => {
   data = makeData();
   action.mockClear();
   confirm.mockClear();
+  confirm.mockResolvedValue(true);
   dismiss.mockClear();
 });
 
@@ -194,13 +195,38 @@ it('matches the radar footprint and uses a square card', () => {
   expect(screen.getByAltText('').className).toContain('h-48');
   expect(screen.getByAltText('').className).toContain('w-48');
 });
-it('provides a radar-sized close button for the current media', () => {
+it('asks whether to turn off the player when closing the current media', async () => {
   render(<MediaPlayerPlaybackCard />);
   const closeButton = screen.getByRole('button', { name: 'Close Media Player playback' });
   expect(closeButton.className).toContain('h-12');
   expect(closeButton.className).toContain('w-12');
   expect(closeButton.parentElement?.lastElementChild).toBe(closeButton);
   fireEvent.click(closeButton);
+  await waitFor(() =>
+    expect(confirm).toHaveBeenCalledWith(
+      'Also turn off Media Player?',
+      'Would you like to turn off the Media Player media player too?',
+      { confirmLabel: 'Turn off', variant: 'default' }
+    )
+  );
+  await waitFor(() => {
+    expect(action).toHaveBeenCalledWith({ control: 'turn_off' });
+    expect(dismiss).toHaveBeenCalledTimes(1);
+  });
+});
+it('closes without turning off when the close prompt is declined', async () => {
+  confirm.mockResolvedValue(false);
+  render(<MediaPlayerPlaybackCard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Close Media Player playback' }));
+  await waitFor(() => expect(confirm).toHaveBeenCalled());
+  expect(action).not.toHaveBeenCalled();
+  expect(dismiss).toHaveBeenCalledTimes(1);
+});
+it('closes directly when turning off is not supported', () => {
+  data = makeData({ supportedControls: ['play', 'pause'] });
+  render(<MediaPlayerPlaybackCard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Close Media Player playback' }));
+  expect(confirm).not.toHaveBeenCalled();
   expect(dismiss).toHaveBeenCalledTimes(1);
 });
 it('uses a generic power confirmation when no remote is configured', async () => {
