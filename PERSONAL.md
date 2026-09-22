@@ -891,6 +891,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 61fff0fc
 
+110. **Confirm media player shutdown when closing playback**
+
+    Prompts whether to turn off a supported media player when the user closes
+    its playback card, while preserving the close-only behavior when declined
+    or when the player does not support power control.
+
+    Commit: b558e79b
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
