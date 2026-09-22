@@ -144,6 +144,17 @@ export function MediaPlayerPlaybackCard({
   const hasExplicitPlaybackControl = playbackControl !== null && can(playbackControl);
   const artwork = data.artworkUrl && !artworkFailed ? data.artworkUrl : null;
   const deviceName = data.deviceName || 'Media Player';
+  const handleClose = async () => {
+    if (can('turn_off')) {
+      const turnOff = await confirm(
+        `Also turn off ${deviceName}?`,
+        `Would you like to turn off the ${deviceName} media player too?`,
+        { confirmLabel: 'Turn off', variant: 'default' }
+      );
+      if (turnOff) await run({ control: 'turn_off' });
+    }
+    dismiss();
+  };
   return (
     <>
       <Card
@@ -210,7 +221,7 @@ export function MediaPlayerPlaybackCard({
               className="h-12 w-12"
               title={`Hide ${deviceName} playback until the media changes`}
               aria-label={`Close ${deviceName} playback`}
-              onClick={dismiss}
+              onClick={() => void handleClose()}
             >
               <X />
             </Button>
