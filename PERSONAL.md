@@ -974,6 +974,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: b558e79b
 
+121. **Mute the solar marker after sunset**
+
+    Changes the current Sun marker from gold to a muted tone once it drops
+    below the horizon, with a dimmer halo and an accessible above/below-horizon
+    label.
+
+    Commit: 512c00bc
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
