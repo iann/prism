@@ -159,6 +159,7 @@ function SolarMapDrawing({
     all.map(({ time: sampleTime, altitude }) => ({ time: sampleTime, altitude }))
   );
   const currentSunPoint = mapSolarArcPoint(current, day);
+  const currentSunIsBelowHorizon = current.altitude < 0;
   const elapsedDaylight = solarArcSegments(
     arcSamples,
     day,
@@ -382,7 +383,12 @@ function SolarMapDrawing({
           <g
             data-testid="solar-arc-sun-marker"
             role="img"
-            aria-label="Current Sun position on the local solar arc"
+            aria-label={
+              currentSunIsBelowHorizon
+                ? 'Current Sun below horizon on local solar arc'
+                : 'Current Sun above horizon on local solar arc'
+            }
+            className={currentSunIsBelowHorizon ? styles.solarArcSunBelowHorizon : undefined}
           >
             <circle
               cx={currentSunPoint.x.toFixed(2)}

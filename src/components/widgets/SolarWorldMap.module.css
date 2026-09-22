@@ -74,6 +74,13 @@
   stroke-width: 3;
   pointer-events: none;
 }
+.solarArcSunBelowHorizon .solarArcSunHalo {
+  fill: var(--solar-muted);
+  opacity: 0.1;
+}
+.solarArcSunBelowHorizon .solarArcSunDisc {
+  fill: var(--solar-muted);
+}
 .solarArcSunCore {
   fill: var(--solar-surface);
   pointer-events: none;
