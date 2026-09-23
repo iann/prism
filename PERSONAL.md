@@ -982,6 +982,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 512c00bc
 
+122. **Standalone browser solar harness**
+
+    Adds a Cloudflare Pages-ready Vite harness for the sunlight map and local
+    solar-altitude arc, with Boston, MA defaults, shareable query-string state,
+    custom or preset locations, live or frozen time, theme selection, and
+    mutually exclusive map-motion or shadow-motion modes.
+
+    Commit: a2727d7a
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
