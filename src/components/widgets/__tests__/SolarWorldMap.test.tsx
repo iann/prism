@@ -115,6 +115,57 @@ describe('SolarWorldMap display', () => {
     expect(map?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
   });
 
+  it('supports exclusive map and shadow motion modes', () => {
+    const location = { lat: 42.36, lon: -71.06 };
+    const firstTime = Date.parse('2026-06-21T16:00:00Z');
+    const secondTime = Date.parse('2026-06-21T18:00:00Z');
+    const mapView = render(<SolarWorldMap {...location} time={firstTime} motionMode="map" />);
+    const mapLand = screen.getByTestId('world-map-land');
+    const mapShadowLongitude = screen
+      .getAllByTestId('solar-terminator')[0]
+      ?.getAttribute('data-solar-shadow-longitude');
+    const firstMapOffset = mapLand.getAttribute('data-map-offset');
+
+    mapView.rerender(<SolarWorldMap {...location} time={secondTime} motionMode="map" />);
+
+    expect(mapLand.getAttribute('data-map-offset')).not.toBe(firstMapOffset);
+    expect(
+      screen.getAllByTestId('solar-terminator')[0]?.getAttribute('data-solar-shadow-longitude')
+    ).toBe(mapShadowLongitude);
+    mapView.unmount();
+
+    const shadowView = render(<SolarWorldMap {...location} time={firstTime} motionMode="shadow" />);
+    const shadowLand = screen.getByTestId('world-map-land');
+    const shadowLongitude = screen
+      .getAllByTestId('solar-terminator')[0]
+      ?.getAttribute('data-solar-shadow-longitude');
+    const firstShadowOffset = shadowLand.getAttribute('data-map-offset');
+
+    shadowView.rerender(<SolarWorldMap {...location} time={secondTime} motionMode="shadow" />);
+
+    expect(firstShadowOffset).toBe('0.000');
+    expect(shadowLand.getAttribute('data-map-offset')).toBe('0.000');
+    expect(
+      screen.getAllByTestId('solar-terminator')[0]?.getAttribute('data-solar-shadow-longitude')
+    ).not.toBe(shadowLongitude);
+    shadowView.unmount();
+  });
+
+  it('can hide the local solar arc without removing the world map', () => {
+    render(
+      <SolarWorldMap
+        lat={42.36}
+        lon={-71.06}
+        time={Date.parse('2026-06-21T16:00:00Z')}
+        showArc={false}
+      />
+    );
+
+    expect(screen.getByTestId('world-map-land')).toBeTruthy();
+    expect(screen.queryByTestId('solar-dotted-arc')).toBeNull();
+    expect(screen.queryByTestId('solar-arc-sun-marker')).toBeNull();
+  });
+
   it('keeps the astronomical-night core crisp beneath blurred twilight', () => {
     const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
     const twilight = screen.getByTestId('solar-twilight-blur');

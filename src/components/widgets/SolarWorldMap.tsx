@@ -52,6 +52,8 @@ const LAND_DOT_BANDS = [
 const coordinateLabel = ({ lat, lon }: Coordinates) =>
   `${Math.abs(lat).toFixed(1)}° ${lat < 0 ? 'S' : 'N'} · ${Math.abs(lon).toFixed(1)}° ${lon < 0 ? 'W' : 'E'}`;
 
+export type SolarMotionMode = 'map' | 'shadow';
+
 type SolarArcSample = Pick<SolarSample, 'time' | 'altitude'>;
 
 function mapSolarArcPoint(sample: SolarArcSample, day: SolarDay) {
@@ -129,19 +131,26 @@ function SolarMapDrawing({
   location,
   name,
   day,
+  motionMode,
+  showArc,
 }: {
   time: number;
   location: Coordinates;
   name: string;
   day: SolarDay;
+  motionMode: SolarMotionMode;
+  showArc: boolean;
 }) {
   const id = React.useId().replace(/:/g, '');
   const subsolar = React.useMemo(() => getSubsolarPoint(new Date(time)), [time]);
-  const mapOffset = sunFixedMapOffset(subsolar.lon);
-  // Center the instantaneous subsolar meridian on the map. At the configured
-  // location's calculated solar noon, that location is centered without
-  // shifting illumination thresholds or changing the underlying geometry.
-  const shadowSubsolar = React.useMemo(() => ({ lat: subsolar.lat, lon: 0 }), [subsolar.lat]);
+  const mapOffset = motionMode === 'map' ? sunFixedMapOffset(subsolar.lon) : 0;
+  // Map mode keeps the shadow centered and moves the dotted land beneath it.
+  // Shadow mode keeps the land fixed and lets the actual shadow longitude
+  // travel across the projection. The modes are deliberately exclusive.
+  const shadowSubsolar = React.useMemo(
+    () => (motionMode === 'map' ? { lat: subsolar.lat, lon: 0 } : subsolar),
+    [motionMode, subsolar]
+  );
   const caps = React.useMemo(
     () => WORLD_SHADOW_THRESHOLDS.map((altitude) => nightPath(shadowSubsolar, altitude)),
     [shadowSubsolar]
@@ -196,13 +205,15 @@ function SolarMapDrawing({
     >
       <title>Earth illumination and the local Sun path</title>
       <desc>
-        Earth&apos;s dotted land moves beneath illumination and twilight derived from the Sun&apos;s
-        current geometric position, centered on its subsolar meridian. The selected location&apos;s
-        daily solar-altitude arc is centered on its calculated solar noon. The equator is a thin
-        reference line for zero altitude. Evenly spaced dots follow the Sun&apos;s local path
-        through daylight, twilight, and night; it is not a geographic route. Sunrise and sunset on
-        the arc use SunCalc&apos;s apparent-horizon calculation. A restrained gold trail highlights
-        elapsed daylight, and a gold marker shows the current Sun position along the arc.
+        {motionMode === 'map'
+          ? "Earth's dotted land moves beneath illumination and twilight derived from the Sun's current geometric position, centered on its subsolar meridian."
+          : "Earth's dotted land stays fixed while illumination and twilight travel across it with the Sun's current geometric position."}{' '}
+        The selected location&apos;s daily solar-altitude arc is centered on its calculated solar
+        noon. The equator is a thin reference line for zero altitude. Evenly spaced dots follow the
+        Sun&apos;s local path through daylight, twilight, and night; it is not a geographic route.
+        Sunrise and sunset on the arc use SunCalc&apos;s apparent-horizon calculation. A restrained
+        gold trail highlights elapsed daylight, and a gold marker shows the current Sun position
+        along the arc.
       </desc>
       <defs>
         <clipPath id={`${id}-map`}>
@@ -345,76 +356,79 @@ function SolarMapDrawing({
             opacity=".3"
             data-testid="solar-terminator"
             data-solar-declination={shadowSubsolar.lat.toFixed(6)}
+            data-solar-shadow-longitude={shadowSubsolar.lon.toFixed(6)}
           />
         ))}
       </g>
-      <g
-        data-solar-arc="true"
-        role="group"
-        aria-label={`Local daily solar-altitude arc for ${name}`}
-      >
-        <g data-testid="solar-dotted-arc" aria-label="Local solar path with twilight bands">
-          {elapsedDaylight && (
-            <path
-              d={elapsedDaylight}
-              className={styles.solarArcElapsedTrail}
-              data-testid="solar-arc-elapsed-trail"
-              aria-hidden="true"
-            />
-          )}
-          {solarArcDots.map((dot) => (
-            <circle
-              key={dot.time}
-              cx={dot.x.toFixed(2)}
-              cy={dot.y.toFixed(2)}
-              r={LAND_DOT_DIAMETER / 2}
-              className={`${styles.solarArcDot} ${
-                dot.time <= time ? styles.solarArcElapsed : styles.solarArcFuture
-              }`}
-              fill={dot.band.color}
-              data-solar-arc-time={dot.time}
-              data-solar-arc-band={dot.band.key}
-              data-solar-arc-geometric-altitude={dot.geometricAltitude.toFixed(4)}
-              data-solar-arc-phase={dot.time <= time ? 'elapsed' : 'future'}
-              data-testid="solar-arc-dot"
-              aria-hidden="true"
-            />
-          ))}
-          <g
-            data-testid="solar-arc-sun-marker"
-            role="img"
-            aria-label={
-              currentSunIsBelowHorizon
-                ? 'Current Sun below horizon on local solar arc'
-                : 'Current Sun above horizon on local solar arc'
-            }
-            className={currentSunIsBelowHorizon ? styles.solarArcSunBelowHorizon : undefined}
-          >
-            <circle
-              cx={currentSunPoint.x.toFixed(2)}
-              cy={currentSunPoint.y.toFixed(2)}
-              r="14"
-              className={styles.solarArcSunHalo}
-              aria-hidden="true"
-            />
-            <circle
-              cx={currentSunPoint.x.toFixed(2)}
-              cy={currentSunPoint.y.toFixed(2)}
-              r="8"
-              className={styles.solarArcSunDisc}
-              data-testid="solar-arc-sun-disc"
-              aria-hidden="true"
-            />
-            <circle
-              cx={currentSunPoint.x.toFixed(2)}
-              cy={currentSunPoint.y.toFixed(2)}
-              r="2.6"
-              className={styles.solarArcSunCore}
-              aria-hidden="true"
-            />
+      {showArc && (
+        <g
+          data-solar-arc="true"
+          role="group"
+          aria-label={`Local daily solar-altitude arc for ${name}`}
+        >
+          <g data-testid="solar-dotted-arc" aria-label="Local solar path with twilight bands">
+            {elapsedDaylight && (
+              <path
+                d={elapsedDaylight}
+                className={styles.solarArcElapsedTrail}
+                data-testid="solar-arc-elapsed-trail"
+                aria-hidden="true"
+              />
+            )}
+            {solarArcDots.map((dot) => (
+              <circle
+                key={dot.time}
+                cx={dot.x.toFixed(2)}
+                cy={dot.y.toFixed(2)}
+                r={LAND_DOT_DIAMETER / 2}
+                className={`${styles.solarArcDot} ${
+                  dot.time <= time ? styles.solarArcElapsed : styles.solarArcFuture
+                }`}
+                fill={dot.band.color}
+                data-solar-arc-time={dot.time}
+                data-solar-arc-band={dot.band.key}
+                data-solar-arc-geometric-altitude={dot.geometricAltitude.toFixed(4)}
+                data-solar-arc-phase={dot.time <= time ? 'elapsed' : 'future'}
+                data-testid="solar-arc-dot"
+                aria-hidden="true"
+              />
+            ))}
+            <g
+              data-testid="solar-arc-sun-marker"
+              role="img"
+              aria-label={
+                currentSunIsBelowHorizon
+                  ? 'Current Sun below horizon on local solar arc'
+                  : 'Current Sun above horizon on local solar arc'
+              }
+              className={currentSunIsBelowHorizon ? styles.solarArcSunBelowHorizon : undefined}
+            >
+              <circle
+                cx={currentSunPoint.x.toFixed(2)}
+                cy={currentSunPoint.y.toFixed(2)}
+                r="14"
+                className={styles.solarArcSunHalo}
+                aria-hidden="true"
+              />
+              <circle
+                cx={currentSunPoint.x.toFixed(2)}
+                cy={currentSunPoint.y.toFixed(2)}
+                r="8"
+                className={styles.solarArcSunDisc}
+                data-testid="solar-arc-sun-disc"
+                aria-hidden="true"
+              />
+              <circle
+                cx={currentSunPoint.x.toFixed(2)}
+                cy={currentSunPoint.y.toFixed(2)}
+                r="2.6"
+                className={styles.solarArcSunCore}
+                aria-hidden="true"
+              />
+            </g>
           </g>
         </g>
-      </g>
+      )}
     </svg>
   );
 }
@@ -424,6 +438,12 @@ export type SolarWorldMapProps = {
   lon?: number;
   locationName?: string;
   compact?: boolean;
+  /** Controlled timestamp for browser-only harnesses and deterministic renders. */
+  time?: number;
+  /** Keep either the map or the shadow moving, never both. */
+  motionMode?: SolarMotionMode;
+  /** Hide the local altitude arc while preserving the global map. */
+  showArc?: boolean;
   /** Read optional lat/lon URL parameters on the dedicated wall display. */
   readUrl?: boolean;
 };
@@ -433,10 +453,15 @@ export function SolarWorldMap({
   lon,
   locationName,
   compact = false,
+  time,
+  motionMode = 'map',
+  showArc = true,
   readUrl = false,
 }: SolarWorldMapProps) {
   const [clock, setClock] = React.useState<number | null>(null);
   const [urlLocation, setUrlLocation] = React.useState<Coordinates | null>(null);
+  const controlledTime = time !== undefined && Number.isFinite(time) ? time : null;
+  const currentTime = controlledTime ?? clock;
   const configured = lat !== undefined && lon !== undefined && validCoordinates(lat, lon);
   const location = urlLocation ?? (configured ? { lat, lon } : DEFAULT_LOCATION);
   const name = urlLocation
@@ -446,19 +471,20 @@ export function SolarWorldMap({
       : 'Chicago';
   const locationLat = location.lat;
   const locationLon = location.lon;
-  const dayKey = clock === null ? null : solarDayKey(clock, location.lon);
+  const dayKey = currentTime === null ? null : solarDayKey(currentTime, location.lon);
   const day = React.useMemo(
     () => (dayKey ? getSolarDay(dayKey, { lat: locationLat, lon: locationLon }) : null),
     [dayKey, locationLat, locationLon]
   );
 
   React.useEffect(() => {
+    if (controlledTime !== null) return;
     // Initialize after hydration so the server and browser use the same live clock.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setClock(Date.now());
     const interval = setInterval(() => setClock(Date.now()), 15_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [controlledTime]);
 
   React.useEffect(() => {
     if (!readUrl) return;
@@ -476,7 +502,7 @@ export function SolarWorldMap({
     }
   }, [readUrl]);
 
-  if (clock === null || !day)
+  if (currentTime === null || !day)
     return (
       <div className={styles.loading} role="status">
         Finding the sunlight…
@@ -494,11 +520,25 @@ export function SolarWorldMap({
           data-testid="solar-map-compact-visual"
           style={{ aspectRatio: COMPACT_SOLAR_MAP_ASPECT_RATIO }}
         >
-          <SolarMapDrawing time={clock} location={location} name={name} day={day} />
+          <SolarMapDrawing
+            time={currentTime}
+            location={location}
+            name={name}
+            day={day}
+            motionMode={motionMode}
+            showArc={showArc}
+          />
         </div>
       ) : (
         <div className={styles.mapFrame}>
-          <SolarMapDrawing time={clock} location={location} name={name} day={day} />
+          <SolarMapDrawing
+            time={currentTime}
+            location={location}
+            name={name}
+            day={day}
+            motionMode={motionMode}
+            showArc={showArc}
+          />
         </div>
       )}
     </div>
