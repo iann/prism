@@ -1,0 +1,313 @@
+:root {
+  color-scheme: light;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  background: #e9eeec;
+  color: #26312f;
+  --harness-background: #e9eeec;
+  --harness-surface: #f8faf9;
+  --harness-panel: #ffffff;
+  --harness-border: #cfd9d5;
+  --harness-muted: #64716d;
+  --harness-accent: #9b6a10;
+}
+
+.solar-harness {
+  --card: 150 18% 98%;
+  --primary: 158 24% 32%;
+  --card-foreground: 160 13% 19%;
+  --muted-foreground: 158 8% 40%;
+  --radius: 1.5rem;
+  background: var(--harness-background);
+  min-height: 100vh;
+  color: #26312f;
+}
+
+.solar-harness.dark {
+  --card: 195 22% 14%;
+  --primary: 157 28% 68%;
+  --card-foreground: 150 18% 95%;
+  --muted-foreground: 158 10% 68%;
+  color-scheme: dark;
+  color: #e8efec;
+  --harness-background: #101719;
+  --harness-surface: #162023;
+  --harness-panel: #1b282b;
+  --harness-border: #354447;
+  --harness-muted: #a9b7b3;
+  --harness-accent: #f2bd4c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .solar-harness.system {
+    --card: 195 22% 14%;
+    --primary: 157 28% 68%;
+    --card-foreground: 150 18% 95%;
+    --muted-foreground: 158 10% 68%;
+    color-scheme: dark;
+    color: #e8efec;
+    --harness-background: #101719;
+    --harness-surface: #162023;
+    --harness-panel: #1b282b;
+    --harness-border: #354447;
+    --harness-muted: #a9b7b3;
+    --harness-accent: #f2bd4c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--harness-background);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+select,
+input[type='date'],
+input[type='datetime-local'],
+input[type='number'],
+input[type='text'] {
+  border: 1px solid var(--harness-border);
+  border-radius: 8px;
+  background: var(--harness-panel);
+  color: inherit;
+}
+
+button,
+select,
+input[type='date'],
+input[type='datetime-local'],
+input[type='number'],
+input[type='text'] {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--harness-accent);
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--harness-accent);
+  outline-offset: 2px;
+}
+
+input[type='range'] {
+  accent-color: var(--harness-accent);
+  width: 100%;
+}
+
+.solar-harness__shell {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 28px;
+}
+
+.solar-harness__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.solar-harness__header h1 {
+  margin: 0;
+  color: hsl(var(--card-foreground));
+  font-size: clamp(1.6rem, 3vw, 2.5rem);
+  letter-spacing: -0.04em;
+}
+
+.solar-harness__eyebrow {
+  margin: 0 0 5px;
+  color: var(--harness-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.solar-harness__intro {
+  max-width: 660px;
+  margin: 8px 0 0;
+  color: var(--harness-muted);
+  font-size: 0.94rem;
+}
+
+.solar-harness__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(270px, 340px);
+  gap: 20px;
+  align-items: start;
+}
+
+.solar-harness__visual,
+.solar-harness__controls {
+  border: 1px solid var(--harness-border);
+  border-radius: 18px;
+  background: var(--harness-surface);
+  box-shadow: 0 18px 45px rgb(22 41 38 / 8%);
+}
+
+.solar-harness__visual {
+  min-width: 0;
+  padding: 16px;
+}
+
+.solar-harness__visual .display {
+  --card: 150 18% 98%;
+  --primary: 158 24% 32%;
+  --card-foreground: 160 13% 19%;
+  --muted-foreground: 158 8% 40%;
+}
+
+.solar-harness.dark .solar-harness__visual .display {
+  --card: 195 22% 14%;
+  --primary: 157 28% 68%;
+  --card-foreground: 150 18% 95%;
+  --muted-foreground: 158 10% 68%;
+}
+
+.solar-harness__readout {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 4px 0;
+  color: var(--harness-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.solar-harness__readout span:first-child {
+  color: hsl(var(--card-foreground));
+  font-weight: 700;
+}
+
+.solar-harness__controls {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
+.solar-harness__controls fieldset {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.solar-harness__controls legend {
+  margin-bottom: 2px;
+  color: hsl(var(--card-foreground));
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.solar-harness__radio,
+.solar-harness__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: hsl(var(--card-foreground));
+  font-size: 0.9rem;
+}
+
+.solar-harness__radio input,
+.solar-harness__check input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  accent-color: var(--harness-accent);
+}
+
+.solar-harness__radio span {
+  display: grid;
+  gap: 2px;
+}
+
+.solar-harness__radio small {
+  color: var(--harness-muted);
+  font-size: 0.75rem;
+}
+
+.solar-harness__field {
+  display: grid;
+  gap: 5px;
+  color: var(--harness-muted);
+  font-size: 0.76rem;
+}
+
+.solar-harness__field input,
+.solar-harness__field select {
+  width: 100%;
+}
+
+.solar-harness__field input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.solar-harness__coordinate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .solar-harness__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .solar-harness__controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .solar-harness__shell {
+    padding: 16px;
+  }
+
+  .solar-harness__header {
+    display: grid;
+  }
+
+  .solar-harness__header button {
+    width: 100%;
+  }
+
+  .solar-harness__visual {
+    padding: 8px;
+  }
+
+  .solar-harness__controls {
+    grid-template-columns: 1fr;
+  }
+}
