@@ -26,6 +26,7 @@ import {
 import { decrypt, encrypt } from '@/lib/utils/crypto';
 import { validatePublicUrl, UnsafeUrlError } from '@/lib/utils/safeFetch';
 import { isGoogleCalendarWebLink, GOOGLE_WEB_LINK_ERROR } from '@/lib/utils/googleCalendarLink';
+import { localDateToFloatingAllDay } from '@/lib/utils/timeFormat';
 import { async as icalAsync, type VEvent, type CalendarResponse } from 'node-ical';
 
 /**
@@ -671,6 +672,18 @@ export async function syncIcalCalendarSource(
 
       const allDay = vevent.datetype === 'date';
       const baseDurationMs = vevent.end.getTime() - vevent.start.getTime();
+      // node-ical builds VALUE=DATE at server-local midnight; store all-day
+      // ranges as floating UTC midnights with an exclusive end, like Google.
+      // Length is counted in whole days so a DST change between the master and
+      // an occurrence cannot shorten it.
+      const allDayLengthDays = Math.max(1, Math.round(baseDurationMs / (24 * 60 * 60 * 1000)));
+      const storedRange = (inst: { start: Date; end: Date }) => {
+        if (!allDay) return { startTime: inst.start, endTime: inst.end };
+        const startTime = localDateToFloatingAllDay(inst.start);
+        const endTime = new Date(startTime);
+        endTime.setUTCDate(endTime.getUTCDate() + allDayLengthDays);
+        return { startTime, endTime };
+      };
 
       // exdate is keyed by ISO-ish date string but we only need the values for comparison
       const exdates = new Set<number>();
@@ -720,6 +733,7 @@ export async function syncIcalCalendarSource(
       for (const inst of instances) {
         if (dismissed.has(inst.externalId)) continue;
         externalIds.add(inst.externalId);
+        const { startTime, endTime } = storedRange(inst);
         await db
           .insert(events)
           .values({
@@ -728,8 +742,8 @@ export async function syncIcalCalendarSource(
             title,
             description,
             location,
-            startTime: inst.start,
-            endTime: inst.end,
+            startTime,
+            endTime,
             allDay,
             recurring: isRecurring,
             recurrenceRule,
@@ -741,8 +755,8 @@ export async function syncIcalCalendarSource(
               title,
               description,
               location,
-              startTime: inst.start,
-              endTime: inst.end,
+              startTime,
+              endTime,
               allDay,
               recurring: isRecurring,
               recurrenceRule,
@@ -753,7 +767,7 @@ export async function syncIcalCalendarSource(
 
         const prevI = existingByExtId.get(inst.externalId);
         if (!prevI) added++;
-        else if (eventChanged(prevI, { title, description, location, startTime: inst.start, endTime: inst.end, allDay, recurring: isRecurring, recurrenceRule })) updated++;
+        else if (eventChanged(prevI, { title, description, location, startTime, endTime, allDay, recurring: isRecurring, recurrenceRule })) updated++;
         else unchanged++;
       }
     } catch (error) {
