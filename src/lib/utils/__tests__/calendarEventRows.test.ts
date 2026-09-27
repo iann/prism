@@ -19,6 +19,11 @@ function event(id: string, startDay: number, endDay: number): CalendarEvent {
 function timedEvent(id: string, startDay: number, endDay: number): CalendarEvent {
   return {
     ...event(id, startDay, endDay),
+    // Timed events are instants in the display timezone. Keep this fixture's
+    // midnight boundaries local so it remains a one-day event when the suite
+    // runs outside UTC.
+    startTime: new Date(2026, 7, startDay),
+    endTime: new Date(2026, 7, endDay),
     allDay: false,
   };
 }
