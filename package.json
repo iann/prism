@@ -39,6 +39,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:tz": "bash scripts/test-tz.sh",
     "test:e2e": "playwright test",
     "test:e2e:upstream": "playwright test e2e/upstream-regression.spec.ts",
     "test:e2e:ui": "playwright test --ui",

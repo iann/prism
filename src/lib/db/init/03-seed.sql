@@ -207,9 +207,12 @@ BEGIN
     -- ========================================================================
     -- DEFAULT LAYOUT
     -- ========================================================================
-    INSERT INTO layouts (name, is_default, widgets, created_by) VALUES
-        ('Default Dashboard', true,
-         '[{"i":"clock","x":0,"y":0,"w":20,"h":12},{"i":"weather","x":20,"y":0,"w":20,"h":12},{"i":"calendar","x":0,"y":12,"w":40,"h":24},{"i":"tasks","x":0,"y":36,"w":20,"h":20},{"i":"messages","x":20,"y":36,"w":20,"h":20},{"i":"chores","x":0,"y":56,"w":20,"h":16},{"i":"shopping","x":20,"y":56,"w":20,"h":16},{"i":"meals","x":0,"y":72,"w":40,"h":16},{"i":"birthdays","x":0,"y":88,"w":40,"h":12}]',
+    -- Same widgets as DEFAULT_TEMPLATE (src/lib/constants/layoutTemplates.ts)
+    -- and the seed.ts layout, in current 48-column units. Keep all three in
+    -- sync; seedDefaultLayout.test.ts fails if this one drifts.
+    INSERT INTO layouts (name, is_default, orientation, widgets, created_by) VALUES
+        ('Default Dashboard', true, 'landscape',
+         '[{"i":"weather","x":0,"y":0,"w":24,"h":24},{"i":"clock","x":24,"y":0,"w":24,"h":6},{"i":"tasks","x":24,"y":6,"w":24,"h":6},{"i":"chores","x":24,"y":12,"w":24,"h":6},{"i":"shopping","x":24,"y":18,"w":24,"h":6}]',
          alex_id);
 
     RAISE NOTICE '  Created 1 layout';
