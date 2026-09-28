@@ -1080,8 +1080,10 @@ html[data-virtual-keyboard-open] [data-keyboard-aware-dialog] {
  */
 .prism-screensaver-flat [class*="bg-card"],
 .prism-screensaver-flat [class*="backdrop-blur"] {
-  backdrop-filter: none !important;
+  /* -webkit- first: the minifier keeps only the last of the two, and
+     Chromium ignores the prefixed one. */
   -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 /**
