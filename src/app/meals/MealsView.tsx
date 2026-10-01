@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { Emoji } from '@/components/ui/Emoji';
-import { format, addDays, isBefore, startOfDay } from 'date-fns';
+import { format, addDays, isBefore } from 'date-fns';
 import {
   UtensilsCrossed,
   Plus,
@@ -177,7 +177,7 @@ export function MealsView() {
                 const allDayMeals = mealsByDay[day] || [];
                 const dayMeals = filterMealTypes.size > 0 ? allDayMeals.filter(m => filterMealTypes.has(m.mealType)) : allDayMeals;
                 const isDayToday = format(dayDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
-                const isPast = isBefore(dayDate, startOfDay(new Date())) && !isDayToday;
+                const isPast = isBefore(dayDate, today) && !isDayToday;
                 return (
                   <DayRow key={day} day={day} date={dayDate} meals={dayMeals} isToday={isDayToday} isPast={isPast}
                     onAddMeal={() => handleAddWithAuth(day)}
@@ -345,14 +345,16 @@ function MealCard({ meal, onMarkCooked, onUnmarkCooked, onEdit, onDelete, onDrop
           </div>
         )}
       </div>
+      {/* Tailwind v4 only applies group-hover on devices that can hover, so a
+          touchscreen never reveals these. pointer-coarse keeps them visible there. */}
       <div className="flex items-center gap-1">
         {isCooked ? (
-          <Button variant="ghost" size="icon" onClick={onUnmarkCooked} className="wall-touch-control h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" title="Undo cooked"><Undo2 className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onUnmarkCooked} className="wall-touch-control h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 pointer-coarse:opacity-60 transition-opacity" title="Undo cooked"><Undo2 className="h-4 w-4" /></Button>
         ) : (
-          <Button variant="ghost" size="icon" onClick={onMarkCooked} className="wall-touch-control h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" title="Mark as cooked"><CheckCircle2 className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onMarkCooked} className="wall-touch-control h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 pointer-coarse:opacity-60 transition-opacity" title="Mark as cooked"><CheckCircle2 className="h-4 w-4" /></Button>
         )}
-        <Button variant="ghost" size="icon" onClick={onEdit} className="wall-touch-control h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" aria-label="Edit meal"><Edit2 className="h-3 w-3" /></Button>
-        <Button variant="ghost" size="icon" onClick={onDelete} className="wall-touch-control h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity" aria-label="Delete meal"><Trash2 className="h-3 w-3" /></Button>
+        <Button variant="ghost" size="icon" onClick={onEdit} className="wall-touch-control h-7 w-7 opacity-0 group-hover:opacity-100 max-md:opacity-60 pointer-coarse:opacity-60 transition-opacity" aria-label="Edit meal"><Edit2 className="h-3 w-3" /></Button>
+        <Button variant="ghost" size="icon" onClick={onDelete} className="wall-touch-control h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 max-md:opacity-60 pointer-coarse:opacity-60 transition-opacity" aria-label="Delete meal"><Trash2 className="h-3 w-3" /></Button>
       </div>
     </div>
   );

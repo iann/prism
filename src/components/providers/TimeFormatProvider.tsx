@@ -1,20 +1,24 @@
 'use client';
 
 import * as React from 'react';
+import { format } from 'date-fns';
 import {
   DEFAULT_DISPLAY_TIMEZONE_MODE,
   DEFAULT_TIME_FORMAT,
+  formatDisplayDateTime,
   isDisplayTimezoneMode,
   isTimeFormat,
+  toDisplayDate,
   type DisplayTimezoneMode,
   type TimeFormat,
 } from '@/lib/utils/timeFormat';
-import { detectBrowserTimezone } from '@/lib/hooks/useTimezone';
+import { DISPLAY_TIMEZONE_MODE_KEY, detectBrowserTimezone } from '@/lib/hooks/useTimezone';
+import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
+import { isHouseholdZoneCandidate } from '@/lib/utils/timezone';
 
 const SETTING_KEY = 'timeFormat';
 const TIMEZONE_SETTING_KEY = 'timezone';
 const TIMEZONE_CACHE_KEY = 'prism:timezone';
-const DISPLAY_TIMEZONE_MODE_KEY = 'prism:display-timezone-mode';
 export const TIMEZONE_CHANGED_EVENT = 'prism:timezone-changed';
 
 interface TimeFormatContextValue {
@@ -27,23 +31,67 @@ interface TimeFormatContextValue {
   setDisplayTimezoneMode: (next: DisplayTimezoneMode) => void;
 }
 
+const BACKFILL_ATTEMPTED_KEY = 'prism:timezone-backfill-attempted';
+
+/**
+ * Installs set up before the wizard could save a time zone have no household
+ * zone on the server, which then has nothing but its own process zone to work
+ * out "today" from. Save the zone this device is already showing as the
+ * household one: a choice it cached from Settings, else what it detects. Only
+ * a parent session can write it, so on a logged-out wall display this is one
+ * refused request per page load and nothing else. UTC is never saved:
+ * it is what a kiosk with an unset clock reports, and a real UTC household
+ * can still pick it in Settings.
+ */
+function backfillHouseholdTimezone() {
+  try {
+    if (sessionStorage.getItem(BACKFILL_ATTEMPTED_KEY)) return;
+  } catch {
+    return;
+  }
+  const zone = localStorage.getItem(TIMEZONE_CACHE_KEY) || detectBrowserTimezone();
+  if (!isHouseholdZoneCandidate(zone)) return;
+  fetch('/api/settings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: TIMEZONE_SETTING_KEY, value: zone }),
+  })
+    .then((response) => {
+      // A 401 is a logged-out display: leave the attempt open so a parent who
+      // signs in later in this tab still saves it. Anything else is final.
+      if (response.status === 401) return;
+      try { sessionStorage.setItem(BACKFILL_ATTEMPTED_KEY, '1'); } catch { /* ignore */ }
+    })
+    .catch(() => {});
+}
+
+function readLocal(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 const TimeFormatContext = React.createContext<TimeFormatContextValue | undefined>(undefined);
 
 export function TimeFormatProvider({ children }: { children: React.ReactNode }) {
   const [timeFormat, setTimeFormatState] = React.useState<TimeFormat>(DEFAULT_TIME_FORMAT);
-  const [deviceTimezone, setDeviceTimezone] = React.useState('UTC');
-  const [householdTimezone, setHouseholdTimezone] = React.useState('UTC');
-  const [displayTimezoneMode, setDisplayTimezoneModeState] = React.useState<DisplayTimezoneMode>(
-    DEFAULT_DISPLAY_TIMEZONE_MODE,
+  // Read synchronously on the first client render. Starting from 'UTC' and
+  // correcting in an effect painted every time and date in UTC first, then
+  // moved them: a visible jump, and a wrong "today" for that first frame.
+  // The server render (no window) still starts from UTC; no zone-dependent
+  // text is rendered there.
+  const [deviceTimezone] = React.useState(() =>
+    typeof window === 'undefined' ? 'UTC' : detectBrowserTimezone(),
   );
-
-  React.useEffect(() => {
-    const detected = detectBrowserTimezone();
-    setDeviceTimezone(detected);
-    setHouseholdTimezone(localStorage.getItem(TIMEZONE_CACHE_KEY) || detected);
-    const savedMode = localStorage.getItem(DISPLAY_TIMEZONE_MODE_KEY);
-    if (isDisplayTimezoneMode(savedMode)) setDisplayTimezoneModeState(savedMode);
-  }, []);
+  const [householdTimezone, setHouseholdTimezone] = React.useState(() =>
+    typeof window === 'undefined' ? 'UTC' : readLocal(TIMEZONE_CACHE_KEY) || detectBrowserTimezone(),
+  );
+  const [displayTimezoneMode, setDisplayTimezoneModeState] = React.useState<DisplayTimezoneMode>(() => {
+    const savedMode = typeof window === 'undefined' ? null : readLocal(DISPLAY_TIMEZONE_MODE_KEY);
+    return isDisplayTimezoneMode(savedMode) ? savedMode : DEFAULT_DISPLAY_TIMEZONE_MODE;
+  });
 
   React.useEffect(() => {
     let active = true;
@@ -56,6 +104,8 @@ export function TimeFormatProvider({ children }: { children: React.ReactNode }) 
         if (active && typeof savedTimezone === 'string' && savedTimezone) {
           setHouseholdTimezone(savedTimezone);
           localStorage.setItem(TIMEZONE_CACHE_KEY, savedTimezone);
+        } else if (data?.settings) {
+          backfillHouseholdTimezone();
         }
       })
       .catch(() => {});
@@ -130,4 +180,29 @@ export function useTimeFormat(): TimeFormatContextValue {
   const context = React.useContext(TimeFormatContext);
   if (!context) throw new Error('useTimeFormat must be used within a TimeFormatProvider');
   return context;
+}
+
+/**
+ * Formatters for a timestamp the server recorded (a last sync, say), in the
+ * display zone and the household's 12/24-hour format. toLocaleString would
+ * use the device zone and the browser's clock style.
+ */
+export function useDisplayTimestampFormat(): {
+  dateTime: (date: Date | number | string) => string;
+  date: (date: Date | number | string) => string;
+} {
+  const { timeFormat, displayTimezone } = useTimeFormat();
+  return React.useMemo(() => ({
+    dateTime: (date) => formatDisplayDateTime(new Date(date), timeFormat, displayTimezone),
+    date: (date) => format(toDisplayDate(new Date(date), displayTimezone), 'MMM d, yyyy'),
+  }), [timeFormat, displayTimezone]);
+}
+
+/**
+ * Today's date key in the display zone, changing at that zone's midnight, and
+ * the zone itself. Outside a TimeFormatProvider both fall back to the device.
+ */
+export function useDisplayToday(): { today: string; timeZone: string | undefined } {
+  const timeZone = React.useContext(TimeFormatContext)?.displayTimezone;
+  return { today: useLocalDateKey(timeZone), timeZone };
 }

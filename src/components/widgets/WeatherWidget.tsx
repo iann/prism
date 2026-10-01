@@ -127,6 +127,11 @@ export interface WeatherAlert {
 }
 
 export interface ForecastDay {
+  /**
+   * UTC midnight of the forecast's calendar date at the weather location
+   * ("floating"): read it with the UTC getters or floatingUtcToDateKey, never
+   * the local ones, which put it on the previous day west of UTC.
+   */
   date: Date;
   dayName: string;
   high: number;

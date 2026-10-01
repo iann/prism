@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { format, differenceInDays, parseISO, startOfWeek } from 'date-fns';
+import { format } from 'date-fns';
 import Link from 'next/link';
 import {
   Calendar, Cloud, Sun, CloudRain, CloudSnow, CloudSun,
@@ -10,15 +10,14 @@ import {
   Image as ImageIcon, ChefHat, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DAYS_OF_WEEK } from '@/lib/constants/days';
 import type { useDashboardData } from './useDashboardData';
 import type { BusRouteStatus, BusPrediction } from '@/lib/hooks/useBusTracking';
 import { useTimeFormat } from '@/components/providers';
-import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import {
   formatFamilyCelebrationGreeting,
   getTodaysFamilyCelebrations,
 } from '@/lib/birthdayCelebration';
+import { formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 
 type DashData = ReturnType<typeof useDashboardData>;
@@ -107,13 +106,15 @@ export function ClockTile({ data }: { data: DashData['birthdays'] }) {
 }
 
 export function CalendarTile({ data }: { data: DashData['calendar'] }) {
+  const { displayTimezone } = useTimeFormat();
   const upcoming = useMemo(() => {
     if (!data.events) return [];
     const now = new Date();
+    // All-day ends are floating dates, not instants (see isCalendarEventPast).
     return data.events
-      .filter((e) => new Date(e.endTime) >= now)
+      .filter((e) => !isCalendarEventPast(e.startTime, e.endTime, e.allDay, now, displayTimezone))
       .slice(0, 2);
-  }, [data.events]);
+  }, [data.events, displayTimezone]);
   return (
     <TileShell href="/calendar" icon={<Calendar className="h-4 w-4 text-blue-500" />} title="Calendar">
       {upcoming.length === 0
@@ -127,12 +128,15 @@ export function CalendarTile({ data }: { data: DashData['calendar'] }) {
 }
 
 export function ChoresTile({ data }: { data: DashData['chores'] }) {
+  const today = useLocalDateKey();
   const due = useMemo(() => {
     if (!data.chores) return 0;
     return data.chores.filter((c: { enabled: boolean; nextDue?: string }) =>
-      c.enabled && c.nextDue && new Date(c.nextDue) <= new Date()
+      // Date keys compare as strings; new Date(nextDue) is UTC midnight,
+      // which counted tomorrow's chores as due from the evening before.
+      c.enabled && c.nextDue && c.nextDue.slice(0, 10) <= today
     ).length;
-  }, [data.chores]);
+  }, [data.chores, today]);
   return (
     <TileShell href="/chores" icon={<ClipboardList className="h-4 w-4 text-orange-500" />} title="Chores"
       accent={due > 0 ? 'text-orange-600 dark:text-orange-400' : undefined}>
@@ -172,15 +176,14 @@ export function ShoppingTile({ data }: { data: DashData['shopping'] }) {
 }
 
 export function MealsTile({ data }: { data: DashData['meals'] }) {
+  const today = useLocalDateKey();
   const todayMeal = useMemo(() => {
     if (!data.meals) return null;
-    const todayDay = DAYS_OF_WEEK[new Date().getDay()];
-    const currentWeekOf = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-    const thisWeek = data.meals.filter((m) => m.weekOf === currentWeekOf);
-    return thisWeek.find((m) => m.dayOfWeek === todayDay && m.mealType === 'dinner')
-      ?? thisWeek.find((m) => m.dayOfWeek === todayDay)
-      ?? null;
-  }, [data.meals]);
+    // Match on the absolute date: weekOf depends on the week-start setting
+    // the meal was saved under, so it cannot be recomputed here.
+    const todays = data.meals.filter((m) => m.date === today);
+    return todays.find((m) => m.mealType === 'dinner') ?? todays[0] ?? null;
+  }, [data.meals, today]);
   return (
     <TileShell href="/meals" icon={<UtensilsCrossed className="h-4 w-4 text-pink-500" />} title="Meals">
       {todayMeal
@@ -216,9 +219,9 @@ export function MessagesTile({ data }: { data: DashData['messages'] }) {
 export function BirthdaysTile({ data }: { data: DashData['birthdays'] }) {
   const next = useMemo(() => {
     if (!data.birthdays?.length) return null;
-    const b = data.birthdays[0] as { name: string; nextBirthday?: string };
-    if (!b.nextBirthday) return null;
-    const days = differenceInDays(parseISO(b.nextBirthday), new Date());
+    const b = data.birthdays[0]!;
+    // Calendar days, counted by the server in the household zone.
+    const days = b.daysUntil;
     const label = days === 0 ? 'Today!' : days === 1 ? 'Tomorrow' : `In ${days} days`;
     return { name: b.name, label };
   }, [data.birthdays]);

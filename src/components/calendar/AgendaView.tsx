@@ -19,6 +19,7 @@ import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 import { useTimeFormat } from '@/components/providers';
 import {
   eventOccursOnDisplayDay,
+  eventStartDisplayDate,
   eventStartsOnDisplayDay,
   formatDisplayTime,
   toDisplayDate,
@@ -70,6 +71,21 @@ type AgendaRow = {
   onClick?: () => void;
 };
 
+/**
+ * Agenda order: by the display day an event starts on, all-day before timed
+ * on the same day, then by start. An all-day start is UTC midnight of its
+ * date; read through toDisplayDate it is the previous evening west of UTC,
+ * which sorted it a day early.
+ */
+export function compareAgendaEvents(a: CalendarEvent, b: CalendarEvent, displayTimezone: string): number {
+  const dc = startOfDay(eventStartDisplayDate(a.startTime, a.allDay, displayTimezone)).getTime()
+    - startOfDay(eventStartDisplayDate(b.startTime, b.allDay, displayTimezone)).getTime();
+  if (dc !== 0) return dc;
+  if (a.allDay && !b.allDay) return -1;
+  if (!a.allDay && b.allDay) return 1;
+  return a.startTime.getTime() - b.startTime.getTime();
+}
+
 export function AgendaView({
   events,
   days = 14,
@@ -99,14 +115,7 @@ export function AgendaView({
         date,
         displayTimezone,
       )))
-    .sort((a, b) => {
-      const dc = startOfDay(toDisplayDate(a.startTime, displayTimezone)).getTime()
-        - startOfDay(toDisplayDate(b.startTime, displayTimezone)).getTime();
-      if (dc !== 0) return dc;
-      if (a.allDay && !b.allDay) return -1;
-      if (!a.allDay && b.allDay) return 1;
-      return a.startTime.getTime() - b.startTime.getTime();
-    });
+    .sort((a, b) => compareAgendaEvents(a, b, displayTimezone));
 
   const eventsByDay: Array<{ date: Date; events: CalendarEvent[]; bucket?: DayBucket }> = [];
   for (let i = 0; i < days; i++) {

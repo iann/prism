@@ -13,6 +13,7 @@ import type { Chore, Meal, Task } from '@/types';
 import type { WeatherData } from '@/components/widgets/WeatherWidget';
 import type { DayBucket } from './useWeekViewData';
 import { useTimeFormat } from '@/components/providers';
+import { floatingUtcToDateKey } from '@/lib/utils/zonedDate';
 import { eventOccursOnDisplayDay } from '@/lib/utils/timeFormat';
 
 export interface OverlayFlags {
@@ -222,22 +223,6 @@ export function useDayBucketsForRange({
       }
     }
 
-    const tasksByDate = new Map<string, Task[]>();
-    if (overlays.tasks) {
-      for (const task of resolvedTasks) {
-        if (!task.dueDate) continue;
-        const key = dateKey(task.dueDate);
-        const bucket = tasksByDate.get(key);
-        if (bucket) bucket.push(task);
-        else tasksByDate.set(key, [task]);
-      }
-    }
-
-    const weatherByDate = new Map<string, NonNullable<WeatherData['forecast']>[number]>();
-    for (const forecast of weather?.forecast ?? []) {
-      weatherByDate.set(dateKey(forecast.date), forecast);
-    }
-
     let cursor = start;
     let safety = 0;
     while (cursor <= end && safety < 366) {
@@ -260,12 +245,15 @@ export function useDayBucketsForRange({
       const dayChores = (choresByDate.get(key) ?? EMPTY_CHORES)
         .sort((a, b) => a.title.localeCompare(b.title));
 
-      const dayTasks = (tasksByDate.get(key) ?? EMPTY_TASKS)
+      const dayTasks = resolvedTasks
+        .filter((t) => t.dueDate === key)
         .sort((a, b) => {
           return TASK_PRIORITY_ORDER[a.priority] - TASK_PRIORITY_ORDER[b.priority];
         });
 
-      const dayWeather = weatherByDate.get(key);
+      // forecast.date is UTC midnight of the forecast's date: compare dates,
+      // not local days, or the weather sits a column early west of UTC.
+      const dayWeather = weather?.forecast.find((f) => floatingUtcToDateKey(f.date) === key);
 
       map.set(key, {
         date,

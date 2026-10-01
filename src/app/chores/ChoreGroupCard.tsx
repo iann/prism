@@ -1,7 +1,6 @@
 'use client';
 
-import { format } from 'date-fns';
-import { isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import {
   CalendarDays,
   Hourglass,
@@ -9,6 +8,9 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { dueLocalDate, isTaskOverdue } from '@/lib/utils/taskDue';
+import { calendarDaysBetween } from '@/lib/utils/zonedDate';
+import { useDisplayToday } from '@/components/providers';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +24,7 @@ export interface ChoreCardData {
   title: string;
   pointValue: number;
   nextDue?: string | null;
+  nextDueTime?: string | null;
   lastCompleted?: string | null;
   pendingApproval?: PendingApproval | null;
 }
@@ -45,9 +48,15 @@ export function ChoreGroupCard({
   onDelete,
   setCelebratingUser,
 }: ChoreGroupCardProps) {
-  const nextDue = chore.nextDue ? new Date(chore.nextDue) : null;
-  const isOverdue = nextDue && isPast(nextDue);
-  const daysUntil = nextDue ? differenceInDays(nextDue, new Date()) : null;
+  // nextDue is a date column (YYYY-MM-DD): read it as a local date, never as
+  // UTC midnight, which is the previous evening west of UTC.
+  const dueKey = chore.nextDue ? chore.nextDue.slice(0, 10) : null;
+  const nextDue = dueKey ? dueLocalDate(dueKey, chore.nextDueTime) : null;
+  // Chores share the task due shape: overdue after the due time, or from the
+  // day after a date-only due.
+  const { today, timeZone } = useDisplayToday();
+  const isOverdue = isTaskOverdue({ dueDate: dueKey, dueTime: chore.nextDueTime }, new Date(), timeZone);
+  const daysUntil = dueKey ? calendarDaysBetween(today, dueKey) : null;
   const isCompletedToday =
     chore.lastCompleted &&
     new Date(chore.lastCompleted) > new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -153,7 +162,7 @@ export function ChoreGroupCard({
           <Button
             variant="ghost"
             size="sm"
-            className="wall-touch-control h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+            className="wall-touch-control h-6 w-6 p-0 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-60 text-destructive hover:text-destructive"
             aria-label="Delete chore"
             onClick={(e) => {
               e.stopPropagation();

@@ -27,6 +27,7 @@ import { decrypt, encrypt } from '@/lib/utils/crypto';
 import { validatePublicUrl, UnsafeUrlError } from '@/lib/utils/safeFetch';
 import { isGoogleCalendarWebLink, GOOGLE_WEB_LINK_ERROR } from '@/lib/utils/googleCalendarLink';
 import { localDateToFloatingAllDay } from '@/lib/utils/timeFormat';
+import { getHouseholdTimezone } from '@/lib/householdTimezone';
 import { async as icalAsync, type VEvent, type CalendarResponse } from 'node-ical';
 
 /**
@@ -537,6 +538,8 @@ const ICAL_DISABLE_THRESHOLD = 3;
 /**
  * Build a stable per-instance external ID for a recurring iCal event so each
  * occurrence gets its own row keyed off (calendarSourceId, externalEventId).
+ * `occurrence` is the stored start: for an all-day event, UTC midnight of its
+ * date, so the id does not depend on the server's zone.
  */
 function instanceExternalId(uid: string, occurrence: Date): string {
   return `${uid}_${occurrence.toISOString()}`;
@@ -693,7 +696,7 @@ export async function syncIcalCalendarSource(
         }
       }
 
-      const instances: Array<{ start: Date; end: Date; externalId: string }> = [];
+      const instances: Array<{ start: Date; end: Date; externalId: string; legacyExternalId?: string }> = [];
       const isRecurring = !!vevent.rrule;
 
       if (vevent.rrule) {
@@ -701,10 +704,15 @@ export async function syncIcalCalendarSource(
         const occurrences = vevent.rrule.between(timeMin, timeMax, true);
         for (const occ of occurrences) {
           if (exdates.has(occ.getTime())) continue;
+          // Older builds keyed an all-day instance on the parser's value,
+          // server-local midnight, so its row may still carry that id.
+          const externalId = instanceExternalId(uid, allDay ? localDateToFloatingAllDay(occ) : occ);
+          const legacyExternalId = instanceExternalId(uid, occ);
           instances.push({
             start: occ,
             end: new Date(occ.getTime() + baseDurationMs),
-            externalId: instanceExternalId(uid, occ),
+            externalId,
+            ...(legacyExternalId !== externalId ? { legacyExternalId } : {}),
           });
         }
       } else {
@@ -731,8 +739,19 @@ export async function syncIcalCalendarSource(
       const location = readIcalString(vevent.location);
 
       for (const inst of instances) {
-        if (dismissed.has(inst.externalId)) continue;
+        const legacyId = inst.legacyExternalId;
+        if (dismissed.has(inst.externalId) || (legacyId && dismissed.has(legacyId))) continue;
         externalIds.add(inst.externalId);
+        if (legacyId && !existingByExtId.has(inst.externalId) && existingByExtId.has(legacyId)) {
+          // Rename in place, so the row keeps its id and nothing hanging off
+          // it is lost to a delete and re-insert.
+          await db
+            .update(events)
+            .set({ externalEventId: inst.externalId })
+            .where(and(eq(events.calendarSourceId, sourceId), eq(events.externalEventId, legacyId)));
+          existingByExtId.set(inst.externalId, existingByExtId.get(legacyId)!);
+          existingByExtId.delete(legacyId);
+        }
         const { startTime, endTime } = storedRange(inst);
         await db
           .insert(events)
@@ -964,18 +983,24 @@ export async function syncCalDAVCalendarSource(
       source.sourceCalendarId,
       timeMin,
       timeMax,
+      await getHouseholdTimezone(),
     );
 
     const dismissed = await loadDismissedExternalIds(sourceId);
     const autoDeleteRemovedEvents = await shouldAutoDeleteRemovedEvents();
     for (const event of caldavEvents) {
-      if (dismissed.has(event.uid)) continue;
-      const existing = await db.query.events.findFirst({
+      if (dismissed.has(event.uid) || (event.legacyUid && dismissed.has(event.legacyUid))) continue;
+      const findByExternalId = (externalEventId: string) => db.query.events.findFirst({
         where: and(
           eq(events.calendarSourceId, sourceId),
-          eq(events.externalEventId, event.uid),
+          eq(events.externalEventId, externalEventId),
         ),
       });
+      // A row stored under an instance's older id is updated in place, which
+      // also moves it to the current id (eventData carries externalEventId).
+      // Otherwise it would be flagged for deletion below and re-added.
+      const existing = await findByExternalId(event.uid)
+        ?? (event.legacyUid ? await findByExternalId(event.legacyUid) : undefined);
 
       const eventData = {
         title: event.title,
@@ -1100,6 +1125,7 @@ export async function syncCalDAVTasks(
       config.username,
       password,
       source.sourceCalendarId,
+      await getHouseholdTimezone(),
     );
 
     // Apple iCloud injects metadata VTODOs into reminder lists whose data
@@ -1167,7 +1193,8 @@ export async function syncCalDAVTasks(
       const taskData = {
         title: task.title,
         description: task.description,
-        dueDate: task.dueDate || null,
+        dueDate: task.dueDate,
+        dueTime: task.dueTime,
         completed: task.completed,
         completedAt: task.completedAt,
         priority: (task.priority || 'medium') as 'high' | 'medium' | 'low',

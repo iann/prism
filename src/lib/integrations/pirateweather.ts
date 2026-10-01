@@ -25,6 +25,7 @@ import type {
   MinutelyData,
 } from '@/components/widgets/WeatherWidget';
 import type { LocationParam, WeatherOptions } from './weather';
+import { dateOnlyToFloatingUtc, dayWindowUtc, todayKey } from '@/lib/utils/zonedDate';
 import { getMoonData } from './moon';
 import { buildForecastPeriods } from '@/lib/weather/forecastPeriods';
 
@@ -226,10 +227,13 @@ export async function fetchWeatherData(
     .filter((d) => localDateFmt.format(new Date(d.time * 1000)) >= todayLocalStr)
     .slice(0, 7)
     .map((d) => {
-      const date = new Date(d.time * 1000);
+      const instant = new Date(d.time * 1000);
       return {
-        date,
-        dayName: dayNameFmt.format(date),
+        // UTC midnight of the location's date (the ForecastDay.date contract);
+        // d.time is the location's midnight as an instant, a day early west
+        // of UTC when read that way.
+        date: dateOnlyToFloatingUtc(localDateFmt.format(instant)),
+        dayName: dayNameFmt.format(instant),
         high: Math.round(d.temperatureHigh),
         low: Math.round(d.temperatureLow),
         condition: mapIcon(d.icon),
@@ -282,7 +286,8 @@ export async function fetchWeatherData(
   const minutelyData: MinutelyData[] | undefined = minutely?.data;
 
   // ── Moon (local computation — Pirate Weather has phase but not rise/set) ──
-  const moon = getMoonData(config.lat, config.lon);
+  // Rise and set for the location's day, not the server's (see moon.ts).
+  const moon = getMoonData(config.lat, config.lon, new Date(), dayWindowUtc(todayKey(timezone), timezone).start);
 
   return {
     location: config.locationName,

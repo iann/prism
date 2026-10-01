@@ -10,6 +10,9 @@ import ICAL from 'ical.js';
 import { validatePublicUrl, UnsafeUrlError } from '@/lib/utils/safeFetch';
 import { parseHexColor } from '@/lib/utils/color';
 import { localDateToFloatingAllDay } from '@/lib/utils/timeFormat';
+import { dueFromInstant, wallDue, type TaskDue } from '@/lib/utils/taskDue';
+import { isValidTimezone } from '@/lib/utils/timezone';
+import { todayKey, wallTimeAt, zonedWallTimeToUtc } from '@/lib/utils/zonedDate';
 
 /**
  * Guard a user-supplied CalDAV server URL before handing it to tsdav.
@@ -56,13 +59,20 @@ export interface CalDAVEvent {
    *  object's href — write-back is single-event-only, so that's acceptable. */
   href: string | null;
   etag: string | null;
+  /** A recurring instance's id as older builds keyed it, when it differs
+   *  from `uid`: the sync renames a row stored under it rather than deleting
+   *  and recreating it. */
+  legacyUid?: string;
 }
 
 export interface CalDAVTask {
   uid: string;
   title: string;
   description: string | null;
-  dueDate: Date | null;
+  /** YYYY-MM-DD */
+  dueDate: string | null;
+  /** HH:mm in the household zone, or null for a date-only DUE. */
+  dueTime: string | null;
   completed: boolean;
   completedAt: Date | null;
   priority: 'high' | 'medium' | 'low' | null;
@@ -193,6 +203,7 @@ export async function fetchCalDAVEvents(
   calendarHref: string,
   timeMin: Date,
   timeMax: Date,
+  timeZone: string,
 ): Promise<CalDAVEvent[]> {
   assertSafeCalDAVUrl(serverUrl);
 
@@ -225,7 +236,7 @@ export async function fetchCalDAVEvents(
 
   for (const obj of objects) {
     try {
-      const parsed = parseICalObject(obj, timeMin, timeMax);
+      const parsed = parseICalObject(obj, timeMin, timeMax, timeZone);
       events.push(...parsed);
     } catch (error) {
       console.error('Failed to parse CalDAV event:', error instanceof Error ? error.message : error);
@@ -233,6 +244,54 @@ export async function fetchCalDAVEvents(
   }
 
   return events;
+}
+
+/** Most instances one recurring event contributes to a sync range. */
+const MAX_INSTANCES_IN_RANGE = 5_000;
+/** Most iterator steps spent on one recurring event, in or out of range. */
+const MAX_EXPANSION_STEPS = 10_000;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Where to start expanding a recurring event, or undefined for its DTSTART.
+ *
+ * Iterating from DTSTART costs one step per instance since the series began,
+ * so a daily series from decades ago is slow to reach the range. A DAILY or
+ * WEEKLY rule repeats with a fixed period in wall-clock days, so moving the
+ * start forward by whole periods (keeping its wall time, so DST does not
+ * shift it) yields the same instances. The moved start is kept at least one
+ * period plus the event's length before the range, so an instance that ends
+ * inside the range is not skipped, and the moved start itself, which the
+ * iterator always returns first, falls before the range and is dropped.
+ *
+ * Not applied to a COUNT rule (instances are counted from DTSTART), to RDATE
+ * or several RRULEs, or to other frequencies, which are cheap to walk.
+ */
+function recurrenceAnchor(
+  event: ICAL.Event,
+  vevent: ICAL.Component,
+  allDay: boolean,
+  rangeStart: Date,
+  timeZone: string,
+): ICAL.Time | undefined {
+  const rules = vevent.getAllProperties('rrule');
+  if (rules.length !== 1 || vevent.hasProperty('rdate')) return undefined;
+  const rule = rules[0]!.getFirstValue() as ICAL.Recur;
+  if (rule.count) return undefined;
+  if (rule.freq !== 'DAILY' && rule.freq !== 'WEEKLY') return undefined;
+
+  const periodDays = (rule.interval || 1) * (rule.freq === 'WEEKLY' ? 7 : 1);
+  const startMs = icalTimeToDate(event.startDate, allDay, timeZone).getTime();
+  const lengthMs = Math.max(0, icalTimeToDate(event.endDate, allDay, timeZone).getTime() - startMs);
+  // Two spare days cover DST and zone offsets between wall and UTC days.
+  const latest = rangeStart.getTime() - lengthMs - (periodDays + 2) * DAY_MS;
+  const periods = Math.floor((latest - startMs) / (periodDays * DAY_MS));
+  if (periods <= 0) return undefined;
+
+  const anchor = event.startDate.clone();
+  anchor.adjust(periods * periodDays, 0, 0, 0);
+  return anchor;
 }
 
 /**
@@ -243,6 +302,7 @@ function parseICalObject(
   obj: DAVObject,
   rangeStart: Date,
   rangeEnd: Date,
+  timeZone: string,
 ): CalDAVEvent[] {
   const data = obj.data;
   if (!data) return [];
@@ -268,27 +328,43 @@ function parseICalObject(
     if (isRecurring && !event.isRecurrenceException()) {
       // Expand recurring event instances within the range
       try {
-        const iterator = event.iterator();
+        const allDay = isAllDay(vevent);
+        const iterator = event.iterator(
+          recurrenceAnchor(event, vevent, allDay, rangeStart, timeZone),
+        );
         let next = iterator.next();
-        let count = 0;
-        const maxInstances = 100;
+        let steps = 0;
+        let inRange = 0;
 
-        while (next && count < maxInstances) {
+        // Instances before the range are skipped without counting toward
+        // the in-range cap, so a series that began long ago still yields
+        // its current occurrences.
+        while (next) {
+          if (++steps > MAX_EXPANSION_STEPS || inRange >= MAX_INSTANCES_IN_RANGE) {
+            console.warn(`CalDAV: stopped expanding a recurring event after ${steps - 1} instances`);
+            break;
+          }
           const occurrence = event.getOccurrenceDetails(next);
-          const start = occurrence.startDate.toJSDate();
-          const end = occurrence.endDate.toJSDate();
-          const allDay = isAllDay(vevent);
+          const start = icalTimeToDate(occurrence.startDate, allDay, timeZone);
+          const end = icalTimeToDate(occurrence.endDate, allDay, timeZone);
 
           if (start > rangeEnd) break;
           if (end >= rangeStart) {
+            inRange++;
+            // Keyed on the stored start, which does not depend on the
+            // server's zone. Older builds keyed on the parser's instant,
+            // server-local midnight for an all-day date, so a row may still
+            // carry that id.
+            const uid = `${event.uid}_${start.toISOString()}`;
+            const legacyUid = `${event.uid}_${occurrence.startDate.toJSDate().toISOString()}`;
             events.push({
-              // Keyed on the raw start so existing rows keep their id.
-              uid: `${event.uid}_${start.toISOString()}`,
+              uid,
+              ...(legacyUid !== uid ? { legacyUid } : {}),
               title: event.summary,
               description: event.description || null,
               location: event.location || null,
-              startTime: allDay ? localDateToFloatingAllDay(start) : start,
-              endTime: allDay ? localDateToFloatingAllDay(end) : end,
+              startTime: start,
+              endTime: end,
               allDay,
               color: null,
               recurring: true,
@@ -299,18 +375,46 @@ function parseICalObject(
           }
 
           next = iterator.next();
-          count++;
         }
       } catch {
         // If recurrence expansion fails, add the base event
-        events.push(makeEvent(event, vevent, href, etag));
+        events.push(makeEvent(event, vevent, href, etag, timeZone));
       }
     } else {
-      events.push(makeEvent(event, vevent, href, etag));
+      events.push(makeEvent(event, vevent, href, etag, timeZone));
     }
   }
 
   return events;
+}
+
+/**
+ * A VEVENT DTSTART/DTEND as the Date Prism stores.
+ *
+ * An all-day date is UTC midnight of that date ("floating"), built from its
+ * fields rather than through toJSDate, which would make it midnight in the
+ * server's zone. A time in UTC or in a zone the object defines is that
+ * instant. A floating time (no TZID, no Z) is a wall time, read in the
+ * household zone, as is a TZID naming an IANA zone the object carries no
+ * VTIMEZONE for: toJSDate would read both in the server's zone.
+ */
+export function icalTimeToDate(time: ICAL.Time, allDay: boolean, timeZone: string): Date {
+  if (allDay || time.isDate) return new Date(Date.UTC(time.year, time.month - 1, time.day));
+  if (time.zone === ICAL.Timezone.utcTimezone) return time.toJSDate();
+
+  const dateKey = `${String(time.year).padStart(4, '0')}-${pad2(time.month)}-${pad2(time.day)}`;
+  const wall = (zone: string) =>
+    new Date(zonedWallTimeToUtc(dateKey, `${pad2(time.hour)}:${pad2(time.minute)}`, zone).getTime()
+      + time.second * 1000);
+
+  // An unregistered TZID leaves the zone floating and the name in `timezone`,
+  // which the typings omit.
+  const tzid = (time as ICAL.Time & { timezone?: string }).timezone;
+  if (tzid && isValidTimezone(tzid) && (!time.zone || time.zone === ICAL.Timezone.localTimezone)) {
+    return wall(tzid);
+  }
+  if (time.zone && time.zone !== ICAL.Timezone.localTimezone) return time.toJSDate();
+  return wall(timeZone);
 }
 
 function makeEvent(
@@ -318,17 +422,16 @@ function makeEvent(
   vevent: ICAL.Component,
   href: string | null,
   etag: string | null,
+  timeZone: string,
 ): CalDAVEvent {
   const allDay = isAllDay(vevent);
-  const start = event.startDate.toJSDate();
-  const end = event.endDate.toJSDate();
   return {
     uid: event.uid,
     title: event.summary,
     description: event.description || null,
     location: event.location || null,
-    startTime: allDay ? localDateToFloatingAllDay(start) : start,
-    endTime: allDay ? localDateToFloatingAllDay(end) : end,
+    startTime: icalTimeToDate(event.startDate, allDay, timeZone),
+    endTime: icalTimeToDate(event.endDate, allDay, timeZone),
     allDay,
     color: null,
     recurring: false,
@@ -346,6 +449,7 @@ export async function fetchCalDAVTasks(
   username: string,
   password: string,
   calendarHref: string,
+  timeZone: string,
 ): Promise<CalDAVTask[]> {
   assertSafeCalDAVUrl(serverUrl);
 
@@ -385,7 +489,7 @@ export async function fetchCalDAVTasks(
 
   for (const obj of objects) {
     try {
-      const parsed = parseVTodoObject(obj);
+      const parsed = parseVTodoObject(obj, timeZone);
       if (parsed) {
         tasks.push(parsed);
         parsedCount++;
@@ -400,10 +504,54 @@ export async function fetchCalDAVTasks(
   return tasks;
 }
 
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/**
+ * A VTODO's DUE as a task due in the household zone.
+ *
+ * DUE;VALUE=DATE is a date and stays one (toJSDate would make it midnight in
+ * the server's zone, a day early for a household west of it). A timed DUE in
+ * UTC or a known zone is converted to the household's wall clock; a floating
+ * one is a wall time already and is kept as written.
+ */
+export function vtodoDue(due: unknown, timeZone: string): TaskDue {
+  if (!due) return { dueDate: null, dueTime: null };
+  if (!(due instanceof ICAL.Time)) {
+    const instant = new Date(String(due));
+    return Number.isNaN(instant.getTime())
+      ? { dueDate: null, dueTime: null }
+      : dueFromInstant(instant, timeZone);
+  }
+
+  const dateKey = `${String(due.year).padStart(4, '0')}-${pad2(due.month)}-${pad2(due.day)}`;
+  if (due.isDate) return { dueDate: dateKey, dueTime: null };
+
+  const hhmm = `${pad2(due.hour)}:${pad2(due.minute)}`;
+  const inHousehold = (instant: Date) =>
+    wallDue(todayKey(timeZone, instant), wallTimeAt(timeZone, instant));
+
+  if (due.zone === ICAL.Timezone.utcTimezone) {
+    return inHousehold(new Date(Date.UTC(due.year, due.month - 1, due.day, due.hour, due.minute)));
+  }
+  // An unregistered TZID leaves the zone floating and the name in `timezone`,
+  // which the typings omit.
+  const tzid = (due as ICAL.Time & { timezone?: string }).timezone || due.zone?.tzid;
+  if (tzid && isValidTimezone(tzid)) {
+    return inHousehold(zonedWallTimeToUtc(dateKey, hhmm, tzid));
+  }
+  if (due.zone && due.zone !== ICAL.Timezone.localTimezone) {
+    // A VTIMEZONE in the object under a non-IANA name ("Central Standard Time").
+    return inHousehold(due.toJSDate());
+  }
+  return wallDue(dateKey, hhmm);
+}
+
 /**
  * Parse a VTODO iCalendar object into a task.
  */
-function parseVTodoObject(obj: DAVObject): CalDAVTask | null {
+function parseVTodoObject(obj: DAVObject, timeZone: string): CalDAVTask | null {
   const data = obj.data;
   if (!data) return null;
 
@@ -437,7 +585,7 @@ function parseVTodoObject(obj: DAVObject): CalDAVTask | null {
     uid: String(uid || `vtodo-${Date.now()}`),
     title: String(summary),
     description: description ? String(description) : null,
-    dueDate: due ? (due instanceof ICAL.Time ? due.toJSDate() : new Date(String(due))) : null,
+    ...vtodoDue(due, timeZone),
     completed: status === 'COMPLETED' || !!completed,
     completedAt: completed ? (completed instanceof ICAL.Time ? completed.toJSDate() : new Date(String(completed))) : null,
     priority: prismPriority,
