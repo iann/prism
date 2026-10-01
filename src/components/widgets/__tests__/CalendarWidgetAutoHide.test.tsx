@@ -9,6 +9,7 @@ const mockUseAutoHideUI = jest.fn();
 
 jest.mock('@/components/providers', () => ({
   useAuth: () => ({ activeUser: null }),
+  useTimeFormat: () => ({ timeFormat: '12h', displayTimezone: 'UTC' }),
 }));
 
 jest.mock('@/lib/hooks', () => ({

@@ -7,6 +7,7 @@ import { act, render } from '@testing-library/react';
 
 jest.mock('@/components/providers', () => ({
   useAuth: () => ({ activeUser: null }),
+  useTimeFormat: () => ({ timeFormat: '12h', displayTimezone: 'UTC' }),
 }));
 
 jest.mock('@/lib/hooks', () => ({

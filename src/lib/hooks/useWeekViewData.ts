@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
+import { addDays, format, startOfWeek } from 'date-fns';
 import { useCalendarEvents } from './useCalendarEvents';
 import { useMeals } from './useMeals';
 import { useChores } from './useChores';
@@ -13,6 +13,7 @@ import type { Chore, Meal } from '@/types';
 import type { Task } from '@/components/widgets/TasksWidget';
 import type { ForecastDay } from '@/components/widgets/WeatherWidget';
 import { useTimeFormat } from '@/components/providers';
+import { floatingUtcToDateKey } from '@/lib/utils/zonedDate';
 import { eventOccursOnDisplayDay } from '@/lib/utils/timeFormat';
 
 export interface DayBucket {
@@ -65,11 +66,9 @@ function eventOnDay(event: CalendarEvent, day: Date, displayTimezone: string): b
 }
 
 function choreNextDueOnDay(chore: Chore, day: Date): boolean {
-  if (!chore.nextDue) return false;
-  // nextDue is stored as YYYY-MM-DD or ISO; compare on date-only basis
-  const due = new Date(chore.nextDue);
-  if (Number.isNaN(due.getTime())) return false;
-  return isSameDay(due, day);
+  // nextDue is a YYYY-MM-DD date column. Compare it as a date key: parsed with
+  // new Date() it is UTC midnight, the previous evening west of UTC.
+  return !!chore.nextDue && chore.nextDue.slice(0, 10) === format(day, 'yyyy-MM-dd');
 }
 
 export function useWeekViewData({
@@ -120,13 +119,15 @@ export function useWeekViewData({
         .sort((a, b) => a.title.localeCompare(b.title));
 
       const dayTasks = (tasks ?? [])
-        .filter((t) => t.dueDate && isSameDay(t.dueDate, date))
+        .filter((t) => t.dueDate === format(date, 'yyyy-MM-dd'))
         .sort((a, b) => {
           const order = { high: 0, medium: 1, low: 2 } as const;
           return order[a.priority] - order[b.priority];
         });
 
-      const dayWeather = weather?.forecast.find((f) => isSameDay(f.date, date));
+      // forecast.date is UTC midnight of the forecast's date: compare dates,
+      // not local days, or the weather sits a column early west of UTC.
+      const dayWeather = weather?.forecast.find((f) => floatingUtcToDateKey(f.date) === format(date, 'yyyy-MM-dd'));
 
       return {
         date,

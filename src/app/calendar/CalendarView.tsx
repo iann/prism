@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
 import { sanitizeEventDescription } from '@/lib/utils/eventDescriptionHtml';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, startOfDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks } from 'date-fns';
 import {
   DndContext,
   DragOverlay,
@@ -52,7 +52,7 @@ import { useCalendarNotes } from '@/lib/hooks/useCalendarNotes';
 import { useDayBucketsForRange } from '@/lib/hooks/useDayBucketsForRange';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import type { CalendarEvent } from '@/types/calendar';
-import { WeekItemCard } from '@/components/calendar/cells';
+import { WeekItemCard, choreStripeColor } from '@/components/calendar/cells';
 import { useIsMobile, useSwipeNavigation, useCalendarSources } from '@/lib/hooks';
 import { useAuth } from '@/components/providers';
 import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
@@ -69,7 +69,7 @@ import { TaskModal } from '@/app/tasks/TaskModal';
 import { useChoreModals } from '@/app/chores/useChoreModals';
 import type { OverlayItemRef } from '@/components/calendar/cells';
 import type { Chore, Task, Meal } from '@/types';
-import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
+import { eventStartDisplayDate, formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { readResponseError } from '@/lib/utils/responseError';
 
 const MEAL_TYPE_ORDER = { breakfast: 0, lunch: 1, snack: 2, dinner: 3 } as const;
@@ -316,15 +316,12 @@ export function CalendarView() {
 
     try {
       if (variant === 'chore') await moveChore(itemId, targetBucket.date);
-      else if (variant === 'task') {
-        const t = allTasksList.find((x) => x.id === itemId);
-        await moveTask(itemId, targetBucket.date, t?.dueDate ? new Date(t.dueDate) : null);
-      }
+      else if (variant === 'task') await moveTask(itemId, targetBucket.date);
       else if (variant === 'meal') await moveMeal(itemId, targetBucket.date);
       else if (variant === 'event') {
         const ev = events.find((e) => e.id === itemId);
         if (!ev) return;
-        await moveEvent(itemId, ev.startTime, ev.endTime, targetBucket.date);
+        await moveEvent(ev, targetBucket.date);
       }
     } catch (err) {
       setMoveError(err instanceof Error ? err.message : t('errors.moveFailed'));
@@ -721,7 +718,8 @@ export function CalendarView() {
                     priority: updated.priority,
                     category: updated.category,
                     assignedTo: updated.assignedTo?.id,
-                    dueDate: updated.dueDate === null ? null : updated.dueDate.toISOString(),
+                    dueDate: updated.dueDate,
+                    dueTime: updated.dueTime,
                     completed: updated.completed,
                     listId: updated.listId,
                   }),
@@ -812,7 +810,7 @@ function EventDetailModal({ event, onClose, onEdit, onDeleted }: {
         <h2 className="text-xl font-bold mb-2">{event.title}</h2>
         <p className="text-sm text-muted-foreground mb-1">
           {event.allDay
-            ? d.weekdayLongMonthDay(toDisplayDate(event.startTime, displayTimezone))
+            ? d.weekdayLongMonthDay(eventStartDisplayDate(event.startTime, true))
             : t('dateAtTime', {
                 date: d.weekdayLongMonthDay(toDisplayDate(event.startTime, displayTimezone)),
                 time: formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone),
@@ -856,9 +854,6 @@ const PRIORITY_COLORS = {
   low: '#3b82f6',
 } as const;
 
-const CHORE_PENDING_APPROVAL_COLOR = '#a855f7';
-const CHORE_OVERDUE_COLOR = '#ef4444';
-const CHORE_PENDING_COLOR = '#f59e0b';
 const MEAL_FALLBACK_COLOR = '#10b981';
 
 /**
@@ -924,23 +919,7 @@ function CalendarDragPreview({
     } else if (variant === 'chore') {
       const chore = bucket.chores.find((c) => String(c.id) === itemId);
       if (chore) {
-        // Parse nextDue (YYYY-MM-DD DATE column) as a local date and compare
-        // to startOfDay(today). new Date('YYYY-MM-DD') is parsed as UTC and
-        // would mark today's chore as overdue in negative-UTC zones — same
-        // bug fixed in DayColumn.choreStripeColor and useDayBucketsForRange.
-        let isOverdue = false;
-        if (chore.nextDue) {
-          const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(chore.nextDue);
-          if (m) {
-            const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-            isOverdue = due < startOfDay(new Date());
-          }
-        }
-        const stripeColor = chore.pendingApproval
-          ? CHORE_PENDING_APPROVAL_COLOR
-          : isOverdue
-            ? CHORE_OVERDUE_COLOR
-            : CHORE_PENDING_COLOR;
+        const stripeColor = choreStripeColor(chore, displayTimezone);
         return (
           <div className="w-56 opacity-90">
             <WeekItemCard

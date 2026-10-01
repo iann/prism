@@ -19,6 +19,7 @@ import type {
   HourlyForecast,
 } from '@/components/widgets/WeatherWidget';
 import type { LocationParam, WeatherOptions } from './weather';
+import { dateOnlyToFloatingUtc } from '@/lib/utils/zonedDate';
 import { getMoonData } from './moon';
 import { buildForecastPeriods, type ForecastPeriod } from '@/lib/weather/forecastPeriods';
 
@@ -334,7 +335,9 @@ async function fetchForecastRaw(
     const [yr, mo, dy] = dateKey.split('-').map(Number);
     const dayIndex = new Date(Date.UTC(yr!, mo! - 1, dy!)).getUTCDay();
     forecast.push({
-      date: dayData.date,
+      // UTC midnight of the location's date (the ForecastDay.date contract),
+      // not the first 3-hour sample, which can fall on the previous UTC day.
+      date: dateOnlyToFloatingUtc(dateKey),
       dayName: dayNames[dayIndex] || 'Day',
       high: tempFromKelvin(high, units),
       low: tempFromKelvin(low, units),
@@ -396,6 +399,7 @@ export async function fetchForecast(location?: LocationParam): Promise<{
 }
 
 /**
+/**
  * Fetch complete weather data (current + forecast)
  */
 export async function fetchWeatherData(
@@ -425,7 +429,12 @@ export async function fetchWeatherData(
   );
 
   const { lat, lon } = resolveLatLon(location);
-  const moon = getMoonData(lat, lon);
+  // Rise and set for the location's day, not the server's (see moon.ts): its
+  // midnight from the UTC offset, the only zone information OpenWeather gives.
+  const offsetMs = forecastData.timezoneOffsetSeconds * 1000;
+  const dayMs = 24 * 3_600_000;
+  const localMidnight = new Date(Math.floor((nowMs + offsetMs) / dayMs) * dayMs - offsetMs);
+  const moon = getMoonData(lat, lon, new Date(), localMidnight);
 
   return {
     location: currentData.locationName,

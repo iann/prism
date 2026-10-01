@@ -19,7 +19,7 @@ import { usePersistedState, useSessionScopedState, isBoolean, isStringArray } fr
 import { toast } from '@/components/ui/use-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import {
   MessageSquare,
   Plus,
@@ -38,7 +38,8 @@ import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/ui/avatar';
 import { PageWrapper, SubpageHeader, FilterBar, PersonFilter } from '@/components/layout';
 import { useMessages } from '@/lib/hooks';
-import { useAuth } from '@/components/providers';
+import { useAuth, useTimeFormat } from '@/components/providers';
+import { formatDisplayDateTime } from '@/lib/utils/timeFormat';
 import { useFamily } from '@/components/providers';
 import { AddMessageModal } from '@/components/modals/AddMessageModal';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -410,8 +411,9 @@ function MessageCard({
     }
   };
 
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const timeAgo = formatDistanceToNow(message.createdAt, { addSuffix: true });
-  const fullDate = format(message.createdAt, 'PPp');
+  const fullDate = formatDisplayDateTime(message.createdAt, timeFormat, displayTimezone);
 
   if (compact) {
     return (
@@ -471,7 +473,7 @@ function MessageCard({
                 variant="ghost"
                 size="icon"
                 onClick={startEdit}
-                className="wall-touch-control opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                className="wall-touch-control opacity-0 group-hover:opacity-100 pointer-coarse:opacity-60 transition-opacity h-6 w-6"
                 title="Edit message"
               >
                 <Pencil className="h-3 w-3" />
@@ -480,7 +482,7 @@ function MessageCard({
                 variant="ghost"
                 size="icon"
                 onClick={onDelete}
-                className="wall-touch-control opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 text-destructive"
+                className="wall-touch-control opacity-0 group-hover:opacity-100 pointer-coarse:opacity-60 transition-opacity h-6 w-6 text-destructive"
                 title="Delete message"
               >
                 <Trash2 className="h-3 w-3" />
@@ -555,7 +557,7 @@ function MessageCard({
               variant="ghost"
               size="icon"
               onClick={startEdit}
-              className="wall-touch-control opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8"
+              className="wall-touch-control opacity-0 group-hover:opacity-100 pointer-coarse:opacity-60 max-md:opacity-60 transition-opacity h-8 w-8"
               title="Edit message"
             >
               <Pencil className="h-4 w-4" />
@@ -564,7 +566,7 @@ function MessageCard({
               variant="ghost"
               size="icon"
               onClick={onDelete}
-              className="wall-touch-control opacity-0 group-hover:opacity-100 max-md:opacity-60 transition-opacity h-8 w-8 text-destructive"
+              className="wall-touch-control opacity-0 group-hover:opacity-100 pointer-coarse:opacity-60 max-md:opacity-60 transition-opacity h-8 w-8 text-destructive"
               title="Delete message"
             >
               <Trash2 className="h-4 w-4" />

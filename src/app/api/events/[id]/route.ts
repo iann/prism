@@ -26,6 +26,8 @@ import { pushCalDAVEventDelete } from '@/lib/services/calendar-sync';
 import { decrypt, encrypt } from '@/lib/utils/crypto';
 import { logActivity } from '@/lib/services/auditLog';
 import { logError } from '@/lib/utils/logError';
+import { getHouseholdTimezone } from '@/lib/householdTimezone';
+import { normalizeAllDayRange } from '@/lib/utils/allDayRange';
 
 
 interface RouteParams {
@@ -74,7 +76,8 @@ function buildGoogleFieldUpdate(
   effLoc: string | null | undefined,
   effStart: Date,
   effEnd: Date,
-  effAllDay: boolean
+  effAllDay: boolean,
+  timeZone: string,
 ): Record<string, unknown> | null {
   const googleUpdate: Record<string, unknown> = {};
 
@@ -84,7 +87,7 @@ function buildGoogleFieldUpdate(
 
   if ('startTime' in body || 'endTime' in body || 'allDay' in body) {
     if (effAllDay) {
-      const range = toGoogleAllDayRange(effStart, effEnd);
+      const range = toGoogleAllDayRange(effStart, effEnd, timeZone);
       googleUpdate.start = range.start;
       googleUpdate.end = range.end;
     } else {
@@ -350,13 +353,24 @@ export async function PATCH(
     // POST refuses an end before its start; PATCH did not, so moving one edge
     // of an existing event could invert it. Compare against what the event will
     // actually be, not only against what this request carries.
-    const effectiveStart = (updateData.startTime as Date | undefined) ?? existingEvent.startTime;
-    const effectiveEnd = (updateData.endTime as Date | undefined) ?? existingEvent.endTime;
+    let effectiveStart = (updateData.startTime as Date | undefined) ?? existingEvent.startTime;
+    let effectiveEnd = (updateData.endTime as Date | undefined) ?? existingEvent.endTime;
     if (effectiveEnd < effectiveStart) {
       return NextResponse.json(
         { error: 'End time must be after start time' },
         { status: 400 }
       );
+    }
+
+    // An all-day range is stored in the floating form (see allDayRange.ts),
+    // whatever shape the caller sent, including when a timed event becomes
+    // all-day.
+    const effectiveAllDay = (updateData.allDay as boolean | undefined) ?? existingEvent.allDay;
+    if (effectiveAllDay && ('startTime' in body || 'endTime' in body || 'allDay' in body)) {
+      ({ start: effectiveStart, end: effectiveEnd } =
+        normalizeAllDayRange(effectiveStart, effectiveEnd, await getHouseholdTimezone()));
+      updateData.startTime = effectiveStart;
+      updateData.endTime = effectiveEnd;
     }
 
     // Google is the only provider with a write path from this route. An event
@@ -431,7 +445,7 @@ export async function PATCH(
           (reassigning && oldSource?.provider !== 'google');
 
         if (needsCreate) {
-          const allDayRange = effAllDay ? toGoogleAllDayRange(effStart, effEnd) : null;
+          const allDayRange = effAllDay ? toGoogleAllDayRange(effStart, effEnd, await getHouseholdTimezone()) : null;
           const created = await createCalendarEvent(
             accessToken,
             targetSource.sourceCalendarId,
@@ -470,7 +484,7 @@ export async function PATCH(
             targetSource.sourceCalendarId
           );
 
-          const googleUpdate = buildGoogleFieldUpdate(body, effTitle, effDesc, effLoc, effStart, effEnd, effAllDay);
+          const googleUpdate = buildGoogleFieldUpdate(body, effTitle, effDesc, effLoc, effStart, effEnd, effAllDay, await getHouseholdTimezone());
           if (googleUpdate) {
             await updateCalendarEvent(
               accessToken,
@@ -481,7 +495,7 @@ export async function PATCH(
           }
         } else if (existingEvent.externalEventId) {
           // Same Google calendar as before: push the field changes.
-          const googleUpdate = buildGoogleFieldUpdate(body, effTitle, effDesc, effLoc, effStart, effEnd, effAllDay);
+          const googleUpdate = buildGoogleFieldUpdate(body, effTitle, effDesc, effLoc, effStart, effEnd, effAllDay, await getHouseholdTimezone());
           if (googleUpdate) {
             await updateCalendarEvent(
               accessToken,

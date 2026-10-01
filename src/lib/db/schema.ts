@@ -276,7 +276,10 @@ export const tasks = pgTable('tasks', {
 
   assignedTo: uuid('assigned_to').references(() => users.id, { onDelete: 'set null' }),
 
-  dueDate: timestamp('due_date'),
+  // Due date and optional wall-clock time, like a chore's nextDue and
+  // nextDueTime. A calendar date, not an instant (src/lib/utils/taskDue.ts).
+  dueDate: date('due_date'),
+  dueTime: varchar('due_time', { length: 5 }),
 
   priority: varchar('priority', { length: 20 })
     .$type<'high' | 'medium' | 'low'>(),
@@ -1286,7 +1289,9 @@ export const photos = pgTable('photos', {
   height: integer('height'),
   sizeBytes: integer('size_bytes'),
 
-  // When the photo was taken (from EXIF or file date)
+  // When the photo was taken (from EXIF or file date), on the camera's clock
+  // written as UTC: EXIF carries no zone, and OneDrive reports it this way.
+  // Read its date and time with the UTC getters (see immichTakenAt).
   takenAt: timestamp('taken_at'),
 
   // External ID for synced photos (e.g., OneDrive item ID)

@@ -3,7 +3,7 @@
 import React, { useMemo, createContext, useContext, useEffect, useState } from 'react';
 import { DAYS_OF_WEEK } from '@/lib/constants/days';
 import type { MobileLayoutMode } from '@/lib/hooks/useMobileLayout';
-import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
+import { addDays, format, isSameDay, parseISO } from 'date-fns';
 import Link from 'next/link';
 import {
   Calendar,
@@ -31,11 +31,11 @@ import type { CalendarEvent } from '@/types/calendar';
 import type { BusRouteStatus, BusPrediction } from '@/lib/hooks/useBusTracking';
 import { getBusStatusColorClass } from '@/components/widgets/busStatusColors';
 import { useTimeFormat } from '@/components/providers';
-import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import {
   formatFamilyCelebrationGreeting,
   getTodaysFamilyCelebrations,
 } from '@/lib/birthdayCelebration';
+import { eventStartDisplayDate, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 
 type DashData = ReturnType<typeof useDashboardData>;
@@ -126,11 +126,13 @@ export function CalendarCard({ data }: { data: DashData['calendar'] }) {
   const upcoming = useMemo(() => {
     if (!data.events) return [];
     const now = new Date();
+    // All-day ends are floating dates: compared as instants, today's all-day
+    // event vanished at 7 PM west of UTC and lingered into tomorrow east of it.
     return data.events
-      .filter((e: CalendarEvent) => e.endTime > now)
+      .filter((e: CalendarEvent) => !isCalendarEventPast(e.startTime, e.endTime, e.allDay, now, displayTimezone))
       .sort((a: CalendarEvent, b: CalendarEvent) => a.startTime.getTime() - b.startTime.getTime())
       .slice(0, 3);
-  }, [data.events]);
+  }, [data.events, displayTimezone]);
 
   return (
     <CardShell href="/calendar" icon={<Calendar className="h-4 w-4 text-blue-500" />} title="Calendar" count={upcoming.length}>
@@ -139,16 +141,19 @@ export function CalendarCard({ data }: { data: DashData['calendar'] }) {
       ) : (
         <div className="space-y-1">
           {upcoming.map((e: CalendarEvent) => {
-            const displayStart = toDisplayDate(e.startTime, displayTimezone);
+            const displayStart = eventStartDisplayDate(e.startTime, e.allDay, displayTimezone);
             const displayNow = toDisplayDate(new Date(), displayTimezone);
+            // An all-day event has no time to show; its stored midnight would
+            // read as the previous evening west of UTC.
+            const time = e.allDay ? 'All day' : formatDisplayTime(e.startTime, timeFormat, {}, displayTimezone);
             return (
             <div key={e.id} className="flex items-center gap-2 text-xs">
               <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
               <span className="truncate flex-1">{e.title}</span>
               <span className="text-muted-foreground shrink-0">
-                {isSameDay(displayStart, displayNow) ? formatDisplayTime(e.startTime, timeFormat, {}, displayTimezone) :
-                 isSameDay(displayStart, addDays(displayNow, 1)) ? `Tomorrow ${formatDisplayTime(e.startTime, timeFormat, {}, displayTimezone)}` :
-                 `${format(displayStart, 'EEE')} ${formatDisplayTime(e.startTime, timeFormat, {}, displayTimezone)}`}
+                {isSameDay(displayStart, displayNow) ? time :
+                 isSameDay(displayStart, addDays(displayNow, 1)) ? `Tomorrow ${time}` :
+                 `${format(displayStart, 'EEE')} ${time}`}
               </span>
             </div>
             );
@@ -160,12 +165,14 @@ export function CalendarCard({ data }: { data: DashData['calendar'] }) {
 }
 
 export function ChoresCard({ data }: { data: DashData['chores'] }) {
+  const today = useLocalDateKey();
   const dueCount = useMemo(() => {
     if (!data.chores) return 0;
     return data.chores.filter((c: { enabled: boolean; nextDue?: string }) =>
-      c.enabled && (!c.nextDue || new Date(c.nextDue) <= new Date())
+      // Date keys compare as strings; see ChoresTile.
+      c.enabled && (!c.nextDue || c.nextDue.slice(0, 10) <= today)
     ).length;
-  }, [data.chores]);
+  }, [data.chores, today]);
 
   return (
     <CardShell href="/chores" icon={<ClipboardList className="h-4 w-4 text-orange-500" />} title="Chores" count={dueCount}>
@@ -217,15 +224,14 @@ export function ShoppingCard({ data }: { data: DashData['shopping'] }) {
 }
 
 export function MealsCard({ data }: { data: DashData['meals'] }) {
+  const today = useLocalDateKey();
   const todayMeal = useMemo(() => {
     if (!data.meals) return null;
-    const todayDay = DAYS_OF_WEEK[new Date().getDay()];
-    const currentWeekOf = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-    const thisWeek = data.meals.filter((m) => m.weekOf === currentWeekOf);
-    return thisWeek.find((m) => m.dayOfWeek === todayDay && m.mealType === 'dinner')
-      || thisWeek.find((m) => m.dayOfWeek === todayDay)
-      || null;
-  }, [data.meals]);
+    // Match on the absolute date: weekOf depends on the week-start setting
+    // the meal was saved under, so it cannot be recomputed here.
+    const todays = data.meals.filter((m) => m.date === today);
+    return todays.find((m) => m.mealType === 'dinner') || todays[0] || null;
+  }, [data.meals, today]);
 
   return (
     <CardShell href="/meals" icon={<UtensilsCrossed className="h-4 w-4 text-amber-500" />} title="Meals">
@@ -261,7 +267,7 @@ export function BirthdaysCard({ data }: { data: DashData['birthdays'] }) {
       <div className="space-y-1">
         {upcoming.map((b) => (
           <p key={b.id} className="text-xs text-muted-foreground">
-            {b.name} — {b.nextBirthday ? format(new Date(b.nextBirthday), 'MMM d') : ''}
+            {b.name} — {b.nextBirthday ? format(parseISO(b.nextBirthday), 'MMM d') : ''}
           </p>
         ))}
       </div>

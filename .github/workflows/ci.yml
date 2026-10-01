@@ -120,6 +120,11 @@ jobs:
       - run: npm run smoke
         working-directory: .mcp
 
+      # Calls every tool against a recording fake of the API and checks the
+      # fields it sends match its route, plus the household time conversion.
+      - run: npm test
+        working-directory: .mcp
+
   migration-replay:
     name: Migration replay (modality TODO #3)
     runs-on: ubuntu-latest
@@ -245,6 +250,11 @@ jobs:
       # rendered box in the wrong place, which no unit test can see. The classes
       # and props were correct each time.
       - name: Run calendar geometry suite
+        # The dev server this starts runs in Tokyo, the chromium-chicago
+        # project's browser in Chicago, and the default project's browser
+        # follows TZ, so a date passed between them in the wrong form shows.
+        env:
+          TZ: Asia/Tokyo
         run: npx playwright test e2e/calendar-geometry.spec.ts --reporter=list
 
       - name: Upload Playwright report on failure

@@ -1,6 +1,6 @@
 'use client';
 
-import { isPast, isToday, isTomorrow, parseISO, format } from 'date-fns';
+import { parseISO, format } from 'date-fns';
 import { Emoji } from '@/components/ui/Emoji';
 import {
   AlertCircle,
@@ -15,6 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import type { Chore } from '@/types';
+import { isTaskOverdue } from '@/lib/utils/taskDue';
+import { addDaysToKey } from '@/lib/utils/zonedDate';
+import { useDisplayToday } from '@/components/providers';
 
 export function getCategoryEmoji(category: string): string {
   switch (category) {
@@ -41,16 +44,18 @@ export function ChoreItem({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const isOverdue = chore.nextDue && isPast(parseISO(chore.nextDue));
+  // Not overdue on its own day: "Due today" is not an alert.
+  const { today, timeZone } = useDisplayToday();
+  const isOverdue = isTaskOverdue({ dueDate: chore.nextDue?.slice(0, 10), dueTime: chore.nextDueTime }, new Date(), timeZone);
   const isPendingApproval = !!chore.pendingApproval;
   const categoryEmoji = getCategoryEmoji(chore.category);
 
   const formatDueDate = (dateString: string) => {
-    const date = parseISO(dateString);
-    if (isToday(date)) return 'Due today';
-    if (isTomorrow(date)) return 'Due tomorrow';
-    if (isPast(date)) return 'Overdue';
-    return `Due ${format(date, 'MMM d')}`;
+    const dueKey = dateString.slice(0, 10);
+    if (dueKey === today) return 'Due today';
+    if (dueKey === addDaysToKey(today, 1)) return 'Due tomorrow';
+    if (dueKey < today) return 'Overdue';
+    return `Due ${format(parseISO(dueKey), 'MMM d')}`;
   };
 
   const formatFrequency = (frequency: string, customDays?: number | null) => {
@@ -186,7 +191,7 @@ export function ChoreItem({
           variant="ghost"
           size="icon"
           onClick={onEdit}
-          className="wall-touch-control h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="wall-touch-control h-8 w-8 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-60 transition-opacity"
           aria-label="Edit chore"
         >
           <Edit2 className="h-4 w-4" />
@@ -195,7 +200,7 @@ export function ChoreItem({
           variant="ghost"
           size="icon"
           onClick={onDelete}
-          className="wall-touch-control h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+          className="wall-touch-control h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 pointer-coarse:opacity-60 transition-opacity"
           aria-label="Delete chore"
         >
           <Trash2 className="h-4 w-4" />
