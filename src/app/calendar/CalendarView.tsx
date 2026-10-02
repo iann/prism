@@ -26,6 +26,7 @@ import {
   CalendarCog,
   Merge,
   Plus,
+  CalendarOff,
   Loader2,
   AlertTriangle,
 } from 'lucide-react';
@@ -93,6 +94,7 @@ export function CalendarView() {
   const t = useTranslations('calendar');
   const { activeUser, requireAuth } = useAuth();
   const { members: familyMembers } = useFamily();
+  const [noSchoolPreset, setNoSchoolPreset] = useState(false);
   const { weekStartsOn } = useWeekStartsOn();
   // Drives the "Connect a calendar" empty-state CTA below — calendar setup
   // moved out of the onboarding wizard onto this page, so a brand-new
@@ -361,6 +363,13 @@ export function CalendarView() {
     setShowAddEvent(true);
   };
 
+  const handleNoSchoolWithAuth = async () => {
+    const user = await requireAuth(t('toolbar.noSchool'), t('toolbar.noSchoolAuth'));
+    if (!user) return;
+    setNoSchoolPreset(true);
+    setShowAddEvent(true);
+  };
+
   // Mobile is agenda-only.
   useEffect(() => {
     if (isMobile && viewType !== 'agenda') {
@@ -455,6 +464,11 @@ export function CalendarView() {
             {!isMobile && (
               <Button variant="outline" size="sm" onClick={() => setShowManageCalendars(true)} className="h-9" title={t('toolbar.manageCalendars')}>
                 <CalendarCog className="h-4 w-4 mr-1" />{t('toolbar.manage')}
+              </Button>
+            )}
+            {!isMobile && (
+              <Button variant="outline" size="sm" onClick={handleNoSchoolWithAuth} title={t('toolbar.noSchool')}>
+                <CalendarOff className="h-4 w-4 mr-1" />{t('toolbar.noSchool')}
               </Button>
             )}
             {!isMobile && (
@@ -653,7 +667,9 @@ export function CalendarView() {
 
         <AddEventModal
           open={showAddEvent || editingEvent !== null}
-          onOpenChange={(open) => { if (!open) { setShowAddEvent(false); setEditingEvent(null); } }}
+          onOpenChange={(open) => { if (!open) { setShowAddEvent(false); setNoSchoolPreset(false); setEditingEvent(null); } }}
+          defaultDate={currentDate}
+          noSchoolPreset={noSchoolPreset}
           event={editingEvent ? {
             id: editingEvent.id,
             title: editingEvent.title,
@@ -668,7 +684,7 @@ export function CalendarView() {
             reminderMinutes: editingEvent.reminderMinutes ?? undefined,
             calendarSourceId: editingEvent.calendarId !== 'local' ? editingEvent.calendarId : undefined,
           } : undefined}
-          onEventCreated={() => { refreshEvents(); setShowAddEvent(false); setEditingEvent(null); }}
+          onEventCreated={() => { refreshEvents(); setShowAddEvent(false); setNoSchoolPreset(false); setEditingEvent(null); }}
         />
 
         {showManageCalendars && (

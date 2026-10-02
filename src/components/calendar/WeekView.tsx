@@ -37,6 +37,7 @@ import {
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
 import { useTranslations } from 'next-intl';
+import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
 
 export type CalendarDisplayMode = 'inline' | 'cards';
 
@@ -161,6 +162,7 @@ export function WeekView({
   const renderDayColumn = (date: Date, compact: boolean = false) => {
     const isPast = isBefore(date, startOfDay(displayNow)) && !isSameDay(date, displayNow);
     const allDayEvents = getAllDayEvents(date);
+    const isNoSchool = isWeekend(date) || allDayEvents.some(isNoSchoolEvent);
     const dayPositions = calculateEventPositions(getDayTimedEvents(date));
 
     return (
@@ -169,6 +171,9 @@ export function WeekView({
         date={date}
         cards={cards}
         enableDnd={enableDnd}
+        style={!transparentMode && !cellBgStyle && isNoSchool && !isSameDay(date, displayNow)
+          ? { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' }
+          : undefined}
       >
         {/* Day header */}
         <div
@@ -359,6 +364,7 @@ export function WeekView({
             {days.map((date) => {
               const isPast = isBefore(date, startOfDay(displayNow)) && !isSameDay(date, displayNow);
               const allDayEvents = getAllDayEvents(date);
+              const isNoSchool = isWeekend(date) || allDayEvents.some(isNoSchoolEvent);
               const dayBucket = bucketsByDate?.get(format(date, 'yyyy-MM-dd'));
               const dayWeather = dayBucket?.weather;
               // Header bucket: items WITHOUT a time-of-day OR with a time
@@ -388,6 +394,9 @@ export function WeekView({
                   cards={cards}
                   enableDnd={enableDnd}
                   transparentMode={transparentMode}
+                  style={!transparentMode && !cellBgStyle && isNoSchool && !isSameDay(date, displayNow)
+                    ? { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' }
+                    : undefined}
                 >
                   <div
                     className={cn(
@@ -466,6 +475,8 @@ export function WeekView({
             {/* Day columns */}
             {days.map((date) => {
               const isPast = isBefore(date, startOfDay(displayNow)) && !isSameDay(date, displayNow);
+              const allDayEvents = getAllDayEvents(date);
+              const isNoSchool = isWeekend(date) || allDayEvents.some(isNoSchoolEvent);
               const dayPositions = calculateEventPositions(getDayTimedEvents(date));
               const dayBucket = bucketsByDate?.get(format(date, 'yyyy-MM-dd'));
               return (
@@ -477,6 +488,9 @@ export function WeekView({
                   cards={cards}
                   enableDnd={enableDnd}
                   transparentMode={transparentMode}
+                  style={!transparentMode && !cellBgStyle && isNoSchool && !isSameDay(date, displayNow)
+                    ? { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' }
+                    : undefined}
                 >
                 <div
                   className="grid h-full"
@@ -713,11 +727,13 @@ function PortraitDayColumn({
   date,
   cards,
   enableDnd,
+  style,
   children,
 }: {
   date: Date;
   cards: boolean;
   enableDnd: boolean;
+  style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
@@ -729,6 +745,7 @@ function PortraitDayColumn({
         'flex flex-col min-w-0 flex-1',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-lg rounded-md',
       )}
+      style={style}
     >
       {children}
     </div>
@@ -748,6 +765,7 @@ function LandscapeDayBody({
   cards,
   enableDnd,
   transparentMode,
+  style,
   children,
 }: {
   date: Date;
@@ -756,6 +774,7 @@ function LandscapeDayBody({
   cards: boolean;
   enableDnd: boolean;
   transparentMode: boolean;
+  style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd, region: 'body' });
@@ -772,6 +791,7 @@ function LandscapeDayBody({
         today && cards && 'border border-t-0 border-seasonal-accent/80',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-inset ring-seasonal-accent shadow-lg',
       )}
+      style={style}
     >
       {children}
     </div>
@@ -790,6 +810,7 @@ function LandscapeDayHeader({
   cards,
   enableDnd,
   transparentMode,
+  style,
   children,
 }: {
   date: Date;
@@ -798,6 +819,7 @@ function LandscapeDayHeader({
   cards: boolean;
   enableDnd: boolean;
   transparentMode: boolean;
+  style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
@@ -815,6 +837,7 @@ function LandscapeDayHeader({
         today && cards && 'border border-b-0 border-seasonal-accent/80',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-inset ring-seasonal-accent shadow-lg',
       )}
+      style={style}
     >
       {children}
     </div>

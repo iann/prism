@@ -26,6 +26,7 @@ import { SpanningEventRows } from './cells';
 import { eventOccursOnDisplayDay, formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
+import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
 
 export interface ThreeMonthViewProps {
   currentDate: Date;
@@ -123,6 +124,14 @@ function MiniMonth({
               const inMonth = isSameMonth(date, month);
               const today = isSameDay(date, displayNow);
               const isPast = isBefore(date, startOfDay(displayNow)) && !today;
+              const isNoSchool = isWeekend(date) || scopedEvents.some((event) =>
+                isNoSchoolEvent(event) && eventOccursOnDisplayDay(
+                  event.startTime,
+                  event.endTime,
+                  event.allDay,
+                  date,
+                  displayTimezone,
+                ));
               const dayEvents = scopedEvents
                 .filter((event) => !eventRowEventSet.has(event))
                 .filter((event) => eventOccursOnDisplayDay(
@@ -151,6 +160,9 @@ function MiniMonth({
                     !transparentMode && today && 'bg-calendar-today',
                     today && 'ring-1 ring-inset ring-ring',
                   )}
+                  style={!transparentMode && isNoSchool && !today
+                    ? { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' }
+                    : undefined}
                 >
                   <span className={cn(
                     'text-center text-[12px] leading-tight flex-shrink-0',
