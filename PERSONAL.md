@@ -1001,6 +1001,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: b84f8c9b
 
+124. **Agenda coverage for no-school calendar tinting**
+
+    Extends the theme-aware weekend and no-school tint into the dashboard's
+    default Agenda view and the vertical week view, including empty weekend
+    sections so the school-day distinction remains visible without changing
+    the database model.
+
+    Commit: 72ba27da
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
