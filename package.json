@@ -119,7 +119,7 @@
     "sharp": "0.35.4",
     "simple-keyboard": "^3.8.192",
     "suncalc": "^2.0.2",
-    "tailwind-merge": "^3.7.0",
+    "tailwind-merge": "2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tsdav": "^2.3.4",
     "undici": "^8.11.2",
