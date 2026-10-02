@@ -93,6 +93,8 @@ export interface AddEventModalProps {
   event?: EventToEdit;
   /** Pre-fill start date when creating */
   defaultDate?: Date;
+  /** Pre-fill an all-day event intended to mark a no-school day. */
+  noSchoolPreset?: boolean;
 }
 
 /**
@@ -175,6 +177,7 @@ export function AddEventModal({
   onEventCreated,
   event,
   defaultDate,
+  noSchoolPreset = false,
 }: AddEventModalProps) {
   const isEditMode = !!event;
   const t = useTranslations('calendar');
@@ -296,6 +299,15 @@ export function AddEventModal({
       setReminderMinutes(event.reminderMinutes ?? '');
       setCalendarSourceId(event.calendarSourceId || defaultCalendarId);
       setShowMore(!!(event.description || event.location || event.reminderMinutes || event.recurrenceRule));
+    } else if (open && noSchoolPreset && defaultDate) {
+      setTitle('No School: Vacation');
+      setAllDay(true);
+      const d = format(defaultDate, 'yyyy-MM-dd');
+      setStartDate(d);
+      setEndDate(d);
+      setStartTimeStr('');
+      setEndTimeStr('');
+      setShowMore(false);
     } else if (open && defaultDate) {
       // Calendar cells are already presentation-only wall dates.
       const d = format(defaultDate, 'yyyy-MM-dd');
@@ -311,7 +323,7 @@ export function AddEventModal({
       setEndTimeStr('10:00');
     }
     if (open && !event) setCalendarSourceId(defaultCalendarId);
-  }, [open, event, defaultDate, defaultCalendarId, displayTimezone]);
+  }, [open, event, defaultDate, defaultCalendarId, displayTimezone, noSchoolPreset]);
 
   // Reset form when modal closes
   useEffect(() => {
@@ -416,9 +428,9 @@ export function AddEventModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{t(isEditMode ? 'eventForm.titleEdit' : 'eventForm.titleNew')}</DialogTitle>
+          <DialogTitle>{t(isEditMode ? 'eventForm.titleEdit' : noSchoolPreset ? 'eventForm.titleNoSchool' : 'eventForm.titleNew')}</DialogTitle>
           <DialogDescription className="sr-only">
-            {t(isEditMode ? 'eventForm.descriptionEdit' : 'eventForm.descriptionNew')}
+            {t(isEditMode ? 'eventForm.descriptionEdit' : noSchoolPreset ? 'eventForm.descriptionNoSchool' : 'eventForm.descriptionNew')}
           </DialogDescription>
         </DialogHeader>
 
@@ -432,6 +444,9 @@ export function AddEventModal({
             autoFocus
             required
           />
+          {noSchoolPreset && (
+            <p className="text-xs text-muted-foreground">{t('eventForm.noSchoolHint')}</p>
+          )}
 
           {/* Date & Time — Google Calendar style */}
           <div className="flex items-center gap-1 flex-wrap -mx-1 px-1 py-1 rounded-lg hover:bg-muted/40 transition-colors">

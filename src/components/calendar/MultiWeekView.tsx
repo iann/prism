@@ -24,6 +24,7 @@ import { eventOccursOnDisplayDay, formatDisplayTime, isCalendarEventPast, toDisp
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
 import { useTranslations } from 'next-intl';
+import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
 
 export interface MultiWeekViewProps {
   currentDate: Date;
@@ -251,6 +252,14 @@ function DayCell({
   const hiddenEvents = cards ? sorted.slice(visibleEvents.length) : [];
 
   const today = isSameDay(date, displayNow);
+  const isNoSchool = isWeekend(date) || events.some((event) =>
+    isNoSchoolEvent(event) && eventOccursOnDisplayDay(
+      event.startTime,
+      event.endTime,
+      event.allDay,
+      date,
+      displayTimezone,
+    ));
   const tomorrow = isSameDay(date, addDays(displayNow, 1));
   const dayLabel = today
     ? t('today')
@@ -286,7 +295,9 @@ function DayCell({
         today && !(cards && enableDnd && droppable.isOver) && 'ring-2 ring-inset ring-ring',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-inset ring-seasonal-accent',
       )}
-      style={cellBgStyle}
+      style={cellBgStyle ?? (!isNoSchool || today
+        ? undefined
+        : { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' })}
     >
       {/* Date header — large bold day number, relative day label, weather upper-right. */}
       <div

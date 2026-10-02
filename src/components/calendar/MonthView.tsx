@@ -27,6 +27,7 @@ import { CardHeightProbe, DayOverflowPopover, DroppableOverlayCell, SpanningEven
 import { useTimeFormat } from '@/components/providers';
 import { eventOccursOnDisplayDay, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
+import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
 
 export interface MonthViewProps {
   currentDate: Date;
@@ -144,6 +145,14 @@ export function MonthView({
             });
 
           const isPast = isBefore(date, startOfDay(displayNow)) && !isSameDay(date, displayNow);
+          const isNoSchool = isWeekend(date) || scopedEvents.some((event) =>
+            isNoSchoolEvent(event) && eventOccursOnDisplayDay(
+              event.startTime,
+              event.endTime,
+              event.allDay,
+              date,
+              displayTimezone,
+            ));
 
           return (
             <MonthDayCell
@@ -161,6 +170,7 @@ export function MonthView({
               bordered={bordered}
               transparentMode={transparentMode}
               cellBgStyle={cellBgStyle}
+              isNoSchool={isNoSchool}
               onDateClick={onDateClick}
               onEventClick={onEventClick}
               onItemClick={onItemClick}
@@ -191,6 +201,7 @@ function MonthDayCell({
   bordered,
   transparentMode,
   cellBgStyle,
+  isNoSchool,
   onDateClick,
   onEventClick,
   onItemClick,
@@ -208,6 +219,7 @@ function MonthDayCell({
   bordered: boolean;
   transparentMode: boolean;
   cellBgStyle: React.CSSProperties | undefined;
+  isNoSchool: boolean;
   onDateClick: (date: Date) => void;
   onEventClick: (event: CalendarEvent) => void;
   onItemClick?: (ref: OverlayItemRef) => void;
@@ -234,7 +246,9 @@ function MonthDayCell({
         today && !(cards && enableDnd && droppable.isOver) && 'ring-2 ring-inset ring-ring',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-lg',
       )}
-      style={cellBgStyle}
+      style={cellBgStyle ?? (!transparentMode && isNoSchool && !today
+        ? { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' }
+        : undefined)}
     >
       <div className="flex shrink-0 items-center justify-center h-(--daynum-row)">
         <span className={cn(

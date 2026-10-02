@@ -991,6 +991,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: a2727d7a
 
+123. **Theme-aware no-school calendar tinting**
+
+    Uses all-day calendar events to mark holidays, vacations, school closures,
+    and other no-school days, while automatically tinting weekends with a
+    subtle color derived from each light and dark seasonal theme. Includes a
+    quick "No school" event action and recognizes common closure wording such
+    as "Step 1 Closed" and its variants without adding a database table.
+
+    Commit: b84f8c9b
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
