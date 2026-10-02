@@ -443,6 +443,25 @@
   }
 }
 
+/* Performance mode: minimum-viable stylesheet. The only CSS effect
+ * we are confident gives a meaningful perf win on weak GPUs is
+ * disabling backdrop-filter, and only on elements that actually
+ * declare it (the .backdrop-blur* utility classes). An earlier
+ * version applied this to a universal `*` selector and that turned
+ * out to make toolbar SVG icons render invisibly in light theme on
+ * Chrome — applying `backdrop-filter: none` to descendants that
+ * never had backdrop-filter set creates new stacking contexts and
+ * compositor layers that can change rendering in subtle ways.
+ * Bigger perf wins come from JS-side changes (polling stretch, photo
+ * widget lite, structural-shared polling).
+ *
+ * Match any backdrop-blur-* size, so a renamed size cannot slip through.
+ * Keep -webkit- first: the minifier keeps only the last of the two. */
+html.performance-mode [class*="backdrop-blur"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 /* Coordinate theme changes as one crossfade when the View Transition API is
  * available. The CSS-variable transitions below remain the fallback. */
 @media (prefers-reduced-motion: no-preference) {
@@ -961,7 +980,10 @@
     *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
+      /* 0s, not 0.01ms: with the default transition-property (all), any
+         nonzero duration turns every inherited style change into thousands
+         of transitions. Nothing waits for transitionend. */
+      transition-duration: 0s !important;
       scroll-behavior: auto !important;
     }
   }
@@ -2647,8 +2669,10 @@ body:has(.wall-display) [role='dialog'] select {
  */
 .prism-screensaver-flat [class*="bg-card"],
 .prism-screensaver-flat [class*="backdrop-blur"] {
-  backdrop-filter: none !important;
+  /* -webkit- first: the minifier keeps only the last of the two, and
+     Chromium ignores the prefixed one. */
   -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 /**
