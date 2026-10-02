@@ -27,6 +27,7 @@ import {
   toDisplayDate,
 } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
+import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
 import { useTranslations } from 'next-intl';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
 
@@ -211,6 +212,7 @@ function WeekListDayRow({
     if (aStartsToday !== bStartsToday) return aStartsToday ? 1 : -1;
     return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
   });
+  const isNoSchool = !isCurrentDay && (isWeekend(day) || allDayEvents.some(isNoSchoolEvent));
 
   const droppable = useDayDroppable({ date: day, enabled: cards && enableDnd });
 
@@ -227,7 +229,9 @@ function WeekListDayRow({
         isCurrentDay && 'ring-1 ring-inset ring-ring',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-lg',
       )}
-      style={cellBgStyle}
+      style={cellBgStyle ?? (isNoSchool
+        ? { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' }
+        : undefined)}
     >
       <div
         className={cn(

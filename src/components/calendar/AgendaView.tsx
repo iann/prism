@@ -27,6 +27,7 @@ import {
 } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { useDateLabels, type DateLabels } from '@/lib/hooks/useDateLabels';
+import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
 
 const MEAL_FALLBACK_COLOR = '#10b981';
 const CHORE_FALLBACK_COLOR = '#f59e0b';
@@ -129,7 +130,8 @@ export function AgendaView({
     ));
     const bucket = bucketsByDate?.get(format(date, 'yyyy-MM-dd'));
     const hasOverlay = bucket && (bucket.meals.length + bucket.chores.length + bucket.tasks.length > 0);
-    if (dayEvents.length > 0 || hasOverlay) {
+    const isNoSchool = isWeekend(date) || dayEvents.some(isNoSchoolEvent);
+    if (dayEvents.length > 0 || hasOverlay || isNoSchool) {
       eventsByDay.push({ date, events: dayEvents, bucket });
     }
   }
@@ -190,6 +192,8 @@ function AgendaDaySection({
   const t = useTranslations('calendar');
   const d = useDateLabels();
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
+  const isCurrentDay = isSameDay(date, toDisplayDate(new Date(), displayTimezone));
+  const isNoSchool = !isCurrentDay && (isWeekend(date) || events.some(isNoSchoolEvent));
   const rows = buildAgendaRows({ date, events, bucket, onEventClick, mealColor, onItemClick, timeFormat, displayTimezone, t });
   const displayRows = maxEvents > 0 ? rows.slice(0, maxEvents) : rows;
   const remainingCount = maxEvents > 0 ? rows.length - maxEvents : 0;
@@ -202,17 +206,18 @@ function AgendaDaySection({
         'rounded',
         cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-sm bg-calendar-today p-1',
       )}
+      style={isNoSchool ? { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' } : undefined}
     >
       <div className="flex items-center gap-2 mb-2">
         <span
           className={cn(
             'text-sm font-semibold',
-            isSameDay(date, toDisplayDate(new Date(), displayTimezone)) && 'text-foreground'
+            isCurrentDay && 'text-foreground'
           )}
         >
           {formatAgendaDayHeader(date, displayTimezone, t, d)}
         </span>
-        {isSameDay(date, toDisplayDate(new Date(), displayTimezone)) && (
+        {isCurrentDay && (
           <Badge className="text-[12px] px-1.5 py-0 bg-calendar-today text-foreground">
             {t('today')}
           </Badge>
