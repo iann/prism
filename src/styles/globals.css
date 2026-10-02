@@ -561,7 +561,7 @@
     --seasonal-accent: 222 47% 31%;
     --seasonal-accent-foreground: 210 40% 98%;
     --seasonal-highlight: 210 40% 96%;
-    --seasonal-subtle: 210 40% 96%;
+    --seasonal-subtle: 210 40% 90%;
   }
 
   .dark {
@@ -643,7 +643,7 @@
     --seasonal-accent: 210 40% 98%;
     --seasonal-accent-foreground: 222 47% 11%;
     --seasonal-highlight: 217 33% 17%;
-    --seasonal-subtle: 217 33% 19%;
+    --seasonal-subtle: 217 33% 22%;
   }
 
   /* Daybook first paint before ThemeProvider restores a saved preset.
