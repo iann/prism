@@ -1010,6 +1010,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 72ba27da
 
+125. **Higher-contrast no-school calendar tinting**
+
+    Raises the light-mode seasonal tint contrast and slightly lifts the dark-
+    mode tint across all calendar views so weekends, holidays, and other
+    event-marked no-school days remain readable on a wall display.
+
+    Commit: 3b03e974
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
