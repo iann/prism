@@ -5,10 +5,8 @@ export const metadata = {
   title: 'Dashboard',
   description: 'Your family dashboard - view calendars, tasks, weather, and more.',
 };
-
-// The default dashboard reads its per-display font scale from the database.
-// Keep this route dynamic so a change in Settings is reflected without
-// requiring the next Docker build to bake in a new value.
+// Render per request: nothing else here marks the page dynamic, so it was
+// prerendered at build time (no database, fontScale 100) and never updated.
 export const dynamic = 'force-dynamic';
 
 // Both the default and named dashboards wrap their content in a zoom

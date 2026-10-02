@@ -134,7 +134,7 @@ describe('ThemeProvider — gallery themes', () => {
         : Promise.resolve({ ok: true, json: async () => ({ settings: { theme: { paletteId: 'prism' } } }) }),
     );
     const { result } = renderHook(() => useTheme(), { wrapper });
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.palette.id).toBe('prism'));
 
     let ok: boolean | undefined;
     await act(async () => { ok = await result.current.installTheme(galleryTheme('dusk')); });
