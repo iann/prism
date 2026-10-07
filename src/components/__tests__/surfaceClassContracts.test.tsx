@@ -267,6 +267,8 @@ describe('surface class contracts', () => {
     );
 
     expect(alphaCards).toEqual([
+      // The shared subpage header uses the theme surface with a restrained translucent veil.
+      'src/components/layout/SubpageHeader.tsx:bg-card/85',
       // Goal celebration is a transient overlay over a deliberately dark scrim.
       'src/components/ui/GoalCelebration.tsx:bg-card/95',
       // Shared cards use the theme surface with a restrained translucent veil.
@@ -283,6 +285,8 @@ describe('surface class contracts', () => {
       // Event descriptions use a subtle content boundary.
       'src/app/calendar/CalendarView.tsx:border-border/50',
       'src/app/goals/GoalsView.tsx:border-border/50',
+      'src/app/settings/sections/BirthdaysCard.tsx:border-border/50',
+      'src/app/settings/sections/DisplaySection.tsx:hover:border-primary/50',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
@@ -332,6 +336,9 @@ describe('surface class contracts', () => {
       'src/app/meals/MealsView.tsx:text-[8px]',
       // Compact labels identify the active palette in settings.
       'src/app/settings/sections/DisplaySection.tsx:text-[10px]',
+      'src/app/settings/sections/DisplaySection.tsx:text-[10px]',
+      'src/app/settings/sections/InputSection.tsx:text-[11px]',
+      'src/app/settings/sections/InputSection.tsx:text-[11px]',
       // Compact OAuth scope strings are code snippets with fixed-width content.
       'src/app/settings/sections/integrations/cards/GoogleManualTokenForm.tsx:text-[11px]',
       'src/app/tasks/TaskItem.tsx:text-[8px]',

@@ -24,7 +24,7 @@ function renderImport(onApply = jest.fn()) {
 }
 
 function submit(data: unknown) {
-  fireEvent.change(screen.getByPlaceholderText('Paste exported layout JSON here...'), {
+  fireEvent.change(screen.getByPlaceholderText(/Paste exported layout JSON here/), {
     target: { value: JSON.stringify(data) },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
