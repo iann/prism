@@ -19,6 +19,7 @@ import {
 } from '@/components/layout/WallpaperBackground';
 import { ThemeShareDialog } from '@/components/settings/ThemeShareDialog';
 import { CommunityThemeGallery } from '@/components/settings/CommunityThemeGallery';
+import { ThemeImportButton } from '@/components/settings/ThemeImportButton';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import { useOrientationOverride } from '../SettingsView';
 import { useScreensaverTimeout } from '@/lib/hooks/useScreensaverTimeout';
@@ -66,6 +67,7 @@ export function DisplaySection() {
   const [sunsetOffsetInput, setSunsetOffsetInput] = useState(String(sunsetOffsetMinutes));
   const [sharing, setSharing] = useState(false);
   const [browsing, setBrowsing] = useState(false);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
 
   useEffect(() => {
     setSunsetOffsetInput(String(sunsetOffsetMinutes));
@@ -250,6 +252,78 @@ export function DisplaySection() {
             </div>
           </div>
 
+          <div className="mt-6 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-48 flex-1">
+                <h4 className="text-sm font-medium">Palette</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Applies to every screen in the house. Light and dark above stay
+                  per-screen.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setBrowsing(true)}>
+                  <Store className="h-4 w-4 mr-1" />
+                  Browse
+                </Button>
+                <ThemeImportButton onErrors={setImportErrors} />
+                {/* Shares the palette in use, so what you submit is what you are
+                    looking at. */}
+                <Button variant="outline" size="sm" onClick={() => setSharing(true)}>
+                  <Share2 className="h-4 w-4 mr-1" />
+                  Share
+                </Button>
+              </div>
+            </div>
+            {importErrors.length > 0 && (
+              <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 p-3 space-y-1">
+                {importErrors.map((e) => (
+                  <p key={e} className="text-xs text-destructive">{e}</p>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              {palettes.map((p) => {
+                const preview = resolvedTheme === 'dark' ? p.dark : p.light;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPalette(p.id)}
+                    aria-pressed={activePalette.id === p.id}
+                    className={`rounded-lg border p-3 text-left transition-colors ${
+                      activePalette.id === p.id
+                        ? 'border-primary ring-2 ring-primary/40'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    {/* Swatches read from the palette being offered, not from
+                        the active one, so each card previews itself. */}
+                    <div className="flex gap-1.5 mb-2">
+                      {(['background', 'card', 'primary', 'accent', 'destructive'] as const).map((tok) => (
+                        <span
+                          key={tok}
+                          className="h-6 w-6 rounded border border-black/10"
+                          style={{ backgroundColor: `hsl(${preview[tok]})` }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-sm font-medium">{p.name}</span>
+                      {/* Tells the two kinds apart. A gallery theme can be
+                          removed and a built-in one cannot, so the picker has
+                          to say which is which before anyone goes looking for
+                          a Remove button that is not there. */}
+                      {installedThemes.some((t) => t.id === p.id) && (
+                        <span className="text-[10px] text-muted-foreground">Community</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{p.description}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </CardContent>
       </Card>
 

@@ -36,21 +36,21 @@ export function SubpageHeader({ icon, title, badge, actions, overflow }: Subpage
   const isMobile = useIsMobile();
 
   return (
-    <header className="wall-subpage-header shrink-0 border-b border-border/45 bg-card px-4 safe-area-top">
-      <div className={cn('wall-subpage-header-inner flex items-center justify-between', isMobile ? 'h-11' : 'h-12 pointer-coarse:h-16')}>
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild className="wall-subpage-home hidden md:inline-flex">
+    <header className="wall-subpage-header shrink-0 border-b border-border/45 bg-card/85 backdrop-blur-xs px-4 safe-area-top">
+      <div className={cn('wall-subpage-header-inner flex items-center justify-between gap-2', isMobile ? 'h-11' : 'h-12 pointer-coarse:h-16')}>
+        <div className="flex min-w-0 items-center gap-4">
+          <Button variant="ghost" size="icon" asChild className="wall-subpage-home hidden shrink-0 md:inline-flex">
             <Link href="/" aria-label="Back to dashboard">
               <Home className="h-5 w-5" />
             </Link>
           </Button>
-          <div className="flex items-center gap-2">
-            {!isMobile && icon}
-            <h1 className={cn('wall-subpage-title font-bold', isMobile ? 'text-base' : 'text-xl')}>{title}</h1>
+          <div className="flex min-w-0 items-center gap-2">
+            {!isMobile && icon && <span className="flex shrink-0">{icon}</span>}
+            <h1 className={cn('wall-subpage-title truncate font-bold', isMobile ? 'text-base' : 'text-xl')}>{title}</h1>
             {badge}
           </div>
         </div>
-        <div className="wall-subpage-actions flex items-center gap-2">
+        <div className="wall-subpage-actions flex shrink-0 items-center gap-2">
           {actions}
           {overflow && overflow.length > 0 && (
             <DropdownMenu>

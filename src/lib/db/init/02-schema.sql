@@ -273,7 +273,7 @@ CREATE TABLE IF NOT EXISTS public.chores (
     last_completed timestamp without time zone,
     next_due date,
     point_value integer DEFAULT 0 NOT NULL,
-    requires_approval boolean DEFAULT false NOT NULL,
+    requires_approval boolean DEFAULT true NOT NULL,
     enabled boolean DEFAULT true NOT NULL,
     created_by uuid,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
@@ -304,6 +304,7 @@ CREATE TABLE IF NOT EXISTS public.events (
     last_synced timestamp without time zone,
     pending_deletion timestamp without time zone,
     hidden_at timestamp without time zone,
+    series_key character varying(255),
     caldav_href character varying(1024),
     caldav_etag character varying(255),
     created_at timestamp without time zone DEFAULT now() NOT NULL,
@@ -318,7 +319,9 @@ CREATE TABLE IF NOT EXISTS public.events (
 CREATE TABLE IF NOT EXISTS public.family_messages (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     message text NOT NULL,
-    author_id uuid NOT NULL,
+    author_id uuid,
+    guest_kind character varying(20),
+    guest_name character varying(40),
     pinned boolean DEFAULT false NOT NULL,
     important boolean DEFAULT false NOT NULL,
     expires_at timestamp without time zone,
@@ -2666,3 +2669,14 @@ CREATE TABLE IF NOT EXISTS public.excluded_photos (
   created_at timestamp DEFAULT now() NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS excluded_photos_source_external_unique ON public.excluded_photos (source_id, external_id);
+
+-- Recurring series hidden in Prism (#592, migration 0031).
+CREATE INDEX IF NOT EXISTS events_source_series_idx ON public.events (calendar_source_id, series_key);
+CREATE TABLE IF NOT EXISTS public.hidden_event_series (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  calendar_source_id uuid NOT NULL REFERENCES public.calendar_sources(id) ON DELETE CASCADE,
+  series_key varchar(255) NOT NULL,
+  title varchar(255) NOT NULL,
+  created_at timestamp DEFAULT now() NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS hidden_event_series_source_key_unique ON public.hidden_event_series (calendar_source_id, series_key);

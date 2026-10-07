@@ -123,6 +123,7 @@ export function AppShell({
   const showSideNav = !isMobile && orientation === 'landscape';
   const showPortraitNav = !isMobile && orientation === 'portrait';
   const showMobileNav = isMobile;
+  const portraitNavShown = !hideNav && showPortraitNav && !measureHideNav && !uiHidden;
 
   const isLCARS = colorTheme === 'lcars';
   const chromeHidden = uiHidden || measureHideNav;
@@ -174,7 +175,6 @@ export function AppShell({
 
       {/* MAIN CONTENT AREA */}
       <main
-        style={lcarsMainStyle}
         className={cn(
           'min-h-(--app-vh,100vh)',
           !isLCARS && 'wall-main',
@@ -184,9 +184,20 @@ export function AppShell({
           // The nav itself slides smoothly via GPU-composited transform; the content
           // just needs to reflow once when the class changes.
           !isLCARS && !hideNav && showSideNav && !measureHideNav && !uiHidden && 'ml-16',
-          !isLCARS && !hideNav && showPortraitNav && !measureHideNav && !uiHidden && 'pb-24',
+          !isLCARS && portraitNavShown && 'pb-(--nav-bottom)',
           className
         )}
+        // Height of the fixed bottom nav (PortraitNav: h-20, a 1px top border and
+        // the safe area). Full-height pages size themselves with `h-page`, which
+        // subtracts it, so nothing sits under the nav.
+        style={
+          portraitNavShown
+            ? ({
+                ...lcarsMainStyle,
+                '--nav-bottom': 'calc(5rem + 1px + env(safe-area-inset-bottom, 0px))',
+              } as React.CSSProperties)
+            : lcarsMainStyle
+        }
       >
         {children}
       </main>
