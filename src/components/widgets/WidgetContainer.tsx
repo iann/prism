@@ -419,21 +419,21 @@ export function WidgetContainer({
     >
       {/* WIDGET HEADER */}
       {showHeader && title && (
-        <CardHeader className="wall-widget-header flex shrink-0 flex-row items-center justify-between space-y-0 pb-2">
-          <div className="flex items-center gap-2">
+        <CardHeader className="wall-widget-header flex min-w-0 shrink-0 flex-row items-center justify-between gap-2 space-y-0 pb-2">
+          <div className="flex min-w-0 items-center gap-2">
             {/* Icon */}
-            {icon && <span className="text-seasonal-accent">{icon}</span>}
+            {icon && <span className="text-seasonal-accent shrink-0">{icon}</span>}
             {/* Title - clickable link if titleHref provided */}
             {titleHref ? (
-              <Link href={titleHref} prefetch={false} className="hover:underline">
-                <CardTitle className="wall-widget-title text-lg font-semibold tracking-[-0.01em]">{title}</CardTitle>
+              <Link href={titleHref} prefetch={false} className="min-w-0 hover:underline">
+                <CardTitle className="wall-widget-title truncate text-lg font-semibold tracking-[-0.01em]">{title}</CardTitle>
               </Link>
             ) : (
-              <CardTitle className="wall-widget-title text-lg font-semibold tracking-[-0.01em]">{title}</CardTitle>
+              <CardTitle className="wall-widget-title truncate text-lg font-semibold tracking-[-0.01em]">{title}</CardTitle>
             )}
           </div>
           {/* Action buttons */}
-          {actions && <div className="flex items-center gap-1">{actions}</div>}
+          {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
         </CardHeader>
       )}
 

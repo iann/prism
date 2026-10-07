@@ -841,3 +841,103 @@ describe('sync leaves hiddenAt alone', () => {
     expect(eventWrites[0]).not.toHaveProperty('hiddenAt');
   });
 });
+
+// A hidden series matches occurrences on (calendarSourceId, seriesKey), so the
+// key has to be written on insert AND refreshed on update: rows synced before
+// the column existed pick it up on their next sync.
+describe('sync records the series key', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFindMany.mockResolvedValue([]);
+  });
+
+  it('Google: writes the converted seriesKey on insert and update', async () => {
+    mockFindFirst.mockResolvedValue(makeSource());
+    mockFetchCalendarEvents.mockResolvedValue([{ id: 'event-1_20261005', summary: 'Piano' }]);
+    mockConvertEvent.mockReturnValue({
+      externalEventId: 'event-1_20261005', title: 'Piano', startTime: new Date(), endTime: new Date(),
+      seriesKey: 'event-1',
+    });
+
+    await syncGoogleCalendarSource('source-1');
+
+    expect(mockInsertValues.mock.calls[0][0]).toMatchObject({ seriesKey: 'event-1' });
+    expect(mockOnConflictDoUpdate.mock.calls[0][0].set).toMatchObject({ seriesKey: 'event-1' });
+  });
+
+  it('iCal: every occurrence of a recurring VEVENT carries its UID', async () => {
+    const fakeRrule = {
+      between: () => [new Date('2026-05-10T10:00:00Z'), new Date('2026-05-17T10:00:00Z')],
+      toString: () => 'FREQ=WEEKLY;COUNT=10',
+    };
+    mockFindFirst.mockResolvedValue(makeIcalSource());
+    mockIcalFromURL.mockResolvedValue({ 'event-uid-1': makeVEvent({ rrule: fakeRrule }) });
+
+    await syncIcalCalendarSource('ical-source-1');
+
+    expect(mockInsertValues).toHaveBeenCalledTimes(2);
+    for (const [row] of mockInsertValues.mock.calls) {
+      expect(row).toMatchObject({ seriesKey: 'event-uid-1' });
+    }
+    for (const [conflict] of mockOnConflictDoUpdate.mock.calls) {
+      expect(conflict.set).toMatchObject({ seriesKey: 'event-uid-1' });
+    }
+  });
+
+  it('iCal: a one-off event has no series', async () => {
+    mockFindFirst.mockResolvedValue(makeIcalSource());
+    mockIcalFromURL.mockResolvedValue({ 'event-uid-1': makeVEvent() });
+
+    await syncIcalCalendarSource('ical-source-1');
+
+    expect(mockInsertValues.mock.calls[0][0]).toMatchObject({ seriesKey: null });
+  });
+
+  const caldavSource = {
+    id: 'caldav-1',
+    provider: 'caldav',
+    accessToken: 'enc',
+    sourceCalendarId: '/cal/',
+    providerConfig: { serverUrl: 'https://dav.example.test', username: 'someone' },
+  };
+  const caldavOccurrence = (over: Record<string, unknown> = {}) => {
+    const start = new Date(Date.now() + 86_400_000);
+    return {
+      uid: `swim@example.com_${start.toISOString()}`, title: 'Swim practice', description: null, location: null,
+      startTime: start, endTime: new Date(start.getTime() + 3_600_000), allDay: false, color: null,
+      recurring: true, recurrenceRule: 'FREQ=WEEKLY', href: '/cal/swim.ics', etag: '"1"',
+      seriesKey: 'swim@example.com', ...over,
+    };
+  };
+
+  it('CalDAV: writes the series key on insert', async () => {
+    mockFindFirst.mockResolvedValue(caldavSource);
+    mockFetchCalDAVEvents.mockResolvedValue([caldavOccurrence()]);
+    mockFindFirstEvent.mockResolvedValue(undefined);
+
+    await syncCalDAVCalendarSource('caldav-1');
+
+    expect(mockInsertValues.mock.calls[0][0]).toMatchObject({ seriesKey: 'swim@example.com' });
+  });
+
+  // Older builds stored an edited occurrence under the bare UID (#593). The
+  // row is renamed in place, so a hide already set on it survives.
+  it('CalDAV: renames an edit stored under the bare UID and adds the series key', async () => {
+    const occ = caldavOccurrence({ legacyUid: 'swim@example.com' });
+    mockFindFirst.mockResolvedValue(caldavSource);
+    mockFetchCalDAVEvents.mockResolvedValue([occ]);
+    mockFindFirstEvent
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'row-1', title: 'Swim practice', hiddenAt: new Date() });
+
+    await syncCalDAVCalendarSource('caldav-1');
+
+    expect(mockInsertValues).not.toHaveBeenCalled();
+    const eventWrites = mockUpdateSet.mock.calls
+      .map(([v]) => v as Record<string, unknown>)
+      .filter((v) => 'title' in v);
+    expect(eventWrites).toHaveLength(1);
+    expect(eventWrites[0]).toMatchObject({ externalEventId: occ.uid, seriesKey: 'swim@example.com', recurring: true });
+    expect(eventWrites[0]).not.toHaveProperty('hiddenAt');
+  });
+});

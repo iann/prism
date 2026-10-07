@@ -6,6 +6,7 @@ import { validateCommunityLayout } from '@/lib/community/validateLayout';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { getWidgetType } from '@/lib/utils/widgetInstances';
+import { downloadJson, slugify } from '@/lib/utils/downloadJson';
 
 interface ExportWidget {
   i: string;
@@ -104,7 +105,9 @@ export function LayoutEditorShareDialog({
       }),
   });
 
-  const handleShareSubmit = () => {
+  // Built and checked the same way for both buttons, so a downloaded file would
+  // also pass the gallery.
+  const buildSubmission = () => {
     const exportData = buildExportData();
     const submissionData = {
       ...exportData,
@@ -121,8 +124,23 @@ export function LayoutEditorShareDialog({
     const result = validateCommunityLayout(submissionData, { communitySubmission: true });
     if (!result.valid) {
       setShareErrors(result.errors);
-      return;
+      return null;
     }
+    return submissionData;
+  };
+
+  // No GitHub account needed: the file goes to whoever the person sends it to,
+  // and loads through More, Import in the layout editor.
+  const handleDownload = () => {
+    const submissionData = buildSubmission();
+    if (!submissionData) return;
+    downloadJson(`prism-layout-${slugify(submissionData.name) || mode}.json`, submissionData);
+    onClose();
+  };
+
+  const handleShareSubmit = () => {
+    const submissionData = buildSubmission();
+    if (!submissionData) return;
 
     // Route to the "Community Layout Submission" issue FORM and prefill its
     // fields by id — forms ignore ?body=. Field ids come from
@@ -150,6 +168,7 @@ export function LayoutEditorShareDialog({
         <p className="text-xs text-muted-foreground">
           Submit your layout to the Prism community gallery. This opens a GitHub Issue with your
           layout data.
+          No GitHub account? Download the file and send it however you like. It loads through More → Import.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -227,6 +246,12 @@ export function LayoutEditorShareDialog({
             className="rounded-md bg-muted px-3 py-1.5 text-sm transition-colors hover:bg-accent"
           >
             Cancel
+          </button>
+          <button
+            onClick={handleDownload}
+            className="px-3 py-1.5 text-sm rounded-md bg-muted hover:bg-accent transition-colors"
+          >
+            Download file
           </button>
           <button
             onClick={handleShareSubmit}

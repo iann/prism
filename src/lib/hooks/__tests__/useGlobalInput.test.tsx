@@ -17,14 +17,22 @@ jest.mock('../useSpeechRecognition', () => ({
   useSpeechRecognition: () => ({ isListening: false, start: jest.fn(), stop: jest.fn() }),
 }));
 jest.mock('@/components/ui/use-toast', () => ({ toast: jest.fn() }));
+const mockReveal = jest.fn((..._a: unknown[]) => []);
+jest.mock('@/lib/input/keyboardLayout', () => ({
+  ...jest.requireActual('@/lib/input/keyboardLayout'),
+  revealAboveKeyboard: (...a: unknown[]) => mockReveal(...a),
+}));
 
 import { GlobalInputProvider, useGlobalInput } from '../useGlobalInput';
+import { writeKeyboardDevicePref } from '@/lib/input/keyboardDevicePref';
 
 let settingValue: unknown = null;
 
 beforeEach(() => {
   mockIsMobile = false;
+  mockReveal.mockClear();
   settingValue = null;
+  window.localStorage.clear();
   global.fetch = jest.fn(async () => ({
     ok: true,
     json: async () => ({ value: settingValue }),
@@ -180,5 +188,100 @@ describe('keyboard lifecycle around the suppression', () => {
     act(() => { field.blur(); });
     expect(root.hasAttribute('data-virtual-keyboard-open')).toBe(false);
     expect(root.style.getPropertyValue('--keyboard-height')).toBe('0px');
+  });
+
+  it('lifts just the field by default', async () => {
+    const { field } = await setup();
+    tap(field, 'touch');
+    expect(mockReveal).toHaveBeenCalledWith(field, expect.any(Number));
+  });
+
+  it('lifts the whole group when the field is inside data-keyboard-reveal (#497)', async () => {
+    const utils = render(
+      <GlobalInputProvider>
+        <div data-testid="group" data-keyboard-reveal>
+          <textarea data-testid="note" />
+          <button type="button">Send</button>
+        </div>
+      </GlobalInputProvider>,
+    );
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    tap(utils.getByTestId('note'), 'touch');
+    expect(mockReveal).toHaveBeenCalledWith(utils.getByTestId('group'), expect.any(Number));
+  });
+});
+
+describe('per-device choice (#525)', () => {
+  const store = (v: unknown) =>
+    window.localStorage.setItem('prism:keyboard-on-this-device', JSON.stringify(v));
+
+  it('Never leaves the field alone even when the household setting is on', async () => {
+    store('never');
+    const { field } = await setup();
+    tap(field, 'touch');
+    expect(ctx.virtualKeyboardEnabled).toBe(false);
+    expect(ctx.keyboardVisible).toBe(false);
+    expect(field.hasAttribute('inputmode')).toBe(false);
+  });
+
+  it('Never refuses the toggle-button path too', async () => {
+    store('never');
+    const { field } = await setup();
+    tap(field, 'mouse');
+    act(() => { ctx.setKeyboardVisible(true); });
+    expect(ctx.keyboardVisible).toBe(false);
+    expect(field.hasAttribute('inputmode')).toBe(false);
+  });
+
+  it('Always uses Prism\'s keyboard even when the household setting is off', async () => {
+    settingValue = false;
+    store('always');
+    const { field } = await setup();
+    tap(field, 'touch');
+    expect(ctx.keyboardVisible).toBe(true);
+    expect(field.getAttribute('inputmode')).toBe('none');
+  });
+
+  it('Always still leaves phone widths to the OS keyboard', async () => {
+    mockIsMobile = true;
+    store('always');
+    const { field } = await setup();
+    tap(field, 'touch');
+    expect(ctx.keyboardVisible).toBe(false);
+    expect(field.hasAttribute('inputmode')).toBe(false);
+  });
+
+  it('Use household setting follows the household setting', async () => {
+    store('household');
+    settingValue = false;
+    const { field } = await setup();
+    tap(field, 'touch');
+    expect(ctx.keyboardVisible).toBe(false);
+  });
+
+  it('an unknown stored value falls back to the household setting', async () => {
+    store('sometimes');
+    const { field } = await setup();
+    tap(field, 'touch');
+    expect(ctx.keyboardVisible).toBe(true);
+  });
+
+  it('does nothing before the household setting has loaded', async () => {
+    global.fetch = jest.fn(() => new Promise(() => {})) as unknown as typeof fetch;
+    const { field } = await setup();
+    tap(field, 'touch');
+    expect(ctx.virtualKeyboardEnabled).toBe(false);
+    expect(ctx.keyboardVisible).toBe(false);
+    expect(field.hasAttribute('inputmode')).toBe(false);
+  });
+
+  it('a change from Settings applies at once and closes an open keyboard', async () => {
+    const { field } = await setup();
+    tap(field, 'touch');
+    expect(ctx.keyboardVisible).toBe(true);
+    act(() => { writeKeyboardDevicePref('never'); });
+    expect(ctx.keyboardVisible).toBe(false);
+    expect(field.hasAttribute('inputmode')).toBe(false);
+    expect(window.localStorage.getItem('prism:keyboard-on-this-device')).toBe('"never"');
   });
 });
