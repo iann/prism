@@ -268,6 +268,7 @@ function MonthDayCell({
         events={spanningEvents}
         onEventClick={onEventClick}
         cards={cards}
+        columnGapPx={4}
       />
 
       {cards ? (

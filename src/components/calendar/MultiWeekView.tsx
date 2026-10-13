@@ -344,6 +344,7 @@ function DayCell({
         onEventClick={onEventClick}
         compact={compact}
         cards={cards}
+        columnGapPx={4}
         // Matches this view's event list below (line ~364).
         padX={compact ? 'px-1' : 'px-1.5'}
         // Matches the stripe on this view's cards: sm is 3px, md is 5px.

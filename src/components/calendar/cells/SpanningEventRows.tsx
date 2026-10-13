@@ -1,6 +1,7 @@
 'use client';
 
 import { addDays, isSameDay } from 'date-fns';
+import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { contrastText } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
@@ -49,6 +50,8 @@ export type SpanningEventRowsProps = {
   compact?: boolean;
   /** Retained for compatibility with older calendar callers; seam joining uses a shared reach. */
   gap?: string;
+  /** Gap between adjacent day cells, used to size a title across its full span. */
+  columnGapPx?: number;
   /**
    * Whether the day cells are drawing events as cards.
    *
@@ -166,6 +169,7 @@ export function SpanningEventRows({
   compact = false,
   cards = false,
   padX = 'px-1',
+  columnGapPx = 4,
   stripePx = 3,
   titleClass,
   omitLeadingBlanks = 0,
@@ -225,6 +229,24 @@ export function SpanningEventRows({
   const firstActiveLane = byLane.findIndex((laneEvent) => laneEvent !== null);
   const startLane = Math.min(omitLeadingBlanks, Math.max(firstActiveLane, 0));
 
+  // A label can use the full visible run in this row. The next week's first
+  // slice prints it again, so a week-wrapping event never extends its label
+  // across a gap or into the next row.
+  const spanDaysFromColumn = (event: CalendarEvent, startColumn: number) => {
+    let days = 1;
+    while (
+      startColumn + days < rowDates.length &&
+      occurs(event, rowDates[startColumn + days]!)
+    ) days += 1;
+    return days;
+  };
+  const hasExtendedLabel = byLane.some((laneEvent) => {
+    if (!laneEvent) return false;
+    const continuesFromPrevious = occurs(laneEvent, addDays(date, -1));
+    const showsLabel = !continuesFromPrevious || column === 0;
+    return showsLabel && spanDaysFromColumn(laneEvent, column) > 1;
+  });
+
   // A multi-day event is a single-day all-day event that happens to run on.
   // These are the metrics its neighbours use, read from the same custom
   // properties, so a bar and a chip are the same height with their text
@@ -242,7 +264,10 @@ export function SpanningEventRows({
       // left and right edge of the chips under it. A bar that continues is
       // widened past this padding below, so the slices still meet.
       className={cn(
-        'relative z-20 flex shrink-0 flex-col',
+        'relative flex shrink-0 flex-col',
+        // Paint the starting slice above its later-day siblings so its label
+        // remains visible across the continuation bars.
+        hasExtendedLabel ? 'z-30' : 'z-20',
         padX,
         // Same row gap as the day's own event list, and the same gap again
         // below the block, so a bar and the chip under it are spaced like two
@@ -288,6 +313,20 @@ export function SpanningEventRows({
         // The title prints where a run starts and again after a week wrap, not
         // on every day it covers.
         const showsLabel = filled && (!continuesFromPrevious || column === 0);
+        const labelSpanDays = filled && showsLabel ? spanDaysFromColumn(laneEvent, column) : 1;
+        const extendsLabel = showsLabel && labelSpanDays > 1;
+        const horizontalPadding = compact
+          ? '0.25rem'
+          : 'var(--event-padding-x, 0.25rem)';
+        // A card's title starts after its stripe and 8px flex gap. Each later
+        // cell adds its stripe, gap, 4px right padding, 1px start border, and
+        // the grid gap; the final border trims the visible run by 1px.
+        const labelWidth = cards
+          ? `calc(${labelSpanDays * 100}% + ${(labelSpanDays - 1) * (1 + stripePx + 8 + 4 + columnGapPx)}px - 1px)`
+          : `calc(${labelSpanDays * 100}% + ${Array.from(
+              { length: labelSpanDays - 1 },
+              () => `${horizontalPadding} + ${horizontalPadding} + ${columnGapPx}px`,
+            ).join(' + ')})`;
 
         const Tag = filled ? 'button' : 'div';
 
@@ -299,6 +338,7 @@ export function SpanningEventRows({
               ? {
                   type: 'button' as const,
                   title: label,
+                  'aria-label': extendsLabel ? label : undefined,
                   onClick: (clickEvent: React.MouseEvent) => {
                     clickEvent.stopPropagation();
                     onEventClick(laneEvent);
@@ -306,7 +346,8 @@ export function SpanningEventRows({
                 }
               : { 'aria-hidden': true })}
             className={cn(
-              'relative z-20 block w-full truncate text-left font-medium leading-tight',
+              'relative z-20 block w-full text-left font-medium leading-tight',
+              extendsLabel ? 'overflow-visible whitespace-nowrap' : 'truncate',
               cards ? 'hover:bg-card transition-colors' : 'hover:brightness-95',
               'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-seasonal-accent',
               barMetrics,
@@ -362,7 +403,19 @@ export function SpanningEventRows({
               stripe stopped short of the card's edges and the corner had
               nothing to mask.
             */}
-            <span className={cn(cards && 'min-w-0 flex-1 truncate py-0.5', cards && titleClass)}>
+            <span
+              data-label={extendsLabel ? label : undefined}
+              className={cn(
+                cards && 'min-w-0 flex-1 truncate py-0.5',
+                cards && titleClass,
+                extendsLabel && 'spanning-event-title-extended',
+                extendsLabel && !cards && 'block w-full',
+              )}
+              style={extendsLabel ? {
+                '--spanning-title-width': labelWidth,
+                '--spanning-title-top': cards ? '0.125rem' : '0px',
+              } as CSSProperties : undefined}
+            >
               {showsLabel ? label : '\u00A0'}
             </span>
           </Tag>
