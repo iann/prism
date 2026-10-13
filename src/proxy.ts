@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAuthWallEnabled, verifyTrustedDeviceToken, TRUSTED_DEVICE_COOKIE } from '@/lib/auth/authWall';
 import { validateSession } from '@/lib/auth/session';
 import { validateApiToken } from '@/lib/auth/apiTokens';
-import { buildFramePolicy } from '@/lib/utils/securityHeaders';
+import { buildFramePolicy, buildWindyProxyHeaders } from '@/lib/utils/securityHeaders';
 
 /**
  * Paths that stay reachable with the authentication wall on (#339). Without
@@ -131,9 +131,22 @@ function generateRequestId(): string {
  * or the Home Assistant add-on the variable would otherwise do nothing and
  * Prism could not be embedded in a Home Assistant Webpage dashboard.
  */
-function applyRuntimeFramePolicy(response: NextResponse): void {
-  const { csp, xFrameOptions } = buildFramePolicy(process.env.ALLOWED_FRAME_ANCESTORS);
-  response.headers.set('Content-Security-Policy', csp);
+function isWindyProxyPath(pathname: string): boolean {
+  return pathname === '/api/weather/windy' || pathname.startsWith('/api/weather/windy/');
+}
+
+function applyRuntimeFramePolicy(response: NextResponse, pathname: string): void {
+  const allowedAncestors = process.env.ALLOWED_FRAME_ANCESTORS;
+  const { csp, xFrameOptions } = buildFramePolicy(allowedAncestors);
+  const windyCsp = isWindyProxyPath(pathname)
+    ? buildWindyProxyHeaders(allowedAncestors).find(
+        (header) => header.key === 'Content-Security-Policy'
+      )?.value
+    : undefined;
+
+  // The Windy embed document needs its own external base URL and script hosts.
+  // Preserve the runtime frame-ancestor setting while using Windy's resource policy.
+  response.headers.set('Content-Security-Policy', windyCsp ?? csp);
   if (xFrameOptions) response.headers.set('X-Frame-Options', xFrameOptions);
 }
 
@@ -148,13 +161,12 @@ function applyRuntimeFramePolicy(response: NextResponse): void {
 export async function proxy(request: NextRequest) {
   // Attach (or propagate) request ID for log correlation
   const requestId = request.headers.get('x-request-id') ?? generateRequestId();
+  const { pathname } = request.nextUrl;
   const response = NextResponse.next({
     request: { headers: new Headers({ ...Object.fromEntries(request.headers), 'x-request-id': requestId }) },
   });
   response.headers.set('x-request-id', requestId);
-  applyRuntimeFramePolicy(response);
-
-  const { pathname } = request.nextUrl;
+  applyRuntimeFramePolicy(response, pathname);
 
   // The authentication wall (#339). Off by default, and the check short-circuits
   // on a cached boolean when it is off, so an instance that never turns it on
