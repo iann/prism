@@ -1018,6 +1018,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 3b03e974
 
+126. **Working Windy precipitation radar embed**
+
+    Applies Windy's resource policy to the local radar proxy so its base URL
+    and scripts load instead of leaving a gray map, while preserving runtime
+    frame-ancestor settings for external dashboard embedding.
+
+    Commit: c80a07e6
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
