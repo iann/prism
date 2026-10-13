@@ -24,6 +24,11 @@
 # The CI workflows no longer put a password in a connection URL, so editing
 # them adds nothing here. Editing the screenshots compose file or those docs
 # lines still creates a new copy and needs a regeneration.
+#
+# A regeneration rewrites only the section of the repository it is run in, so
+# an upstream sync can leave the fork's section missing copies that upstream
+# already accepted. After syncing, regenerate the fork's section too; CI scans
+# the fork's history and flakes when dedup surfaces an unlisted copy.
 version: 2
 fingerprint_algorithm: kingfisher-v1
 repositories:
@@ -293,6 +298,210 @@ repositories:
     line: 300
     first_seen_at: 2026-10-02T22:37:53.000000000+00:00
     last_updated_at: 2026-10-02T22:37:53.000000000+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '17854328529709435563'
+    rule_id: betterleaks.generic-credential-uri
+    line: 195
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '620673906946233490'
+    rule_id: betterleaks.generic-credential-uri
+    line: 195
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '17506998951858577102'
+    rule_id: betterleaks.generic-credential-uri
+    line: 200
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '4482697435198815873'
+    rule_id: betterleaks.generic-credential-uri
+    line: 200
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '105017876438755263'
+    rule_id: betterleaks.generic-credential-uri
+    line: 205
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '13705970426734811460'
+    rule_id: betterleaks.generic-credential-uri
+    line: 205
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '16302823196066389413'
+    rule_id: betterleaks.generic-credential-uri
+    line: 205
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '18257954885266567073'
+    rule_id: betterleaks.generic-credential-uri
+    line: 205
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '16198973942819365033'
+    rule_id: betterleaks.generic-credential-uri
+    line: 285
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '13313730952718593822'
+    rule_id: betterleaks.generic-credential-uri
+    line: 290
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '5193438431676403908'
+    rule_id: betterleaks.generic-credential-uri
+    line: 290
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '13266322532105657885'
+    rule_id: betterleaks.generic-credential-uri
+    line: 295
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '12052556727852798336'
+    rule_id: betterleaks.generic-credential-uri
+    line: 300
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '14055425354989615102'
+    rule_id: betterleaks.generic-credential-uri
+    line: 300
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '2218713252992453525'
+    rule_id: betterleaks.generic-credential-uri
+    line: 300
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '6575627970732292163'
+    rule_id: betterleaks.generic-credential-uri
+    line: 300
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/refresh-screenshots.yml
+    fingerprint: '4160473030462884885'
+    rule_id: betterleaks.generic-credential-uri
+    line: 77
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ui-audit.yml
+    fingerprint: '17606390242598925919'
+    rule_id: betterleaks.generic-credential-uri
+    line: 72
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: docs/home-assistant.md
+    fingerprint: '1977604028129011483'
+    rule_id: betterleaks.curl-auth-header
+    line: 244
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: docs/home-assistant.md
+    fingerprint: '1887905491459667392'
+    rule_id: betterleaks.curl-auth-header
+    line: 274
+    first_seen_at: 2026-10-13T23:04:56.199653+00:00
+    last_updated_at: 2026-10-13T23:04:56.199653+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '7764647064398189878'
+    rule_id: betterleaks.generic-credential-uri
+    line: 221
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '8217498158269811224'
+    rule_id: betterleaks.generic-credential-uri
+    line: 221
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '15768866751942680831'
+    rule_id: betterleaks.generic-credential-uri
+    line: 222
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '3772191733356048450'
+    rule_id: betterleaks.generic-credential-uri
+    line: 224
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '16073575843016119490'
+    rule_id: betterleaks.generic-credential-uri
+    line: 300
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: .github/workflows/ci.yml
+    fingerprint: '14354153843122612458'
+    rule_id: betterleaks.generic-credential-uri
+    line: 311
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: .github/workflows/refresh-screenshots.yml
+    fingerprint: '9157526897236442494'
+    rule_id: betterleaks.generic-credential-uri
+    line: 56
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: .github/workflows/ui-audit.yml
+    fingerprint: '12549860491044166856'
+    rule_id: betterleaks.generic-credential-uri
+    line: 51
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: docs/home-assistant.md
+    fingerprint: '1063598034421731097'
+    rule_id: betterleaks.curl-auth-header
+    line: 200
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: docs/home-assistant.md
+    fingerprint: '7827926365876271910'
+    rule_id: betterleaks.curl-auth-header
+    line: 204
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: docs/home-assistant.md
+    fingerprint: '2945078747078931146'
+    rule_id: betterleaks.curl-auth-header
+    line: 249
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: docs/home-assistant.md
+    fingerprint: '8674477584296233969'
+    rule_id: betterleaks.curl-auth-header
+    line: 249
+    first_seen_at: 2026-10-03T14:45:36.120080517+00:00
+    last_updated_at: 2026-10-03T14:45:36.120080517+00:00
+  - path: docs/home-assistant.md
+    fingerprint: '8938167545220755495'
+    rule_id: betterleaks.curl-auth-header
+    line: 249
+    first_seen_at: 2026-09-18T17:12:28.183547771+00:00
+    last_updated_at: 2026-09-18T17:12:28.183547771+00:00
+  - path: docs/home-assistant.md
+    fingerprint: '13222670538398908603'
+    rule_id: betterleaks.curl-auth-header
+    line: 244
+    first_seen_at: 2026-10-05T17:01:23.920535062+00:00
+    last_updated_at: 2026-10-05T17:01:23.920535062+00:00
 - id: git://github.com/sandydargoport/prism
   findings:
   - path: .github/workflows/ci.yml
