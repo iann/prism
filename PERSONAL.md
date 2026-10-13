@@ -1026,6 +1026,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: c80a07e6
 
+127. **Multi-day calendar event titles continue across days**
+
+    Extends a spanning event's title across its remaining visible day slices
+    in month, multi-week, and three-month views, while restarting the title
+    after a week wrap.
+
+    Commit: e9eda6e1
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
