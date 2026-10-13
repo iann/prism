@@ -302,6 +302,28 @@
   overflow: hidden;
 }
 
+/* Let a spanning event's title cross its continuation slices, while the
+   invisible original text keeps the event row's height. */
+.spanning-event-title-extended {
+  position: relative;
+  overflow: visible !important;
+  visibility: hidden;
+}
+
+.spanning-event-title-extended::after {
+  content: attr(data-label);
+  display: block;
+  position: absolute;
+  inset-inline-start: 0;
+  top: var(--spanning-title-top, 0);
+  width: var(--spanning-title-width);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  visibility: visible;
+  pointer-events: none;
+}
+
 @utility full-screen {
   @apply min-h-screen w-full;
 }
