@@ -109,8 +109,12 @@ function buildSecurityHeaders() {
   return headers;
 }
 
-function buildWindyProxyHeaders() {
+function buildWindyProxyHeaders(allowedAncestorsRaw = process.env.ALLOWED_FRAME_ANCESTORS) {
   const windySources = 'https://*.windy.com https://windy.com';
+  const { csp: framePolicy } = buildFramePolicy(allowedAncestorsRaw);
+  const frameAncestorsDirective =
+    framePolicy.split('; ').find((directive) => directive.startsWith('frame-ancestors ')) ??
+    "frame-ancestors 'self'";
   const csp = [
     `default-src 'self' ${windySources} data: blob:`,
     `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${windySources}`,
@@ -122,7 +126,7 @@ function buildWindyProxyHeaders() {
     `frame-src 'self' ${windySources}`,
     'base-uri https://embed.windy.com',
     "object-src 'none'",
-    "frame-ancestors 'self'",
+    frameAncestorsDirective,
   ].join('; ');
 
   return [
