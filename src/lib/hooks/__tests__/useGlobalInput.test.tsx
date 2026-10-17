@@ -275,6 +275,25 @@ describe('per-device choice (#525)', () => {
     expect(field.hasAttribute('inputmode')).toBe(false);
   });
 
+  it('Always opens the keyboard even when the touch is reported as a mouse pointer (Pi/Wayland, #627)', async () => {
+    store('always');
+    const { field } = await setup();
+    tap(field, 'mouse');
+    expect(ctx.keyboardVisible).toBe(true);
+    expect(field.getAttribute('inputmode')).toBe('none');
+  });
+
+  it('Always reopens the keyboard after Enter closed it, even reported as a mouse pointer (#627)', async () => {
+    store('always');
+    const { field } = await setup();
+    tap(field, 'mouse');
+    act(() => { ctx.setKeyboardVisible(false); }); // what the Enter key does
+    expect(ctx.keyboardVisible).toBe(false);
+    expect(document.activeElement).toBe(field);
+    act(() => { pointerDown(field, 'mouse'); });
+    expect(ctx.keyboardVisible).toBe(true);
+  });
+
   it('a change from Settings applies at once and closes an open keyboard', async () => {
     const { field } = await setup();
     tap(field, 'touch');

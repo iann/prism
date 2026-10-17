@@ -128,7 +128,10 @@ All registered with `{ passive: true }` unless noted.
 const target = e.target as Element;
 if (!shouldShowKeyboard(target)) { activeInputRef.current = null; setKeyboardVisible(false); return; }
 activeInputRef.current = target as HTMLInputElement | HTMLTextAreaElement;
-if (lastPointerType === 'touch' && !isMobile && !suppressedForScan && virtualKeyboardEnabled) {
+// A device set to Always (#525) also bypasses the touch check: some
+// Chromium/Wayland builds (Raspberry Pi OS) never report touch input as
+// "touch" (#627).
+if ((lastPointerType === 'touch' || devicePref === 'always') && !isMobile && !suppressedForScan && virtualKeyboardEnabled) {
   suppressOsKeyboard(target);   // inputmode="none", see "OS keyboard suppression"
   setKeyboardVisible(true);     // the keyboardVisible effect lifts the field (§7)
 } else {
@@ -149,7 +152,9 @@ keyboard never get the attribute, so the OS keyboard works as before there.
 
 Since the OS keyboard stays down, re-tapping the field that already has focus
 after Enter or a physical key closed Prism's keyboard reopens Prism's keyboard
-from `pointerdown` (no `focusin` fires for an already-focused field).
+from `pointerdown` (no `focusin` fires for an already-focused field). On a
+device set to Always, this `pointerdown` path also accepts `pointerType ===
+'mouse'`, for the same reason as below.
 
 **`focusout`:**
 ```ts
@@ -648,7 +653,13 @@ its own. The provider's `virtualKeyboardEnabled` is the effective value:
   and `setKeyboardVisible(true)` is refused, so the system keyboard is untouched.
 - Use household setting: the household switch.
 
-The touch-only and phone-width rules still apply under Always.
+The phone-width rule still applies under Always. The touch-only rule does
+not: Always also opens Prism's keyboard, and sets `inputmode="none"`, on a
+pointer event reported as `mouse`. Some Chromium/Wayland builds (Raspberry
+Pi OS) never report a touchscreen's events as `pointerType: 'touch'`, so
+requiring touch would leave Always unable to do what it promises on those
+devices — and a real mouse click has the same effect there, which is the
+accepted trade-off for a display with no other keyboard (#627).
 
 Both values load after mount. Until the stored choice has been read and, when
 it defers to the household, the setting fetch has settled, the effective value
