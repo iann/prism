@@ -58,7 +58,10 @@ KeyboardToggleButton (Component)
   └── calls setKeyboardVisible(true) on tap
 
 useSpeechRecognition (Hook)
-  └── wraps webkitSpeechRecognition
+  └── wraps webkitSpeechRecognition. Needs a secure page: on a plain http://
+      address it says so instead of trying, and every recognition error
+      (including Safari's service-not-allowed, when Siri & Dictation is off)
+      shows a message rather than failing silently.
   └── appends final results via injectText()
 ```
 
@@ -128,7 +131,10 @@ All registered with `{ passive: true }` unless noted.
 const target = e.target as Element;
 if (!shouldShowKeyboard(target)) { activeInputRef.current = null; setKeyboardVisible(false); return; }
 activeInputRef.current = target as HTMLInputElement | HTMLTextAreaElement;
-if (lastPointerType === 'touch' && !isMobile && !suppressedForScan && virtualKeyboardEnabled) {
+// A device set to Always (#525) also bypasses the touch check: some
+// Chromium/Wayland builds (Raspberry Pi OS) never report touch input as
+// "touch" (#627).
+if ((lastPointerType === 'touch' || devicePref === 'always') && !isMobile && !suppressedForScan && virtualKeyboardEnabled) {
   suppressOsKeyboard(target);   // inputmode="none", see "OS keyboard suppression"
   setKeyboardVisible(true);     // the keyboardVisible effect lifts the field (§7)
 } else {
@@ -149,7 +155,9 @@ keyboard never get the attribute, so the OS keyboard works as before there.
 
 Since the OS keyboard stays down, re-tapping the field that already has focus
 after Enter or a physical key closed Prism's keyboard reopens Prism's keyboard
-from `pointerdown` (no `focusin` fires for an already-focused field).
+from `pointerdown` (no `focusin` fires for an already-focused field). On a
+device set to Always, this `pointerdown` path also accepts `pointerType ===
+'mouse'`, for the same reason as below.
 
 **`focusout`:**
 ```ts
@@ -300,6 +308,59 @@ keyboardRef.current = new Keyboard(containerRef.current, {
 // When active input changes, sync keyboard state to existing value:
 keyboardRef.current?.setInput(activeInputRef.current?.value ?? '');
 ```
+
+### Auto-capitalization (#635)
+
+**File:** `src/lib/input/autoCapitalize.ts` (pure functions, unit-tested)
+
+The keyboard behaves like a phone's: the next letter is a capital at the start
+of a field, after `.`, `!` or `?` followed by whitespace (closing quotes and
+brackets allowed in between), and at the start of a line in a textarea or
+contenteditable. It is one-shot: once that letter is typed the keyboard drops
+back to lowercase. `shouldAutoShift(value, caret, fieldInfo)` makes the call
+from the text before the caret.
+
+The automatic capital uses its own `autoshift` layout, the default rows with
+only the letters uppercased, so a digit typed at the start of a field ("3
+eggs") is still a digit, not the shifted `#`.
+
+**The field decides** (`autoCapitalizeMode(fieldInfo)`):
+
+| Field | Mode |
+|---|---|
+| `type` password, email, url, number, tel | off, always (the spec exempts these) |
+| `autocapitalize="off"` / `"none"` | off |
+| `autocapitalize="sentences"` / `"on"` / `"words"` / `"characters"` | as named |
+| `inputmode` numeric, decimal, tel, email or url | off |
+| `autocomplete` username, email, url, one-time-code, tel*, passwords | off |
+| `type="search"` | off |
+| anything else (text, textarea, contenteditable) | sentences |
+
+The attribute is read from the field, else its form. Since the provider swaps
+the field's `inputmode` for `"none"` while it serves it (#498), the keyboard
+asks the provider for the declared value (`declaredInputMode(el)`).
+
+Search boxes and URL, ID or credential fields in the app are plain
+`type="text"` inputs, so they carry `autoCapitalize="none"`. A new field of
+that kind needs the same, or it starts with a capital.
+
+**Manual Shift and Caps Lock win.** Shift gives one capital and the next
+character clears it; Caps Lock stays on until Shift or Caps Lock is tapped
+again, as on a phone (before #635 Shift was sticky too). The automatic capital
+never overrides either. Tapping Shift while the automatic capital is showing
+turns it off for that letter; Caps Lock there locks capitals on. Turning a
+manual capital off also holds the automatic one back until the next edit,
+caret move or field change, so it does not reappear under the finger.
+
+**Double space for a full stop.** Two taps of space within 500ms after a
+letter or digit become ". ", as on a phone, and the automatic capital then arms
+for the next word. A third quick tap is a plain space. It follows the same
+field rules: a field where auto-capitalization is off (search, email, URL,
+password) keeps both spaces. `doubleSpacePeriod()` in `autoCapitalize.ts`.
+
+It re-evaluates after every keystroke (using simple-keyboard's own caret), on
+a tap that moves the caret, on a move to another field while the keyboard is
+open, on text that arrives another way (voice), and when the keyboard opens.
 
 ### Animation
 
@@ -648,7 +709,13 @@ its own. The provider's `virtualKeyboardEnabled` is the effective value:
   and `setKeyboardVisible(true)` is refused, so the system keyboard is untouched.
 - Use household setting: the household switch.
 
-The touch-only and phone-width rules still apply under Always.
+The phone-width rule still applies under Always. The touch-only rule does
+not: Always also opens Prism's keyboard, and sets `inputmode="none"`, on a
+pointer event reported as `mouse`. Some Chromium/Wayland builds (Raspberry
+Pi OS) never report a touchscreen's events as `pointerType: 'touch'`, so
+requiring touch would leave Always unable to do what it promises on those
+devices — and a real mouse click has the same effect there, which is the
+accepted trade-off for a display with no other keyboard (#627).
 
 Both values load after mount. Until the stored choice has been read and, when
 it defers to the household, the setting fetch has settled, the effective value
@@ -691,6 +758,7 @@ New section: `{ id: 'input', label: 'Input', icon: Keyboard }`. Add to sections 
 | `src/app/settings/sections/InputSection.tsx` | Scanner + keyboard settings UI. |
 | `src/components/input/CameraScannerOverlay.tsx` | Full-screen camera scanner UI (`BarcodeDetector` + `@zxing/browser` fallback). |
 | `src/lib/hooks/useCameraScanner.ts` | Camera-scan decode loop / stream management. |
+| `src/lib/input/autoCapitalize.ts` | Auto-capitalization (#635): `shouldAutoShift`, `autoCapitalizeMode`, the shift state, and the field/caret readers. |
 
 ### Modified Files
 

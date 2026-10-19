@@ -368,6 +368,11 @@ describe('surface class contracts', () => {
       'src/components/settings/CommunityThemeGallery.tsx:text-[10px]',
       'src/components/settings/CommunityThemeGallery.tsx:text-[11px]',
       'src/components/settings/CommunityThemeGallery.tsx:text-[11px]',
+      // Compact swatch metadata in the member colour picker.
+      'src/components/ui/MemberColorPicker.tsx:text-[11px]',
+      'src/components/ui/MemberColorPicker.tsx:text-[11px]',
+      'src/components/ui/MemberColorPicker.tsx:text-[11px]',
+      'src/components/ui/MemberColorPicker.tsx:text-[11px]',
       // Compact avatar initials with adjacent names.
       // Compact calendar sync status metadata.
       'src/components/widgets/CalendarWidget.tsx:text-[10px]',

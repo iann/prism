@@ -70,7 +70,10 @@ export function WeekendView() {
       setOverlayMode('detail');
       toast({ title: `"${place.name}" added!` });
     } catch (err) {
-      if (err instanceof WeekendAuthError) toast({ title: 'Please log in', variant: 'destructive' });
+      if (err instanceof WeekendAuthError) {
+        // Not signed in: AuthProvider has already opened the PIN box.
+        if (err.status === 403) toast({ title: "You can't change places", variant: 'destructive' });
+      }
       else toast({ title: 'Failed to add place', variant: 'destructive' });
     }
   };
@@ -170,6 +173,7 @@ export function WeekendView() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search places…"
+            autoCapitalize="none"
             className="wall-filter-input pl-7 h-7 text-xs"
           />
           {search && (

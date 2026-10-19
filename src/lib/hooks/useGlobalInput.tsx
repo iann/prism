@@ -42,6 +42,11 @@ interface GlobalInputContextValue {
    * else the household setting (#525). False until both are known.
    */
   virtualKeyboardEnabled: boolean;
+  /**
+   * The field's own `inputmode`, even while the provider has replaced it with
+   * "none" to keep the OS keyboard down (#498). Read by auto-capitalization.
+   */
+  declaredInputMode: (el: HTMLElement) => string | null;
 }
 
 const GlobalInputContext = createContext<GlobalInputContextValue | null>(null);
@@ -243,6 +248,11 @@ export function GlobalInputProvider({ children }: { children: React.ReactNode })
     el.setAttribute('inputmode', 'none');
   }, [releaseOsKeyboard]);
 
+  const declaredInputMode = useCallback((el: HTMLElement) => {
+    const s = osKeyboardSuppressedRef.current;
+    return s?.el === el ? s.prev : el.getAttribute('inputmode');
+  }, []);
+
   // ---- scroll helpers (#499) ----
   const releaseView = useCallback((restorePosition: boolean) => {
     restoreReveal(revealRecordsRef.current, restorePosition);
@@ -320,7 +330,11 @@ export function GlobalInputProvider({ children }: { children: React.ReactNode })
   // ---- document event listeners ----
   useEffect(() => {
     const prismKeyboardApplies = () =>
-      lastPointerTypeRef.current === 'touch' &&
+      // A device explicitly set to "Always" bypasses the touch check: some
+      // Chromium/Wayland builds (Raspberry Pi OS) report touchscreen input
+      // as pointerType "mouse", so requiring 'touch' would leave the
+      // keyboard permanently closed on those devices (#627).
+      (lastPointerTypeRef.current === 'touch' || devicePref.pref === 'always') &&
       !isMobile &&
       !suppressedForScan.current &&
       virtualKeyboardEnabled;
@@ -336,8 +350,13 @@ export function GlobalInputProvider({ children }: { children: React.ReactNode })
 
       // A touch on a field Prism's keyboard will serve. Set inputmode="none"
       // now, BEFORE the field takes focus, so the OS keyboard never starts to
-      // open (#498).
-      if (e.pointerType !== 'touch' || !(t instanceof Element) || !shouldShowKeyboard(t)) return;
+      // open (#498). A device set to "Always" also takes this path on a
+      // pointerdown reported as "mouse": some Chromium/Wayland builds
+      // (Raspberry Pi OS) never report touch input as "touch" (#627), and
+      // this is also the only path that reopens the keyboard after Enter
+      // closes it on a field that keeps focus (no focusin fires there).
+      if ((e.pointerType !== 'touch' && devicePref.pref !== 'always') ||
+        !(t instanceof Element) || !shouldShowKeyboard(t)) return;
       if (!prismKeyboardApplies()) return;
       const host = editableHost(t);
       if (!host) return;
@@ -456,7 +475,7 @@ export function GlobalInputProvider({ children }: { children: React.ReactNode })
       document.removeEventListener('keydown', onKeyDown);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, virtualKeyboardEnabled, scrollInputIntoView, releaseView, suppressOsKeyboard, releaseOsKeyboard]);
+  }, [isMobile, virtualKeyboardEnabled, devicePref.pref, scrollInputIntoView, releaseView, suppressOsKeyboard, releaseOsKeyboard]);
 
   const value = useMemo<GlobalInputContextValue>(() => ({
     keyboardVisible,
@@ -471,9 +490,11 @@ export function GlobalInputProvider({ children }: { children: React.ReactNode })
     startListening: speech.start,
     stopListening: speech.stop,
     virtualKeyboardEnabled,
+    declaredInputMode,
   }), [
     keyboardVisible, speech.isListening, speech.start, speech.stop,
     isInputFocused, isMobile, setKeyboardVisible, injectText, virtualKeyboardEnabled,
+    declaredInputMode,
   ]);
 
   return (
