@@ -1,17 +1,38 @@
 name: Sync fork with upstream
 
+# Keeps the fork's integration branch in step with upstream/master.
+#
+# The mirror branches (`master` and `upstream`) are forced to upstream's tip
+# so the fork always exposes upstream as it stands. The `personal` branch is
+# where the fork's own work lives, and this workflow NEVER writes to it: the
+# merge is prepared on a throwaway branch and proposed as a pull request, so
+# a human reviews it and CI gates it.
+#
+# When the merge conflicts, exactly one tracking issue is kept open and
+# updated in place. Earlier versions opened a new issue on every failed run.
+# Because the label was never actually applied to the issues it created, the
+# "is one already open?" check never matched, which left a stack of duplicate
+# issues behind.
+
 on:
   schedule:
     - cron: '0 20 * * *'  # 4pm ET (EDT/UTC-4); shifts to 3pm ET during EST
   workflow_dispatch:  # allow manual trigger via GitHub UI or gh CLI
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+env:
+  TRACKING_ISSUE_TITLE: 'Action required: upstream merge conflict on personal branch'
+  TRACKING_LABEL: upstream-conflict
+  SYNC_BRANCH_PREFIX: chore/upstream-master-sync-
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: write
-      issues: write
 
     steps:
       - uses: actions/checkout@v4
@@ -30,49 +51,173 @@ jobs:
       - name: Fetch upstream
         run: git fetch upstream master
 
-      - name: Reset upstream branch to match upstream repo
+      # Explicit refspecs. "git push origin upstream" is ambiguous here: the
+      # fork has a branch named `upstream` and a remote named `upstream`, and
+      # past versions of this workflow tripped over exactly that.
+      - name: Reset mirror branches to match upstream
         run: |
-          git checkout upstream
-          git reset --hard upstream/master
-          git push origin upstream --force
+          git push origin upstream/master:refs/heads/upstream --force
+          git push origin upstream/master:refs/heads/master --force
 
-      - name: Reset master to match upstream
-        run: |
-          git checkout -B master origin/master
-          git reset --hard upstream/master
-          git push origin master --force
-
-      - name: Merge upstream into personal
+      - name: Check whether upstream/master is already merged into personal
+        id: drift
         env:
           GH_TOKEN: ${{ secrets.SYNC_PAT }}
         run: |
-          git checkout personal
-          if git merge upstream/master --no-edit; then
-            git push origin personal
+          git fetch origin personal
+          if git merge-base --is-ancestor upstream/master origin/personal; then
+            echo "in_sync=true" >> "$GITHUB_OUTPUT"
+            echo "upstream/master ($(git rev-parse --short upstream/master)) is already contained in personal."
           else
+            echo "in_sync=false" >> "$GITHUB_OUTPUT"
+            echo "upstream/master ($(git rev-parse --short upstream/master)) is ahead of personal."
+          fi
+
+      # One tracking issue at a time. Matched on the exact title through the
+      # issues API rather than by label: a label-based lookup is served by
+      # the search index, which does not see a label that was added moments
+      # ago, so a newly created issue would not be found and the next run
+      # would open a second one.
+      - name: Find the tracking issue
+        id: tracking
+        if: steps.drift.outputs.in_sync == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+        run: |
+          # The issues API lists newest first; the lowest number is the
+          # original, so keep that one and let the rest be closed by hand.
+          number=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --paginate \
+            --jq '.[] | select(.pull_request == null) | select(.title == env.TRACKING_ISSUE_TITLE) | .number' \
+            | sort -n | head -1)
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      # Reuse the branch of an open sync pull request so that a second run
+      # updates that pull request instead of opening a competing one.
+      - name: Find an open sync pull request
+        id: existing
+        if: steps.drift.outputs.in_sync == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+        run: |
+          branch=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --json number,headRefName \
+            --jq ".[] | select(.headRefName | startswith(\"$SYNC_BRANCH_PREFIX\")) | .headRefName" \
+            | head -1)
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare the sync branch
+        if: steps.drift.outputs.in_sync == 'false'
+        id: prepare
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          EXISTING_BRANCH: ${{ steps.existing.outputs.branch }}
+        run: |
+          if [ -n "$EXISTING_BRANCH" ]; then
+            branch="$EXISTING_BRANCH"
+          else
+            branch="${SYNC_BRANCH_PREFIX}$(date -u +%Y-%m-%d)"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+          git checkout -B "$branch" origin/personal
+
+          if git merge --no-edit upstream/master; then
+            echo "clean=true" >> "$GITHUB_OUTPUT"
+            echo "Merge is clean."
+            git push --force origin "$branch"
+          else
+            # Record the conflicting paths before aborting: once the merge is
+            # aborted there is nothing left in the worktree to diff.
+            git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt" || true
+            echo "clean=false" >> "$GITHUB_OUTPUT"
+            echo "Merge conflicts in:" >&2
+            cat "$RUNNER_TEMP/conflicts.txt" >&2
             git merge --abort
-            # Open a conflict issue only if one isn't already open
-            open_issue=$(gh issue list \
-              --repo "$GITHUB_REPOSITORY" \
-              --label "upstream-conflict" \
-              --state open \
-              --json number \
-              --jq 'length')
-            if [ "$open_issue" -eq 0 ]; then
-              gh issue create \
-                --repo "$GITHUB_REPOSITORY" \
-                --title "Action required: upstream merge conflict on personal branch" \
-                --label "upstream-conflict" \
-                --body "The daily upstream sync could not automatically merge \`upstream/master\` into \`personal\` due to a conflict.
+          fi
+
+      - name: Open the sync pull request
+        if: steps.drift.outputs.in_sync == 'false' && steps.prepare.outputs.clean == 'true' && steps.existing.outputs.branch == ''
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          BRANCH: ${{ steps.prepare.outputs.branch }}
+        run: |
+          gh pr create --repo "$GITHUB_REPOSITORY" \
+            --base personal \
+            --head "$BRANCH" \
+            --title "Sync upstream/master into personal" \
+            --body "Automated merge of \`upstream/master\` (\`$(git rev-parse --short upstream/master)\`) into \`personal\`.
+
+          The merge was clean, so no conflict resolution is needed. CI still has to pass before this lands."
+
+      - name: Record the conflict on the tracking issue
+        if: steps.drift.outputs.in_sync == 'false' && steps.prepare.outputs.clean == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          ISSUE_NUMBER: ${{ steps.tracking.outputs.number }}
+        run: |
+          files=$(cat "$RUNNER_TEMP/conflicts.txt" 2>/dev/null || true)
+          if [ -z "$files" ]; then
+            files="(could not determine the conflicting files)"
+          fi
+
+          body=$(cat <<EOF
+          \`upstream/master\` (\`$(git rev-parse --short upstream/master)\`) could not be merged into \`personal\` automatically.
+
+          Files that conflict:
+
+          $(printf '%s\n' "$files" | sed 's/^/- /')
 
           Resolve locally:
+
           \`\`\`bash
-          git fetch origin
-          git checkout personal
-          git merge origin/master
+          git fetch upstream
+          git checkout -B ${SYNC_BRANCH_PREFIX}$(date -u +%Y-%m-%d) origin/personal
+          git merge upstream/master
           # fix conflicts, then:
-          git push origin personal
+          git push origin ${SYNC_BRANCH_PREFIX}$(date -u +%Y-%m-%d)
           \`\`\`
-          Close this issue once the conflict is resolved."
+
+          Close this issue once the merge has landed.
+          EOF
+          )
+
+          if [ -n "$ISSUE_NUMBER" ]; then
+            echo "Updating existing tracking issue #$ISSUE_NUMBER."
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --body "$body" --add-label "$TRACKING_LABEL"
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --body "Still conflicting at upstream/master $(git rev-parse --short upstream/master)."
+          else
+            echo "Opening a new tracking issue."
+            url=$(gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "$TRACKING_ISSUE_TITLE" \
+              --body "$body")
+            echo "Created $url"
+            # Label it explicitly rather than trusting `issue create --label`
+            # to apply it. The label is only cosmetic -- the dedup above
+            # matches on the title -- so a failure here is not fatal.
+            number=$(printf '%s' "$url" | grep -oE '[0-9]+$')
+            if [ -n "$number" ]; then
+              gh issue edit "$number" --repo "$GITHUB_REPOSITORY" \
+                --add-label "$TRACKING_LABEL" || true
             fi
+          fi
+
+      # The conflict is resolved once upstream is contained in personal again,
+      # whether that happened through a merged pull request or by hand.
+      - name: Close the tracking issue when the fork is in sync
+        if: steps.drift.outputs.in_sync == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+        run: |
+          number=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --paginate \
+            --jq '.[] | select(.pull_request == null) | select(.title == env.TRACKING_ISSUE_TITLE) | .number')
+          if [ -n "$number" ]; then
+            for n in $number; do
+              gh issue close "$n" --repo "$GITHUB_REPOSITORY" \
+                --comment "upstream/master is contained in personal again, so this conflict is resolved."
+              echo "Closed tracking issue #$n."
+            done
+          else
+            echo "No tracking issue open."
           fi

@@ -134,11 +134,18 @@ upstream-sync-only commits are omitted unless they changed behavior.
     the personal branch as the integration target, and avoid running personal
     traffic automation in the upstream repository.
 
+    The daily sync was later redesigned. It no longer merges into personal
+    directly: the merge is prepared on a throwaway branch and proposed as a
+    pull request, so CI gates it and a human reviews it. When the merge
+    conflicts, one tracking issue is kept open and updated in place, matched
+    on its title, instead of a new issue being opened on every run.
+
     Commits: cb23f55, 4c879e4, f83894b, b8a07b5, c0a2046,
     276d0df, 513f0a0, fb4ba59, 9c68596, b67d44b, a6170c3,
     2cfe326,
     bf3a284, 13114b0, fd6b0a7, c7f76cc, 2fbc4c2, 4227a8b,
-    b278622, 62d1151, 3beeefc
+    b278622, 62d1151, 3beeefc,
+    761c317
 
 15. **Runtime, build, and test compatibility fixes**
 
