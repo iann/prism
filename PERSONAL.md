@@ -1041,6 +1041,19 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: e9eda6e1
 
+128. **Pronounced local solar arc on the world map**
+
+    Gives the local solar-altitude arc a twilight ramp of its own, so it no
+    longer shares the continent dots' colours band for band and disappears
+    into the land. The default treatment draws the arc as a continuous
+    band-coloured line over larger, outlined beads, with small rings at
+    sunrise and sunset and a glowing current-Sun marker, and pulls the
+    continent dots back so the arc reads first. Fuller-map and filled-dome
+    variants and the earlier dotted arc stay selectable for comparison in the
+    standalone solar harness.
+
+    Commits: 8b8fbed4
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
