@@ -4,6 +4,9 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+### Changed
+- **The Sun's path on the daylight map is easier to follow.** The local solar-altitude arc on the world map no longer shares the continents' twilight colours, which let it disappear into the dotted land. The arc now uses its own cool twilight ramp, drawn as a continuous band-coloured line over larger, outlined beads, with small rings at sunrise and sunset and a glowing marker for the current Sun. The continent dots step back so the arc reads first. The standalone solar harness can switch between this treatment, a fuller-map version, a filled-band version, and the earlier dotted arc.
+
 ## [1.30.0] – 2026-10-19
 
 Moves Prism to React 19. No database migrations.

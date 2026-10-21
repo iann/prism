@@ -1,5 +1,9 @@
 import * as React from 'react';
-import { SolarWorldMap, type SolarMotionMode } from '@/components/widgets/SolarWorldMap';
+import {
+  SolarWorldMap,
+  type SolarArcStyle,
+  type SolarMotionMode,
+} from '@/components/widgets/SolarWorldMap';
 import type { Coordinates } from '@/lib/solar/solar';
 
 type HarnessTheme = 'system' | 'light' | 'dark';
@@ -11,6 +15,7 @@ type HarnessState = {
   live: boolean;
   time: number;
   showArc: boolean;
+  arcStyle: SolarArcStyle;
   theme: HarnessTheme;
 };
 
@@ -31,6 +36,17 @@ const DEFAULT_THEME: HarnessTheme = 'system';
 
 function isMotionMode(value: string | null): value is SolarMotionMode {
   return value === 'map' || value === 'shadow';
+}
+
+const ARC_STYLES: { value: SolarArcStyle; label: string }[] = [
+  { value: 'quiet', label: 'Quiet (default)' },
+  { value: 'bold', label: 'Bold' },
+  { value: 'filled', label: 'Filled' },
+  { value: 'dots', label: 'Legacy dots' },
+];
+
+function isArcStyle(value: string | null): value is SolarArcStyle {
+  return ARC_STYLES.some((style) => style.value === value);
 }
 
 function isTheme(value: string | null): value is HarnessTheme {
@@ -58,6 +74,7 @@ export function parseHarnessState(search: string, now = Date.now()): HarnessStat
   const isBoston = location.lat === BOSTON.lat && location.lon === BOSTON.lon;
   const motion = params.get('motion');
   const selectedTheme = params.get('theme');
+  const selectedArcStyle = params.get('style');
 
   return {
     location,
@@ -66,6 +83,7 @@ export function parseHarnessState(search: string, now = Date.now()): HarnessStat
     live: params.get('live') !== '0',
     time: Number.isFinite(parsedTime) ? parsedTime : now,
     showArc: params.get('arc') !== '0',
+    arcStyle: isArcStyle(selectedArcStyle) ? selectedArcStyle : 'quiet',
     theme: isTheme(selectedTheme) ? selectedTheme : DEFAULT_THEME,
   };
 }
@@ -109,6 +127,7 @@ export function SolarHarness() {
   const [live, setLive] = React.useState(initial.live);
   const [time, setTime] = React.useState(initial.time);
   const [showArc, setShowArc] = React.useState(initial.showArc);
+  const [arcStyle, setArcStyle] = React.useState<SolarArcStyle>(initial.arcStyle);
   const [theme, setTheme] = React.useState<HarnessTheme>(initial.theme);
   const [copied, setCopied] = React.useState(false);
   const prefersDark = usePrefersDark();
@@ -130,10 +149,11 @@ export function SolarHarness() {
     params.set('motion', motionMode);
     params.set('live', live ? '1' : '0');
     params.set('arc', showArc ? '1' : '0');
+    params.set('style', arcStyle);
     params.set('theme', theme);
     if (!live) params.set('time', new Date(time).toISOString());
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
-  }, [live, location, locationName, motionMode, showArc, theme, time]);
+  }, [live, location, locationName, motionMode, showArc, arcStyle, theme, time]);
 
   const selectLocation = (value: string) => {
     if (value === 'custom') return;
@@ -188,6 +208,7 @@ export function SolarHarness() {
               time={time}
               motionMode={motionMode}
               showArc={showArc}
+              arcStyle={arcStyle}
             />
             <div className="solar-harness__readout">
               <span>{locationName}</span>
@@ -264,6 +285,20 @@ export function SolarHarness() {
                   onChange={(event) => setShowArc(event.currentTarget.checked)}
                 />
                 Show local altitude arc
+              </label>
+              <label className="solar-harness__field">
+                <span>Treatment</span>
+                <select
+                  value={arcStyle}
+                  disabled={!showArc}
+                  onChange={(event) => setArcStyle(event.currentTarget.value as SolarArcStyle)}
+                >
+                  {ARC_STYLES.map((style) => (
+                    <option key={style.value} value={style.value}>
+                      {style.label}
+                    </option>
+                  ))}
+                </select>
               </label>
             </fieldset>
 

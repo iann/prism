@@ -41,6 +41,14 @@ The harness stores its state in the URL query string. Links can include:
 | `live`        | `1` or `0`                        | `1`                                      |
 | `time`        | ISO timestamp, used when `live=0` | current time                             |
 | `arc`         | `1` or `0`                        | `1`                                      |
+| `style`       | `quiet`, `bold`, `filled`, `dots` | `quiet`                                  |
 | `theme`       | `system`, `light`, or `dark`      | `system`                                 |
 
 The motion modes are mutually exclusive: map mode keeps the shadow centered while the dotted land moves; shadow mode keeps the land fixed while illumination travels across it.
+
+The arc treatments change how the local solar-altitude arc is drawn on the map:
+
+- `quiet` is the default: the arc is drawn in its own twilight ramp and weight, and the continent dots step back so the arc reads first.
+- `bold` draws the same arc with the continents at full strength.
+- `filled` adds a filled dome between the arc and the horizon, so the arc reads as a daylight band.
+- `dots` is the earlier treatment, kept for comparison.

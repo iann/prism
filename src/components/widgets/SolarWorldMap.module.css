@@ -18,6 +18,7 @@
   --solar-arc-nautical: var(--solar-land-nautical);
   --solar-arc-astronomical: var(--solar-land-astronomical);
   --solar-arc-night: var(--solar-land-night);
+  --solar-arc-keyline: transparent;
   --solar-terminator: color-mix(in srgb, var(--solar-sun) 35%, var(--solar-text));
   color: var(--solar-text);
   background: var(--solar-surface);
@@ -44,6 +45,9 @@
   opacity: 0.94;
   pointer-events: none;
 }
+.landDotsQuiet {
+  opacity: 0.42;
+}
 .equator {
   fill: none;
   stroke: var(--solar-equator);
@@ -53,6 +57,62 @@
 }
 .solarArcDot {
   pointer-events: none;
+}
+/* The arc keeps a cool twilight ramp of its own so it never camouflages
+   against the continent dots, which reuse the land palette band for band. */
+.solarArcCool {
+  --solar-arc-civil: #6ea8d8;
+  --solar-arc-nautical: #4a7fb4;
+  --solar-arc-astronomical: #36608f;
+  --solar-arc-night: #27466b;
+  --solar-arc-keyline: color-mix(in srgb, hsl(var(--card-foreground)) 45%, transparent);
+}
+:global(.dark) .solarArcCool {
+  --solar-arc-civil: #8cbdea;
+  --solar-arc-nautical: #6394c4;
+  --solar-arc-astronomical: #4a73a3;
+  --solar-arc-night: #38577f;
+}
+.solarArcRibbon {
+  opacity: 0.16;
+  stroke: none;
+}
+.solarArcDome {
+  opacity: 0.26;
+  stroke: none;
+}
+.solarArcSpine {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.92;
+}
+.solarArcSpineFuture {
+  fill: none;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.45;
+}
+.solarArcSpineFuture {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.42;
+}
+.solarArcAnchor {
+  fill: none;
+  stroke: var(--solar-sun);
+  stroke-width: 1.5;
+  opacity: 0.9;
+}
+.solarArcSunGlow {
+  pointer-events: none;
+}
+.solarArcSunBelowHorizon .solarArcSunGlow {
+  opacity: 0.25;
 }
 .solarArcElapsedTrail {
   fill: none;
