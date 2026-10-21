@@ -41,6 +41,12 @@ jobs:
       - name: Version sync (package.json ↔ CHANGELOG)
         run: bash scripts/check-version-sync.sh
 
+      # A failed database dump must not leave a file that looks like a backup.
+      # The backup container runs on Alpine and on developer machines, so this
+      # exercises the script's real failure path rather than a mock of it.
+      - name: Backup failure cleanup
+        run: bash scripts/test-backup-failure-cleanup.sh
+
       # Syntax-check JS that doesn't flow through the TS/Next.js pipeline.
       # Caught nothing today, but had this been in place yesterday it would
       # have caught the duplicate `const windowUniques` in traffic/index.html
