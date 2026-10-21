@@ -1,7 +1,12 @@
 # Prism Backup Container
 # PostgreSQL client + rclone for off-site sync
 
-FROM postgres:15-alpine
+# The client major must be at least the deployment's server major: pg_dump
+# refuses to dump a newer server, so a 15 client against the deployed
+# PostgreSQL 18 aborted every nightly backup and every rollout's production
+# snapshot. Bump this together with the server pin in home-infra's
+# stacks/prism/compose.yml.
+FROM postgres:18-alpine
 
 # rclone for cloud storage sync; curl for healthcheck pings
 RUN apk add --no-cache rclone curl
