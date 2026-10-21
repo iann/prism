@@ -1054,6 +1054,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: 8b8fbed4
 
+129. **A failed database backup leaves nothing behind**
+
+    Removes the truncated file when a dump cannot be written, so a failed
+    backup no longer sits in the backups folder looking like a backup for the
+    rest of the retention window. Adds a test that runs the real failure path
+    and a CI step that runs it, and reads the dump size portably so the check
+    behaves the same in the Alpine container and on a developer machine.
+
+    Commit: e9b0417b
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

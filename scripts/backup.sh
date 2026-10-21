@@ -5,7 +5,7 @@
 
 set -e
 
-BACKUP_DIR="/backups"
+BACKUP_DIR=${BACKUP_DIR:-/backups}
 RETENTION_DAYS=${RETENTION_DAYS:-7}
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/prism_$TIMESTAMP.sql.gz"
@@ -33,11 +33,21 @@ PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
 # Check if backup was created successfully and is plausibly non-empty.
 # A valid gzipped dump of an initialised schema is comfortably over 10KB; a
 # smaller file means pg_dump errored out mid-stream.
-if [ -f "$BACKUP_FILE" ] && [ "$(stat -c%s "$BACKUP_FILE")" -gt 10000 ]; then
+#
+# The size is read with wc rather than stat: the script runs in an Alpine
+# container and on developer machines, and stat's GNU-only -c form is not
+# available everywhere. wc -c is POSIX.
+BACKUP_BYTES=$(wc -c < "$BACKUP_FILE" 2>/dev/null || echo 0)
+if [ "$BACKUP_BYTES" -gt 10000 ]; then
   SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
   echo "[$(date)] Backup completed: $BACKUP_FILE ($SIZE)"
 else
   echo "[$(date)] ERROR: Backup failed or too small!"
+  # Remove the failed dump. A truncated file is not a backup, and leaving it
+  # behind makes the directory look like it holds one: it is picked up by
+  # "newest dump" lookups, it ages out only on the retention window, and it
+  # counts towards the local copy while protecting nothing.
+  rm -f "$BACKUP_FILE"
   ping_hc /fail
   exit 1
 fi
