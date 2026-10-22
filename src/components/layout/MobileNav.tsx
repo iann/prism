@@ -14,7 +14,8 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { scopedHref, isNavActive } from '@/lib/utils/dashboardScope';
+import { scopedHref, isNavActive, RETURN_PARAM } from '@/lib/utils/dashboardScope';
+import { useReturnSlug } from '@/lib/hooks/useReturnSlug';
 import { useTranslations } from 'next-intl';
 import {
   ShoppingCart,
@@ -71,6 +72,8 @@ const secondaryItems: NavItem[] = [
 
 export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps) {
   const pathname = usePathname();
+  const returnSlug = useReturnSlug();
+  const search = returnSlug ? { get: (k: string) => (k === RETURN_PARAM ? returnSlug : null) } : null;
   const t = useTranslations('common');
   const [showMore, setShowMore] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -109,11 +112,11 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
           <div className="grid grid-cols-3 gap-1 p-2">
             {visibleSecondary.map((item) => {
               const Icon = item.icon;
-              const isActive = isNavActive(item.href, pathname);
+              const isActive = isNavActive(item.href, pathname, search);
               return (
                 <Link
                   key={item.href}
-                  href={scopedHref(item.href, pathname)}
+                  href={scopedHref(item.href, pathname, search)}
                   prefetch={false}
                   onClick={() => setShowMore(false)}
                   className={cn(
@@ -207,11 +210,11 @@ export function MobileNav({ user, onLogin, onLogout, uiHidden }: MobileNavProps)
         <div className="flex items-center justify-around h-16">
           {visiblePrimary.map((item) => {
             const Icon = item.icon;
-            const isActive = isNavActive(item.href, pathname);
+            const isActive = isNavActive(item.href, pathname, search);
             return (
               <Link
                 key={item.href}
-                href={scopedHref(item.href, pathname)}
+                href={scopedHref(item.href, pathname, search)}
                 prefetch={false}
                 className={cn(
                   'flex flex-col items-center gap-0.5 py-2 px-3 min-w-[64px] transition-colors',
