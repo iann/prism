@@ -274,8 +274,43 @@ describe('SolarWorldMap display', () => {
     expect(mask?.outerHTML).toContain('translate(-1000 0)');
   });
 
+  it('draws the land as quiet shapes in the stroke-and-fill treatments', () => {
+    const banded = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    expect(screen.getByTestId('world-map-land').getAttribute('data-map-style')).toBe('banded');
+    expect(screen.getByTestId('world-map-coastline')).toBeTruthy();
+    ['day', 'civil', 'nautical', 'astronomical', 'night'].forEach((band) => {
+      expect(screen.getByTestId(`world-map-fill-${band}`)).toBeTruthy();
+    });
+    expect(banded.container.querySelector('[data-testid^="world-map-dots-"]')).toBeNull();
+    expect(banded.container.querySelectorAll('[data-testid="world-map-coastline"] path')).toHaveLength(
+      3
+    );
+
+    banded.unmount();
+
+    render(<SolarWorldMap lat={42.36} lon={-71.06} mapStyle="coastline" />);
+    expect(screen.getByTestId('world-map-coastline')).toBeTruthy();
+    expect(screen.queryByTestId('world-map-fill-day')).toBeNull();
+
+    render(<SolarWorldMap lat={42.36} lon={-71.06} mapStyle="pale" />);
+    expect(screen.getByTestId('world-map-wash')).toBeTruthy();
+    expect(screen.queryByTestId('world-map-fill-day')).toBeNull();
+  });
+
+  it('draws the land three times so the map wraps at the date line', () => {
+    render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    const coastline = screen.getByTestId('world-map-coastline');
+
+    expect(coastline.querySelectorAll('path')).toHaveLength(3);
+    const offsets = [...coastline.querySelectorAll('path')].map((path) =>
+      Number(path.getAttribute('transform')?.match(/translate\(([-\d.]+)/)?.[1])
+    );
+    expect(offsets[1]! - offsets[0]!).toBeCloseTo(MAP_WIDTH, 3);
+    expect(offsets[2]! - offsets[1]!).toBeCloseTo(MAP_WIDTH, 3);
+  });
+
   it('colors land dots with the same five light bands used by the local solar arc', () => {
-    const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} mapStyle="dots" />);
     const bands = ['day', 'civil', 'nautical', 'astronomical', 'night'];
 
     bands.forEach((band) => {

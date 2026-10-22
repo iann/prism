@@ -1054,7 +1054,21 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commits: 8b8fbed4
 
-129. **A failed database backup leaves nothing behind**
+129. **Quiet stroke-and-fill world map**
+
+    Replaces the continent dot field with filled shapes tinted by the twilight
+    band they sit in, outlined with a hairline coast, so the map keeps its day
+    and night reading without a texture that competes with the local Sun arc.
+    The land is drawn three times so the projection still wraps, and the fill
+    carries its own band ramp: the dot palette is tuned for a mark on a field,
+    where a night dot is near white so it reads on the dark night region, and a
+    filled continent needs the opposite relationship so it stays in shadow.
+    Pale-fill and coastlines-only treatments stay selectable in the solar
+    harness. The bundled land geometry is unchanged.
+
+    Commit: 72e3dbf0
+
+130. **A failed database backup leaves nothing behind**
 
     Removes the truncated file when a dump cannot be written, so a failed
     backup no longer sits in the backups folder looking like a backup for the
