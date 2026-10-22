@@ -42,9 +42,17 @@ The harness stores its state in the URL query string. Links can include:
 | `time`        | ISO timestamp, used when `live=0` | current time                             |
 | `arc`         | `1` or `0`                        | `1`                                      |
 | `style`       | `quiet`, `bold`, `filled`, `dots` | `quiet`                                  |
+| `map`         | `banded`, `pale`, `coastline`, `dots` | `banded`                             |
 | `theme`       | `system`, `light`, or `dark`      | `system`                                 |
 
-The motion modes are mutually exclusive: map mode keeps the shadow centered while the dotted land moves; shadow mode keeps the land fixed while illumination travels across it.
+The motion modes are mutually exclusive: map mode keeps the shadow centered while the land moves; shadow mode keeps the land fixed while illumination travels across it.
+
+The map treatments change how the world map itself is drawn:
+
+- `banded` is the default: the continents are filled shapes tinted by the twilight band they sit in, outlined with a hairline coast, so the map still shows day and night without a texture competing with the arc.
+- `pale` fills the continents with one pale wash and outlines them. The illumination reads through the fill from the ocean beneath, rather than from the land itself.
+- `coastline` outlines the continents without filling them, keeping the map to its coastlines.
+- `dots` is the earlier treatment, where the continents are a field of small dots coloured by band.
 
 The arc treatments change how the local solar-altitude arc is drawn on the map:
 
