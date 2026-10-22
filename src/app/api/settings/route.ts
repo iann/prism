@@ -15,6 +15,8 @@ import { isValidTimezone } from '@/lib/utils/timezone';
 import { invalidateHouseholdTimezoneCache } from '@/lib/householdTimezone';
 import { TELEMETRY_SETTING_KEYS } from '@/lib/telemetry/constants';
 import { BUS_RETENTION_KEYS, isValidRetention } from '@/lib/services/bus-live-retention';
+import { BUS_MAP_CAMERA_SETTING, BUS_MAP_STYLE_SETTING, isBusMapCamera, isBusMapStyle } from '@/lib/map/busMapOptions';
+import { BUS_DRIVER_NAMES_SETTING, isDriverNames } from '@/lib/services/bus-driver-names';
 
 /**
  * Settings the setup wizard writes before any parent account has a session.
@@ -124,6 +126,15 @@ export async function PATCH(request: NextRequest) {
     }
     if (body.key === BUS_RETENTION_KEYS.history && !isValidRetention('history', body.value)) {
       return NextResponse.json({ error: 'Invalid retention' }, { status: 400 });
+    }
+    if (body.key === BUS_MAP_STYLE_SETTING && !isBusMapStyle(body.value)) {
+      return NextResponse.json({ error: 'Invalid map style' }, { status: 400 });
+    }
+    if (body.key === BUS_MAP_CAMERA_SETTING && !isBusMapCamera(body.value)) {
+      return NextResponse.json({ error: 'Invalid map camera' }, { status: 400 });
+    }
+    if (body.key === BUS_DRIVER_NAMES_SETTING && !isDriverNames(body.value)) {
+      return NextResponse.json({ error: 'Invalid driver names' }, { status: 400 });
     }
 
     // The two below are checked only on the unauthenticated setup path, where

@@ -15,6 +15,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
+import {
+  BUS_MAP_CAMERAS, BUS_MAP_CAMERA_LABELS, BUS_MAP_CAMERA_SETTING, BUS_MAP_STYLES, BUS_MAP_STYLE_LABELS,
+  BUS_MAP_STYLE_SETTING, DEFAULT_BUS_MAP_CAMERA, DEFAULT_BUS_MAP_STYLE, isBusMapCamera, isBusMapStyle,
+} from '@/lib/map/busMapOptions';
+import { BUS_DRIVER_NAMES_SETTING, isDriverNames, type DriverNames } from '@/lib/services/bus-driver-names';
 
 interface LiveTrack {
   id: string;
@@ -24,6 +30,7 @@ interface LiveTrack {
   tripDate: string;
   routeId: string | null;
   lastFixAt: string | null;
+  driverName: string | null;
 }
 
 interface RouteOption {
@@ -57,6 +64,10 @@ export function LiveTrackingCard({ routes, onBound }: { routes: RouteOption[]; o
   const [traceDays, setTraceDays] = useState('30');
   const [historyDays, setHistoryDays] = useState('365');
   const [savedDays, setSavedDays] = useState({ trace: '30', history: '365' });
+  const [mapStyle, setMapStyle] = useState<string>(DEFAULT_BUS_MAP_STYLE);
+  const [camera, setCamera] = useState<string>(DEFAULT_BUS_MAP_CAMERA);
+  const [driverNames, setDriverNames] = useState<DriverNames>({});
+  const [savedDriverNames, setSavedDriverNames] = useState<DriverNames>({});
 
   const load = useCallback(async () => {
     try {
@@ -77,6 +88,12 @@ export function LiveTrackingCard({ routes, onBound }: { routes: RouteOption[]; o
         setTraceDays(trace);
         setHistoryDays(history);
         setSavedDays({ trace, history });
+        if (isBusMapStyle(all.busMapStyle)) setMapStyle(all.busMapStyle);
+        if (isBusMapCamera(all.busMapCamera)) setCamera(all.busMapCamera);
+        if (isDriverNames(all.busDriverNames)) {
+          setDriverNames(all.busDriverNames);
+          setSavedDriverNames(all.busDriverNames);
+        }
       }
     } catch {
       // Leave the defaults showing.
@@ -86,6 +103,10 @@ export function LiveTrackingCard({ routes, onBound }: { routes: RouteOption[]; o
   useEffect(() => { load(); }, [load]);
 
   const trips = useMemo(() => groupTracks(tracks), [tracks]);
+  const drivers = useMemo(
+    () => [...new Set(tracks.map(t => t.driverName).filter((n): n is string => Boolean(n)))].sort(),
+    [tracks],
+  );
 
   const handleCreateToken = async () => {
     setCreating(true);
@@ -139,6 +160,40 @@ export function LiveTrackingCard({ routes, onBound }: { routes: RouteOption[]; o
       toast({ title: 'Retention saved' });
     } catch {
       toast({ title: 'Failed to save retention', description: 'Use whole days: trace 1 to 365, history 1 to 1825.', variant: 'destructive' });
+    }
+  };
+
+  /** Save one map choice, putting the old value back if the save fails. */
+  const saveChoice = async (key: string, next: string, previous: string, set: (v: string) => void) => {
+    set(next);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value: next }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      set(previous);
+      toast({ title: 'Failed to save the map setting', variant: 'destructive' });
+    }
+  };
+
+  const saveDriverName = async (reported: string) => {
+    if ((driverNames[reported] ?? '') === (savedDriverNames[reported] ?? '')) return;
+    const next = { ...savedDriverNames, [reported]: (driverNames[reported] ?? '').trim() };
+    if (!next[reported]) delete next[reported];
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: BUS_DRIVER_NAMES_SETTING, value: next }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setSavedDriverNames(next);
+      toast({ title: 'Driver name saved' });
+    } catch {
+      toast({ title: 'Failed to save driver name', variant: 'destructive' });
     }
   };
 
@@ -227,6 +282,51 @@ export function LiveTrackingCard({ routes, onBound }: { routes: RouteOption[]; o
           )}
         </div>
 
+        {drivers.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-xs">Drivers this week</Label>
+            <div className="space-y-1.5">
+              {drivers.map(reported => (
+                <div key={reported} className="flex items-center gap-3">
+                  <span className="w-40 truncate text-sm" title={reported}>{reported}</span>
+                  <Input
+                    value={driverNames[reported] ?? ''}
+                    onChange={e => setDriverNames(d => ({ ...d, [reported]: e.target.value }))}
+                    onBlur={() => saveDriverName(reported)}
+                    placeholder="Shown as, e.g. Mr. Lastname"
+                    maxLength={60}
+                    className="h-8 w-56 text-sm"
+                    aria-label={`How to show ${reported}`}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              How each driver appears on the display. Left blank, the name shows as the provider reports it.
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <ChoiceList
+            label="Map style"
+            options={BUS_MAP_STYLES}
+            labels={BUS_MAP_STYLE_LABELS}
+            value={mapStyle}
+            onChange={v => saveChoice(BUS_MAP_STYLE_SETTING, v, mapStyle, setMapStyle)}
+          />
+          <ChoiceList
+            label="Camera"
+            options={BUS_MAP_CAMERAS}
+            labels={BUS_MAP_CAMERA_LABELS}
+            value={camera}
+            onChange={v => saveChoice(BUS_MAP_CAMERA_SETTING, v, camera, setCamera)}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            The map turns dark with Prism&apos;s theme. Zoom with its + and - buttons; the camera takes over again a minute later.
+          </p>
+        </div>
+
         <div className="space-y-2">
           <Label className="text-xs">Keep history</Label>
           <div className="flex flex-wrap items-end gap-3">
@@ -258,5 +358,42 @@ export function LiveTrackingCard({ routes, onBound }: { routes: RouteOption[]; o
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ChoiceList<T extends string>({
+  label, options, labels, value, onChange,
+}: {
+  label: string;
+  options: readonly T[];
+  labels: Record<T, string>;
+  value: string;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <div className="space-y-1" role="radiogroup" aria-label={label}>
+        {options.map(option => (
+          <button
+            key={option}
+            type="button"
+            role="radio"
+            aria-checked={value === option}
+            onClick={() => onChange(option)}
+            className={cn(
+              'flex w-full items-center gap-2 rounded-md border px-3 py-1.5 text-left text-sm transition-colors',
+              value === option ? 'border-primary bg-accent' : 'border-border hover:bg-accent',
+            )}
+          >
+            <span className={cn(
+              'h-3 w-3 shrink-0 rounded-full border',
+              value === option ? 'border-primary bg-primary' : 'border-muted-foreground',
+            )} />
+            {labels[option]}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
