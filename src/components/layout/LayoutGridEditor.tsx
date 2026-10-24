@@ -934,6 +934,7 @@ export function LayoutGridEditor({
             <div
               key={`rect-${zone.name}`}
               className="absolute"
+              data-screen-frame={zone.name}
               style={{ left: 0, top: 0, width: rectW, height: rectH }}
             >
               <div style={cornerStyle('tl')} />

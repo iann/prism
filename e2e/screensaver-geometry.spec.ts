@@ -79,9 +79,14 @@ for (const [orientation, viewport] of [
       await openScreensaverEditor(page, orientation);
 
       const edited = await boxes(page, '[data-editor-widget]');
+      // The editor on this fork can draw more than one configured screen; the
+      // first frame is the one the screensaver fits its canvas to. Upstream
+      // draws a single frame labelled "Screen", so match both.
       const frame = await page.evaluate(() => {
-        const label = [...document.querySelectorAll('span')].find((s) => s.textContent === 'Screen');
-        const b = label?.parentElement?.getBoundingClientRect();
+        const el =
+          document.querySelector('[data-screen-frame]') ??
+          [...document.querySelectorAll('span')].find((s) => s.textContent === 'Screen')?.parentElement;
+        const b = el?.getBoundingClientRect();
         return b ? { x: b.x, y: b.y, w: b.width, h: b.height } : null;
       });
       expect(frame, 'the editor draws a Screen frame').not.toBeNull();
