@@ -4,13 +4,28 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+Ships two database migrations, applied automatically on start: live bus positions, and bus trip history.
+
+### Added
+- **Live bus tracking on a map.** Prism can take live positions from a position provider: a small program you run that reads them from your bus service and posts them to Prism with a token that can do nothing else. Prism includes no provider for any particular company; *docs/features/BUS.md* describes the format, and `scripts/fake-bus-provider.ts` is a working example. While a trip runs, the Bus Tracker widget fills with a map: the route driven so far as a solid line, the road still to come as a dashed one, each stop with its actual or projected time, and the bus as a dot pointing the way it is heading. A card over the map shows the arrival time at your stop, how late the bus is running, how many stops are done and when the last update came in; a large widget adds the next stop, the bus and the driver. A small widget shows the card alone. The camera follows the bus and keeps the road ahead in view, or shows the whole route, set under *Settings → Bus Tracking → Live Tracking*.
+- **Bus trip history and arrival time accuracy.** Each finished trip is kept as a one-line summary: whether it ran, stops reached, when it started and finished, and the weather. The arrival time shown for your stop is saved at 20, 15, 10, 5 and 2 minutes out and compared with when the bus actually arrived; *Live Tracking → Arrival time accuracy* shows the typical miss at each lead time. How long positions and history are kept is a setting.
+- **Wishes opens as one combined list on both tabs.** Each person used to appear twice on **Gift Ideas**, in the filter row and again as a column header. *Group by Person* still gives the side-by-side columns, and a new **Hide completed** (Wishes) or **Hide purchased** (Gift Ideas) in the header menu matches Tasks and Shopping.
+
 ### Changed
 - **The world map is drawn as quiet shapes instead of a field of dots.** The continents are now filled shapes tinted by the twilight band they sit in and outlined with a hairline coast, so the map still shows day and night while the local Sun arc reads first. A pale fill and a coastlines-only treatment are available in the solar harness.
 - **The Sun's path on the daylight map is easier to follow.** The local solar-altitude arc on the world map no longer shares the continents' twilight colours, which let it disappear into the dotted land. The arc now uses its own cool twilight ramp, drawn as a continuous band-coloured line over larger, outlined beads, with small rings at sunrise and sunset and a glowing marker for the current Sun. The continent dots step back so the arc reads first. The standalone solar harness can switch between this treatment, a fuller-map version, a filled-band version, and the earlier dotted arc.
 
 ### Fixed
 - **A failed database backup no longer leaves a file that looks like a backup.** When the dump could not be written, the backup container left a truncated file in the backups folder. Those stubs were picked up by "newest dump" lookups, counted towards the local copy, and only aged out on the retention window. A failed dump is now removed, and the behaviour is covered by a test.
+- **The dashboard fills the screen on first load.** A freshly loaded page could draw the dashboard as a thin strip, with every widget squashed into it, until the window was resized.
+- **A bus route appears when its time comes, without a reload.** A display loaded outside a route's window showed no bus until someone reloaded the page. The widget now checks the time every minute, and looks for newly added routes every 5 minutes. ([#596](https://github.com/sandydargoport/prism/issues/596))
+- **Time-based parts of widgets keep up on a display that is never reloaded.** The weather widget's **Now** card and sun position, which bus trip counts as live, and the 24-hour window for completed chores only moved on when the widget redrew for some other reason, which on a wall display could be hours. They now follow the clock, checked every minute. ([#709](https://github.com/sandydargoport/prism/pull/709))
+- **A dashboard with no screensaver of its own shows the default one.** It used to show whichever screensaver the previously opened dashboard had. ([#688](https://github.com/sandydargoport/prism/issues/688))
+- **Screensaver widgets show at the size they were given in the editor.** A layout that did not reach the right or bottom edge of the editor's Screen frame was scaled up, so every widget came out bigger and lower than it was placed. **Preview** in the screensaver editor now shows what the screensaver will draw. ([#689](https://github.com/sandydargoport/prism/issues/689))
 
+### Under the hood
+- A `fix:` or `feat:` pull request now gets a **Regression test** check, which asks for a test that fails if the change is reverted, or a line saying why there is none. CONTRIBUTING explains which kind of test fits.
+- The MCP server's `hono` dependency moves to 4.13.13.
 
 ## [1.30.1] – 2026-10-20
 

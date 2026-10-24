@@ -405,6 +405,7 @@ function DraggableWidget({
   return (
     <div
       ref={setNodeRef}
+      data-editor-widget={widget.i}
       className={`relative ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${inResizeMode ? '' : 'cursor-grab active:cursor-grabbing'} ${ringClass} ${isDragging ? 'opacity-30' : ''}`}
       style={{
         gridColumn: `${pos.x + 1} / span ${pos.w}`,
