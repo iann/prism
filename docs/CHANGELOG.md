@@ -11,6 +11,7 @@ All notable changes to Prism are documented in this file.
 ### Fixed
 - **A failed database backup no longer leaves a file that looks like a backup.** When the dump could not be written, the backup container left a truncated file in the backups folder. Those stubs were picked up by "newest dump" lookups, counted towards the local copy, and only aged out on the retention window. A failed dump is now removed, and the behaviour is covered by a test.
 
+
 ## [1.30.1] – 2026-10-20
 
 A hotfix release. Four bug fixes, no database migrations.

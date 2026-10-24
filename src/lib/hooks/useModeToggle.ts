@@ -56,21 +56,18 @@ export function useModeToggle(options: UseModeToggleOptions): UseModeToggleResul
       }
 
       const result: ModeState = await response.json();
-      // Every state change broadcasts, so each other instance of this mode (the
-      // dashboard toggle button keeps its own copy) updates at once instead of
-      // waiting out its poll interval. The broadcast lives here, on the one
-      // path all changes flow through, rather than at each call site: enabling
-      // used to dispatch it and exiting forgot to, so the button stayed hidden
-      // for up to a poll after exit (upstream #665/#669). This fork broadcasts
-      // the new state as the event detail, so the other instances pick it up
-      // without an extra API round trip.
+      // Carry the new state in the event detail so other instances update
+      // without an extra API round trip, and dispatch on every change (both
+      // entering and exiting) so the button tracks state immediately (#665).
+      // (upstream #665/#669: enabling used to dispatch it and exiting forgot
+      // to, so the button stayed hidden for up to a poll after exit.)
       window.dispatchEvent(new CustomEvent<ModeState>(eventName, { detail: result }));
     } catch (err) {
       console.error(`Error toggling ${label}:`, err);
       setToggleError(err instanceof Error ? err.message : `Failed to toggle ${label}`);
       throw err;
     }
-  }, [endpoint, eventName, label]);
+  }, [endpoint, eventName, label, setData]);
 
   useEffect(() => {
     const handler = (event: Event) => {

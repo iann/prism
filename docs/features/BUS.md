@@ -148,6 +148,72 @@ Active days aren't currently editable from the route dialog, so routes that only
 
 ---
 
+## Live tracking from a position provider
+
+Prism can also take live bus positions from a **position provider**: a small program you run that reads positions from your bus service and posts them to Prism. Prism does not include a provider for any particular vendor. It defines the format, stores what arrives, and keeps the history.
+
+While a linked trip is running, the Bus Tracker widget shows a map with the bus moving along today's route, each upcoming stop labelled with its projected time, and a panel with the arrival time at your stop, how late the bus is running, the next stop, the bus and driver, and when the last update arrived. A small widget shows the panel only. With no live data, the widget shows the route's scheduled time as before.
+
+Projected times start from the provider's planned stop times, moved by how late or early the bus reached its most recent stop. Before the first stop, the start of the trip sets it: a bus that leaves the depot late, or is still parked past its planned start, moves every stop later at once, since a late start is seldom made up. They never show a time earlier than now.
+
+From the bus's last reported position, a dashed line shows the road still to come, along the route as the bus drove it on its last trip (mornings and afternoons each follow their own). Between reports the marker moves along that line, so it turns where the road turns, and the solid line takes over the dashes as each new position arrives. Before there is an earlier trip it joins the remaining stops with straight lines. The solid line behind the bus is only positions it actually reported.
+
+Positions arrive every few seconds and are already a little old when they do, so the marker shows where the bus most likely is now rather than where it last reported: it carries on along the last heading, easing off the longer it goes without an update, for up to 20 seconds, never past the next stop, and not at all while the bus is stopped or its doors are open. It never slides backwards for a small correction: if the next update is a little behind it, the marker waits up to 10 seconds for the bus to come level, then backs up gently if it has to. A real turnaround moves it at once. Showing the bus behind where it really is would suggest there is more time than there is. After 90 seconds with no update the marker fades.
+
+### Setup
+
+1. *Settings → Bus Tracking → Live Tracking → Create provider token.* The token has the `bus:ingest` scope, so it can post positions and do nothing else. It is shown once.
+2. Point your provider at `https://<your-prism>/api/bus-tracking/live/ingest` with the header `Authorization: Bearer <token>`.
+3. Optionally pick the map's look under *Map style* (Simple, plain grey streets, is the default; Detailed adds coloured roads and parks) and what it shows under *Camera*: *Follow* frames the bus and your stop and zooms in as it approaches, and *Whole route* keeps the full trip in view. The camera moves only when the bus nears the edge or the view can close in a whole zoom level, so it is not always zooming. The map turns dark with Prism's theme. Its + and - buttons zoom by hand; the camera takes over again a minute later. The bus shows as a beacon: a dot with a cone pointing the way it is heading, pulsing while its position is live. Speed shows in mph or km/h following *Settings → Display → Units*.
+4. Once a provider reports drivers, *Drivers this week* lists them. Type how each should appear on the display (say "Mr. Lastname"); wide widgets read "Today's driver: Mr. Lastname". Prism never picks a title itself, and a blank entry shows the name as reported.
+5. Once the provider sends today's trips, they appear under *Trips reported this week*. Pick the route each one belongs to. Prism remembers the trip's provider, label and direction, so the next day's trip links itself.
+
+### The format
+
+One JSON body, any mix of four parts. A provider normally sends `tracks` once in the morning and again when something changes, then a `fixes` entry for each position:
+
+```json
+{
+  "provider": "my-provider",
+  "tracks": [{
+    "key": "any-stable-id-for-today", "date": "2026-03-02", "direction": "AM", "label": "Route 7",
+    "vehicle": { "number": "14", "color": "Yellow", "driverName": "Sam Example" },
+    "stops": [{ "key": "s1", "order": 0, "lat": 39.7392, "lng": -104.9903, "plannedAt": "2026-03-02T07:31:00-07:00", "kind": "stop", "rider": true }]
+  }],
+  "fixes": [{ "track": "any-stable-id-for-today", "eventId": "e1", "ts": "2026-03-02T07:29:40-07:00",
+              "lat": 39.7390, "lng": -104.9910, "heading": 90, "speed": 8.5, "moving": true, "doorOpen": false }],
+  "stopEvents": [{ "track": "any-stable-id-for-today", "stop": "s1", "kind": "arrived", "at": "2026-03-02T07:31:20-07:00" }],
+  "progress": [{ "track": "any-stable-id-for-today", "lastVisitedStop": 1, "totalStops": 5 }]
+}
+```
+
+- `key` is yours to choose. It only has to stay the same for the day; Prism never needs to know what it stands for.
+- `ts` is when the bus was there, with a time zone. Fixes can arrive late or out of order. One stamped more than five minutes in the future is dropped.
+- Sending the same `eventId` twice stores it once, so a provider can safely retry.
+- `heading` is degrees clockwise from north; `speed` is metres per second.
+- `rider: true` marks your stop, the one the widget gives an arrival time for. Without it, the stop whose name matches the route's *Stop name* is used, and failing that the last stop.
+
+The full schema is `src/lib/validations/liveVehicle.ts`. `scripts/fake-bus-provider.ts` plays a made-up trip into a Prism instance and is the reference example of a provider:
+
+```bash
+PRISM_URL=http://localhost:3000 PRISM_INGEST_TOKEN=<token> npx tsx scripts/fake-bus-provider.ts --speed 20
+```
+
+### How long it is kept
+
+Two settings under *Live Tracking → Keep history*:
+
+- **Exact route**, 30 days by default: every position, which is where the bus was minute by minute.
+- **Stop times**, 365 days by default: when the bus reached and left each stop, one summary per trip, and the arrival-time checks below. This is what arrival predictions learn from.
+
+Each day, before anything is deleted, every trip from the day before is summarised: whether it ran all the way, only partly, or not at all, how many stops it reached and how many it passed without opening the doors, when it started and finished, the bus number, the weather, and the driver as a code that tells drivers apart without keeping a name. A day with no bus (a weekend, a holiday, a snow day) has no summary at all, and a trip that was reported but never ran is marked as not run. Neither is ever counted as a trip that took no time.
+
+A daily job deletes anything older. Both stay on your server.
+
+### Arrival time accuracy
+
+While a trip runs, the arrival time shown for your stop is saved at 20, 15, 10, 5 and 2 minutes out, and compared with when the bus actually got there. *Live Tracking → Arrival time accuracy* shows, for each lead time, the typical miss, the margin four trips in five land within, and which way it leans (a bus that tends to come later or earlier than shown). Only trips that reached your stop are scored; a lead time shows once it has three.
+
 ## Privacy
 
 Bus tracking is your data, on your instance. The only external service involved is Gmail. Prism's read-only access lets it parse the FirstView emails you already receive.

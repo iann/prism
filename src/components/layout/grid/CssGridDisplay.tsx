@@ -134,8 +134,6 @@ const WidgetCell = memo(function WidgetCell({
   );
 });
 
-const noopRemeasure = () => {};
-
 /**
  * Pure CSS Grid display for dashboard widgets. SSR-safe.
  * No drag/resize — used only for display mode and screensaver.
@@ -158,15 +156,8 @@ export function CssGridDisplay({
   containMode = false,
   className,
 }: CssGridDisplayProps) {
-  const {
-    containerRef,
-    cellSize: widthCellSize,
-    width = 0,
-    top = 0,
-    zoom = 1,
-    remeasure = noopRemeasure,
-  } = useSquareCells(cols, containerPadding, margin, fillHeight);
-  const { width: viewportWidth, height: viewportHeight } = useViewportSize();
+  const { containerRef, cellSize: widthCellSize, width, top, zoom, remeasure } = useSquareCells(cols, containerPadding, margin, fillHeight);
+  const { width: viewportWidth, height: viewportHeight, visibleHeight } = useViewportSize();
 
   useEffect(() => {
     remeasure();
@@ -236,11 +227,8 @@ export function CssGridDisplay({
   // Some kiosk browsers over-report window.innerHeight vs the actually-visible
   // area (a device/browser bottom bar), which let the bottom row clip on a real
   // touch display even when the math looked right. Prefer the visual-viewport
-  // height whenever it's smaller.
-  const visualH = (typeof window !== 'undefined' && window.visualViewport)
-    ? Math.min(viewportHeight, window.visualViewport.height)
-    : viewportHeight;
-  const localH = visualH / zoom;
+  // height whenever it's smaller (useViewportSize tracks it, so it stays current).
+  const localH = visibleHeight / zoom;
   const bottomSafety = chromeTop > 0 ? Math.round(margin * 1.5) : 0;
   const availH = Math.max(120, localH - chromeTop - bottomOffset - bottomSafety);
 

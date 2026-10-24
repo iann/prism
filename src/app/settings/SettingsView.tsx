@@ -26,8 +26,8 @@ import {
   KeyboardIcon,
   Monitor,
   Wand2,
-  ChevronLeft,
   PartyPopper,
+  ChevronLeft,
 } from 'lucide-react';
 import { PrismIcon } from '@/components/ui/PrismIcon';
 import { cn } from '@/lib/utils';
