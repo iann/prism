@@ -14,6 +14,7 @@ import {
   usePoints,
 } from '@/lib/hooks';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
+import { useNow } from '@/lib/hooks/useNow';
 import type { Chore } from '@/types';
 
 const AUTO_SYNC_STALE_MINUTES = 5;
@@ -264,11 +265,12 @@ export function useDashboardData(
   );
   const calendarTasks = calendarEnabled ? tasks : undefined;
 
+  const now = useNow();
   const dashboardChores = useMemo(() => {
     if (!calendarEnabled) return chores;
 
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const today = format(now, 'yyyy-MM-dd');
+    const oneDayAgo = now.getTime() - 24 * 60 * 60 * 1000;
     return chores.filter((chore: Chore) => {
       const isDue = !chore.nextDue || chore.nextDue <= today;
       const recentlyCompleted = chore.lastCompleted
@@ -276,7 +278,7 @@ export function useDashboardData(
         : false;
       return isDue || Boolean(chore.pendingApproval) || recentlyCompleted;
     });
-  }, [calendarEnabled, chores]);
+  }, [calendarEnabled, chores, now]);
   const calendarChores = calendarEnabled ? chores : undefined;
 
   const calendar = useMemo(
