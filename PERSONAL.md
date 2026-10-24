@@ -1078,6 +1078,17 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: e9b0417b
 
+131. **Air monitor polling and short-outage tolerance**
+
+    Polls the LAN AirGradient monitor at most every five minutes instead of on
+    every weather refresh, and keeps the last good reading through a failed
+    poll for up to fifteen minutes of consecutive failures. Only after that
+    does the weather provider's current data take over and the outage get
+    logged, once per outage rather than once per request. The reused reading
+    reports its real age, so the widget does not claim fresh data.
+
+    Commit: ea4f8d77
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
