@@ -61,8 +61,6 @@ jobs:
 
       - name: Check whether upstream/master is already merged into personal
         id: drift
-        env:
-          GH_TOKEN: ${{ secrets.SYNC_PAT }}
         run: |
           git fetch origin personal
           if git merge-base --is-ancestor upstream/master origin/personal; then
@@ -82,7 +80,12 @@ jobs:
         id: tracking
         if: steps.drift.outputs.in_sync == 'false'
         env:
-          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          # Use the repository's default token here, not SYNC_PAT. SYNC_PAT
+          # can create issues but cannot update them (updateIssue /
+          # addLabelsToLabelable are not accessible to it), so issue edits
+          # silently failed on every nightly run. The permissions block above
+          # grants GITHUB_TOKEN issues:write, which covers both operations.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # The issues API lists newest first; the lowest number is the
           # original, so keep that one and let the rest be closed by hand.
@@ -97,7 +100,7 @@ jobs:
         id: existing
         if: steps.drift.outputs.in_sync == 'false'
         env:
-          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           branch=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
             --json number,headRefName \
@@ -109,7 +112,6 @@ jobs:
         if: steps.drift.outputs.in_sync == 'false'
         id: prepare
         env:
-          GH_TOKEN: ${{ secrets.SYNC_PAT }}
           EXISTING_BRANCH: ${{ steps.existing.outputs.branch }}
         run: |
           if [ -n "$EXISTING_BRANCH" ]; then
@@ -152,7 +154,7 @@ jobs:
       - name: Record the conflict on the tracking issue
         if: steps.drift.outputs.in_sync == 'false' && steps.prepare.outputs.clean == 'false'
         env:
-          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ steps.tracking.outputs.number }}
         run: |
           files=$(cat "$RUNNER_TEMP/conflicts.txt" 2>/dev/null || true)
@@ -183,10 +185,12 @@ jobs:
 
           if [ -n "$ISSUE_NUMBER" ]; then
             echo "Updating existing tracking issue #$ISSUE_NUMBER."
-            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-              --body "$body" --add-label "$TRACKING_LABEL"
+            if ! gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+                  --body "$body" --add-label "$TRACKING_LABEL"; then
+              echo "::warning::could not update issue #$ISSUE_NUMBER (token may lack Issues: write). The conflicting-file list above is still in the run log."
+            fi
             gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-              --body "Still conflicting at upstream/master $(git rev-parse --short upstream/master)."
+              --body "Still conflicting at upstream/master $(git rev-parse --short upstream/master)." || true
           else
             echo "Opening a new tracking issue."
             url=$(gh issue create --repo "$GITHUB_REPOSITORY" \
@@ -208,15 +212,18 @@ jobs:
       - name: Close the tracking issue when the fork is in sync
         if: steps.drift.outputs.in_sync == 'true'
         env:
-          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           number=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --paginate \
             --jq '.[] | select(.pull_request == null) | select(.title == env.TRACKING_ISSUE_TITLE) | .number')
           if [ -n "$number" ]; then
             for n in $number; do
-              gh issue close "$n" --repo "$GITHUB_REPOSITORY" \
-                --comment "upstream/master is contained in personal again, so this conflict is resolved."
-              echo "Closed tracking issue #$n."
+              if gh issue close "$n" --repo "$GITHUB_REPOSITORY" \
+                  --comment "upstream/master is contained in personal again, so this conflict is resolved."; then
+                echo "Closed tracking issue #$n."
+              else
+                echo "::warning::could not close issue #$n (token may lack Issues: write). Close it manually."
+              fi
             done
           else
             echo "No tracking issue open."
