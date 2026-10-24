@@ -30,6 +30,8 @@ import { EffectStage } from './EffectStage';
 import { ScreensaverQuickSettings } from './ScreensaverQuickSettings';
 import { getEffect } from './effects';
 import { scaledDuration } from './screensaverPrefs';
+import { useScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
+import { useViewportSize } from '@/lib/hooks/useViewportSize';
 import { setDisplayIdle } from '@/lib/hooks/useDisplayIdle';
 import { PollingScopeContext } from '@/lib/hooks/pollingScope';
 
@@ -203,6 +205,11 @@ function giveItBody(clone: HTMLElement) {
 
 function ScreensaverGrid() {
   const layout = useMemo(() => loadScreensaverLayout(), []);
+  // The editor's Screen frame for this screen's orientation: what the layout
+  // was sized against, so it is what gets fitted to the screen.
+  const { zones } = useScreenSafeZones();
+  const { width: vw, height: vh } = useViewportSize();
+  const screenFrame = zones[vw >= vh ? 'landscape' : 'portrait'][0];
 
   // Which widgets are currently on screen. Off by default, in which case every
   // widget shows and all of this is inert.
@@ -423,6 +430,7 @@ function ScreensaverGrid() {
         containerPadding={12}
         cols={GRID_COLS}
         containMode
+        screenFrame={screenFrame}
         headerOffset={0}
         className="w-full h-full"
       />

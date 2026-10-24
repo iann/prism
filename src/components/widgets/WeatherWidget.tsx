@@ -63,6 +63,7 @@ const PRECIPITATION_WAVE_PRIMARY_FREQUENCY = 0.36;
 const PRECIPITATION_WAVE_SECONDARY_FREQUENCY = 0.14;
 const RAIN_THRESHOLD_MM_PER_HOUR = 0.1;
 import { useTimeFormat } from '@/components/providers';
+import { useNow } from '@/lib/hooks/useNow';
 import { formatDisplayHour } from '@/lib/utils/timeFormat';
 
 /**
@@ -1089,14 +1090,15 @@ function ConditionBandLabel({
  */
 function HourlyTimeline({ hourly, units, timezone }: { hourly: HourlyForecast[]; units: WeatherUnits; timezone?: string }) {
   const { timeFormat } = useTimeFormat();
-  const nowMs = Date.now();
+  const nowMs = useNow().getTime();
 
-  const upcoming = React.useMemo(() =>
-    hourly
-      .filter((h) => h.time.getTime() + 60 * 60_000 >= nowMs)
-      .slice(0, 9),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [hourly]);
+  const upcoming = React.useMemo(
+    () =>
+      hourly
+        .filter((h) => h.time.getTime() + 60 * 60_000 >= nowMs)
+        .slice(0, 9),
+    [hourly, nowMs]
+  );
 
   if (upcoming.length === 0) return null;
 

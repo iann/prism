@@ -45,6 +45,7 @@ export function LayoutGridEditor({
   bottomOffset = 0,
   minVisibleRows = 0,
   theme = DASHBOARD_THEME,
+  previewFit = 'stretch',
   gridHelperText,
   className,
   screenGuideOrientation: screenGuideOrientationProp,
@@ -971,13 +972,38 @@ export function LayoutGridEditor({
     SAFE_ZONES,
   ]);
 
-  const combinedRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-      containerRef(node);
-    },
-    [containerRef]
-  );
+  const combinedRef = useCallback((node: HTMLDivElement | null) => {
+    (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    containerRef(node);
+  }, [containerRef]);
+
+  // Screensaver preview (measure) mode with a fixed Screen frame: render the
+  // real display, fitted into that frame, so the preview is true WYSIWYG
+  // instead of a square-cell approximation. The dashboard editor keeps its own
+  // scaled editable grid in measure mode, so this only applies when a caller
+  // asks for `previewFit="contain"` (the screensaver editor).
+  //
+  // No `className` here: the live display has no side margins, so a preview
+  // inside them was narrower than the screen it claims to show.
+  if (isEditable && measureMode && previewFit === 'contain') {
+    const frame = SAFE_ZONES[screenGuideOrientation]?.[0];
+    return (
+      <div>
+        <CssGridDisplay
+          layout={stableLayout}
+          renderWidget={renderWidget}
+          widgetRevisions={widgetRevisions}
+          margin={margin}
+          containerPadding={containerPadding}
+          cols={cols}
+          containMode
+          screenFrame={frame}
+          headerOffset={measureHideNav ? 0 : 50}
+          bottomOffset={measureHideNav ? 0 : bottomOffset}
+        />
+      </div>
+    );
+  }
 
   if (isEditable) {
     return (
