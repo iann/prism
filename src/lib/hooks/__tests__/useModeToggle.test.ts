@@ -2,12 +2,13 @@
  * @jest-environment jsdom
  */
 
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { useFetch } from '../useFetch';
 import { useModeToggle } from '../useModeToggle';
 
+// Stub useFetch so the test exercises only useModeToggle's own logic (the POST,
+// the local update, the broadcast) and not the polling/caching machinery.
 jest.mock('../useFetch', () => ({ useFetch: jest.fn() }));
-
 const mockUseFetch = useFetch as jest.MockedFunction<typeof useFetch>;
 const setData = jest.fn();
 const refresh = jest.fn();
@@ -24,6 +25,7 @@ describe('useModeToggle', () => {
     setData.mockReset();
     refresh.mockReset();
     fetchMock.mockReset();
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ enabled: false, enabledAt: null, enabledBy: null }) });
     global.fetch = fetchMock;
     mockUseFetch.mockReturnValue({
       data: { enabled: false, enabledAt: null, enabledBy: null },
@@ -81,6 +83,41 @@ describe('useModeToggle', () => {
       await expect(result.current.toggle(true)).rejects.toThrow('Not allowed');
     });
     expect(result.current.error).toBe('Not allowed');
+    consoleError.mockRestore();
+  });
+
+  it.each([
+    ['exit', false],
+    ['enter', true],
+  ])('broadcasts the change event when toggling %s (#665)', async (_label, enabled) => {
+    const listener = jest.fn();
+    window.addEventListener(options.eventName, listener);
+    const { result } = renderHook(() => useModeToggle(options));
+
+    await act(async () => {
+      await result.current.toggle(enabled);
+    });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener(options.eventName, listener);
+  });
+
+  it('does not broadcast when the toggle request fails', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'nope' }),
+    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const listener = jest.fn();
+    window.addEventListener(options.eventName, listener);
+    const { result } = renderHook(() => useModeToggle(options));
+
+    await act(async () => {
+      await expect(result.current.toggle(true)).rejects.toThrow();
+    });
+
+    expect(listener).not.toHaveBeenCalled();
+    window.removeEventListener(options.eventName, listener);
     consoleError.mockRestore();
   });
 });

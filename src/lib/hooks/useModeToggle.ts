@@ -56,13 +56,16 @@ export function useModeToggle(options: UseModeToggleOptions): UseModeToggleResul
       }
 
       const result: ModeState = await response.json();
+      // Carry the new state in the event detail so other instances update
+      // without an extra API round trip, and dispatch on every change (both
+      // entering and exiting) so the button tracks state immediately (#665).
       window.dispatchEvent(new CustomEvent<ModeState>(eventName, { detail: result }));
     } catch (err) {
       console.error(`Error toggling ${label}:`, err);
       setToggleError(err instanceof Error ? err.message : `Failed to toggle ${label}`);
       throw err;
     }
-  }, [endpoint, eventName, label]);
+  }, [endpoint, eventName, label, setData]);
 
   useEffect(() => {
     const handler = (event: Event) => {

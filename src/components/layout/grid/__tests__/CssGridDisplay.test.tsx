@@ -8,7 +8,7 @@ import { useWidgetBgOverride } from '@/components/widgets/WidgetContainer';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 
 jest.mock('../useSquareCells', () => ({
-  useSquareCells: () => ({ containerRef: jest.fn(), cellSize: 20 }),
+  useSquareCells: () => ({ containerRef: jest.fn(), cellSize: 20, width: 100, top: 0, zoom: 1, remeasure: jest.fn() }),
 }));
 
 function OverrideProbe() {
