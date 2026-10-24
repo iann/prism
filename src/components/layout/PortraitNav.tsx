@@ -38,6 +38,9 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
   const pathname = usePathname();
   const returnSlug = useReturnSlug();
   const search = returnSlug ? { get: (k: string) => (k === RETURN_PARAM ? returnSlug : null) } : null;
+  // The portrait bar keeps the fork's own item selection (a separate set from
+  // the hidden-pages filter the other navs use); upstream's return-slug token
+  // only changes where the links point.
   const { filterPortraitNavItems } = useHiddenPages();
   const navItems = filterPortraitNavItems(ALL_NAV_ITEMS);
   const t = useTranslations('common');

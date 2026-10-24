@@ -28,6 +28,9 @@ const LAND_DOT_SPACING = MAP_WIDTH / Math.round(MAP_WIDTH / 14);
 const LAND_DOT_DIAMETER = 4.2;
 const SOLAR_ARC_DOT_INTERVAL = 20 * 60 * 1000;
 const SOLAR_ARC_DOT_COUNT = DAY_MS / SOLAR_ARC_DOT_INTERVAL + 1;
+// Arc beads carry more weight than the continent dots so the arc keeps its own
+// presence on the map.
+const SOLAR_ARC_BEAD_RADIUS = 4.6;
 const WORLD_SHADOW_THRESHOLDS = [0, -6, -12, -18] as const;
 const WORLD_SHADOW_FILLS = [
   'var(--solar-civil)',
@@ -49,10 +52,32 @@ const LAND_DOT_BANDS = [
   { key: 'astronomical', color: 'var(--solar-land-astronomical)', outer: 2, inner: 3 },
   { key: 'night', color: 'var(--solar-land-night)', outer: 3, inner: null },
 ] as const;
+// The dot palette is tuned for a mark on a field: a night dot is near white so
+// it reads on the dark night region. A filled continent needs the opposite
+// relationship — it has to stay in shadow — so the fills carry their own ramp.
+const LAND_FILL_BANDS = [
+  { key: 'day', color: 'var(--solar-land-fill-day)' },
+  { key: 'civil', color: 'var(--solar-land-fill-civil)' },
+  { key: 'nautical', color: 'var(--solar-land-fill-nautical)' },
+  { key: 'astronomical', color: 'var(--solar-land-fill-astronomical)' },
+  { key: 'night', color: 'var(--solar-land-fill-night)' },
+] as const;
 const coordinateLabel = ({ lat, lon }: Coordinates) =>
   `${Math.abs(lat).toFixed(1)}° ${lat < 0 ? 'S' : 'N'} · ${Math.abs(lon).toFixed(1)}° ${lon < 0 ? 'W' : 'E'}`;
 
 export type SolarMotionMode = 'map' | 'shadow';
+
+export type SolarArcStyle = 'dots' | 'bold' | 'quiet' | 'filled';
+
+/**
+ * How the world map itself is drawn.
+ *
+ * 'dots' is the original treatment: the continents are a field of small
+ * dots, coloured by the twilight band they sit in. The other treatments keep
+ * the map deliberately quiet so the local solar arc reads first — the
+ * continents become coastlines and soft washes rather than a texture.
+ */
+export type SolarMapStyle = 'banded' | 'pale' | 'coastline' | 'dots';
 
 type SolarArcSample = Pick<SolarSample, 'time' | 'altitude'>;
 
@@ -126,6 +151,64 @@ function solarArcSegments(
   return paths.join('');
 }
 
+type SolarArcBandSegment = {
+  key: string;
+  color: string;
+  samples: SolarArcSample[];
+};
+
+/** Contiguous runs of arc samples that share one twilight band. */
+function solarArcBandSegments(samples: SolarArcSample[]) {
+  const segments: SolarArcBandSegment[] = [];
+  samples.forEach((sample) => {
+    const geometric = geometricAltitude(sample.altitude);
+    const band = SOLAR_ARC_BANDS.find(({ min, max }) => geometric >= min && geometric < max)!;
+    const previous = segments[segments.length - 1];
+    if (previous && previous.key === band.key) previous.samples.push(sample);
+    else segments.push({ key: band.key, color: band.color, samples: [sample] });
+  });
+  return segments;
+}
+
+/** Closed shape between an arc run and the equator baseline. */
+function solarArcLens(samples: SolarArcSample[], day: SolarDay) {
+  if (samples.length < 2) return '';
+  const points = samples.map((sample) => mapSolarArcPoint(sample, day));
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  const baseline = MAP_HEIGHT / 2;
+  return (
+    `M${first.x.toFixed(2)},${first.y.toFixed(2)}` +
+    points
+      .slice(1)
+      .map((point) => `L${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+      .join('') +
+    `L${last.x.toFixed(2)},${baseline}` +
+    `L${first.x.toFixed(2)},${baseline}Z`
+  );
+}
+
+/** Moments where the arc crosses the horizon (sunrise and sunset). */
+function solarArcHorizonCrossings(samples: SolarArcSample[]) {
+  const crossings: SolarArcSample[] = [];
+  samples.forEach((sample, index) => {
+    const previous = samples[index - 1];
+    if (!previous) return;
+    if (!(
+      (previous.altitude < 0 && sample.altitude >= 0) ||
+      (previous.altitude >= 0 && sample.altitude < 0)
+    )) {
+      return;
+    }
+    const fraction = -previous.altitude / (sample.altitude - previous.altitude);
+    crossings.push({
+      time: previous.time + fraction * (sample.time - previous.time),
+      altitude: 0,
+    });
+  });
+  return crossings;
+}
+
 function SolarMapDrawing({
   time,
   location,
@@ -133,6 +216,8 @@ function SolarMapDrawing({
   day,
   motionMode,
   showArc,
+  arcStyle = 'quiet',
+  mapStyle = 'banded',
 }: {
   time: number;
   location: Coordinates;
@@ -140,6 +225,8 @@ function SolarMapDrawing({
   day: SolarDay;
   motionMode: SolarMotionMode;
   showArc: boolean;
+  arcStyle: SolarArcStyle;
+  mapStyle: SolarMapStyle;
 }) {
   const id = React.useId().replace(/:/g, '');
   const subsolar = React.useMemo(() => getSubsolarPoint(new Date(time)), [time]);
@@ -195,6 +282,31 @@ function SolarMapDrawing({
       };
     });
   }, [day, location.lat, location.lon]);
+  const arcBandSegments = solarArcBandSegments(arcSamples);
+  const arcCrossings = solarArcHorizonCrossings(arcSamples);
+  // The land is drawn three times so the projection can wrap at the date line.
+  // Map mode scrolls the land beneath a fixed shadow; shadow mode leaves it
+  // where it is and moves the shadow across it.
+  const landCopies = () =>
+    [-MAP_WIDTH, 0, MAP_WIDTH].map((shift) => (
+      <path
+        key={shift}
+        d={land.path}
+        transform={`translate(${(mapOffset + shift).toFixed(3)} 0)`}
+      />
+    ));
+  // 'dots' is the earlier treatment, kept for comparison. The others all draw
+  // the arc in its own weight and palette; 'quiet' also pulls the continents
+  // back so the arc reads first, and 'filled' adds the daylight dome.
+  const legacyArc = arcStyle === 'dots';
+  const boldArc = !legacyArc;
+  const quietMap = arcStyle === 'quiet' || arcStyle === 'filled';
+  const showDome = arcStyle === 'filled';
+  const showSpine = boldArc;
+  const showRibbon = showDome;
+  const showAnchors = boldArc;
+  const showGlow = boldArc;
+  const keyedDots = boldArc;
   return (
     <svg
       className={styles.drawing}
@@ -211,9 +323,10 @@ function SolarMapDrawing({
         The selected location&apos;s daily solar-altitude arc is centered on its calculated solar
         noon. The equator is a thin reference line for zero altitude. Evenly spaced dots follow the
         Sun&apos;s local path through daylight, twilight, and night; it is not a geographic route.
-        Sunrise and sunset on the arc use SunCalc&apos;s apparent-horizon calculation. A restrained
-        gold trail highlights elapsed daylight, and a gold marker shows the current Sun position
-        along the arc.
+        Sunrise and sunset on the arc use SunCalc&apos;s apparent-horizon calculation. Gold marks
+        daylight, and cooler blues mark the twilight bands, so the arc stays readable against the
+        dotted continents. A restrained gold trail highlights elapsed daylight, small rings mark
+        sunrise and sunset, and a glowing gold marker shows the current Sun position along the arc.
       </desc>
       <defs>
         <clipPath id={`${id}-map`}>
@@ -286,6 +399,11 @@ function SolarMapDrawing({
         >
           <feGaussianBlur stdDeviation="4" />
         </filter>
+        <radialGradient id={`${id}-sun-glow`}>
+          <stop offset="0%" stopColor="var(--solar-sun)" stopOpacity="0.5" />
+          <stop offset="42%" stopColor="var(--solar-sun)" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="var(--solar-sun)" stopOpacity="0" />
+        </radialGradient>
       </defs>
       <g clipPath={`url(#${id}-map)`}>
         <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="var(--solar-ocean)" />
@@ -321,24 +439,54 @@ function SolarMapDrawing({
             />
           ))}
         </g>
-        <g
-          className={styles.landDots}
-          data-testid="world-map-land"
-          data-map-offset={mapOffset.toFixed(3)}
-        >
-          {LAND_DOT_BANDS.map((band) => (
-            <rect
-              key={band.key}
-              width={MAP_WIDTH}
-              height={MAP_HEIGHT}
-              fill={`url(#${id}-land-dots-${band.key})`}
-              clipPath={`url(#${id}-land)`}
-              mask={`url(#${id}-land-mask-${band.key})`}
-              data-solar-dot-band={band.key}
-              data-testid={`world-map-dots-${band.key}`}
-            />
-          ))}
-        </g>
+        {mapStyle === 'dots' ? (
+          <g
+            className={quietMap ? `${styles.landDots} ${styles.landDotsQuiet}` : styles.landDots}
+            data-testid="world-map-land"
+            data-map-style={mapStyle}
+            data-map-offset={mapOffset.toFixed(3)}
+          >
+            {LAND_DOT_BANDS.map((band) => (
+              <rect
+                key={band.key}
+                width={MAP_WIDTH}
+                height={MAP_HEIGHT}
+                fill={`url(#${id}-land-dots-${band.key})`}
+                clipPath={`url(#${id}-land)`}
+                mask={`url(#${id}-land-mask-${band.key})`}
+                data-solar-dot-band={band.key}
+                data-testid={`world-map-dots-${band.key}`}
+              />
+            ))}
+          </g>
+        ) : (
+          <g
+            data-testid="world-map-land"
+            data-map-offset={mapOffset.toFixed(3)}
+            data-map-style={mapStyle}
+          >
+            {mapStyle === 'pale' && (
+              <g className={styles.landWash} data-testid="world-map-wash">
+                {landCopies()}
+              </g>
+            )}
+            {mapStyle === 'banded' &&
+              LAND_FILL_BANDS.map((band) => (
+                <g
+                  key={band.key}
+                  className={styles.landBandWash}
+                  fill={band.color}
+                  mask={`url(#${id}-land-mask-${band.key})`}
+                  data-testid={`world-map-fill-${band.key}`}
+                >
+                  {landCopies()}
+                </g>
+              ))}
+            <g className={styles.landCoastline} data-testid="world-map-coastline">
+              {landCopies()}
+            </g>
+          </g>
+        )}
         <path
           d={`M0 ${MAP_HEIGHT / 2}H${MAP_WIDTH}`}
           className={styles.equator}
@@ -363,10 +511,27 @@ function SolarMapDrawing({
       {showArc && (
         <g
           data-solar-arc="true"
+          data-solar-arc-style={arcStyle}
           role="group"
           aria-label={`Local daily solar-altitude arc for ${name}`}
+          className={legacyArc ? undefined : styles.solarArcCool}
         >
           <g data-testid="solar-dotted-arc" aria-label="Local solar path with twilight bands">
+            {showRibbon &&
+              arcBandSegments.map((segment, index) => {
+                const d = solarArcLens(segment.samples, day);
+                if (!d) return null;
+                return (
+                  <path
+                    key={`${segment.key}-${index}`}
+                    d={d}
+                    className={showDome ? styles.solarArcDome : styles.solarArcRibbon}
+                    fill={segment.color}
+                    data-testid={`solar-arc-ribbon-${segment.key}`}
+                    aria-hidden="true"
+                  />
+                );
+              })}
             {elapsedDaylight && (
               <path
                 d={elapsedDaylight}
@@ -375,16 +540,68 @@ function SolarMapDrawing({
                 aria-hidden="true"
               />
             )}
+            {showSpine &&
+              arcBandSegments.flatMap((segment, index) => {
+                const elapsed = segment.samples.filter((sample) => sample.time <= time);
+                const future = segment.samples.filter((sample) => sample.time > time);
+                return [
+                  ...(elapsed.length > 1
+                    ? [
+                        <path
+                          key={`${segment.key}-${index}-elapsed`}
+                          d={solarArcPath(elapsed, day)}
+                          className={styles.solarArcSpine}
+                          stroke={segment.color}
+                          data-solar-arc-band={segment.key}
+                          data-solar-arc-phase="elapsed"
+                          data-testid={`solar-arc-spine-${segment.key}`}
+                          aria-hidden="true"
+                        />,
+                      ]
+                    : []),
+                  ...(future.length > 1
+                    ? [
+                        <path
+                          key={`${segment.key}-${index}-future`}
+                          d={solarArcPath(future, day)}
+                          className={styles.solarArcSpineFuture}
+                          stroke={segment.color}
+                          data-solar-arc-band={segment.key}
+                          data-solar-arc-phase="future"
+                          data-testid={`solar-arc-spine-${segment.key}-future`}
+                          aria-hidden="true"
+                        />,
+                      ]
+                    : []),
+                ];
+              })}
+            {showAnchors &&
+              arcCrossings.map((crossing) => {
+                const point = mapSolarArcPoint(crossing, day);
+                return (
+                  <circle
+                    key={crossing.time}
+                    cx={point.x.toFixed(2)}
+                    cy={point.y.toFixed(2)}
+                    r="4.6"
+                    className={styles.solarArcAnchor}
+                    data-testid="solar-arc-horizon-anchor"
+                    aria-hidden="true"
+                  />
+                );
+              })}
             {solarArcDots.map((dot) => (
               <circle
                 key={dot.time}
                 cx={dot.x.toFixed(2)}
                 cy={dot.y.toFixed(2)}
-                r={LAND_DOT_DIAMETER / 2}
+                r={boldArc ? SOLAR_ARC_BEAD_RADIUS : LAND_DOT_DIAMETER / 2}
                 className={`${styles.solarArcDot} ${
                   dot.time <= time ? styles.solarArcElapsed : styles.solarArcFuture
                 }`}
                 fill={dot.band.color}
+                stroke={keyedDots ? 'var(--solar-arc-keyline)' : undefined}
+                strokeWidth={keyedDots ? 1 : undefined}
                 data-solar-arc-time={dot.time}
                 data-solar-arc-band={dot.band.key}
                 data-solar-arc-geometric-altitude={dot.geometricAltitude.toFixed(4)}
@@ -403,6 +620,17 @@ function SolarMapDrawing({
               }
               className={currentSunIsBelowHorizon ? styles.solarArcSunBelowHorizon : undefined}
             >
+              {showGlow && (
+                <circle
+                  cx={currentSunPoint.x.toFixed(2)}
+                  cy={currentSunPoint.y.toFixed(2)}
+                  r="46"
+                  fill={`url(#${id}-sun-glow)`}
+                  className={styles.solarArcSunGlow}
+                  data-testid="solar-arc-sun-glow"
+                  aria-hidden="true"
+                />
+              )}
               <circle
                 cx={currentSunPoint.x.toFixed(2)}
                 cy={currentSunPoint.y.toFixed(2)}
@@ -413,7 +641,7 @@ function SolarMapDrawing({
               <circle
                 cx={currentSunPoint.x.toFixed(2)}
                 cy={currentSunPoint.y.toFixed(2)}
-                r="8"
+                r={boldArc ? 11 : 8}
                 className={styles.solarArcSunDisc}
                 data-testid="solar-arc-sun-disc"
                 aria-hidden="true"
@@ -444,6 +672,10 @@ export type SolarWorldMapProps = {
   motionMode?: SolarMotionMode;
   /** Hide the local altitude arc while preserving the global map. */
   showArc?: boolean;
+  /** Visual treatment used for the local altitude arc. */
+  arcStyle?: SolarArcStyle;
+  /** Treatment used for the world map itself. */
+  mapStyle?: SolarMapStyle;
   /** Read optional lat/lon URL parameters on the dedicated wall display. */
   readUrl?: boolean;
 };
@@ -456,6 +688,8 @@ export function SolarWorldMap({
   time,
   motionMode = 'map',
   showArc = true,
+  arcStyle = 'quiet',
+  mapStyle = 'banded',
   readUrl = false,
 }: SolarWorldMapProps) {
   const [clock, setClock] = React.useState<number | null>(null);
@@ -527,6 +761,8 @@ export function SolarWorldMap({
             day={day}
             motionMode={motionMode}
             showArc={showArc}
+            arcStyle={arcStyle}
+            mapStyle={mapStyle}
           />
         </div>
       ) : (
@@ -538,6 +774,8 @@ export function SolarWorldMap({
             day={day}
             motionMode={motionMode}
             showArc={showArc}
+            arcStyle={arcStyle}
+            mapStyle={mapStyle}
           />
         </div>
       )}

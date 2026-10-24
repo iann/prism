@@ -4,6 +4,14 @@ All notable changes to Prism are documented in this file.
 
 ## Unreleased
 
+### Changed
+- **The world map is drawn as quiet shapes instead of a field of dots.** The continents are now filled shapes tinted by the twilight band they sit in and outlined with a hairline coast, so the map still shows day and night while the local Sun arc reads first. A pale fill and a coastlines-only treatment are available in the solar harness.
+- **The Sun's path on the daylight map is easier to follow.** The local solar-altitude arc on the world map no longer shares the continents' twilight colours, which let it disappear into the dotted land. The arc now uses its own cool twilight ramp, drawn as a continuous band-coloured line over larger, outlined beads, with small rings at sunrise and sunset and a glowing marker for the current Sun. The continent dots step back so the arc reads first. The standalone solar harness can switch between this treatment, a fuller-map version, a filled-band version, and the earlier dotted arc.
+
+### Fixed
+- **A failed database backup no longer leaves a file that looks like a backup.** When the dump could not be written, the backup container left a truncated file in the backups folder. Those stubs were picked up by "newest dump" lookups, counted towards the local copy, and only aged out on the retention window. A failed dump is now removed, and the behaviour is covered by a test.
+
+
 ## [1.30.1] – 2026-10-20
 
 A hotfix release. Four bug fixes, no database migrations.

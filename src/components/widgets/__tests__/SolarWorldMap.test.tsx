@@ -77,10 +77,10 @@ describe('SolarWorldMap display', () => {
     const marker = screen.getByTestId('solar-arc-sun-marker');
     const disc = screen.getByTestId('solar-arc-sun-disc');
     const elapsedDaylightDots = arc.querySelectorAll(
-      '[data-solar-arc-band="daylight"][data-solar-arc-phase="elapsed"]'
+      'circle[data-solar-arc-band="daylight"][data-solar-arc-phase="elapsed"]'
     );
     const futureDaylightDots = arc.querySelectorAll(
-      '[data-solar-arc-band="daylight"][data-solar-arc-phase="future"]'
+      'circle[data-solar-arc-band="daylight"][data-solar-arc-phase="future"]'
     );
     const allDots = [...arc.querySelectorAll('[data-testid="solar-arc-dot"]')];
     const now = Date.now();
@@ -211,7 +211,7 @@ describe('SolarWorldMap display', () => {
       const daylightDots = [
         ...screen
           .getByTestId('solar-dotted-arc')
-          .querySelectorAll('[data-solar-arc-band="daylight"]'),
+          .querySelectorAll('circle[data-solar-arc-band="daylight"]'),
       ];
 
       expect(day.times.sunrise).toBeInstanceOf(Date);
@@ -274,8 +274,43 @@ describe('SolarWorldMap display', () => {
     expect(mask?.outerHTML).toContain('translate(-1000 0)');
   });
 
+  it('draws the land as quiet shapes in the stroke-and-fill treatments', () => {
+    const banded = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    expect(screen.getByTestId('world-map-land').getAttribute('data-map-style')).toBe('banded');
+    expect(screen.getByTestId('world-map-coastline')).toBeTruthy();
+    ['day', 'civil', 'nautical', 'astronomical', 'night'].forEach((band) => {
+      expect(screen.getByTestId(`world-map-fill-${band}`)).toBeTruthy();
+    });
+    expect(banded.container.querySelector('[data-testid^="world-map-dots-"]')).toBeNull();
+    expect(banded.container.querySelectorAll('[data-testid="world-map-coastline"] path')).toHaveLength(
+      3
+    );
+
+    banded.unmount();
+
+    render(<SolarWorldMap lat={42.36} lon={-71.06} mapStyle="coastline" />);
+    expect(screen.getByTestId('world-map-coastline')).toBeTruthy();
+    expect(screen.queryByTestId('world-map-fill-day')).toBeNull();
+
+    render(<SolarWorldMap lat={42.36} lon={-71.06} mapStyle="pale" />);
+    expect(screen.getByTestId('world-map-wash')).toBeTruthy();
+    expect(screen.queryByTestId('world-map-fill-day')).toBeNull();
+  });
+
+  it('draws the land three times so the map wraps at the date line', () => {
+    render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    const coastline = screen.getByTestId('world-map-coastline');
+
+    expect(coastline.querySelectorAll('path')).toHaveLength(3);
+    const offsets = [...coastline.querySelectorAll('path')].map((path) =>
+      Number(path.getAttribute('transform')?.match(/translate\(([-\d.]+)/)?.[1])
+    );
+    expect(offsets[1]! - offsets[0]!).toBeCloseTo(MAP_WIDTH, 3);
+    expect(offsets[2]! - offsets[1]!).toBeCloseTo(MAP_WIDTH, 3);
+  });
+
   it('colors land dots with the same five light bands used by the local solar arc', () => {
-    const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} mapStyle="dots" />);
     const bands = ['day', 'civil', 'nautical', 'astronomical', 'night'];
 
     bands.forEach((band) => {
@@ -296,18 +331,22 @@ describe('SolarWorldMap display', () => {
     const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
     const arc = screen.getByTestId('solar-dotted-arc');
     const daylight = arc.querySelector(
-      '[data-solar-arc-band="daylight"][data-solar-arc-phase="elapsed"]'
+      'circle[data-solar-arc-band="daylight"][data-solar-arc-phase="elapsed"]'
     );
-    const civil = arc.querySelector('[data-solar-arc-band="civil"][data-solar-arc-phase="future"]');
+    const civil = arc.querySelector(
+      'circle[data-solar-arc-band="civil"][data-solar-arc-phase="future"]'
+    );
     const nautical = arc.querySelector(
-      '[data-solar-arc-band="nautical"][data-solar-arc-phase="future"]'
+      'circle[data-solar-arc-band="nautical"][data-solar-arc-phase="future"]'
     );
     const astronomical = arc.querySelector(
-      '[data-solar-arc-band="astronomical"][data-solar-arc-phase="future"]'
+      'circle[data-solar-arc-band="astronomical"][data-solar-arc-phase="future"]'
     );
-    const night = arc.querySelector('[data-solar-arc-band="night"][data-solar-arc-phase="future"]');
+    const night = arc.querySelector(
+      'circle[data-solar-arc-band="night"][data-solar-arc-phase="future"]'
+    );
 
-    expect(daylight?.getAttribute('r')).toBe('2.1');
+    expect(daylight?.getAttribute('r')).toBe('4.6');
     expect(daylight?.getAttribute('fill')).toBe('var(--solar-sun)');
     expect(civil?.getAttribute('fill')).toBe('var(--solar-arc-civil)');
     expect(nautical?.getAttribute('fill')).toBe('var(--solar-arc-nautical)');
@@ -315,6 +354,50 @@ describe('SolarWorldMap display', () => {
     expect(night?.getAttribute('fill')).toBe('var(--solar-arc-night)');
     expect(container.querySelector('[data-solar-arc-phase="future"]')).toBeTruthy();
     expect(container.querySelector('[data-solar-arc-phase="elapsed"]')).toBeTruthy();
+  });
+
+  it('keys the arc beads and gives the arc a twilight ramp of its own', () => {
+    const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    const dot = screen.getAllByTestId('solar-arc-dot')[0]!;
+
+    expect(dot.getAttribute('stroke')).toBe('var(--solar-arc-keyline)');
+    expect(dot.getAttribute('stroke-width')).toBe('1');
+    expect(container.querySelector('[data-solar-arc-style="quiet"]')).toBeTruthy();
+    expect(screen.getAllByTestId('solar-arc-horizon-anchor').length).toBe(2);
+    expect(screen.getByTestId('solar-arc-sun-glow')).toBeTruthy();
+  });
+
+  it('draws the arc as a continuous line over the evenly spaced beads', () => {
+    const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+
+    expect(container.querySelectorAll('[data-testid^="solar-arc-spine-"]').length).toBeGreaterThan(
+      0
+    );
+    expect(
+      container.querySelectorAll('[data-solar-arc-phase="future"][data-testid^="solar-arc-spine-"]')
+        .length
+    ).toBeGreaterThan(0);
+  });
+
+  it('keeps the legacy dotted arc available for comparison', () => {
+    const { container } = render(<SolarWorldMap lat={42.36} lon={-71.06} arcStyle="dots" />);
+    const dot = screen.getAllByTestId('solar-arc-dot')[0]!;
+
+    expect(dot.getAttribute('r')).toBe('2.1');
+    expect(dot.getAttribute('stroke')).toBeNull();
+    expect(container.querySelector('[data-solar-arc-style="dots"]')).toBeTruthy();
+    expect(screen.queryByTestId('solar-arc-horizon-anchor')).toBeNull();
+    expect(container.querySelector('[data-testid^="solar-arc-spine-"]')).toBeNull();
+  });
+
+  it('fills the daylight dome only for the filled treatment', () => {
+    const quiet = render(<SolarWorldMap lat={42.36} lon={-71.06} />);
+    const filled = render(<SolarWorldMap lat={42.36} lon={-71.06} arcStyle="filled" />);
+
+    expect(quiet.container.querySelectorAll('[data-testid^="solar-arc-ribbon-"]').length).toBe(0);
+    expect(
+      filled.container.querySelectorAll('[data-testid^="solar-arc-ribbon-"]').length
+    ).toBeGreaterThan(0);
   });
 
   it('colors local arc twilight by geometric altitude without changing apparent arc positions', () => {

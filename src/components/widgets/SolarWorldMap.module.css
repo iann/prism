@@ -18,6 +18,16 @@
   --solar-arc-nautical: var(--solar-land-nautical);
   --solar-arc-astronomical: var(--solar-land-astronomical);
   --solar-arc-night: var(--solar-land-night);
+  --solar-arc-keyline: transparent;
+  --solar-land-fill: hsl(var(--primary));
+  --solar-land-stroke: color-mix(in srgb, hsl(var(--card-foreground)) 40%, transparent);
+  /* The fill ramp runs from the accent in daylight to near-nothing at night,
+     so a filled continent stays in shadow instead of glowing. */
+  --solar-land-fill-day: color-mix(in srgb, hsl(var(--primary)) 30%, transparent);
+  --solar-land-fill-civil: color-mix(in srgb, hsl(var(--primary)) 26%, transparent);
+  --solar-land-fill-nautical: color-mix(in srgb, hsl(var(--primary)) 22%, transparent);
+  --solar-land-fill-astronomical: color-mix(in srgb, hsl(var(--primary)) 17%, transparent);
+  --solar-land-fill-night: color-mix(in srgb, hsl(var(--primary)) 12%, transparent);
   --solar-terminator: color-mix(in srgb, var(--solar-sun) 35%, var(--solar-text));
   color: var(--solar-text);
   background: var(--solar-surface);
@@ -30,6 +40,14 @@
   --solar-ocean: color-mix(in srgb, var(--solar-surface) 96%, #000);
   --solar-sun: color-mix(in srgb, #f2b544 84%, hsl(var(--primary)));
   --solar-night: color-mix(in srgb, #00060e 76%, transparent);
+  /* A pale land wash on a dark ocean is a strong shape, so it is held back
+     further than in light mode to keep the arc the brightest thing here. */
+  --solar-land-fill: color-mix(in srgb, hsl(var(--primary)) 55%, transparent);
+  --solar-land-fill-day: color-mix(in srgb, hsl(var(--primary)) 22%, transparent);
+  --solar-land-fill-civil: color-mix(in srgb, hsl(var(--primary)) 18%, transparent);
+  --solar-land-fill-nautical: color-mix(in srgb, hsl(var(--primary)) 15%, transparent);
+  --solar-land-fill-astronomical: color-mix(in srgb, hsl(var(--primary)) 12%, transparent);
+  --solar-land-fill-night: color-mix(in srgb, hsl(var(--primary)) 9%, transparent);
 }
 .mapFrame {
   padding: 0 16px;
@@ -44,6 +62,28 @@
   opacity: 0.94;
   pointer-events: none;
 }
+.landDotsQuiet {
+  opacity: 0.42;
+}
+/* Stroke-and-fill map treatments: the continents become quiet shapes instead
+   of a field of dots, so the local solar arc reads first. */
+.landCoastline {
+  fill: none;
+  stroke: var(--solar-land-stroke);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+  opacity: 0.75;
+  pointer-events: none;
+}
+.landWash {
+  fill: var(--solar-land-fill);
+  opacity: 0.13;
+  pointer-events: none;
+}
+.landBandWash {
+  opacity: 0.26;
+  pointer-events: none;
+}
 .equator {
   fill: none;
   stroke: var(--solar-equator);
@@ -53,6 +93,62 @@
 }
 .solarArcDot {
   pointer-events: none;
+}
+/* The arc keeps a cool twilight ramp of its own so it never camouflages
+   against the continent dots, which reuse the land palette band for band. */
+.solarArcCool {
+  --solar-arc-civil: #6ea8d8;
+  --solar-arc-nautical: #4a7fb4;
+  --solar-arc-astronomical: #36608f;
+  --solar-arc-night: #27466b;
+  --solar-arc-keyline: color-mix(in srgb, hsl(var(--card-foreground)) 45%, transparent);
+}
+:global(.dark) .solarArcCool {
+  --solar-arc-civil: #8cbdea;
+  --solar-arc-nautical: #6394c4;
+  --solar-arc-astronomical: #4a73a3;
+  --solar-arc-night: #38577f;
+}
+.solarArcRibbon {
+  opacity: 0.16;
+  stroke: none;
+}
+.solarArcDome {
+  opacity: 0.26;
+  stroke: none;
+}
+.solarArcSpine {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.92;
+}
+.solarArcSpineFuture {
+  fill: none;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.45;
+}
+.solarArcSpineFuture {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.42;
+}
+.solarArcAnchor {
+  fill: none;
+  stroke: var(--solar-sun);
+  stroke-width: 1.5;
+  opacity: 0.9;
+}
+.solarArcSunGlow {
+  pointer-events: none;
+}
+.solarArcSunBelowHorizon .solarArcSunGlow {
+  opacity: 0.25;
 }
 .solarArcElapsedTrail {
   fill: none;

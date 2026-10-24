@@ -41,6 +41,12 @@ jobs:
       - name: Version sync (package.json ↔ CHANGELOG)
         run: bash scripts/check-version-sync.sh
 
+      # A failed database dump must not leave a file that looks like a backup.
+      # The backup container runs on Alpine and on developer machines, so this
+      # exercises the script's real failure path rather than a mock of it.
+      - name: Backup failure cleanup
+        run: bash scripts/test-backup-failure-cleanup.sh
+
       # Syntax-check JS that doesn't flow through the TS/Next.js pipeline.
       # Caught nothing today, but had this been in place yesterday it would
       # have caught the duplicate `const windowUniques` in traffic/index.html
@@ -126,7 +132,11 @@ jobs:
         working-directory: .mcp
 
   migration-replay:
-    name: Migration replay (modality TODO #3)
+    # Quoted, because an unquoted "#3" starts a YAML comment and silently
+    # truncates the job name to "Migration replay (modality TODO". The
+    # truncated name is what GitHub reports as the check context, so it is
+    # what a required status check has to name.
+    name: "Migration replay (modality TODO #3)"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -266,7 +276,9 @@ jobs:
           retention-days: 7
 
   visual-regression:
-    name: Visual regression (modality TODO #2)
+    # Quoted, for the same reason as the migration-replay job above: an
+    # unquoted "#2" truncates this name at the "#".
+    name: "Visual regression (modality TODO #2)"
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: playwright-image
