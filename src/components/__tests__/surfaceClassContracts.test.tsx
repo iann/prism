@@ -273,6 +273,8 @@ describe('surface class contracts', () => {
       'src/components/ui/GoalCelebration.tsx:bg-card/95',
       // Shared cards use the theme surface with a restrained translucent veil.
       'src/components/ui/card.tsx:bg-card/85',
+      // Live bus map overlay card over the map.
+      'src/components/widgets/bus/BusLiveView.tsx:bg-card/90',
     ]);
   });
 
@@ -339,6 +341,16 @@ describe('surface class contracts', () => {
       'src/app/settings/sections/DisplaySection.tsx:text-[10px]',
       'src/app/settings/sections/InputSection.tsx:text-[11px]',
       'src/app/settings/sections/InputSection.tsx:text-[11px]',
+      // Compact labels in the live bus tracking card.
+      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
+      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
+      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
+      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
+      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
+      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
+      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
+      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
+      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
       // Compact OAuth scope strings are code snippets with fixed-width content.
       'src/app/settings/sections/integrations/cards/GoogleManualTokenForm.tsx:text-[11px]',
       'src/app/tasks/TaskItem.tsx:text-[8px]',
@@ -350,6 +362,8 @@ describe('surface class contracts', () => {
       // Compact calendar event labels and spacing metadata.
       'src/components/calendar/TwoWeekView.tsx:text-[10px]',
       'src/components/calendar/cells/InlineCalendarEvent.tsx:text-[8px]',
+      // Compact metadata labels on mobile dashboard cards.
+      'src/components/dashboard/MobileCards.tsx:text-[11px]',
       // Compact metadata and screen-size labels in the community gallery.
       'src/components/layout/CommunityGallery.tsx:text-[10px]',
       'src/components/layout/CommunityGallery.tsx:text-[11px]',
@@ -358,6 +372,7 @@ describe('surface class contracts', () => {
       // Navigation and modal avatar initials with adjacent names or labels.
       'src/components/layout/MobileFab.tsx:text-[10px]',
       'src/components/layout/MobileNav.tsx:text-[10px]',
+
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
