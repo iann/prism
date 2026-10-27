@@ -441,3 +441,87 @@ test.describe('calm mode idle screen', () => {
     }
   });
 });
+
+test.describe('screensaver widget outlines', () => {
+  test.use({ viewport: { width: 1280, height: 720 } });
+  test.setTimeout(90_000);
+
+  /** Alpha of each screensaver card's top border, by widget. */
+  async function outlineAlpha(page: Page): Promise<number[]> {
+    return page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('.prism-screensaver-flat')].map((live) => {
+        const card = live.querySelector<HTMLElement>('[class*="bg-card"].border-border');
+        if (!card) return -1;
+        const c = getComputedStyle(card).borderTopColor;
+        if (c === 'transparent') return 0;
+        const slash = c.match(/\/\s*([\d.]+)\s*\)$/);
+        if (slash) return Number(slash[1]);
+        const rgba = c.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\)$/);
+        return rgba ? Number(rgba[1]) : 1;
+      }));
+  }
+
+  test('a widget about to burst sets its outline down first, with outlines shown', async ({ page }) => {
+    // Outlines on is the default, and it was the case that broke: the outline
+    // colour is a Tailwind utility in a cascade layer, and an unlayered
+    // !important rule loses to it, so the outline stayed through the wind-up
+    // and vanished all at once at the burst.
+    await page.addInitScript(() => localStorage.setItem('prism-screensaver-outlines', 'on'));
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+    await page.locator('.fixed.inset-0.z-9999 .prism-screensaver-flat').first().waitFor();
+    await page.waitForTimeout(1000);
+
+    const before = await outlineAlpha(page);
+    const target = before.findIndex((a) => a > 0);
+    expect(target, 'precondition: a screensaver card shows an outline').toBeGreaterThanOrEqual(0);
+
+    // What WidgetStage puts on a departing widget the moment its wind-up starts.
+    await page.evaluate((i) => {
+      document.querySelectorAll('.prism-screensaver-flat')[i]!.classList.add('prism-shed');
+    }, target);
+    // The shed fades over 2.8 s; the wind-up before the burst is longer.
+    await page.waitForTimeout(3500);
+
+    const after = await outlineAlpha(page);
+    expect(after[target], 'the outline is gone before the burst').toBe(0);
+  });
+
+  test('a drifting widget moves whole, with no edge clipped by its cell', async ({ page }) => {
+    // Drift used to run inside the cell, which clips its content, so the card
+    // lost the edge of its outline on whichever side it had drifted towards.
+    await page.addInitScript(() => {
+      localStorage.setItem('prism-screensaver-drift', 'figure8');
+      // Performance Mode stops animations, and a CI runner trips it.
+      localStorage.setItem('prism-perf-mode', 'false');
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+    await page.locator('.fixed.inset-0.z-9999 .widget-cell').first().waitFor();
+
+    const measure = () => page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('.fixed.inset-0.z-9999 .widget-cell')].map((cell) => {
+        const c = cell.getBoundingClientRect();
+        const card = cell.querySelector('.border-border[class*="bg-card/"]');
+        const k = card?.getBoundingClientRect();
+        return {
+          id: cell.dataset.widget!, x: c.x, y: c.y,
+          // How far the card reaches past its cell on any side; the cell clips there.
+          overhang: k ? Math.max(c.left - k.left, c.top - k.top, k.right - c.right, k.bottom - c.bottom) : 0,
+        };
+      }));
+
+    await page.waitForTimeout(1500);
+    const first = await measure();
+    await page.waitForTimeout(2000);
+    const second = await measure();
+    expect(first.length, 'precondition: the screensaver shows widgets').toBeGreaterThan(0);
+    for (const m of [...first, ...second]) {
+      expect(m.overhang, `${m.id} is not clipped by its cell`).toBeLessThanOrEqual(0.5);
+    }
+    const moved = first.some((m, n) => Math.hypot(m.x - second[n]!.x, m.y - second[n]!.y) > 0.2);
+    expect(moved, 'the drift is still running').toBe(true);
+  });
+});
