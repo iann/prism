@@ -46,6 +46,9 @@ export function LayoutGridEditor({
   minVisibleRows = 0,
   theme = DASHBOARD_THEME,
   previewFit = 'stretch',
+  fadedIds,
+  drift,
+  idleToggles,
   gridHelperText,
   className,
   screenGuideOrientation: screenGuideOrientationProp,
@@ -66,7 +69,7 @@ export function LayoutGridEditor({
   const { height: viewportHeight } = useViewportSize();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
-  const [selectedWidget, setSelectedWidget] = useState<string | null>(null);
+  const [selectedId, setSelectedWidget] = useState<string | null>(null);
   const colorPickerRef = useRef<HTMLInputElement | null>(null);
   const [colorTarget, setColorTarget] = useState<'fill' | 'outline' | 'text'>('fill');
   const [openPopover, setOpenPopover] = useState<'fill' | 'outline' | 'text' | 'grid' | null>(null);
@@ -148,6 +151,17 @@ export function LayoutGridEditor({
     width,
     viewportHeight,
   ]);
+
+  // Canonical target row count of the design (tallest configured screen for this
+  // orientation, e.g. 27 for 1080p landscape). In display mode the grid renders
+  // this exact canvas scaled-to-fit the real viewport, so a laptop browser and a
+  // fullscreen kiosk show the same layout (just different scale) instead of
+  // gaining/losing rows and clipping.
+  const displayTargetRows = useMemo(() => {
+    const zones = SAFE_ZONES[screenGuideOrientation];
+    if (!zones?.length) return undefined;
+    return Math.max(...zones.map((z) => z.rows));
+  }, [SAFE_ZONES, screenGuideOrientation]);
 
   const visibleRows = useMemo(() => {
     if (viewportHeight <= 0) return 24;
@@ -242,24 +256,12 @@ export function LayoutGridEditor({
     );
   }, []);
 
-  const layoutRef = useRef(layout);
-  const stableLayout = useMemo(() => {
-    // Dashboard layout arrays can be recreated by the parent when unrelated
-    // data changes. Keep the previous array when its item identities are
-    // unchanged so the grid does not invalidate every memoized cell. This is
-    // linear and allocation-free compared with serializing the full layout on
-    // every render.
-    const previous = layoutRef.current;
-    if (
-      previous.length === layout.length &&
-      previous.every((widget, index) => widget === layout[index])
-    ) {
-      return previous;
-    }
-
-    layoutRef.current = layout;
-    return layout;
-  }, [layout]);
+  // Dashboard layout arrays can be recreated by the parent when unrelated data
+  // changes. Keep the previous array while its contents are unchanged so the
+  // grid does not invalidate every memoized cell.
+  const layoutJson = JSON.stringify(layout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the JSON, not the array identity
+  const stableLayout = useMemo(() => layout, [layoutJson]);
 
   const updateWidgetColor = useCallback(
     (
@@ -277,7 +279,7 @@ export function LayoutGridEditor({
         cellBackgroundOpacity?: number;
       }
     ) => {
-      const updated = layoutRef.current.map((w) => {
+      const updated = stableLayout.map((w) => {
         if (w.i === widgetId) {
           return {
             ...w,
@@ -304,19 +306,15 @@ export function LayoutGridEditor({
       });
       onLayoutChange(updated);
     },
-    [onLayoutChange]
+    [onLayoutChange, stableLayout]
   );
 
-  // Clear selection when widget becomes invisible
-  useEffect(() => {
-    if (selectedWidget && !layout.find((w) => w.i === selectedWidget && w.visible !== false)) {
-      setSelectedWidget(null);
-    }
-  }, [selectedWidget, layout]);
-
-  const selectedWidgetConfig = selectedWidget
-    ? layoutRef.current.find((w) => w.i === selectedWidget && w.visible !== false)
+  // A widget that is hidden or removed is no longer selected, without a state
+  // write from an effect: the selection simply stops resolving.
+  const selectedWidgetConfig = selectedId
+    ? stableLayout.find((w) => w.i === selectedId && w.visible !== false)
     : null;
+  const selectedWidget = selectedWidgetConfig ? selectedId : null;
 
   // Get current color value for whichever target is active
   const getActiveColor = (widget: WidgetConfig): string | undefined => {
@@ -523,22 +521,11 @@ export function LayoutGridEditor({
           ))}
           {/* Custom picker */}
           <div className="relative">
-            <button
-              onClick={() => colorPickerRef.current?.click()}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="h-7 w-7 touch-manipulation overflow-hidden rounded-full border border-gray-400 transition-transform hover:scale-110"
-              style={{ background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }}
-              title="Custom"
-            />
-            <input
-              ref={(el) => {
-                (colorPickerRef as React.MutableRefObject<HTMLInputElement | null>).current = el;
-              }}
-              type="color"
-              className="sr-only"
-              value={color || '#3B82F6'}
-              onChange={(e) => apply(e.target.value)}
-            />
+            <button onClick={() => colorPickerRef.current?.click()} onPointerDown={(e) => e.stopPropagation()}
+              className="w-7 h-7 rounded-full border border-gray-400 transition-transform hover:scale-110 touch-manipulation overflow-hidden"
+              style={{ background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }} title="Custom" />
+            <input ref={colorPickerRef}
+              type="color" className="sr-only" value={color || '#3B82F6'} onChange={(e) => apply(e.target.value)} />
           </div>
         </div>
         {/* Text scale (text only) */}
@@ -1045,6 +1032,7 @@ export function LayoutGridEditor({
                 selectedWidget={selectedWidget}
                 onSelectWidget={setSelectedWidget}
                 theme={theme}
+                idleToggles={idleToggles}
               />
             ) : (
               <div style={{ padding: 20, color: 'yellow' }}>Waiting for container width...</div>
@@ -1068,6 +1056,10 @@ export function LayoutGridEditor({
       bottomOffset={bottomOffset}
       rowHeightScale={!isEditable && isPortraitViewport && margin === 8 ? 1.3 : 1}
       minVisibleRows={minVisibleRows}
+      targetRows={displayTargetRows}
+      designOrientation={screenGuideOrientation}
+      fadedIds={fadedIds}
+      drift={drift}
       className={className}
     />
   );

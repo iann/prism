@@ -20,6 +20,27 @@ Screensaver layouts are dashboard-scoped. Your kitchen dashboard (`/d/kitchen`) 
 
 Edit the screensaver layout in dashboard edit mode by clicking the **Screensaver** button to switch from editing the dashboard to editing the screensaver overlay.
 
+### A calm dashboard is its own idle screen
+
+A dashboard set to *Fade to a calm view of this dashboard* (under *When nobody's
+using it* in the editor) has no separate screensaver. When the display goes idle,
+some widgets fade out where they are and the rest stay; a tap brings everything
+back, and nothing moves.
+
+In the editor, each widget on a calm dashboard has a **Stays** or **Fades** button
+in its top-right corner. Tap it to choose, then **Save**. Until a widget is set,
+the clock, weather and calendar stay and everything else fades.
+
+### Background: photos or the night sky
+
+*Settings → Appearance → Screensaver → Background* sets what sits behind the widgets, per display:
+
+- **Photos**: the slideshow, as before. The default.
+- **Night sky**: the stars, Milky Way, constellation figures and moon as they stand outside right now, drawn from the household location in *Settings → General*, over a treeline on the horizon. The Milky Way comes out last at dusk and fades when the moon is bright, as it does outside. Once it is dark, one constellation at a time is drawn in, line by line outward from its brightest star (the way you would find it outside), then named, with what the name means and its brightest stars' names, for about twenty seconds. The next follows after a pause. Each display remembers which it has shown and picks the one shown longest ago, best known first, skipping any a widget would hide, so over the nights of a season it works through all of them. The brightest stars twinkle and a shooting star crosses every few minutes; with reduced motion set on the device, or Performance Mode on, both stop and each constellation appears whole instead of being traced. By day it is a plain sky. It loads no images and redraws once a minute, so it costs next to nothing on a display that never sleeps, and it shows no family photos to visitors.
+- **Photos by day, night sky after dark**: changes over at sunset and back at sunrise, rechecked every minute while the screensaver is up.
+
+Everything is worked out on the display from the date and location; nothing is fetched. With no location set, the time zone stands in for it, so the change at sunset is right to within about an hour.
+
 ### Widget transitions
 
 By default the screensaver shows every widget in its layout, all the time. It can
@@ -52,15 +73,17 @@ the display asks for reduced motion.
 
 ### Drift
 
-Independently of transitions, the widgets that *are* showing can move very
-slowly: **Breathe**, **Ripple** or **Figure eight**. This is for the panel's
-sake. Rotating which widgets are shown helps with burn-in; moving the ones that
-are helps more, because it shifts the boundaries rather than what is inside them.
+Independently of transitions, the widgets that *are* showing move very slowly
+in a figure eight, 4 px each way over a minute and a half. This is for the
+panel's sake. Rotating which widgets are shown helps with burn-in; moving the
+ones that are helps more, because it shifts the edges rather than what is inside
+them. It also runs on a dashboard that fades to a calm view of itself.
 
-Periods run from twenty seconds to a minute and a half, each widget is out of
-step with the others, and the amplitudes are whole pixels — sub-pixel movement
-leaves the same physical pixels lit and does nothing. Breathe and Figure eight
-are meant to be imperceptible. Ripple is meant to be just noticeable.
+Every widget moves together, so the gaps between them stay as designed. The
+amplitude is whole pixels, since sub-pixel movement leaves the same physical
+pixels lit and does nothing. Four pixels moves thin outlines and text clear of
+where they were; it cannot move a large stroke, such as the clock's digits,
+fully off its pixels, and more movement would start to be noticed.
 
 ### Configuration
 
@@ -85,7 +108,7 @@ also be reached from the screensaver itself — see below.
   top line of a widget's text or over empty space above it — the water covering
   content is the effect working as intended for some people and a fault for
   others, so it is a switch rather than a decision.
-- **Drift**: Still, Breathe, Ripple or Figure eight.
+- **Drift**: on or off, on by default.
 - **Show a settings shortcut on the screensaver**: off by default.
 
 ### Changing it from the screensaver

@@ -143,7 +143,11 @@ export function BirthdayCelebration({
   }, [inactive]);
 
   useEffect(() => {
-    if (prefersReducedMotion) cancelScene();
+    if (!prefersReducedMotion) return;
+    // After the render, so reduced motion never costs a cascading render here;
+    // the tree is already hidden by `inactive` in the meantime.
+    const timer = setTimeout(cancelScene, 0);
+    return () => clearTimeout(timer);
   }, [cancelScene, prefersReducedMotion]);
 
   const finishScene = useCallback(() => {
@@ -239,7 +243,7 @@ export function BirthdayCelebration({
               hero={index === 0}
               heroVariant={scene.heroVariant}
               color={scene.recipe.colors?.[index % scene.recipe.colors.length] ?? '#ff5d8f'}
-              random={randomRef.current}
+              random={random}
             />
           ))}
         </div>

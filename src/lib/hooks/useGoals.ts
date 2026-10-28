@@ -7,6 +7,7 @@ import { useCachedMountFetch } from './useCachedMountFetch';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
 import { useDistinctState } from './useDistinctState';
+import { useLatestRef } from './useLatestRef';
 
 export interface Goal {
   id: string;
@@ -77,12 +78,9 @@ export function useGoals(options: { refreshInterval?: number; refreshOffsetMs?: 
   const [goals, setGoals] = useState<Goal[]>(() => cached?.goals ?? []);
   const [progress, setProgress] = useState<Record<string, Record<string, ChildProgress>>>(() => cached?.progress ?? {});
   const [goalChildren, setGoalChildren] = useState<GoalChild[]>(() => cached?.children ?? []);
-  const goalsRef = useRef(goals);
-  const progressRef = useRef(progress);
-  const childrenRef = useRef(goalChildren);
-  goalsRef.current = goals;
-  progressRef.current = progress;
-  childrenRef.current = goalChildren;
+  const goalsRef = useLatestRef(goals);
+  const progressRef = useLatestRef(progress);
+  const childrenRef = useLatestRef(goalChildren);
   const [loading, setLoading] = useDistinctState(enabled && !cached);
   const [error, setError] = useDistinctState<string | null>(null);
   const hasDataRef = useRef(cached !== undefined);

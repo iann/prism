@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
+import { useHydrated, useStoredString, writeStored } from '@/lib/hooks/useStoredValue';
 
 const KEY = 'prism-screensaver-motion';
 const INTERVAL_KEY = 'prism-screensaver-motion-interval';
@@ -8,10 +9,15 @@ export const DEFAULT_MOTION_INTERVAL = 20;   // seconds between changes
 
 export type ScreensaverMotion = 'off' | 'fade' | 'smoke' | 'liquid' | 'fireworks';
 
-/** Slow ambient movement, to stop a widget living on the same pixels for years. */
-export type ScreensaverDrift = 'off' | 'breathe' | 'ripple' | 'figure8';
-
-const DRIFTS: ScreensaverDrift[] = ['off', 'breathe', 'ripple', 'figure8'];
+/**
+ * Whether widgets drift: slow ambient movement, to stop a widget living on the
+ * same pixels for years. On unless the display turned it off. Earlier versions
+ * stored a style (breathe, ripple, figure8) or nothing; all of those read as on,
+ * since there is one motion now.
+ */
+export function driftOn(raw: string | null): boolean {
+  return raw !== 'off';
+}
 
 const VALID: ScreensaverMotion[] = ['off', 'fade', 'smoke', 'liquid', 'fireworks'];
 
@@ -45,6 +51,32 @@ const WATER_CLEAR_KEY = 'prism-screensaver-water-clear';
 export const DEFAULT_FLOOR = 2;
 export const DEFAULT_CEILING = 0;   // 0 = no cap
 
+// Module-level, so each keeps one identity for every caller. A write reaches
+// every mounted copy of the hook (Settings and the screensaver are separate
+// trees) through the shared store.
+const onOff = (v: boolean) => (v ? 'on' : 'off');
+function setMotion(v: ScreensaverMotion) {
+  writeStored(KEY, v);
+  writeStored(MIGRATED_KEY, '1');
+}
+const setMotionInterval = (v: number) => writeStored(INTERVAL_KEY, String(v));
+const setFloor = (v: number) => writeStored(FLOOR_KEY, String(v));
+const setCeiling = (v: number) => writeStored(CEILING_KEY, String(v));
+const setOutlines = (v: boolean) => writeStored(OUTLINES_KEY, onOff(v));
+const setShortcut = (v: boolean) => writeStored(SHORTCUT_KEY, onOff(v));
+const setDrift = (v: boolean) => writeStored(DRIFT_KEY, onOff(v));
+const setCarbonation = (v: boolean) => writeStored(CARBONATION_KEY, onOff(v));
+const setWobble = (v: number) => writeStored(WOBBLE_KEY, String(v));
+const setWaterClear = (v: boolean) => writeStored(WATER_CLEAR_KEY, onOff(v));
+const setSpeed = (v: number) => writeStored(SPEED_KEY, String(v));
+
+/** A stored number that passes `ok`, or the default. Nothing stored is the default. */
+function num(raw: string | null, ok: (n: number) => boolean, fallback: number): number {
+  if (raw === null) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && ok(n) ? n : fallback;
+}
+
 /**
  * Whether the screensaver shows all its widgets at once (the original
  * behaviour) or shows a subset and rotates the membership, and how a widget
@@ -56,180 +88,43 @@ export const DEFAULT_CEILING = 0;   // 0 = no cap
  * character on an update without them asking for it.
  */
 export function useScreensaverMotion() {
-  const [motion, setMotionState] = useState<ScreensaverMotion>('off');
-  const [interval, setIntervalState] = useState(DEFAULT_MOTION_INTERVAL);
-  const [floor, setFloorState] = useState(DEFAULT_FLOOR);
-  const [ceiling, setCeilingState] = useState(DEFAULT_CEILING);
-  const [outlines, setOutlinesState] = useState(true);
+  const migrated = useStoredString(MIGRATED_KEY) === '1';
+  const rawMotion = useStoredString(KEY);
+  const motion = normalise(rawMotion, migrated) ?? 'off';
+  const interval = num(useStoredString(INTERVAL_KEY), (n) => n > 0, DEFAULT_MOTION_INTERVAL);
+  const floor = num(useStoredString(FLOOR_KEY), (n) => n > 0, DEFAULT_FLOOR);
+  const ceiling = num(useStoredString(CEILING_KEY), (n) => n >= 0, DEFAULT_CEILING);
+  const outlines = useStoredString(OUTLINES_KEY) !== 'off';
   // Off by default. The screensaver is what a room looks like when nobody is
   // using it, and putting a control on it changes that for every display on
   // update — the same reason the effects themselves default to off.
-  const [shortcut, setShortcutState] = useState(false);
-  const [drift, setDriftState] = useState<ScreensaverDrift>('off');
-  const [carbonation, setCarbonationState] = useState(true);
-  const [wobble, setWobbleState] = useState(1);
-  const [speed, setSpeedState] = useState(1);
-  const [waterClear, setWaterClearState] = useState(false);
+  const shortcut = useStoredString(SHORTCUT_KEY) === 'on';
+  // Both idle screens, the separate screensaver and a calm dashboard.
+  const drift = driftOn(useStoredString(DRIFT_KEY));
+  const carbonation = useStoredString(CARBONATION_KEY) !== 'off';
+  const wobble = num(useStoredString(WOBBLE_KEY), (n) => n >= 0, 1);
+  const speed = num(useStoredString(SPEED_KEY), (n) => n > 0, 1);
+  const waterClear = useStoredString(WATER_CLEAR_KEY) === 'on';
   // Whether the values above are the display's own yet, or still the defaults.
   //
   // Worth telling apart, because "not read yet" and "off" are not the same
   // answer and they render differently: 'off' means show every widget, and the
   // screensaver would otherwise paint a full board for the frame before the
-  // real setting arrived. See the note in ScreensaverGrid.
-  const [ready, setReady] = useState(false);
+  // real setting arrived. See the note in ScreensaverGrid. Only false during
+  // hydration: on a client-side mount the stored values are there at once.
+  const ready = useHydrated();
 
-  // Read after mount, never during render: the server has no localStorage, so
-  // reading it in the initialiser makes the first client render disagree with
-  // the markup and React throws the tree away.
+  // Rewrite an old name once, so the stored value means what it says from
+  // then on. The render above already shows the migrated effect.
   useEffect(() => {
-    try {
-      const migrated = localStorage.getItem(MIGRATED_KEY) === '1';
-      const m = normalise(localStorage.getItem(KEY), migrated);
-      if (m) {
-        setMotionState(m);
-        if (!migrated) {
-          localStorage.setItem(KEY, m);
-          localStorage.setItem(MIGRATED_KEY, '1');
-        }
-      }
-      const n = Number(localStorage.getItem(INTERVAL_KEY));
-      if (n > 0) setIntervalState(n);
-      const lo = Number(localStorage.getItem(FLOOR_KEY));
-      if (lo > 0) setFloorState(lo);
-      const hi = Number(localStorage.getItem(CEILING_KEY));
-      if (hi >= 0 && localStorage.getItem(CEILING_KEY) !== null) setCeilingState(hi);
-      if (localStorage.getItem(OUTLINES_KEY) === 'off') setOutlinesState(false);
-      if (localStorage.getItem(SHORTCUT_KEY) === 'on') setShortcutState(true);
-      const d = localStorage.getItem(DRIFT_KEY);
-      if (d && (DRIFTS as string[]).includes(d)) setDriftState(d as ScreensaverDrift);
-      if (localStorage.getItem(CARBONATION_KEY) === 'off') setCarbonationState(false);
-      const wob = Number(localStorage.getItem(WOBBLE_KEY));
-      if (Number.isFinite(wob) && wob >= 0 && localStorage.getItem(WOBBLE_KEY) !== null) setWobbleState(wob);
-      if (localStorage.getItem(WATER_CLEAR_KEY) === 'on') setWaterClearState(true);
-      const rawSpeed = localStorage.getItem(SPEED_KEY);
-      const sp = rawSpeed === null ? NaN : Number(rawSpeed);
-      if (Number.isFinite(sp) && sp > 0) setSpeedState(sp);
-    } catch { /* storage unavailable */ }
-    setReady(true);
-  }, []);
-
-  const setMotion = useCallback((v: ScreensaverMotion) => {
-    setMotionState(v);
-    try {
-      localStorage.setItem(KEY, v);
-      localStorage.setItem(MIGRATED_KEY, '1');
-      window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: v }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setInterval = useCallback((v: number) => {
-    setIntervalState(v);
-    try {
-      localStorage.setItem(INTERVAL_KEY, String(v));
-      window.dispatchEvent(new StorageEvent('storage', { key: INTERVAL_KEY, newValue: String(v) }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setFloor = useCallback((v: number) => {
-    setFloorState(v);
-    try {
-      localStorage.setItem(FLOOR_KEY, String(v));
-      window.dispatchEvent(new StorageEvent('storage', { key: FLOOR_KEY, newValue: String(v) }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setCeiling = useCallback((v: number) => {
-    setCeilingState(v);
-    try {
-      localStorage.setItem(CEILING_KEY, String(v));
-      window.dispatchEvent(new StorageEvent('storage', { key: CEILING_KEY, newValue: String(v) }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setOutlines = useCallback((v: boolean) => {
-    setOutlinesState(v);
-    try {
-      localStorage.setItem(OUTLINES_KEY, v ? 'on' : 'off');
-      window.dispatchEvent(new StorageEvent('storage', { key: OUTLINES_KEY, newValue: v ? 'on' : 'off' }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setShortcut = useCallback((v: boolean) => {
-    setShortcutState(v);
-    try {
-      localStorage.setItem(SHORTCUT_KEY, v ? 'on' : 'off');
-      window.dispatchEvent(new StorageEvent('storage', { key: SHORTCUT_KEY, newValue: v ? 'on' : 'off' }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setDrift = useCallback((v: ScreensaverDrift) => {
-    setDriftState(v);
-    try {
-      localStorage.setItem(DRIFT_KEY, v);
-      window.dispatchEvent(new StorageEvent('storage', { key: DRIFT_KEY, newValue: v }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setCarbonation = useCallback((v: boolean) => {
-    setCarbonationState(v);
-    try {
-      localStorage.setItem(CARBONATION_KEY, v ? 'on' : 'off');
-      window.dispatchEvent(new StorageEvent('storage', { key: CARBONATION_KEY, newValue: v ? 'on' : 'off' }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setWobble = useCallback((v: number) => {
-    setWobbleState(v);
-    try {
-      localStorage.setItem(WOBBLE_KEY, String(v));
-      window.dispatchEvent(new StorageEvent('storage', { key: WOBBLE_KEY, newValue: String(v) }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setWaterClear = useCallback((v: boolean) => {
-    setWaterClearState(v);
-    try {
-      localStorage.setItem(WATER_CLEAR_KEY, v ? 'on' : 'off');
-      window.dispatchEvent(new StorageEvent('storage', { key: WATER_CLEAR_KEY, newValue: v ? 'on' : 'off' }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  const setSpeed = useCallback((v: number) => {
-    setSpeedState(v);
-    try {
-      localStorage.setItem(SPEED_KEY, String(v));
-      window.dispatchEvent(new StorageEvent('storage', { key: SPEED_KEY, newValue: String(v) }));
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  // Settings and the screensaver are separate trees; the storage event is how
-  // a change made in one reaches the other without a reload.
-  useEffect(() => {
-    const handler = (e: StorageEvent) => {
-      if (e.key === KEY) {
-        const m = normalise(e.newValue, true);
-        if (m) setMotionState(m);
-      }
-      if (e.key === INTERVAL_KEY) { const n = Number(e.newValue); if (n > 0) setIntervalState(n); }
-      if (e.key === FLOOR_KEY) { const n = Number(e.newValue); if (n > 0) setFloorState(n); }
-      if (e.key === CEILING_KEY) { const n = Number(e.newValue); if (n >= 0) setCeilingState(n); }
-      if (e.key === OUTLINES_KEY) setOutlinesState(e.newValue !== 'off');
-      if (e.key === SHORTCUT_KEY) setShortcutState(e.newValue === 'on');
-      if (e.key === DRIFT_KEY && e.newValue && (DRIFTS as string[]).includes(e.newValue)) {
-        setDriftState(e.newValue as ScreensaverDrift);
-      }
-      if (e.key === CARBONATION_KEY) setCarbonationState(e.newValue !== 'off');
-      if (e.key === WOBBLE_KEY) { const n = Number(e.newValue); if (Number.isFinite(n) && n >= 0) setWobbleState(n); }
-      if (e.key === WATER_CLEAR_KEY) setWaterClearState(e.newValue === 'on');
-      if (e.key === SPEED_KEY) { const n = Number(e.newValue); if (Number.isFinite(n) && n > 0) setSpeedState(n); }
-    };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
-  }, []);
+    if (migrated || !rawMotion) return;
+    const m = normalise(rawMotion, false);
+    if (m) setMotion(m);
+  }, [migrated, rawMotion]);
 
   return {
     motion, setMotion,
-    interval, setInterval,
+    interval, setInterval: setMotionInterval,
     floor, setFloor,
     ceiling, setCeiling,
     outlines, setOutlines,

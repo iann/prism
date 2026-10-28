@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
@@ -10,6 +10,7 @@ import { UserAvatar } from '@/components/ui/avatar';
 import { useFamily, useAuth } from '@/components/providers';
 import { DEFAULT_PIN_LENGTH } from '@/lib/constants';
 import { pinErrorMessage } from '@/lib/utils/pinErrorMessage';
+import { useHydrated } from '@/lib/hooks/useStoredValue';
 import { SettingsView } from './SettingsView';
 
 type GateState = 'checking' | 'prompt' | 'verified';
@@ -86,7 +87,9 @@ function SettingsPinPrompt({
   // is a plain equality check; previously the fallback `!m.role` treated a
   // missing role as "assume parent," which showed every child as selectable
   // here since the unauthenticated response omitted role entirely.
-  const parents = members
+  // Memoized so the parent selected below keeps its identity across renders:
+  // the verify effect depends on it.
+  const parents = useMemo(() => members
     .filter((m) => m.role === 'parent')
     .map((m) => ({
       id: m.id,
@@ -95,29 +98,21 @@ function SettingsPinPrompt({
       color: m.color,
       avatarUrl: m.avatarUrl ?? undefined,
       pinLength: m.pinLength,
-    }));
+    })), [members]);
 
-  const [selectedParent, setSelectedParent] = useState<(typeof parents)[0] | null>(null);
+  const [chosenParent, setChosenParent] = useState<(typeof parents)[0] | null>(null);
+  // With only one parent there is nobody to choose between, so they are selected.
+  const selectedParent = chosenParent ?? (parents.length === 1 ? parents[0] ?? null : null);
   const [pin, setPin] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // The portal needs document.body, which the server render does not have.
+  const mounted = useHydrated();
 
   // Every pad requires exactly the SELECTED parent's own PIN length, not a
   // family-wide constant — members can have different-length PINs.
   const pinLength = selectedParent?.pinLength ?? DEFAULT_PIN_LENGTH;
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Auto-select if only one parent
-  useEffect(() => {
-    if (parents.length === 1 && !selectedParent && parents[0]) {
-      setSelectedParent(parents[0]);
-    }
-  }, [parents, selectedParent]);
 
   // pinLength must be a dependency — it changes per selected parent (their
   // own configured length), not just once per session.
@@ -249,7 +244,7 @@ function SettingsPinPrompt({
                 </div>
               ) : parents.length > 1 ? (
                 <button
-                  onClick={() => { setSelectedParent(null); setPin([]); setError(null); }}
+                  onClick={() => { setChosenParent(null); setPin([]); setError(null); }}
                   className="group flex flex-col items-center mx-auto mb-1.5"
                 >
                   <UserAvatar
@@ -360,7 +355,7 @@ function SettingsPinPrompt({
                     // nodes between them and the list rendered one member's avatar
                     // against another's name. Matches QuickPinModal, which had it right.
                     key={parent.id || parent.loginIndex}
-                    onClick={() => setSelectedParent(parent)}
+                    onClick={() => setChosenParent(parent)}
                     className={cn(
                       'flex flex-col items-center p-1.5 rounded-xl',
                       'hover:bg-accent/50 active:bg-accent transition-colors',

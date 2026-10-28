@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import { useStoredString, writeStored } from './useStoredValue';
 
 const STORAGE_KEY = 'prism:auto-hide-ui';
 const HIDE_DELAY = 10_000; // 10 seconds
@@ -17,24 +18,18 @@ function isAutoHideKeepTarget(target: EventTarget | null): boolean {
  * Only hides when the feature is enabled in settings.
  */
 export function useAutoHideUI() {
-  const [enabled, setEnabledState] = useState(false);
+  // False during hydration (the server cannot see storage), so the server
+  // markup always matches.
+  const enabled = useStoredString(STORAGE_KEY) === 'true';
   const [hidden, setHidden] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   // Only auto-hide on dashboard routes (/ and /d/[slug])
   const isDashboard = pathname === '/' || pathname?.startsWith('/d/') === true;
-
-  // Read from localStorage after mount to avoid SSR hydration mismatch
-  useEffect(() => {
-    setEnabledState(localStorage.getItem(STORAGE_KEY) === 'true');
-    setMounted(true);
-  }, []);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ignoreScrollUntilRef = useRef(0);
 
-  const resetTimer = useCallback((reveal = true) => {
-    if (!enabled) return;
-    if (reveal) setHidden(false);
+  // Only the countdown; showing the UI again is resetTimer's job.
+  const armTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       // Collapsing application chrome can change the document geometry and
@@ -43,15 +38,19 @@ export function useAutoHideUI() {
       ignoreScrollUntilRef.current = Date.now() + HIDE_REFLOW_GUARD;
       setHidden(true);
     }, HIDE_DELAY);
-  }, [enabled]);
+  }, []);
+
+  const resetTimer = useCallback((reveal = true) => {
+    if (!enabled) return;
+    if (reveal) setHidden(false);
+    armTimer();
+  }, [enabled, armTimer]);
 
   const setEnabled = useCallback((value: boolean) => {
-    setEnabledState(value);
-    localStorage.setItem(STORAGE_KEY, String(value));
-    if (!value) {
-      setHidden(false);
-      if (timerRef.current) clearTimeout(timerRef.current);
-    }
+    // A timer that fired before the feature was turned off leaves `hidden`
+    // true; clear it here so turning the feature back on starts visible.
+    setHidden(false);
+    writeStored(STORAGE_KEY, String(value));
   }, []);
 
   useEffect(() => {
@@ -81,34 +80,19 @@ export function useAutoHideUI() {
       resetTimer(!isAutoHideKeepTarget(event.target));
     };
     window.addEventListener('mousemove', moveHandler, { passive: true });
-    // Start the timer immediately
-    resetTimer();
+    // Start the timer immediately. The UI is already showing, so there is
+    // nothing to un-hide; only the countdown starts.
+    armTimer();
 
     return () => {
       events.forEach((e) => window.removeEventListener(e, handler));
       window.removeEventListener('mousemove', moveHandler);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [enabled, resetTimer]);
+  }, [enabled, armTimer, resetTimer]);
 
-  // Listen for cross-component setting changes
-  useEffect(() => {
-    const handler = () => {
-      const val = localStorage.getItem(STORAGE_KEY) === 'true';
-      setEnabledState(val);
-      if (!val) setHidden(false);
-    };
-    window.addEventListener('storage', handler);
-    window.addEventListener('prism:auto-hide-change', handler);
-    return () => {
-      window.removeEventListener('storage', handler);
-      window.removeEventListener('prism:auto-hide-change', handler);
-    };
-  }, []);
-
-  return {
-    autoHideEnabled: enabled,
-    setAutoHideEnabled: setEnabled,
-    uiHidden: mounted && enabled && isDashboard && hidden,
-  };
+  // `hidden` can be left true by a timer that fired before the feature was
+  // turned off (in another tab, say); gating on `enabled` here means it never
+  // hides the UI then.
+  return { autoHideEnabled: enabled, setAutoHideEnabled: setEnabled, uiHidden: enabled && isDashboard && hidden };
 }

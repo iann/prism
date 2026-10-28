@@ -1322,6 +1322,69 @@ html.performance-mode [class*="backdrop-blur"] {
   animation: wiggle 1.5s ease-in-out infinite;
 }
 
+/* Night sky screensaver: twinkle on the brightest stars and the odd shooting
+   star. Opacity and transform only, so the compositor runs them and the
+   canvas underneath is not redrawn. */
+@keyframes night-sky-twinkle {
+  0%, 100% { opacity: 0.15; transform: translate(-50%, -50%) scale(0.85); }
+  18% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.05); }
+  34% { opacity: 0.25; transform: translate(-50%, -50%) scale(0.9); }
+  57% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.15); }
+  78% { opacity: 0.2; transform: translate(-50%, -50%) scale(0.9); }
+}
+
+@keyframes night-sky-meteor {
+  0% { opacity: 0; transform: rotate(var(--angle)) translateX(0) scaleX(0.3); }
+  12% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--angle)) translateX(var(--travel)) scaleX(1); }
+}
+
+.night-sky-twinkle {
+  animation: night-sky-twinkle ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.night-sky-meteor {
+  transform-origin: 0 50%;
+  animation: night-sky-meteor 1.2s ease-out forwards;
+  will-change: opacity, transform;
+}
+
+/* Night sky screensaver: one constellation at a time, its lines traced out
+   from the brightest star, then named, held, and faded. */
+@keyframes night-sky-trace {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes night-sky-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes night-sky-lesson-out {
+  to { opacity: 0; }
+}
+
+.night-sky-trace {
+  stroke-dasharray: 1;
+  animation: night-sky-trace ease-in-out both;
+}
+
+.night-sky-appear {
+  animation: night-sky-appear 0.6s ease-out both;
+}
+
+.night-sky-lesson {
+  animation: night-sky-lesson-out ease-in forwards;
+}
+
+/* Reduced motion or Performance Mode: the figure appears whole and goes. */
+.night-sky-still,
+.night-sky-still * {
+  animation: none !important;
+}
+
 /* Allow color picker dropdowns to overflow grid items */
 .react-grid-item {
   overflow: visible !important;
@@ -2711,60 +2774,46 @@ body:has(.wall-display) [role='dialog'] select {
  * screen helps; moving the ones that are helps more, because it shifts the
  * boundaries themselves rather than what is inside them.
  *
- * All three are CSS animations and none of them touch JavaScript. That is not
- * an optimisation, it is the requirement: this runs for hours, so it has to
- * cost nothing and it has to stay smooth without depending on a frame loop that
- * is also drawing transitions.
+ * A CSS animation, untouched by JavaScript once started. That is not an
+ * optimisation, it is the requirement: this runs for hours, so it has to cost
+ * nothing and it has to stay smooth without depending on a frame loop that is
+ * also drawing transitions.
  *
  * Amplitudes are in whole pixels because sub-pixel movement does not shift
- * anything — the same physical pixels stay lit. Periods are in minutes because
- * anything you can see moving is a distraction on a display people read.
+ * anything: the same physical pixels stay lit. Four pixels moves a thin outline
+ * or a line of text clear of where it was; a big stroke never fully moves, and
+ * more drift would only make the motion noticeable. The period is minutes long
+ * because anything you can see moving is a distraction on a display people read.
+ *
+ * x = sin(t), y = sin(2t): a figure eight, which covers two axes without ever
+ * retracing the same path, the most displacement for the least apparent motion.
+ * Translation only: scaling or rotating moves a big widget's far edges further
+ * than its middle, which no gap can be sized for.
  */
-@keyframes prism-drift-breathe {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.012); }
-}
-
-/* A flag in almost no wind. Fifteen seconds was flag-like and far too busy for
-   something that runs all night; at seventy-five the shape is the same and you
-   have to watch to catch it, which is the whole brief. */
-@keyframes prism-drift-ripple {
-  0%, 100% { transform: translate(0, 0) rotate(0deg) skewY(0deg); }
-  20%      { transform: translate(5px, -3px) rotate(0.5deg) skewY(0.45deg); }
-  40%      { transform: translate(2px, 2px) rotate(-0.2deg) skewY(-0.3deg); }
-  60%      { transform: translate(-4px, -2px) rotate(-0.5deg) skewY(0.35deg); }
-  80%      { transform: translate(-2px, 3px) rotate(0.25deg) skewY(-0.2deg); }
-}
-
-/* x = sin(t), y = sin(2t): a figure eight, which covers two axes without ever
-   retracing the same path — the most displacement for the least apparent motion. */
-@keyframes prism-drift-figure8 {
+@keyframes prism-drift {
   0%    { transform: translate(0px, 0px); }
-  12.5% { transform: translate(7px, 7px); }
-  25%   { transform: translate(10px, 0px); }
-  37.5% { transform: translate(7px, -7px); }
+  12.5% { transform: translate(2.8px, 2.8px); }
+  25%   { transform: translate(4px, 0px); }
+  37.5% { transform: translate(2.8px, -2.8px); }
   50%   { transform: translate(0px, 0px); }
-  62.5% { transform: translate(-7px, 7px); }
-  75%   { transform: translate(-10px, 0px); }
-  87.5% { transform: translate(-7px, -7px); }
+  62.5% { transform: translate(-2.8px, 2.8px); }
+  75%   { transform: translate(-4px, 0px); }
+  87.5% { transform: translate(-2.8px, -2.8px); }
   100%  { transform: translate(0px, 0px); }
 }
 
-.prism-drift-breathe,
-.prism-drift-ripple,
-.prism-drift-figure8 {
+/* Set on a grid cell as data-drift by CssGridDisplay, not as a class: the
+   grid adds and removes it itself so that a widget can glide home from
+   wherever it has drifted to, rather than snapping back. The grid also sets
+   the duration and the shared starting point. */
+[data-drift] {
+  animation-name: prism-drift;
   animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
+  animation-timing-function: linear;
 }
 
-.prism-drift-breathe { animation-name: prism-drift-breathe; animation-duration: 22s; }
-.prism-drift-ripple  { animation-name: prism-drift-ripple;  animation-duration: 75s; }
-.prism-drift-figure8 { animation-name: prism-drift-figure8; animation-duration: 96s; animation-timing-function: linear; }
-
 @media (prefers-reduced-motion: reduce) {
-  .prism-drift-breathe,
-  .prism-drift-ripple,
-  .prism-drift-figure8 { animation: none; }
+  [data-drift] { animation: none; }
 }
 
 /**
@@ -2779,14 +2828,24 @@ body:has(.wall-display) [role='dialog'] select {
  *
  * It comes back the same way on arrival, for the same reason: a card that snaps
  * in is a rectangle appearing.
+ *
+ * In the utilities layer, and one class more specific than the outline. The
+ * "Show widget outlines" colour is a Tailwind utility, so it sits in that
+ * layer, and an !important rule in a layer beats an unlayered one whatever the
+ * specificity. Unlayered, this lost: with outlines on, which is the default,
+ * the outline stayed at full strength through the whole wind-up and then
+ * vanished all at once at the burst, a rectangle cut out of the sky.
  */
-.prism-shed [class*="bg-card"] {
-  background-color: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  transition: background-color 2.8s ease-in-out,
-              border-color 2.8s ease-in-out,
-              box-shadow 2.8s ease-in-out;
+@layer utilities {
+  .prism-shed [class*="bg-card"],
+  .prism-shed [class*="bg-card"].border-border {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    transition: background-color 2.8s ease-in-out,
+                border-color 2.8s ease-in-out,
+                box-shadow 2.8s ease-in-out;
+  }
 }
 
 /**

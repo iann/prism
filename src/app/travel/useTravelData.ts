@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import type { TravelPin, TravelTrip } from './types';
+import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
 
 export class TravelAuthError extends Error {
   /** 401: nobody is signed in (AuthProvider opens the PIN box). 403: signed in, not allowed. */
@@ -46,7 +47,7 @@ export function useTravelData() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFetchOnMount(load);
   useVisibilityPolling(load, 300_000);
 
   // ── Pins ──────────────────────────────────────────────────────────────────

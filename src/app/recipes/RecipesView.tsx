@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from '@/components/ui/use-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageLoader } from '@/components/ui/spinner';
 import { useRecipes, type Recipe } from '@/lib/hooks/useRecipes';
 import { useShoppingLists } from '@/lib/hooks/useShoppingLists';
+import { useResetOn } from '@/lib/hooks/useResetOn';
 import { useAuth } from '@/components/providers';
 import { useRecipesFilters } from './useRecipesFilters';
 import { RecipeCard } from './RecipeCard';
@@ -30,6 +31,7 @@ import { ImportPaprikaModal } from './ImportPaprikaModal';
 import { ImportTextModal } from './ImportTextModal';
 import { RecipeSyncModal } from '@/components/sync/RecipeSyncModal';
 import type { ParsedRecipeText } from '@/lib/utils/recipeTextParser';
+import { latestRecord } from '@/lib/utils/latestRecord';
 
 type ViewMode = 'all' | 'favorites';
 
@@ -39,7 +41,7 @@ export function RecipesView() {
   const searchParams = useSearchParams();
 
   const [viewMode, setViewMode] = useState<ViewMode>('all');
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [pickedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportUrlModal, setShowImportUrlModal] = useState(false);
   const [showImportPaprikaModal, setShowImportPaprikaModal] = useState(false);
@@ -47,7 +49,6 @@ export function RecipesView() {
   const [showSyncTandoorModal, setShowSyncTandoorModal] = useState(false);
   const [textPrefill, setTextPrefill] = useState<ParsedRecipeText | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [paramHandled, setParamHandled] = useState(false);
 
   const { recipes, loading, error, deleteRecipe, toggleFavorite, importFromUrl, importFromPaprika, createRecipe, updateRecipe, refresh } = useRecipes({
     favorite: viewMode === 'favorites' ? true : undefined,
@@ -63,22 +64,18 @@ export function RecipesView() {
 
   const { lists: shoppingLists, addItem: addShoppingItem } = useShoppingLists();
 
-  // Keep selectedRecipe in sync (for favorite toggle, etc.)
-  useEffect(() => {
-    if (!selectedRecipe) return;
-    const updated = recipes.find(r => r.id === selectedRecipe.id);
-    if (updated && updated.isFavorite !== selectedRecipe.isFavorite) setSelectedRecipe(updated);
-  }, [recipes, selectedRecipe]);
+  // The open recipe as the list has it now, so a favourite toggle or an edit
+  // shows straight away.
+  const selectedRecipe = pickedRecipe ? latestRecord(recipes, pickedRecipe) : null;
 
   // Auto-open recipe from ?recipe=<id> search param (e.g. linked from meals page)
+  // Once, when the recipes have loaded: a later refresh keeps the same key, so
+  // a recipe the user closed does not reopen.
   const recipeParam = searchParams.get('recipe');
-  useEffect(() => {
-    if (recipeParam && recipes.length > 0 && !paramHandled) {
-      const match = recipes.find(r => r.id === recipeParam);
-      if (match) setSelectedRecipe(match);
-      setParamHandled(true);
-    }
-  }, [recipeParam, recipes, paramHandled]);
+  useResetOn(recipes.length > 0 ? recipeParam : null, () => {
+    const match = recipeParam ? recipes.find(r => r.id === recipeParam) : undefined;
+    if (match) setSelectedRecipe(match);
+  });
 
   const handleDelete = async (recipe: Recipe) => {
     if (!await confirm(`Delete "${recipe.name}"?`, 'This cannot be undone.')) return;

@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { parseStored, useHydrated, useStoredString, writeStored } from './useStoredValue';
 
 export const MEDIA_PLAYER_DISMISSED_MEDIA_KEY =
   'prism:home-assistant-media-player-dismissed-media';
@@ -27,35 +28,18 @@ type PlaybackSnapshot = {
   stableState: 'playing' | 'paused' | null;
 };
 
-function readStoredDismissal(): StoredDismissal | null {
-  if (typeof window === 'undefined') return null;
-
-  try {
-    const stored = localStorage.getItem(MEDIA_PLAYER_DISMISSED_MEDIA_KEY);
-    if (!stored) return null;
-    const parsed: unknown = JSON.parse(stored);
-    if (
-      !parsed ||
-      typeof parsed !== 'object' ||
-      typeof (parsed as { entityId?: unknown }).entityId !== 'string' ||
-      typeof (parsed as { mediaIdentity?: unknown }).mediaIdentity !== 'string' ||
-      !(parsed as { entityId: string }).entityId ||
-      !(parsed as { mediaIdentity: string }).mediaIdentity
-    )
-      return null;
-    return parsed as StoredDismissal;
-  } catch {
-    // Storage can be unavailable or contain data from an older format.
+function parseDismissal(stored: string | null): StoredDismissal | null {
+  const parsed = parseStored(MEDIA_PLAYER_DISMISSED_MEDIA_KEY, stored);
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    typeof (parsed as { entityId?: unknown }).entityId !== 'string' ||
+    typeof (parsed as { mediaIdentity?: unknown }).mediaIdentity !== 'string' ||
+    !(parsed as { entityId: string }).entityId ||
+    !(parsed as { mediaIdentity: string }).mediaIdentity
+  )
     return null;
-  }
-}
-
-function clearStoredDismissal() {
-  try {
-    localStorage.removeItem(MEDIA_PLAYER_DISMISSED_MEDIA_KEY);
-  } catch {
-    // Storage can be unavailable in private or restricted browsing modes.
-  }
+  return parsed as StoredDismissal;
 }
 
 /** Keeps a dismissed media item hidden until content or the active playback session changes. */
@@ -66,18 +50,15 @@ export function useMediaPlayerDismissal({
   state,
   error,
 }: MediaPlayerDismissalInput) {
-  const [dismissalReady, setDismissalReady] = useState(false);
-  const [dismissedMedia, setDismissedMedia] = useState<StoredDismissal | null>(null);
+  // The dismissal lives in localStorage, read through the shared store: it is
+  // the server's null while hydrating, then this display's value.
+  const storedDismissal = useStoredString(MEDIA_PLAYER_DISMISSED_MEDIA_KEY);
+  const dismissedMedia = useMemo(() => parseDismissal(storedDismissal), [storedDismissal]);
+  const dismissalReady = useHydrated();
   const previousSnapshot = useRef<PlaybackSnapshot | null>(null);
 
-  useEffect(() => {
-    setDismissedMedia(readStoredDismissal());
-    setDismissalReady(true);
-  }, []);
-
   const clearDismissal = useCallback(() => {
-    setDismissedMedia(null);
-    clearStoredDismissal();
+    writeStored(MEDIA_PLAYER_DISMISSED_MEDIA_KEY, null);
   }, []);
 
   useEffect(() => {
@@ -166,13 +147,9 @@ export function useMediaPlayerDismissal({
   const dismiss = useCallback(() => {
     if (!entityId || !mediaIdentity) return;
 
-    const nextDismissal = { entityId, mediaIdentity };
-    try {
-      localStorage.setItem(MEDIA_PLAYER_DISMISSED_MEDIA_KEY, JSON.stringify(nextDismissal));
-    } catch {
-      // Keep the current session dismissed even if persistent storage fails.
-    }
-    setDismissedMedia(nextDismissal);
+    // writeStored keeps the choice in memory when storage refuses, so the
+    // session still stays dismissed.
+    writeStored(MEDIA_PLAYER_DISMISSED_MEDIA_KEY, JSON.stringify({ entityId, mediaIdentity }));
   }, [entityId, mediaIdentity]);
 
   const dismissed = Boolean(

@@ -17,6 +17,7 @@ import { AppVersionChecker } from './AppVersionChecker';
 import { GlobalInputProvider, useGlobalInput } from '@/lib/hooks/useGlobalInput';
 import { TimeFormatProvider } from './TimeFormatProvider';
 import type { Theme } from '@/lib/themes/tokens';
+import { DisplayHeartbeat } from '@/components/displays/DisplayHeartbeat';
 
 // simple-keyboard accesses browser globals at module load — must be client-only
 const VirtualKeyboard = dynamic(
@@ -75,6 +76,7 @@ export function Providers({
               <GlobalInputProvider>
                 {children}
                 <OptionalInputUi />
+                <DisplayHeartbeat />
               </GlobalInputProvider>
             </TimeFormatProvider>
           </AuthProvider>

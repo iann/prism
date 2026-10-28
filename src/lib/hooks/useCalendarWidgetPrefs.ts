@@ -5,6 +5,7 @@ import { addDays, addWeeks, addMonths, subDays, subWeeks, subMonths } from 'date
 import type { OverlayFlags } from '@/lib/hooks/useDayBucketsForRange';
 import { useTimeFormat } from '@/components/providers';
 import { useFollowToday } from '@/lib/hooks/useFollowToday';
+import { useResetOn } from '@/lib/hooks/useResetOn';
 import { toDisplayDate } from '@/lib/utils/timeFormat';
 
 /**
@@ -135,9 +136,10 @@ export function useCalendarWidgetPrefs(
   const { displayTimezone } = useTimeFormat();
   const [currentDate, setCurrentDate] = useState(() => new Date());
 
-  useEffect(() => {
-    setCurrentDate(toDisplayDate(new Date(), displayTimezone));
-  }, [displayTimezone]);
+  // Back to today in the display zone whenever the zone changes, including
+  // when the household's zone arrives after the first render. Done during
+  // render, so the old zone's date is never painted.
+  useResetOn(displayTimezone, () => setCurrentDate(toDisplayDate(new Date(), displayTimezone)));
   useFollowToday(currentDate, setCurrentDate, displayTimezone);
   const [widgetBordered, setWidgetBordered] = useState(
     () =>

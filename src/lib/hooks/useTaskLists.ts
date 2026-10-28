@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useFetchOnMount } from './useFetchOnMount';
 
 export interface TaskList {
   id: string;
@@ -51,13 +52,15 @@ export function useTaskLists(options: { enabled?: boolean } = {}) {
     }
   }, []);
 
-  useEffect(() => {
+  const loadInitialLists = useCallback(async () => {
     if (!enabled) {
       setLoading(false);
       return;
     }
-    fetchLists();
+    await fetchLists();
   }, [enabled, fetchLists]);
+
+  useFetchOnMount(loadInitialLists);
 
   const createList = useCallback(async (input: CreateTaskListInput): Promise<TaskList> => {
     const res = await fetch('/api/task-lists', {

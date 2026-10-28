@@ -13,6 +13,7 @@ import { useCachedMountFetch } from './useCachedMountFetch';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
 import { useDistinctState } from './useDistinctState';
+import { useLatestRef } from './useLatestRef';
 
 // Re-export Chore type from shared types for consumers that import from this hook
 export type { Chore } from '@/types';
@@ -83,8 +84,7 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
   const maxAgeMs = usePollingInterval(refreshInterval);
   const cached = navCacheGet<Chore[]>(cacheKey, maxAgeMs);
   const [chores, setChores] = useState<Chore[]>(() => cached ?? []);
-  const choresRef = useRef(chores);
-  choresRef.current = chores;
+  const choresRef = useLatestRef(chores);
   const [loading, setLoading] = useDistinctState(enabled && !cached);
   const [error, setError] = useDistinctState<string | null>(null);
   const hasDataRef = useRef(cached !== undefined);

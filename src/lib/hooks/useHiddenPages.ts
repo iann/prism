@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   ALWAYS_VISIBLE_HREFS,
   filterPortraitNavItems as filterPortraitNavItemsForSelection,
@@ -8,6 +8,7 @@ import {
   PORTRAIT_NAV_PAGES_SETTING_KEY,
 } from '@/lib/constants/navItems';
 import type { NavItem } from '@/lib/constants/navItems';
+import { useFetchOnMount } from './useFetchOnMount';
 
 const HIDDEN_PAGES_CACHE_KEY = 'prism:hidden-pages';
 const PORTRAIT_NAV_CACHE_KEY = 'prism:portrait-nav-pages';
@@ -57,9 +58,7 @@ export function useHiddenPages() {
     setLoaded(true);
   }, []);
 
-  useEffect(() => {
-    fetchHiddenPages();
-  }, [fetchHiddenPages]);
+  useFetchOnMount(fetchHiddenPages);
 
   const setHiddenPages = useCallback(async (pages: string[]) => {
     setHiddenPagesState(pages);

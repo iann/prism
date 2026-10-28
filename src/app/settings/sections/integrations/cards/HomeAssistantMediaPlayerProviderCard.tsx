@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { ProviderCardShell } from '../shared/ProviderCardShell';
+import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
 
 type Candidate = {
   entity_id: string;
@@ -55,9 +56,7 @@ export function HomeAssistantMediaPlayerProviderCard() {
     }
   }, []);
 
-  React.useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  useFetchOnMount(refresh);
 
   const validateUrl = () => {
     if (!baseUrl.trim()) return 'Home Assistant URL is required.';

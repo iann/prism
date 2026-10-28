@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
+import { useLatestRef } from './useLatestRef';
 import { usePollingInterval } from './usePollingInterval';
 import { useCachedMountFetch } from './useCachedMountFetch';
 import { navCacheGet, navCacheSet, navCacheDedupe } from '@/lib/utils/navCache';
@@ -46,10 +47,10 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
     pollWhileIdle = false,
   } = options;
 
-  const transformRef = useRef(transform);
-  transformRef.current = transform;
-  const labelRef = useRef(label);
-  labelRef.current = label;
+  // Refs rather than effect events: fetchData is also `refresh`, which event
+  // handlers call.
+  const transformRef = useLatestRef(transform);
+  const labelRef = useLatestRef(label);
 
   // A cached value younger than this hook's own interval is as fresh as a poll
   // that had remained mounted, so a remount can adopt it without a request.
@@ -57,34 +58,33 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
   const cached = navCacheGet<T>(url, maxAgeMs);
   const hasCachedValue = cached !== undefined;
   const [data, setDataState] = useState<T>(() => cached ?? initialData);
-  const dataRef = useRef(data);
-  dataRef.current = data;
+  // The setters compare against the last committed value so a poll that brings
+  // back what is already on screen does not re-render every consumer.
+  const dataRef = useLatestRef(data);
   const setData: Dispatch<SetStateAction<T>> = useCallback((update) => {
     setDataState((current) => {
-      const next = typeof update === 'function'
-        ? (update as (value: T) => T)(current)
-        : update;
+      const next = typeof update === 'function' ? (update as (value: T) => T)(current) : update;
+      // Keep the comparison up to date so a poll that lands before the next
+      // render cannot undo an optimistic write with the older payload.
       dataRef.current = next;
       return next;
     });
-  }, []);
+  }, [dataRef]);
 
   const [loadingState, setLoadingState] = useState(enabled && !hasCachedValue);
-  const loadingRef = useRef(loadingState);
-  loadingRef.current = loadingState;
+  const loadingRef = useLatestRef(loadingState);
   const setLoading = useCallback((next: boolean) => {
     if (loadingRef.current === next) return;
     loadingRef.current = next;
     setLoadingState(next);
-  }, []);
+  }, [loadingRef]);
   const [errorState, setErrorState] = useState<string | null>(null);
-  const errorRef = useRef(errorState);
-  errorRef.current = errorState;
+  const errorRef = useLatestRef(errorState);
   const setError = useCallback((next: string | null) => {
     if (errorRef.current === next) return;
     errorRef.current = next;
     setErrorState(next);
-  }, []);
+  }, [errorRef]);
 
   // Once a URL has loaded, polling stays stale-while-revalidate even when the
   // cache entry ages past the short navigation window.
@@ -132,7 +132,7 @@ export function useFetch<T>(options: UseFetchOptions<T>): UseFetchResult<T> {
     } finally {
       setLoading(false);
     }
-  }, [url, maxAgeMs, applyResult, setError, setLoading]);
+  }, [url, maxAgeMs, applyResult, setError, setLoading, transformRef, labelRef]);
 
   useCachedMountFetch<T>({
     key: url,

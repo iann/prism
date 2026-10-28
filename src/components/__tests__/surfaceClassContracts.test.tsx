@@ -372,6 +372,8 @@ describe('surface class contracts', () => {
       // Navigation and modal avatar initials with adjacent names or labels.
       'src/components/layout/MobileFab.tsx:text-[10px]',
       'src/components/layout/MobileNav.tsx:text-[10px]',
+      // The Stays / Fades switch on a widget in a calm dashboard's editor.
+      'src/components/layout/grid/CssGridEditor.tsx:text-[11px]',
 
       'src/components/modals/AddMessageModal.tsx:text-[10px]',
       'src/components/modals/AddMessageModal.tsx:text-[10px]',

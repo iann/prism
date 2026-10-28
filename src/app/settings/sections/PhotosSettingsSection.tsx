@@ -13,6 +13,9 @@ import { useDisplayContextFilters, useTargetResolution } from '../SettingsView';
 import { usePinnedPhoto } from '@/components/layout/WallpaperBackground';
 import { usePhotos } from '@/lib/hooks/usePhotos';
 import { toast } from '@/components/ui/use-toast';
+import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
+import { useResetOn } from '@/lib/hooks/useResetOn';
+import { useSearchParams } from 'next/navigation';
 
 interface PhotoSource {
   id: string;
@@ -62,38 +65,43 @@ export function PhotosSettingsSection() {
     }
   }, []);
 
-  React.useEffect(() => {
-    fetchSources();
-  }, [fetchSources]);
+  useFetchOnMount(fetchSources);
 
-  // Auto-open folder picker after OAuth redirect
+  // Auto-open the folder picker after the OneDrive OAuth redirect, in the
+  // first render that sees the redirect's URL.
+  const searchParams = useSearchParams();
+  const connectedSourceId = searchParams.get('success') === 'onedrive_connected'
+    ? searchParams.get('sourceId')
+    : null;
+  useResetOn(connectedSourceId, () => {
+    if (!connectedSourceId) return;
+    setPickingFolder(connectedSourceId);
+    setFolderStack([]);
+  });
+  // Then clean the URL, so a reload does not open the picker again.
   React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const success = params.get('success');
-    const sourceId = params.get('sourceId');
-    if (success === 'onedrive_connected' && sourceId) {
-      // Clean URL then open picker
-      window.history.replaceState({}, '', '/settings?section=photos');
-      setPickingFolder(sourceId);
-      setFolderStack([]);
-    }
-  }, []);
+    if (connectedSourceId) window.history.replaceState({}, '', '/settings?section=photos');
+  }, [connectedSourceId]);
 
   // Load folders whenever picker opens or stack changes
-  React.useEffect(() => {
+  const loadFolders = React.useCallback(async () => {
     if (!pickingFolder) return;
     const parentId = folderStack.at(-1)?.id;
     setFoldersLoading(true);
     const url = parentId
       ? `/api/photo-sources/${pickingFolder}/folders?parentId=${parentId}`
       : `/api/photo-sources/${pickingFolder}/folders`;
-    fetch(url)
-      .then((r) => r.ok ? r.json() : { folders: [] })
-      .then((d) => setFolders(d.folders || []))
-      .catch(() => setFolders([]))
-      .finally(() => setFoldersLoading(false));
+    try {
+      const r = await fetch(url);
+      const d = r.ok ? await r.json() : { folders: [] };
+      setFolders(d.folders || []);
+    } catch {
+      setFolders([]);
+    } finally {
+      setFoldersLoading(false);
+    }
   }, [pickingFolder, folderStack]);
+  useFetchOnMount(loadFolders);
 
   const openFolderPicker = (sourceId: string) => {
     setPickingFolder(sourceId);

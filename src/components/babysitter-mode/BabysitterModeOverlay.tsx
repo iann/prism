@@ -52,7 +52,8 @@ export function BabysitterModeOverlay({ toggle }: BabysitterModeOverlayProps) {
   const [visible, setVisible] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
 
-  // Fade in effect
+  // Fade in a tick after this overlay mounts. It is only mounted while
+  // babysitter mode is on, so mounting is the moment to open.
   useEffect(() => {
     const timer = setTimeout(() => setVisible(true), 50);
     return () => clearTimeout(timer);
