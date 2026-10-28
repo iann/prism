@@ -32,6 +32,7 @@ export const SCREEN_SETTING_KEYS = [
   'prism-screensaver-wobble',
   'prism-screensaver-speed',
   'prism-screensaver-water-clear',
+  'prism-screensaver-dim',
   // Performance mode.
   'prism-perf-mode',
   // Keyboard and the shape of the screen.

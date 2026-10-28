@@ -1,4 +1,5 @@
 import { normalise as normaliseMotion } from '@/components/screensaver/useScreensaverMotion';
+import { DEFAULT_DIM_LEVEL, DIM_LEVELS } from '@/components/screensaver/idleDim';
 import type { ScreenSettingChanges, ScreenSettingKey, ScreenSettings } from './screenSettings';
 
 /**
@@ -168,6 +169,13 @@ export const SCREEN_SETTING_FIELDS: ScreenSettingField[] = [
     group: 'Screensaver',
     options: onOff('On', 'Off'),
     fallback: 'on',
+  },
+  {
+    key: 'prism-screensaver-dim',
+    label: 'Dim when idle',
+    group: 'Screensaver',
+    options: DIM_LEVELS,
+    fallback: DEFAULT_DIM_LEVEL,
   },
   {
     key: 'prism-screensaver-shortcut',

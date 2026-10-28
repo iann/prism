@@ -19,6 +19,8 @@ import { useOrientationOverride } from '../SettingsView';
 import { useScreensaverTimeout } from '@/lib/hooks/useScreensaverTimeout';
 import { useScreensaverMotion, type ScreensaverMotion } from '@/components/screensaver/useScreensaverMotion';
 import { useScreensaverBackdrop, type ScreensaverBackdrop } from '@/components/screensaver/useScreensaverBackdrop';
+import { DIM_LEVELS, describeDimHours, useIdleDimSetting } from '@/components/screensaver/idleDim';
+import { useHiddenHours } from '@/lib/hooks/useHiddenHours';
 import { useIdleLogoutSetting, IDLE_LOGOUT_OPTIONS } from '@/lib/hooks/useIdleLogout';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useAwayModeTimeout } from '@/lib/hooks/useAwayModeTimeout';
@@ -520,6 +522,8 @@ function ScreensaverCard() {
     carbonation, setCarbonation, waterClear, setWaterClear, wobble, setWobble, speed, setSpeed,
   } = useScreensaverMotion();
   const { backdrop, setBackdrop } = useScreensaverBackdrop();
+  const { level: dimLevel, setLevel: setDimLevel } = useIdleDimSetting();
+  const { settings: calendarHours } = useHiddenHours();
 
   return (
     <Card id="screensaver-settings">
@@ -697,6 +701,24 @@ function ScreensaverCard() {
             idle, so no edge or line of text sits on the same pixels for months. It
             applies to the screensaver and to a dashboard that fades to a calm view of
             itself.
+          </p>
+          <div className="flex items-center gap-3 pl-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">Dim when idle</span>
+            <select
+              aria-label="Dim when idle"
+              value={dimLevel}
+              onChange={(e) => setDimLevel(e.target.value)}
+              className="border border-border rounded px-2 py-1 text-sm bg-background"
+            >
+              {DIM_LEVELS.map((l) => <option key={l.raw} value={l.raw}>{l.label}</option>)}
+            </select>
+          </div>
+          <p className="text-xs text-muted-foreground pl-2" data-dim-hours>
+            Darkens the idle screen during the hours the calendar hides:{' '}
+            {describeDimHours(calendarHours)}. Those hours are set for every screen on the{' '}
+            <a href="/calendar" className="underline">Calendar</a> page, under Manage &gt; Calendar
+            Hours; how dark is set per screen. A touch brings back full brightness. A web page
+            cannot change the screen&apos;s own brightness or power.
           </p>
           <label className="flex items-center gap-3 pl-2 cursor-pointer">
             <input
