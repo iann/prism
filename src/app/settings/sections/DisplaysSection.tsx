@@ -12,11 +12,15 @@ import { cn } from '@/lib/utils';
 import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
 import { useLayouts } from '@/lib/hooks/useLayouts';
 import { reloadForRemoteChange, resetSyncBase, syncScreenSettings } from '@/lib/displays/displaySettingsSync';
+import type { ScreenSettingChanges, ScreenSettings } from '@/lib/displays/screenSettings';
+import { ScreenSettingsPanel } from './ScreenSettingsPanel';
 
 /**
- * Settings > Displays (#690): name each screen in the house and see which are
- * on. The same page carries the per-dashboard display settings the personal
- * fork already had — text size and the media-player card.
+ * Settings > Displays (#690): name each screen in the house, see which are on,
+ * and change another screen's own settings from here, so one section serves
+ * every screen rather than a page per screen. The same page carries the
+ * per-dashboard display settings the personal fork already had — text size and
+ * the media-player card.
  */
 
 type DisplayEntry = {
@@ -25,6 +29,7 @@ type DisplayEntry = {
   lastSeenAt: string | null;
   online: boolean;
   dashboardId: string | null;
+  settings: ScreenSettings;
 };
 
 const NAME_MAX = 60;
@@ -55,6 +60,7 @@ export function DisplaysSection() {
   const [takeOverId, setTakeOverId] = useState('');
   const [alsoTrust, setAlsoTrust] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [settingsId, setSettingsId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +165,13 @@ export function DisplaysSection() {
       body: JSON.stringify({ dashboardId }),
     }));
 
+  const saveSettings = (id: string, settings: ScreenSettingChanges) =>
+    run(() => fetch(`/api/displays/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings }),
+    }));
+
   const rename = async (id: string) => {
     const ok = await run(() => fetch(`/api/displays/${id}`, {
       method: 'PATCH',
@@ -258,7 +271,7 @@ export function DisplaysSection() {
       <div>
         <h2 className="text-2xl font-bold">Displays</h2>
         <p className="text-muted-foreground">
-          Name each screen in the house, so you can see which ones are on and, later,
+          Name each screen in the house, so you can see which ones are on and
           change a screen&apos;s settings from your phone. A browser nobody named works
           just as it always has.
         </p>
@@ -384,6 +397,17 @@ export function DisplaysSection() {
                         <option key={l.id} value={l.id}>{l.name}</option>
                       ))}
                     </select>
+                    {/* This screen's own settings are on its Appearance and Input pages. */}
+                    {d.id !== currentId && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-expanded={settingsId === d.id}
+                        onClick={() => setSettingsId(settingsId === d.id ? null : d.id)}
+                      >
+                        Settings
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -395,6 +419,14 @@ export function DisplaysSection() {
                     <Button size="sm" variant="ghost" disabled={busy} onClick={() => void remove(d)}>
                       Remove
                     </Button>
+                    {settingsId === d.id && (
+                      <ScreenSettingsPanel
+                        name={d.name}
+                        settings={d.settings ?? {}}
+                        online={d.online}
+                        save={(changes) => saveSettings(d.id, changes)}
+                      />
+                    )}
                   </>
                 )}
               </li>
