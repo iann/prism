@@ -136,26 +136,24 @@ async function expectPainted(page: Page, marker?: Locator) {
  *
  * The widgets fetch after the layout does, and `networkidle` can be reached in
  * the gap between the two: a baseline captured there is a wall of placeholder
- * bars. The Tasks tile is the marker because the seeded dashboard always has
- * one; the rest start with it, and the extra beat lets them paint too.
+ * bars. Wait for the skeletons to clear instead.
  */
 async function waitForDashboardWidgets(page: Page) {
-  // The grid itself renders after the layouts request, so the cell can still be
-  // missing when network goes idle.
+  // The grid renders after the layouts request, so the cells can still be
+  // missing when the network goes idle. Wait for them, then for every widget's
+  // skeleton to clear — and check again a beat later, since a widget that
+  // remounts puts its skeleton back.
   await page.locator('.widget-cell[data-widget="tasks"]').waitFor({ state: 'attached', timeout: 30_000 });
-  await page.waitForFunction(
-    () => {
-      const cell = document.querySelector('.widget-cell[data-widget="tasks"]');
-      if (!cell) return false;
-      // The cell exists before the widget's own data arrives, and the skeleton
-      // can be mounted a beat later — require both the rows and the text.
-      const text = (cell.textContent ?? '').trim();
-      return text.length > 20 && !cell.querySelector('.animate-pulse');
-    },
-    null,
-    { timeout: 30_000 },
-  );
-  await page.waitForTimeout(400);
+  const noSkeletons = () =>
+    page.waitForFunction(
+      () => document.querySelectorAll('.widget-cell .animate-pulse').length === 0,
+      null,
+      { timeout: 30_000 },
+    );
+  await noSkeletons();
+  await page.waitForTimeout(800);
+  await noSkeletons();
+  await page.waitForTimeout(200);
 }
 
 /**
