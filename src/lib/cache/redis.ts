@@ -35,6 +35,27 @@ export async function getCached<T>(
   }
 }
 
+export async function getCache<T>(key: string): Promise<T | null> {
+  const client = await getRedisClient();
+
+  if (!client) return null;
+
+  try {
+    const cached = await client.get(key);
+    if (!cached) return null;
+
+    try {
+      return JSON.parse(cached) as T;
+    } catch {
+      console.warn(`Invalid cached data for key: ${key}`);
+      return null;
+    }
+  } catch (error) {
+    console.error('Failed to read cache:', error instanceof Error ? error.message : 'Unknown error');
+    return null;
+  }
+}
+
 export async function setCache<T>(
   key: string,
   value: T,

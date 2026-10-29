@@ -22,9 +22,9 @@ import { logError } from '@/lib/utils/logError';
 import type { WeatherCurrentSource, WeatherUnits } from '@/components/widgets/WeatherWidget';
 import {
   applyAirGradientCurrent,
-  fetchAirGradientMeasurement,
   syncCurrentHourlyTemperature,
 } from '@/lib/integrations/airgradient';
+import { readAirGradient } from '@/lib/integrations/airgradientReading';
 
 // Keep provider responses cached longer than the local sensor. The dashboard
 // polls every minute, while Pirate Weather's response can stay cached for
@@ -32,7 +32,6 @@ import {
 const WEATHER_CACHE_TTL = 30 * 60;
 const PIRATE_WEATHER_CACHE_TTL = 5 * 60;
 const WEATHER_ALERT_CACHE_TTL = 5 * 60;
-const AIRGRADIENT_CACHE_TTL = 60;
 
 /**
  * Resolve location: query param > DB setting (lat/lon preferred, legacy string fallback) > env var > default
@@ -137,19 +136,22 @@ export async function GET(request: NextRequest) {
     }
 
     let currentSource: WeatherCurrentSource = provider === 'pirate' ? 'pirate' : 'provider';
-    try {
-      const airGradientCacheTarget = process.env.AIRGRADIENT_URL?.trim() || 'default';
-      const airGradient = await getCached(
-        `airgradient:${airGradientCacheTarget}:current`,
-        fetchAirGradientMeasurement,
-        AIRGRADIENT_CACHE_TTL,
+    const airGradient = await readAirGradient();
+    if (airGradient.status === 'offline') {
+      // A short outage keeps serving the last good reading inside
+      // readAirGradient. Reaching this branch means the monitor has been
+      // unreachable for more than fifteen minutes.
+      if (airGradient.error) {
+        logError('AirGradient offline; using weather provider current data:', airGradient.error);
+      }
+    } else {
+      weatherData = applyAirGradientCurrent(
+        weatherData,
+        airGradient.measurement,
+        units,
+        airGradient.observedAt,
       );
-      weatherData = applyAirGradientCurrent(weatherData, airGradient, units);
       currentSource = 'airgradient';
-    } catch (error) {
-      // The local monitor is deliberately best-effort. Keep provider data
-      // available when it is offline, but expose the fallback state to UI.
-      logError('AirGradient unavailable; using weather provider current data:', error);
     }
 
     // Whichever source supplied the current reading, make the timeline's

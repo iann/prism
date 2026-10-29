@@ -175,7 +175,8 @@ export function syncCurrentHourlyTemperature(weatherData: WeatherData): WeatherD
 export function applyAirGradientCurrent(
   weatherData: WeatherData,
   measurement: AirGradientMeasurement,
-  units: WeatherUnits
+  units: WeatherUnits,
+  observedAt: Date = new Date()
 ): WeatherData {
   const temperature = celsiusToDisplay(measurement.temperatureC, units);
   const humidity = measurement.humidity ?? weatherData.current.humidity;
@@ -197,7 +198,7 @@ export function applyAirGradientCurrent(
 
   return syncCurrentHourlyTemperature({
     ...weatherData,
-    lastUpdated: new Date(),
+    lastUpdated: observedAt,
     current: {
       ...weatherData.current,
       temperature,

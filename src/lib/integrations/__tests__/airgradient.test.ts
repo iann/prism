@@ -129,6 +129,35 @@ describe('AirGradient integration', () => {
     expect(result.hourly?.[1]?.temp).toBe(88);
   });
 
+  it('reports the actual reading time when the value is reused', async () => {
+    const { applyAirGradientCurrent } = await import('../airgradient');
+    const observedAt = new Date('2026-10-24T15:00:00Z');
+    const baseWeather = {
+      location: 'Melrose, MA',
+      current: {
+        temperature: 70,
+        feelsLike: 70,
+        condition: 'sunny' as const,
+        humidity: 50,
+        windSpeed: 3,
+        description: 'Clear',
+      },
+      forecast: [],
+      hourly: [],
+      units: { temperature: 'F' as const, windSpeed: 'mph' as const, precipitation: 'in' as const },
+      lastUpdated: new Date('2026-10-24T14:00:00Z'),
+    };
+
+    const result = applyAirGradientCurrent(
+      baseWeather,
+      { temperatureC: 20 },
+      baseWeather.units,
+      observedAt,
+    );
+
+    expect(result.lastUpdated).toEqual(observedAt);
+  });
+
   it('aligns the active timeline slot when the provider is the current source', async () => {
     const { syncCurrentHourlyTemperature } = await import('../airgradient');
     const now = Date.now();
