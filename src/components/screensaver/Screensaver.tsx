@@ -34,6 +34,13 @@ import { useScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
 import { useViewportSize } from '@/lib/hooks/useViewportSize';
 import { setDisplayIdle } from '@/lib/hooks/useDisplayIdle';
 import { PollingScopeContext } from '@/lib/hooks/pollingScope';
+import { useResetOn } from '@/lib/hooks/useResetOn';
+import { useScreensaverBackdrop, useSkyLocation, useSkyShowing } from './useScreensaverBackdrop';
+import { setCalmIdle, useActiveScreensaverMode } from './calmMode';
+import { IdleDim } from './idleDim';
+
+// Only displays that choose the sky load its star catalogue.
+const NightSky = React.lazy(() => import('./nightSky/NightSky').then((m) => ({ default: m.NightSky })));
 
 /**
  * Wrapper classes that make any dashboard widget legible as a screensaver
@@ -75,11 +82,19 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
   // LazyOverlays owns the first idle hook so it can avoid mounting this heavy
   // tree on every page. Pass that state through when it mounts us: otherwise
   // the activation event has already fired before this second hook exists.
-  const isIdle = shouldShowScreensaver({
+  const idle = shouldShowScreensaver({
     idle: idleOverride ?? idleNow,
     away: isAway,
     babysitter: isBabysitter,
   });
+  // A calm dashboard is its own idle screen (#691): this decides when, and the
+  // dashboard does the showing, so there is no overlay to put up.
+  const calm = useActiveScreensaverMode() === 'calm';
+  const isIdle = idle && !calm;
+  useEffect(() => {
+    setCalmIdle(idle && calm);
+    return () => setCalmIdle(false);
+  }, [idle, calm]);
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: screensaverInterval } = useScreensaverInterval();
@@ -90,26 +105,37 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
         null
       : null;
   const effectiveOrientation = orientationOverride || screenOrientation;
+  // Only while the overlay is up: this component stays mounted so the idle dim
+  // layer and the calm handshake exist, but it should not fetch photos for a
+  // dashboard nobody is idling on.
   const { photos } = usePhotos({
     sort: 'random',
     limit: performanceMode ? 1 : 50,
     usage: 'screensaver',
     orientation: autoOrientation ? effectiveOrientation : undefined,
+    enabled: isIdle,
   });
   // Tell the polling layer the display is covered. On a wall-mounted screen
   // this is the only pause signal that ever fires: document.hidden cannot,
-  // because the tab is never hidden. See useDisplayIdle.
+  // because the tab is never hidden. See useDisplayIdle. A calm display is
+  // never covered: its dashboard is what the idle screen shows, so it keeps
+  // refreshing.
   useEffect(() => {
     setDisplayIdle(isIdle);
     return () => setDisplayIdle(false);
   }, [isIdle]);
+
+  const { backdrop } = useScreensaverBackdrop();
+  const { lat, lon } = useSkyLocation(backdrop !== 'photos');
+  const showSky = useSkyShowing(backdrop, lat, lon, isIdle);
+
   const [visible, setVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fadingOut, setFadingOut] = useState(false);
 
   // Only rotate if no pinned photo and interval is not "never" (0)
   useEffect(() => {
-    if (!isIdle || photos.length <= 1 || pinnedId || screensaverInterval === 0) return;
+    if (!isIdle || showSky || photos.length <= 1 || pinnedId || screensaverInterval === 0) return;
     const timer = setInterval(() => {
       setFadingOut(true);
       setTimeout(() => {
@@ -118,52 +144,71 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
       }, 1000);
     }, screensaverInterval * 1000);
     return () => clearInterval(timer);
-  }, [isIdle, photos.length, pinnedId, screensaverInterval]);
+  }, [isIdle, showSky, photos.length, pinnedId, screensaverInterval]);
 
+  // Fade in a tick after it mounts; start over transparent each time it ends.
+  useResetOn(isIdle, () => {
+    if (!isIdle) setVisible(false);
+  });
   useEffect(() => {
-    if (isIdle) {
-      const timer = setTimeout(() => setVisible(true), 50);
-      return () => clearTimeout(timer);
-    }
-    setVisible(false);
+    if (!isIdle) return;
+    const timer = setTimeout(() => setVisible(true), 50);
+    return () => clearTimeout(timer);
   }, [isIdle]);
 
-  if (!isIdle) return null;
+  // Over both idle screens, so it is outside the overlay below and stays
+  // mounted while a calm dashboard is idle. Same place in both returns, so it
+  // keeps its state and eases out on waking.
+  const dim = <IdleDim idle={idle} />;
+  if (!isIdle) return <>{dim}{null}</>;
 
-  // Use pinned photo if set, otherwise use rotating photos
-  const src = pinnedId
+  // Use pinned photo if set, otherwise use rotating photos. None at all under
+  // the sky, so it loads nothing for as long as it is up.
+  const src = showSky ? '' : pinnedId
     ? `/api/photos/${pinnedId}/file${performanceMode ? '?thumb=1' : ''}`
     : photos[currentIndex]
       ? `/api/photos/${photos[currentIndex]!.id}/file${performanceMode ? '?thumb=1' : ''}`
       : '';
 
   return (
-    <div
-      className={`fixed inset-0 z-9999 bg-black transition-opacity duration-1000 ${
-        visible ? 'opacity-100' : 'opacity-0'
-      }`}
-    >
-      {/* Decorative layers are absolutely positioned, so in CSS paint order they
-          sit ABOVE the (statically-positioned) widget grid and would swallow every
-          tap. pointer-events-none lets taps fall through to the widgets — needed
-          for the calendar view controls to be operable on the screensaver. */}
-      {src && (
-        <div
-          className="pointer-events-none absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
-          style={{
-            backgroundImage: `url(${src})`,
-            opacity: fadingOut ? 0 : 1,
-          }}
-        />
-      )}
-      <div className="pointer-events-none absolute inset-0 bg-black/40" />
-      {/* Screensaver widgets are the only visible copy while idle, so their
-          data polling remains active while the dashboard copy pauses. */}
-      <PollingScopeContext.Provider value="screensaver">
-        <ScreensaverGrid />
-      </PollingScopeContext.Provider>
-      <ScreensaverQuickSettings />
-    </div>
+    <>
+      {dim}
+      <div
+        className={`fixed inset-0 z-9999 bg-black transition-opacity duration-1000 ${
+          visible ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {/* Decorative layers are absolutely positioned, so in CSS paint order they
+            sit ABOVE the (statically-positioned) widget grid and would swallow every
+            tap. pointer-events-none lets taps fall through to the widgets — needed
+            for the calendar view controls to be operable on the screensaver. */}
+        {src && (
+          <div
+            className="pointer-events-none absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+            style={{
+              backgroundImage: `url(${src})`,
+              opacity: fadingOut ? 0 : 1,
+            }}
+          />
+        )}
+        {showSky ? (
+          <React.Suspense fallback={null}>
+            <NightSky lat={lat} lon={lon} />
+          </React.Suspense>
+        ) : (
+          // Photos are dimmed so the white widget text reads over them. The sky
+          // is already dark where it matters.
+          <div className="pointer-events-none absolute inset-0 bg-black/40" />
+        )}
+        {/* Scoped from out here rather than inside ScreensaverGrid: the grid
+            calls useDashboardData in its own body, which reads context from
+            where the grid SITS, not from what it renders. */}
+        <PollingScopeContext.Provider value="screensaver">
+          <ScreensaverGrid />
+        </PollingScopeContext.Provider>
+        <ScreensaverQuickSettings />
+      </div>
+    </>
   );
 }
 
@@ -371,20 +416,8 @@ function ScreensaverGrid() {
       ...props
     } = rawProps as Record<string, unknown>;
       const on = !effect || showing.includes(w.i);
-    // Every widget on its own schedule. Drifting in lockstep would move the
-    // whole board as one object, which is both obvious and useless — the
-    // relationship between widgets is exactly what would stay burned in.
-    // Derived from the widget's id so it is stable across renders.
-    let hash = 0;
-    for (let i = 0; i < w.i.length; i++) hash = (hash * 31 + w.i.charCodeAt(i)) % 997;
-    const driftPhase = -(hash % 60);
-
     return (
       <React.Suspense fallback={<div className="flex items-center justify-center h-full opacity-50 text-sm">Loading...</div>}>
-        <div
-          className={drift === 'off' ? 'h-full w-full' : `h-full w-full prism-drift-${drift}`}
-          style={drift === 'off' ? undefined : { animationDelay: `${driftPhase}s` }}
-        >
         <WidgetStage
           id={w.i}
           effect={effect}
@@ -403,7 +436,6 @@ function ScreensaverGrid() {
         >
           <Component {...props} />
         </WidgetStage>
-        </div>
       </React.Suspense>
     );
   };
@@ -432,6 +464,7 @@ function ScreensaverGrid() {
         containMode
         screenFrame={screenFrame}
         headerOffset={0}
+        drift={drift}
         className="w-full h-full"
       />
       </EffectStage>

@@ -52,7 +52,8 @@ export function AwayModeOverlay({ toggle }: AwayModeOverlayProps) {
     return () => clearInterval(timer);
   }, [photos.length, pinnedId, photoInterval]);
 
-  // Fade in effect
+  // Fade in a tick after this overlay mounts. It is only mounted while away
+  // mode is on, so mounting is the moment to open.
   useEffect(() => {
     const timer = setTimeout(() => setVisible(true), 50);
     return () => clearTimeout(timer);

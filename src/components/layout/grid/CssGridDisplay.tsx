@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { WidgetBgOverrideProvider } from '@/components/widgets/WidgetContainer';
 import {
   CUSTOM_WIDGET_SHELL_CLASS,
@@ -25,6 +25,10 @@ interface WidgetCellProps {
   revision: unknown;
   initiallyVisible: boolean;
   deferOffscreen: boolean;
+  /** Calm mode's idle state: drawn at zero opacity, still holding its place. */
+  faded?: boolean;
+  /** Slow burn-in drift while the display is idle. */
+  drift?: boolean;
 }
 
 function DeferredWidget({
@@ -43,26 +47,26 @@ function DeferredWidget({
   style?: React.CSSProperties;
 }) {
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = React.useState(!deferOffscreen || initiallyVisible);
+  const [seen, setSeen] = React.useState(false);
+  // Nothing to defer for a widget that is already on screen. The rest wait for
+  // the observer, which marks them as they come near.
+  const isVisible = !deferOffscreen || initiallyVisible || seen;
 
   React.useEffect(() => {
-    if (!deferOffscreen || initiallyVisible) {
-      setIsVisible(true);
-      return;
-    }
+    if (isVisible) return;
 
     const element = contentRef.current;
     if (!element || typeof IntersectionObserver === 'undefined') {
       // Older embedded Chromium builds do not expose IntersectionObserver.
-      // Rendering is the safe fallback for those displays.
-      setIsVisible(true);
-      return;
+      // Rendering is the safe fallback for those displays, after this commit.
+      const timer = setTimeout(() => setSeen(true), 0);
+      return () => clearTimeout(timer);
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setIsVisible(true);
+          setSeen(true);
           observer.disconnect();
         }
       },
@@ -72,7 +76,7 @@ function DeferredWidget({
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [deferOffscreen, initiallyVisible]);
+  }, [isVisible]);
 
   return (
     <div ref={contentRef} className={className} style={style}>
@@ -81,12 +85,67 @@ function DeferredWidget({
   );
 }
 
+/** One figure eight, in seconds. The keyframes are prism-drift in globals.css. */
+const DRIFT_PERIOD_S = 96;
+
+/**
+ * Where in the drift cycle a cell starts, in seconds (negative, so it is
+ * already under way): the same point for every cell, taken from the wall
+ * clock, so every widget on screen drifts in step however late it arrived.
+ */
+function driftPhase(): number {
+  return -((Date.now() / 1000) % DRIFT_PERIOD_S);
+}
+
+/**
+ * Start or stop one cell's drift.
+ *
+ * Done to the element rather than rendered, for the sake of stopping. Taking
+ * the animation away puts the cell straight back where it started, and a
+ * widget that has drifted four pixels jumps four pixels the moment the display
+ * wakes. So the cell is pinned where it is at that instant and eased home over
+ * the same second the faded widgets take to come back.
+ */
+function setCellDrift(el: HTMLElement, want: boolean) {
+  if ((el.dataset.drift !== undefined) === want) return;
+  if (want) {
+    el.style.transitionProperty = ''; // in case it was still easing home
+    el.dataset.drift = '';
+    el.style.animationDuration = `${DRIFT_PERIOD_S}s`;
+    el.style.animationDelay = `${driftPhase()}s`;
+    return;
+  }
+  const at = getComputedStyle(el).transform;
+  delete el.dataset.drift;
+  el.style.animationDuration = '';
+  el.style.animationDelay = '';
+  if (!at || at === 'none') return;
+  el.style.transform = at;
+  void el.offsetWidth; // commit the pinned position, or there is nothing to ease from
+  el.style.transitionProperty = 'opacity, transform';
+  el.style.transform = '';
+  const done = (e: TransitionEvent) => {
+    if (e.target !== el || e.propertyName !== 'transform') return;
+    el.style.transitionProperty = '';
+    el.removeEventListener('transitionend', done);
+  };
+  el.addEventListener('transitionend', done);
+}
+
 const WidgetCell = memo(function WidgetCell({
   widget,
   renderWidget,
   initiallyVisible,
   deferOffscreen,
+  faded = false,
+  drift = false,
 }: WidgetCellProps) {
+  const cellRef = useRef<HTMLDivElement>(null);
+  // A faded widget does not drift: there is nothing on screen to protect.
+  useEffect(() => {
+    if (cellRef.current) setCellDrift(cellRef.current, drift && !faded);
+  }, [drift, faded]);
+
   const widgetStyle = getWidgetStyle(widget);
   const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget);
@@ -106,9 +165,12 @@ const WidgetCell = memo(function WidgetCell({
 
   return (
     <div
-      className={`widget-cell relative overflow-hidden ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${textClass}`}
+      ref={cellRef}
+      className={`widget-cell relative overflow-hidden ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${textClass} transition-opacity duration-1000 motion-reduce:duration-200`}
       data-widget={getWidgetType(widget)}
       data-widget-instance={widget.i}
+      data-faded={faded || undefined}
+      aria-hidden={faded || undefined}
       style={{
         gridColumn: `${widget.x + 1} / span ${widget.w}`,
         gridRow: `${widget.y + 1} / span ${widget.h}`,
@@ -118,6 +180,10 @@ const WidgetCell = memo(function WidgetCell({
         // mounting in the first place.
         ...(deferOffscreen ? { contentVisibility: 'auto' as const } : {}),
         ...widgetStyle,
+        // Faded, not removed: the cell keeps its place in the grid, so nothing
+        // around it reflows. A tap on it falls to the empty grid, which wakes
+        // the display without pressing anything.
+        ...(faded ? { opacity: 0, pointerEvents: 'none' as const } : {}),
       }}
     >
       <WidgetBgOverrideProvider value={background}>
@@ -155,6 +221,8 @@ export function CssGridDisplay({
   designOrientation,
   containMode = false,
   screenFrame,
+  fadedIds,
+  drift = false,
   className,
 }: CssGridDisplayProps) {
   const { containerRef, cellSize: widthCellSize, width, top, zoom, remeasure } = useSquareCells(cols, containerPadding, margin, fillHeight);
@@ -344,6 +412,8 @@ export function CssGridDisplay({
               !deferOffscreen || (widget.y < visibleRows && widget.y + widget.h > 0)
             }
             deferOffscreen={deferOffscreen}
+            faded={fadedIds?.has(widget.i) ?? false}
+            drift={drift}
           />
         ))}
       </div>

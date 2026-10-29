@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
+import { useFetchOnMount } from './useFetchOnMount';
 
 export type BabysitterSection = 'emergency_contact' | 'house_info' | 'child_info' | 'house_rule';
 
@@ -145,9 +146,7 @@ export function useBabysitterInfo(
     [items]
   );
 
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+  useFetchOnMount(fetchItems);
 
   useVisibilityPolling(fetchItems, refreshInterval);
 

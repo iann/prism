@@ -25,6 +25,7 @@ import {
   Bus,
   KeyboardIcon,
   Monitor,
+  Type,
   Wand2,
   PartyPopper,
   ChevronLeft,
@@ -56,8 +57,10 @@ import { ActivityLogSection } from './sections/ActivityLogSection';
 import { PartyModeSection } from './sections/PartyModeSection';
 
 import { DisplaysSection } from './sections/DisplaysSection';
+import { TextSizeSection } from './sections/TextSizeSection';
 import { IntegrationsSection } from './sections/integrations/IntegrationsSection';
 import { useLayouts } from '@/lib/hooks/useLayouts';
+import { useResetOn } from '@/lib/hooks/useResetOn';
 
 
 // Exported hooks (consumed by other components)
@@ -211,13 +214,12 @@ export function SettingsView() {
   // but leaves urlSection unchanged, so on the next render the effect would
   // see (urlSection !== activeSection) and snap activeSection back to the
   // stale URL value. (This is the "stuck on bus tracking after Gmail auth"
-  // bug.) Only the URL changing should trigger a sync.
+  // bug.) Only the URL changing should trigger a sync. Done during render, so
+  // the old section is never painted for the new URL.
   const urlSection = searchParams.get('section');
-  React.useEffect(() => {
-    if (urlSection) {
-      setActiveSection(normalizeSection(urlSection));
-    }
-  }, [urlSection]);
+  useResetOn(urlSection, () => {
+    if (urlSection) setActiveSection(normalizeSection(urlSection));
+  });
 
   const sections = [
     { id: 'account', label: 'Account & Profile', icon: User },
@@ -227,6 +229,7 @@ export function SettingsView() {
     { id: 'integrations', label: 'Integrations', icon: Link2 },
     // Calendar management moved onto the Calendar page (Manage calendars button).
     { id: 'display', label: 'Appearance', icon: Palette },
+    { id: 'displays', label: 'Displays', icon: Monitor },
     { id: 'photos', label: 'Photos', icon: ImageIcon },
     { id: 'bus', label: 'Bus Tracking', icon: Bus },
     { id: 'input', label: 'Input', icon: KeyboardIcon },
@@ -235,7 +238,7 @@ export function SettingsView() {
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'backups', label: 'Backups & Data', icon: Database },
     { id: 'activity', label: 'Activity Log', icon: ClipboardList },
-    { id: 'displays', label: 'Text Size', icon: Monitor },
+    { id: 'text-size', label: 'Text Size', icon: Type },
     { id: 'about', label: 'About', icon: Info },
   ];
 
@@ -327,6 +330,7 @@ export function SettingsView() {
               {activeSection === 'party-mode' && <PartyModeSection />}
               {activeSection === 'integrations' && <IntegrationsSection />}
               {activeSection === 'displays' && <DisplaysSection />}
+              {activeSection === 'text-size' && <TextSizeSection />}
               {activeSection === 'photos' && <PhotosSettingsSection />}
               {activeSection === 'bus' && <BusTrackingSection />}
               {activeSection === 'babysitter' && <BabysitterInfoSection />}

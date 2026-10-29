@@ -265,6 +265,19 @@
       "turningBreezy": "{condition} {firstPeriod}, turning breezy {secondPeriod}.",
       "turningWind": "{condition} {firstPeriod}, turning {wind} {secondPeriod}.",
       "feelsLikeNow": "Feels like {temperature} now."
+    },
+    "eclipse": {
+      "sun": {
+        "partial": "Partial solar eclipse",
+        "annular": "Annular solar eclipse",
+        "total": "Total solar eclipse"
+      },
+      "moon": {
+        "partial": "Partial lunar eclipse",
+        "total": "Total lunar eclipse"
+      },
+      "line": "{name}: {begin} to {end}, peak {peak}",
+      "marker": "Eclipse {peak}"
     }
   }
 }

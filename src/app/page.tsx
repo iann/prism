@@ -1,5 +1,25 @@
+import { redirect } from 'next/navigation';
 import { DashboardClient } from './DashboardClient';
 import { db } from '@/lib/db/client';
+import { currentDisplay } from '@/lib/auth/displayIdentity';
+
+/**
+ * A named screen with its own dashboard set (#690) opens on that one instead
+ * of the household default. Null when it has none, or it no longer exists.
+ */
+async function screenDashboardSlug(): Promise<string | null> {
+  try {
+    const screen = await currentDisplay();
+    if (!screen?.dashboardId) return null;
+    const layout = await db.query.layouts.findFirst({
+      where: (l, { eq: eqFn }) => eqFn(l.id, screen.dashboardId!),
+      columns: { slug: true, isDefault: true },
+    });
+    return layout && !layout.isDefault ? layout.slug : null;
+  } catch {
+    return null;
+  }
+}
 
 export const metadata = {
   title: 'Dashboard',
@@ -13,6 +33,9 @@ export const dynamic = 'force-dynamic';
 // container driven by `layouts.fontScale`. The default route reads the
 // selected layout here; named dashboards do the equivalent in their layout.
 export default async function HomePage() {
+  const slug = await screenDashboardSlug();
+  if (slug) redirect(`/d/${slug}`);
+
   let fontScale = 100;
   try {
     const layout = await db.query.layouts.findFirst({

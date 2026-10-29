@@ -65,6 +65,7 @@ const RAIN_THRESHOLD_MM_PER_HOUR = 0.1;
 import { useTimeFormat } from '@/components/providers';
 import { useNow } from '@/lib/hooks/useNow';
 import { formatDisplayHour } from '@/lib/utils/timeFormat';
+import type { Eclipse } from '@/lib/integrations/eclipse';
 
 /**
  * WEATHER DATA TYPES
@@ -337,6 +338,8 @@ export interface WeatherData {
   moonIllumination?: number;
   /** Human-readable phase label, e.g. "Waning Gibbous". */
   moonPhaseName?: string;
+  /** An eclipse seen from the location today (computed locally via astronomy-engine). */
+  eclipse?: Eclipse;
   /** Latitude of the weather location, used to render its solar path on the world map. */
   lat?: number;
   /** Longitude of the weather location. Pair with lat. */
@@ -1025,13 +1028,10 @@ function ConditionBandLabel({
   const shortLabel = conditionBandShortLabel(condition, precipIntensity);
   const bandRef = React.useRef<HTMLDivElement>(null);
   const fullLabelRef = React.useRef<HTMLSpanElement>(null);
-  const [showFullLabel, setShowFullLabel] = React.useState(fullLabel === shortLabel);
+  const [fullLabelFits, setFullLabelFits] = React.useState(fullLabel === shortLabel);
 
   React.useEffect(() => {
-    if (fullLabel === shortLabel) {
-      setShowFullLabel(true);
-      return;
-    }
+    if (fullLabel === shortLabel) return;
 
     const band = bandRef.current;
     const fullLabelElement = fullLabelRef.current;
@@ -1042,7 +1042,7 @@ function ConditionBandLabel({
       const horizontalPadding = parseFloat(computedStyle.paddingLeft || '0')
         + parseFloat(computedStyle.paddingRight || '0');
       const availableWidth = band.clientWidth - horizontalPadding;
-      setShowFullLabel(fullLabelElement.getBoundingClientRect().width <= availableWidth);
+      setFullLabelFits(fullLabelElement.getBoundingClientRect().width <= availableWidth);
     };
 
     updateLabel();
@@ -1074,7 +1074,7 @@ function ConditionBandLabel({
         className="truncate text-[15px] font-medium text-foreground"
         data-condition-label={condition}
       >
-        {showFullLabel ? fullLabel : shortLabel}
+        {fullLabel === shortLabel || fullLabelFits ? fullLabel : shortLabel}
       </span>
     </div>
   );

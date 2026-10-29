@@ -132,6 +132,33 @@ async function expectPainted(page: Page, marker?: Locator) {
 }
 
 /**
+ * Wait until the dashboard's widgets have data rather than skeletons.
+ *
+ * The widgets fetch after the layout does, and `networkidle` can be reached in
+ * the gap between the two: a baseline captured there is a wall of placeholder
+ * bars. The Tasks tile is the marker because the seeded dashboard always has
+ * one; the rest start with it, and the extra beat lets them paint too.
+ */
+async function waitForDashboardWidgets(page: Page) {
+  // The grid itself renders after the layouts request, so the cell can still be
+  // missing when network goes idle.
+  await page.locator('.widget-cell[data-widget="tasks"]').waitFor({ state: 'attached', timeout: 30_000 });
+  await page.waitForFunction(
+    () => {
+      const cell = document.querySelector('.widget-cell[data-widget="tasks"]');
+      if (!cell) return false;
+      // The cell exists before the widget's own data arrives, and the skeleton
+      // can be mounted a beat later — require both the rows and the text.
+      const text = (cell.textContent ?? '').trim();
+      return text.length > 20 && !cell.querySelector('.animate-pulse');
+    },
+    null,
+    { timeout: 30_000 },
+  );
+  await page.waitForTimeout(400);
+}
+
+/**
  * Auth-required tests only run when a fresh test DB is available.
  * Live deployments have unknown PINs; running these would 400 on login.
  */
@@ -227,6 +254,7 @@ test.describe('Visual regression', () => {
       await page.waitForTimeout(800); // let theme + seasonal vars settle
 
       await expectPainted(page, page.locator('.widget-cell').first());
+      await waitForDashboardWidgets(page);
       await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
@@ -242,6 +270,7 @@ test.describe('Visual regression', () => {
       await page.waitForTimeout(800);
 
       await expectPainted(page, page.locator('.widget-cell').first());
+      await waitForDashboardWidgets(page);
       await expect(page).toHaveScreenshot(`dashboard-perf-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
@@ -458,6 +487,11 @@ test.describe('Visual regression', () => {
       // only child is the panel, which is the thing under test.
       const panel = page.locator('[data-testid="pin-modal"] > div');
       await expect(panel).toBeVisible();
+      // The panel's rounded corners, and the row above it when its top lands
+      // between pixels, show the dimmed dashboard through the backdrop. That
+      // holds live content (the weather, for one), so it changes from day to
+      // day with the clock held still. A solid backdrop leaves only the panel.
+      await page.addStyleTag({ content: '[data-testid="pin-modal"] { background: #000 !important; }' });
       await expect(panel).toHaveScreenshot(`pin-modal-${theme}.png`, SCREENSHOT_OPTIONS);
     });
   }

@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   ChevronsLeft,
   ChevronsRight,
@@ -49,30 +49,24 @@ function usePausedCardExpiry(
   >,
   now: Date
 ) {
-  const pausedSession = useRef<{ key: string; startedAt: number } | null>(null);
   const sessionKey = `${data.entityId ?? ''}:${data.mediaIdentity ?? ''}`;
+  const paused = data.active && data.state === 'paused';
+  const nowMs = now.getTime();
+  const reportedAt = data.positionUpdatedAt ? Date.parse(data.positionUpdatedAt) : NaN;
+  // Home Assistant's timestamp lets an already-paused session expire on the
+  // first render; local observation covers providers that do not report one.
+  const startedAt = Number.isFinite(reportedAt) && reportedAt <= nowMs ? reportedAt : nowMs;
 
-  if (data.active && data.state === 'paused') {
-    if (pausedSession.current?.key !== sessionKey) {
-      const reportedAt = data.positionUpdatedAt ? Date.parse(data.positionUpdatedAt) : NaN;
-      const nowMs = now.getTime();
-      pausedSession.current = {
-        key: sessionKey,
-        // Home Assistant's timestamp lets an already-paused session expire on
-        // first render; fall back to local observation when it is unavailable.
-        startedAt: Number.isFinite(reportedAt) && reportedAt <= nowMs ? reportedAt : nowMs,
-      };
-    }
-  } else {
-    pausedSession.current = null;
-  }
+  // Which session was paused and when it was first seen. Adjusted during render
+  // rather than copied in an effect, so the first render of a new pause already
+  // has it (the same shape as useLocalCopy).
+  const [session, setSession] = useState<{ key: string; startedAt: number } | null>(null);
+  let current = session;
+  if (!paused) current = null;
+  else if (session?.key !== sessionKey) current = { key: sessionKey, startedAt };
+  if (current !== session) setSession(current);
 
-  return Boolean(
-    data.active &&
-      data.state === 'paused' &&
-      pausedSession.current &&
-      now.getTime() - pausedSession.current.startedAt >= PAUSED_CARD_TIMEOUT_MS
-  );
+  return paused && current !== null && nowMs - current.startedAt >= PAUSED_CARD_TIMEOUT_MS;
 }
 
 export function MediaPlayerPlaybackCard({
@@ -101,7 +95,10 @@ export function MediaPlayerPlaybackCard({
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [seek, setSeek] = useState<number | null>(null);
-  const [artworkFailed, setArtworkFailed] = useState(false);
+  // Which artwork URL failed to load, rather than a flag, so new artwork is
+  // tried without a reset.
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+  const artworkFailed = failedArtworkUrl !== null && failedArtworkUrl === data.artworkUrl;
   const estimatedPlayback = estimateHomeAssistantMediaPlayerPosition(data, now);
   const position = seek ?? estimatedPlayback.position;
   const can = (control: string) => data.supportedControls.includes(control as never);
@@ -127,9 +124,6 @@ export function MediaPlayerPlaybackCard({
     void run({ control: 'volume_set', volumeLevel: Math.min(1, Math.max(0, nextVolume)) });
   };
   const endTime = estimatedPlayback.endTime;
-  useEffect(() => {
-    setArtworkFailed(false);
-  }, [data.artworkUrl]);
   if (
     !enabled ||
     !dismissalReady ||
@@ -234,7 +228,7 @@ export function MediaPlayerPlaybackCard({
                 src={artwork}
                 alt=""
                 className="h-48 w-48 shrink-0 rounded-xl object-cover"
-                onError={() => setArtworkFailed(true)}
+                onError={() => setFailedArtworkUrl(data.artworkUrl ?? null)}
               />
             ) : (
               <MediaPlayerArtwork service={data.mediaService} appName={data.appName} />

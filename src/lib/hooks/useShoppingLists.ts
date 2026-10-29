@@ -13,6 +13,7 @@ import { useCachedMountFetch } from './useCachedMountFetch';
 import { navCacheGet, navCacheSet, navCacheUpdate } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
 import { useDistinctState } from './useDistinctState';
+import { useLatestRef } from './useLatestRef';
 
 // Re-export types from shared types for consumers that import from this hook
 export type { ShoppingItem, ShoppingList } from '@/types';
@@ -57,8 +58,7 @@ export function useShoppingLists(options: UseShoppingListsOptions = {}): UseShop
   const maxAgeMs = usePollingInterval(refreshInterval);
   const cached = navCacheGet<ShoppingList[]>(CACHE_KEY, maxAgeMs);
   const [lists, setLists] = useState<ShoppingList[]>(() => cached ?? []);
-  const listsRef = useRef(lists);
-  listsRef.current = lists;
+  const listsRef = useLatestRef(lists);
   const [loading, setLoading] = useDistinctState(enabled && !cached);
   const [error, setError] = useDistinctState<string | null>(null);
   const hasDataRef = useRef(cached !== undefined);

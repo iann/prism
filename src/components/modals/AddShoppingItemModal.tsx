@@ -17,7 +17,8 @@
 
 import * as React from 'react';
 import { Emoji } from '@/components/ui/Emoji';
-import { useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
+import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
 import { Loader2 } from 'lucide-react';
 import {
   Dialog,
@@ -36,6 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui';
 import type { ShoppingList } from '@/types';
+import { useResetOn } from '@/lib/hooks/useResetOn';
 
 /**
  * Shopping item data returned after creation
@@ -126,67 +128,50 @@ export function AddShoppingItemModal({
   const [loadingLists, setLoadingLists] = useState(true);
 
   // Fetch shopping lists when modal opens
-  useEffect(() => {
-    if (open) {
-      fetchShoppingLists();
-    }
-  }, [open]);
-
-  // Populate form when editing
-  useEffect(() => {
-    if (open && item) {
-      setListId(item.listId);
-      setName(item.name);
-      setQuantity(item.quantity?.toString() || '');
-      setUnit(item.unit || '');
-      setCategory(item.category || 'other');
-      setNotes(item.notes || '');
-    }
-  }, [open, item]);
-
-  // Reset form when modal closes
-  useEffect(() => {
-    if (!open) {
-      setListId(defaultListId || '');
-      setName('');
-      setQuantity('');
-      setUnit('');
-      setCategory('other');
-      setNotes('');
-      setError(null);
-    }
-  }, [open, defaultListId]);
-
-  async function fetchShoppingLists() {
+  const fetchShoppingListsWhenOpen = useCallback(async () => {
+    if (!open) return;
     try {
       setLoadingLists(true);
       const response = await fetch('/api/shopping-lists');
       if (response.ok) {
         const data = await response.json();
         setShoppingLists(data.lists || []);
-
-        // Auto-select first list if no default
-        if (!defaultListId && !item && data.lists.length > 0) {
-          setListId(data.lists[0].id);
-        }
       }
     } catch (err) {
       console.error('Failed to fetch shopping lists:', err);
     } finally {
       setLoadingLists(false);
     }
-  }
+  }, [open]);
+  useFetchOnMount(fetchShoppingListsWhenOpen);
+
+  // A new item with no list given goes on the first list until one is picked.
+  const selectedListId = listId || (!item && !defaultListId ? shoppingLists[0]?.id ?? '' : '');
+
+  // Fill the form when the modal opens: from the item when editing, blank
+  // otherwise. Keyed by the item's id, so a refreshed copy of the same item
+  // does not overwrite what is being typed.
+  useResetOn(open ? (item?.id ?? 'new') : null, () => {
+    if (!open) return;
+    setListId(item ? item.listId : defaultListId || '');
+    setName(item?.name ?? '');
+    setQuantity(item?.quantity?.toString() || '');
+    setUnit(item?.unit || '');
+    setCategory(item?.category || 'other');
+    setNotes(item?.notes || '');
+    setError(null);
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !listId) return;
+    if (!name.trim() || !selectedListId) return;
 
     setIsSubmitting(true);
     setError(null);
 
     try {
       const payload: Record<string, unknown> = {
-        listId,
+        listId: selectedListId,
         name: name.trim(),
         quantity: quantity ? parseInt(quantity) : undefined,
         unit: unit.trim() || undefined,
@@ -244,7 +229,7 @@ export function AddShoppingItemModal({
                   Loading lists...
                 </div>
               ) : (
-                <Select value={listId} onValueChange={setListId}>
+                <Select value={selectedListId} onValueChange={setListId}>
                   <SelectTrigger id="shopping-list">
                     <SelectValue placeholder="Select a list" />
                   </SelectTrigger>
@@ -344,7 +329,7 @@ export function AddShoppingItemModal({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!name.trim() || !listId || isSubmitting}>
+            <Button type="submit" disabled={!name.trim() || !selectedListId || isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

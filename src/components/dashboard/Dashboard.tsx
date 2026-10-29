@@ -45,17 +45,22 @@ import { WeatherRadarWidget } from '@/components/widgets/WeatherRadarWidget';
 import { MediaPlayerPlaybackCard } from '@/components/widgets/MediaPlayerPlaybackCard';
 import { FloatingCardStack } from './FloatingCardStack';
 import { renderScreensaverPreview } from '@/components/screensaver/ScreensaverWidgetPreview';
-import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+import { SCREENSAVER_WIDGET_CLASS } from '@/components/screensaver/Screensaver';
+import type { ScreensaverMode, WidgetConfig } from '@/lib/hooks/useLayouts';
 import { WidgetErrorBoundary } from '@/components/dashboard/WidgetErrorBoundary';
 import { WidgetExpandProvider, useWidgetExpand } from '@/components/dashboard/WidgetExpandProvider';
 import { useDashboardData } from './useDashboardData';
-import { useDashboardLayout } from './useDashboardLayout';
+import { useDashboardLayout, editLink } from './useDashboardLayout';
 import { buildWidgetProps } from './useWidgetProps';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
 import { cn } from '@/lib/utils';
 import { getWidgetType } from '@/lib/utils/widgetInstances';
 import { BirthdayCelebration, PartyModeButton } from '@/components/birthday';
+import { useLatestRef } from '@/lib/hooks/useLatestRef';
+import { useLocalCopy } from '@/lib/hooks/useLocalCopy';
+import { setActiveScreensaverMode, shownWhenIdle, useCalmIdle } from '@/components/screensaver/calmMode';
+import { useScreensaverMotion } from '@/components/screensaver/useScreensaverMotion';
 
 const VISIBLE_WIDGETS_KEY = 'prism-visible-widgets';
 
@@ -120,6 +125,9 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   const { confirm: confirmAction, dialogProps: confirmDialogProps } = useConfirmDialog();
   const isLCARS = colorTheme === 'lcars';
 
+  // What the last visit drew, so the data hooks for those widgets start on the
+  // first paint instead of waiting for the layout. Replaced by the live layout
+  // as soon as it arrives.
   const [visibleWidgets, setVisibleWidgets] = useState(readCachedVisibleWidgets);
 
   // The conditional radar is not a saved layout widget, but it still needs
@@ -156,11 +164,14 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
 
   useEffect(() => {
     const ids = visibleWidgetIds(layout.activeWidgets);
-    if (ids.length > 0) {
-      const next = new Set(ids);
+    if (ids.length === 0) return;
+    localStorage.setItem(VISIBLE_WIDGETS_KEY, JSON.stringify(ids));
+    const next = new Set(ids);
+    // After the commit: a widget added to the dashboard starts its own data on
+    // the next task rather than cascading a render out of this effect.
+    queueMicrotask(() => {
       setVisibleWidgets((current) => (setsMatch(current, next) ? current : next));
-      localStorage.setItem(VISIBLE_WIDGETS_KEY, JSON.stringify(ids));
-    }
+    });
   }, [layout.activeWidgets]);
 
   // Redirect to / if slug doesn't resolve to a layout (after layouts have loaded)
@@ -187,42 +198,55 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   // Grid control state shared between LayoutEditor toolbar and LayoutGridEditor
   const { allSizeNames } = useScreenSafeZones();
 
-  // Orientation from active layout (DB), fallback to landscape
-  const [screenGuideOrientation, setScreenGuideOrientationState] = useState<
-    'landscape' | 'portrait'
-  >(() => {
-    const fromLayout = layout.activeLayout?.orientation;
-    if (fromLayout === 'portrait' || fromLayout === 'landscape') return fromLayout;
-    return 'landscape';
-  });
-
-  // Sync orientation when active layout changes
+  // Calm mode (#691): tell the Screensaver this dashboard is its own idle
+  // screen, and take it back when the dashboard goes, so other pages still get
+  // the ordinary screensaver. The phone layout has no calm idle state.
+  const screensaverMode = isMobile ? 'separate' : layout.activeLayout?.screensaverMode ?? 'separate';
   useEffect(() => {
-    const fromLayout = layout.activeLayout?.orientation;
-    if (fromLayout === 'portrait' || fromLayout === 'landscape') {
-      setScreenGuideOrientationState(fromLayout);
+    setActiveScreensaverMode(screensaverMode);
+    return () => setActiveScreensaverMode('separate');
+  }, [screensaverMode]);
+  const setScreensaverMode = useCallback(async (mode: ScreensaverMode) => {
+    const active = layout.activeLayout;
+    if (!active) return;
+    try {
+      await data.layouts.saveLayout({ id: active.id, name: active.name, widgets: active.widgets, screensaverMode: mode });
+    } catch (err) {
+      console.error('Failed to save the screensaver mode:', err);
     }
-  }, [layout.activeLayout?.orientation]);
-
-  const setScreenGuideOrientation = useCallback(
-    async (o: 'landscape' | 'portrait') => {
-      setScreenGuideOrientationState(o);
-      // Persist to DB
-      if (layout.activeLayout) {
-        try {
-          await data.layouts.saveLayout({
-            id: layout.activeLayout.id,
-            name: layout.activeLayout.name,
-            widgets: layout.activeLayout.widgets,
-            orientation: o,
-          });
-        } catch {
-          /* ignore */
-        }
-      }
-    },
-    [layout.activeLayout, data.layouts]
+  }, [layout.activeLayout, data.layouts]);
+  const calmIdle = useCalmIdle() && !layout.isEditing;
+  const fadedIds = useMemo(
+    () => calmIdle ? new Set(layout.activeWidgets.filter(w => !shownWhenIdle(w)).map(w => w.i)) : undefined,
+    [calmIdle, layout.activeWidgets],
   );
+  // The widgets that stay drift while idle, so a screen that shows the same
+  // board all night does not hold every edge on the same pixels (part 2).
+  const { drift } = useScreensaverMotion();
+  const idleDrift = calmIdle && drift;
+
+  // Orientation from active layout (DB), fallback to landscape
+  // A choice made here holds until the active layout's orientation changes.
+  const fromLayout = layout.activeLayout?.orientation;
+  const [chosenOrientation, setScreenGuideOrientationState] = useLocalCopy<'landscape' | 'portrait' | null>(
+    fromLayout === 'portrait' || fromLayout === 'landscape' ? fromLayout : null,
+  );
+  const screenGuideOrientation = chosenOrientation ?? 'landscape';
+
+  const setScreenGuideOrientation = useCallback(async (o: 'landscape' | 'portrait') => {
+    setScreenGuideOrientationState(o);
+    // Persist to DB
+    if (layout.activeLayout) {
+      try {
+        await data.layouts.saveLayout({
+          id: layout.activeLayout.id,
+          name: layout.activeLayout.name,
+          widgets: layout.activeLayout.widgets,
+          orientation: o,
+        });
+      } catch { /* ignore */ }
+    }
+  }, [layout.activeLayout, data.layouts, setScreenGuideOrientationState]);
 
   const [enabledSizes, setEnabledSizes] = useState<string[]>(allSizeNames);
   const [gridScrollY, setGridScrollY] = useState(0);
@@ -259,12 +283,11 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   }, []);
 
   // Dashboard management callbacks for LayoutEditor
-  const handleSwitchDashboard = useCallback(
-    (targetSlug: string) => {
-      router.push(`/d/${targetSlug}`);
-    },
-    [router]
-  );
+  // Only offered inside the layout editor, so the next dashboard opens in edit
+  // mode too.
+  const handleSwitchDashboard = useCallback((targetSlug: string) => {
+    router.push(editLink(`/d/${targetSlug}`));
+  }, [router]);
 
   const handleCreateDashboard = useCallback(
     async (name: string, startFrom: 'blank' | 'template' | 'copy') => {
@@ -350,8 +373,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
       setEditingMeal,
     ]
   );
-  const widgetPropsRef = useRef(widgetProps);
-  widgetPropsRef.current = widgetProps;
+  const widgetPropsRef = useLatestRef(widgetProps);
   const weatherRevision = useMemo(
     () => ({ data: data.weather, location: weatherLocation }),
     [data.weather, weatherLocation]
@@ -453,7 +475,6 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
       // double-click handler that pulls the magnify trigger from context.
       if (layout.isEditing) return inner;
       return <DashboardWidgetCell widgetId={w.i}>{inner}</DashboardWidgetCell>;
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [layout.isEditing, renderWidgetAt]
   );
@@ -481,7 +502,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
             </div>
           }
         >
-          <div className="h-full w-full [&_*]:!bg-transparent [&_.bg-card]:!bg-white/10 [&_.border-border]:!border-white/20">
+          <div className={SCREENSAVER_WIDGET_CLASS}>
             <Component {...props} />
           </div>
         </Suspense>
@@ -590,6 +611,8 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
             screensaverPresets={layout.ssPresets}
             onSelectScreensaverPreset={layout.handleSelectSsPreset}
             onDeleteScreensaverPreset={layout.handleDeleteSsPreset}
+            screensaverMode={layout.activeLayout ? screensaverMode : undefined}
+            onScreensaverModeChange={setScreensaverMode}
             screenGuideOrientation={screenGuideOrientation}
             onScreenGuideOrientationChange={setScreenGuideOrientation}
             enabledSizes={enabledSizes}
@@ -648,6 +671,9 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
                   onLayoutChange={layout.isEditing ? layout.setEditingWidgets : () => {}}
                   isEditable={layout.isEditing}
                   renderWidget={renderDashboardWidget}
+                  fadedIds={fadedIds}
+                  drift={idleDrift}
+                  idleToggles={layout.isEditing && screensaverMode === 'calm'}
                   widgetRevisions={widgetRevisions}
                   widgetConstraints={dashboardConstraints}
                   margin={isLCARS ? 5 : 8}

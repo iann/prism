@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, slug: requestedSlug, isDefault, widgets, screensaverWidgets, orientation, createdBy, floatingCardSettings } = validation.data;
+    const { name, slug: requestedSlug, isDefault, widgets, screensaverWidgets, screensaverMode, orientation, createdBy, floatingCardSettings } = validation.data;
 
     const newLayout = await db.transaction(async (tx) => {
       if (isDefault) {
@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
           isDefault: isDefault || false,
           widgets,
           screensaverWidgets: screensaverWidgets || null,
+          ...(screensaverMode ? { screensaverMode } : {}),
           orientation: orientation || 'landscape',
           createdBy: createdBy || null,
           floatingCardSettings: floatingCardSettings || null,

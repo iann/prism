@@ -283,6 +283,22 @@ CREATE TABLE IF NOT EXISTS public.chores (
 
 
 --
+-- Name: displays; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.displays (
+    id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    name character varying(60) NOT NULL,
+    last_seen_at timestamp without time zone,
+    settings jsonb DEFAULT '{}'::jsonb NOT NULL,
+    settings_updated_at timestamp without time zone,
+    dashboard_id uuid,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -400,7 +416,8 @@ CREATE TABLE IF NOT EXISTS public.layouts (
     screensaver_widgets jsonb,
     orientation character varying(20) DEFAULT 'landscape'::character varying,
     font_scale integer,
-    floating_card_settings jsonb
+    floating_card_settings jsonb,
+    screensaver_mode character varying(20) DEFAULT 'calm'::character varying NOT NULL
 );
 
 ALTER TABLE public.layouts ADD COLUMN IF NOT EXISTS floating_card_settings jsonb;

@@ -937,6 +937,11 @@ export const layouts = pgTable('layouts', {
   // Per-dashboard screensaver layout (null = use default template)
   screensaverWidgets: jsonb('screensaver_widgets'),
 
+  // What the display shows when idle: 'separate' is the screensaver layout
+  // above, 'calm' is this dashboard itself with only some widgets left showing
+  // (#691). Dashboards from before calm mode stay 'separate'; see 0036.
+  screensaverMode: varchar('screensaver_mode', { length: 20 }).default('calm').notNull(),
+
   // Per-dashboard screen orientation
   orientation: varchar('orientation', { length: 20 }).default('landscape'),
 
@@ -974,6 +979,26 @@ export const apiTokens = pgTable('api_tokens', {
   tokenHashIdx: uniqueIndex('api_tokens_token_hash_idx').on(table.tokenHash),
   createdByIdx: index('api_tokens_created_by_idx').on(table.createdBy),
 }));
+
+/**
+ * A screen a parent has named (#690). The browser holds a signed cookie with
+ * the row's id; a browser nobody named has no row and behaves as before.
+ */
+export const displays = pgTable('displays', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 60 }).notNull(),
+  // Touched by the screen's own heartbeat, for "online 2 min ago".
+  lastSeenAt: timestamp('last_seen_at'),
+  // The screen's own settings, keyed by the browser storage key each one
+  // already uses (see SCREEN_SETTING_KEYS). A key that is absent is unset.
+  settings: jsonb('settings').$type<Record<string, string>>().default({}).notNull(),
+  // When `settings` last changed, so the screen knows to pick up a remote edit.
+  settingsUpdatedAt: timestamp('settings_updated_at'),
+  // The dashboard this screen opens on; null is the household default.
+  dashboardId: uuid('dashboard_id').references(() => layouts.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 
 
 export const apiCredentials = pgTable('api_credentials', {

@@ -7,6 +7,7 @@ import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { getWidgetType } from '@/lib/utils/widgetInstances';
 import { downloadJson, slugify } from '@/lib/utils/downloadJson';
+import { useResetOn } from '@/lib/hooks/useResetOn';
 
 interface ExportWidget {
   i: string;
@@ -57,7 +58,7 @@ export function LayoutEditorShareDialog({
   const [shareErrors, setShareErrors] = useState<string[]>([]);
 
   // Reset form when dialog opens
-  React.useEffect(() => {
+  useResetOn(open ? `open|${layoutName ?? ''}` : null, () => {
     if (open) {
       setShareForm({
         name: layoutName || '',
@@ -68,7 +69,7 @@ export function LayoutEditorShareDialog({
       });
       setShareErrors([]);
     }
-  }, [open, layoutName]);
+  });
 
   if (!open) return null;
 

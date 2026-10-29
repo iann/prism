@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useRef, useEffectEvent } from 'react';
 import { usePollingInterval } from './usePollingInterval';
 import { useDisplayIdle } from './useDisplayIdle';
 import { PollingScopeContext } from './pollingScope';
@@ -53,8 +53,7 @@ export function useVisibilityPolling(
 
   // Read the latest callback at tick time without resetting the timer every
   // time a caller recreates its fetch closure.
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+  const onTick = useEffectEvent((options?: { force?: boolean }) => callback(options));
   const inFlightRef = useRef(false);
   const reconnectPendingRef = useRef(false);
 
@@ -89,7 +88,7 @@ export function useVisibilityPolling(
       try {
         // useFetch accepts this option to bypass its short-lived cache when
         // connectivity returns. Other polling callbacks can ignore it.
-        result = force ? callbackRef.current({ force: true }) : callbackRef.current();
+        result = force ? onTick({ force: true }) : onTick();
       } catch {
         inFlightRef.current = false;
         return;

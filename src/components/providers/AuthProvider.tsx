@@ -25,7 +25,8 @@
 'use client';
 
 import * as React from 'react';
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useEffectEvent } from 'react';
+import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
 import { QuickPinModal, type QuickPinMember } from '@/components/auth';
 import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 
@@ -105,11 +106,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   // Check for existing session on mount
-  useEffect(() => {
-    sessionCheckPromiseRef.current = checkSession().finally(() => {
+  const checkInitialSession = useCallback(() => {
+    const check = checkSession().finally(() => {
       setSessionChecked(true);
     });
+    sessionCheckPromiseRef.current = check;
+    return check;
   }, [checkSession]);
+  useFetchOnMount(checkInitialSession);
 
   // Periodic session validation (every 5 minutes)
   const periodicCheck = useCallback(() => {
@@ -144,8 +148,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   //   legitimately return 401 during the initial session check.
   // - Debounced: a save burst (e.g. 10 chore updates) prompts once.
   // - Skipped while the PIN box is already open, e.g. from requireAuth().
-  const showModalRef = useRef(false);
-  showModalRef.current = showModal;
+  const pinBoxOpen = useEffectEvent(() => showModal);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const originalFetch = window.fetch;
@@ -163,7 +166,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const isMutation = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
         const isApi = url.includes('/api/');
         const now = Date.now();
-        if (isMutation && isApi && !showModalRef.current && now - lastPromptAt > DEBOUNCE_MS) {
+        if (isMutation && isApi && !pinBoxOpen() && now - lastPromptAt > DEBOUNCE_MS) {
           lastPromptAt = now;
           // Open the PIN box rather than describing it in a toast. The refused
           // change is not replayed: a write that failed once could apply twice,

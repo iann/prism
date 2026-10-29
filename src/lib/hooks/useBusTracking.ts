@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useVisibilityPolling } from './useVisibilityPolling';
 import { useNow } from './useNow';
 import { useTimeFormat } from '@/components/providers';
 import { todayKey, wallTimeToday, weekdayOfKey } from '@/lib/utils/zonedDate';
+import { useFetchOnMount } from './useFetchOnMount';
 
 export interface BusCheckpoint {
   name: string;
@@ -135,9 +136,7 @@ export function useBusTracking() {
   }, []);
 
   // Initial fetch
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
+  useFetchOnMount(fetchStatus);
 
   // Filter to routes that are active today and within the ±60 min display
   // window, again every minute: a window opens without any new data arriving.

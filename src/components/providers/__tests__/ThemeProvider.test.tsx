@@ -12,6 +12,7 @@ jest.mock('@/lib/hooks/useSeasonalTheme', () => ({
 }));
 jest.mock('@/lib/hooks/usePerformanceMode', () => ({
   usePerformanceMode: jest.fn(),
+  usePerformanceModeOn: jest.fn(() => false),
 }));
 jest.mock('@/lib/hooks/useWeather', () => ({
   useWeather: jest.fn(() => ({

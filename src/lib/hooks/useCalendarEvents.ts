@@ -15,7 +15,9 @@ import { useCachedMountFetch } from '@/lib/hooks/useCachedMountFetch';
 import { navCacheGet, navCacheSet } from '@/lib/utils/navCache';
 import { replaceDistinct } from '@/lib/utils/preserveEqual';
 import { useDistinctState } from './useDistinctState';
+import { useLatestRef } from './useLatestRef';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
+import { useFetchOnMount } from './useFetchOnMount';
 
 interface UseCalendarEventsOptions {
   /** Number of days to fetch events for (used only when rangeStart/rangeEnd are omitted). */
@@ -133,8 +135,7 @@ export function useCalendarEvents(
   const maxAgeMs = usePollingInterval(refreshInterval);
   const cached = navCacheGet<CalendarEvent[]>(cacheKey, maxAgeMs);
   const [events, setEvents] = useState<CalendarEvent[]>(() => cached ?? []);
-  const eventsRef = useRef(events);
-  eventsRef.current = events;
+  const eventsRef = useLatestRef(events);
   const [loading, setLoading] = useDistinctState(enabled && !cached);
   const [error, setError] = useDistinctState<string | null>(null);
   const [lastSyncCheck, setLastSyncCheck] = useState<Date | null>(null);
@@ -305,10 +306,9 @@ export function useCalendarEvents(
     }
   }, [enabled, autoSyncMinutes, syncCalendars]);
 
-  // Initial sync check on mount / when enabled changes
-  useEffect(() => {
-    if (enabled && autoSyncMinutes > 0) checkAndSync();
-  }, [checkAndSync, enabled, autoSyncMinutes]);
+  // Initial sync check on mount / when enabled changes. checkAndSync returns
+  // early when auto-sync is off.
+  useFetchOnMount(checkAndSync);
 
   // Periodic sync check — pauses when tab is hidden
   useVisibilityPolling(checkAndSync, enabled && autoSyncMinutes > 0 ? autoSyncMinutes * 60 * 1000 : 0);
@@ -342,9 +342,7 @@ export function useCalendarSources() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchCalendars();
-  }, [fetchCalendars]);
+  useFetchOnMount(fetchCalendars);
 
   return {
     calendars,

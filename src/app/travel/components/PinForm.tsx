@@ -20,6 +20,7 @@ import type { TravelPin, PinStatus, PinType, GeocodeResult } from '../types';
 import { STATUS_CONFIG } from '../types';
 import { yearOfDate } from '@/lib/utils/zonedDate';
 import { NPS_UNITS } from '../constants/nationalParks';
+import { useResetOn } from '@/lib/hooks/useResetOn';
 
 export interface PendingStop {
   name: string;
@@ -32,6 +33,8 @@ export interface PinPendingChildren {
   stops: PendingStop[];
   parks: PendingStop[];
 }
+
+const NO_RESULTS: GeocodeResult[] = [];
 
 interface PinFormProps {
   pin?: TravelPin | null;
@@ -88,14 +91,14 @@ export function PinForm({ pin, initialLatLng, parentId, pinType = 'location', ch
   const [showStops, setShowStops] = useState(false);
 
   // Sync when user clicks a new spot on the map while the form is already open
-  useEffect(() => {
+  useResetOn(initialLatLng ? `${initialLatLng.lat},${initialLatLng.lng}` : null, () => {
     if (initialLatLng) {
       setLat(initialLatLng.lat);
       setLng(initialLatLng.lng);
       setPlaceName('');
       setSearchResults([]);
     }
-  }, [initialLatLng?.lat, initialLatLng?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  });
 
   const hasLocation = lat !== 0 || lng !== 0;
 
@@ -111,23 +114,23 @@ export function PinForm({ pin, initialLatLng, parentId, pinType = 'location', ch
     }
   }, []);
 
+  // Results are only listed while there is something to search for, so a
+  // chosen place or a too-short query hides them without clearing state.
+  const placeResults = hasLocation ? NO_RESULTS : searchResults;
+  const stopSearchable = stopQuery.trim().length >= 2;
+  const stopMatches = stopSearchable ? stopResults : NO_RESULTS;
+
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    if (hasLocation) { setSearchResults([]); return; }
+    if (hasLocation) return;
     searchTimer.current = setTimeout(() => searchLocation(inputValue), 350);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
   }, [inputValue, hasLocation, searchLocation]);
 
-  useEffect(() => {
-    if (isNP && selectedPark && !hasLocation) {
-      searchLocation(selectedPark + ' National Park');
-    }
-  }, [selectedPark]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Stop geocode search
   useEffect(() => {
     if (stopTimer.current) clearTimeout(stopTimer.current);
-    if (stopQuery.trim().length < 2) { setStopResults([]); return; }
+    if (!stopSearchable) return;
     stopTimer.current = setTimeout(async () => {
       setStopSearching(true);
       try {
@@ -139,7 +142,7 @@ export function PinForm({ pin, initialLatLng, parentId, pinType = 'location', ch
       }
     }, 350);
     return () => { if (stopTimer.current) clearTimeout(stopTimer.current); };
-  }, [stopQuery]);
+  }, [stopQuery, stopSearchable]);
 
   const selectResult = (result: GeocodeResult) => {
     const shortName = result.displayName.split(',')[0]?.trim() ?? result.displayName;
@@ -163,6 +166,7 @@ export function PinForm({ pin, initialLatLng, parentId, pinType = 'location', ch
     setInputValue(parkName);
     setNpSearch('');
     clearLocation();
+    searchLocation(parkName + ' National Park');
   };
 
   const selectStopResult = (result: GeocodeResult) => {
@@ -336,9 +340,9 @@ export function PinForm({ pin, initialLatLng, parentId, pinType = 'location', ch
               required
             />
             {searching && <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
-            {searchResults.length > 0 && (
+            {placeResults.length > 0 && (
               <ul className="absolute z-50 top-full left-0 right-0 bg-popover border border-border rounded-md shadow-lg mt-1 overflow-hidden max-h-52 overflow-y-auto">
-                {searchResults.map((r) => (
+                {placeResults.map((r) => (
                   <li key={r.placeId}>
                     <button type="button" onClick={() => selectResult(r)}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
@@ -452,9 +456,9 @@ export function PinForm({ pin, initialLatLng, parentId, pinType = 'location', ch
                     className="pl-8 pr-8 text-sm"
                   />
                   {stopSearching && <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
-                  {stopResults.length > 0 && (
+                  {stopMatches.length > 0 && (
                     <ul className="absolute z-50 top-full left-0 right-0 bg-popover border border-border rounded-md shadow-lg mt-1 overflow-hidden max-h-44 overflow-y-auto">
-                      {stopResults.map((r) => (
+                      {stopMatches.map((r) => (
                         <li key={r.placeId}>
                           <button type="button" onClick={() => selectStopResult(r)}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"

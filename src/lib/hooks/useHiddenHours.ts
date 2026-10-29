@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
+import { parseStored, readStored, useHydrated, useStoredString, writeStored } from './useStoredValue';
 import type { CalendarEvent } from '@/types/calendar';
 
 // localStorage key doubles as a fast-paint cache AND the migration source for
@@ -9,7 +10,7 @@ const CACHE_KEY = 'prism:calendar-hidden-hours';
 // Database settings key (persists across updates + shared across devices).
 const SETTING_KEY = 'calendarHiddenHours';
 
-interface HiddenHoursSettings {
+export interface HiddenHoursSettings {
   /** Mode for hour filtering */
   mode: 'manual' | 'auto-fit';
   /** Starting hour to hide (0-23) */
@@ -41,40 +42,106 @@ function normalize(parsed: unknown): HiddenHoursSettings {
   };
 }
 
-export function useHiddenHours() {
-  const [settings, setSettingsState] = useState<HiddenHoursSettings>(DEFAULT_SETTINGS);
-  const [loaded, setLoaded] = useState(false);
+/** The cached settings as stored right now, or null when there are none. */
+function readCached(): HiddenHoursSettings | null {
+  const raw = readStored(CACHE_KEY);
+  return raw === null ? null : normalize(parseStored(CACHE_KEY, raw));
+}
 
-  useEffect(() => {
-    // 1. Instant paint from the localStorage cache (so the calendar doesn't
-    //    flash default hours before the DB responds).
-    let cached: HiddenHoursSettings | null = null;
-    try {
-      const saved = localStorage.getItem(CACHE_KEY);
-      if (saved) {
-        cached = normalize(JSON.parse(saved));
-        setSettingsState(cached);
+const clampHour = (hour: number) => Math.min(23, Math.max(0, hour));
+
+/**
+ * The hours a day or week view shows, given the hidden-hours settings and, for
+ * auto-fit, the events in view. Also what dims an idle screen (see idleDim).
+ */
+export function visibleHours(
+  settings: HiddenHoursSettings,
+  events?: CalendarEvent[],
+  range?: { from: Date; to: Date },
+): number[] {
+  const allHours = Array.from({ length: 24 }, (_, i) => i);
+  if (!settings.enabled) {
+    return allHours;
+  }
+
+  if (settings.mode === 'manual') {
+    return allHours.filter((hour) => {
+      if (settings.startHour <= settings.endHour) {
+        return hour < settings.startHour || hour >= settings.endHour;
       }
-    } catch {
-      // ignore
-    }
-    setLoaded(true);
+      return hour >= settings.endHour && hour < settings.startHour;
+    });
+  }
 
-    // 2. Authoritative value from the database; reconcile + refresh the cache.
+  if (settings.mode === 'auto-fit' && events && range) {
+    const timedEvents = events.filter((event) =>
+      !event.allDay && event.endTime > range.from && event.startTime < range.to
+    );
+
+    if (timedEvents.length === 0) {
+      return allHours.filter((hour) => hour >= 8 && hour <= 18);
+    }
+
+    let minHour = 23;
+    let maxHour = 0;
+
+    for (const event of timedEvents) {
+      const eventStart = event.startTime < range.from ? range.from : event.startTime;
+      const eventEnd = event.endTime > range.to ? range.to : event.endTime;
+      const startHour = eventStart.getHours();
+
+      let endHour = eventEnd.getHours();
+      if (
+        eventEnd.getMinutes() === 0 &&
+        eventEnd.getSeconds() === 0 &&
+        eventEnd.getMilliseconds() === 0
+      ) {
+        endHour = Math.max(startHour, endHour - 1);
+      }
+
+      minHour = Math.min(minHour, startHour);
+      maxHour = Math.max(maxHour, endHour);
+    }
+
+    minHour = clampHour(minHour - settings.bufferHours);
+    maxHour = clampHour(maxHour + settings.bufferHours);
+
+    if (maxHour - minHour < 4) {
+      const center = (minHour + maxHour) / 2;
+      minHour = clampHour(Math.floor(center - 2));
+      maxHour = clampHour(Math.ceil(center + 2));
+    }
+
+    return allHours.filter((hour) => hour >= minHour && hour <= maxHour);
+  }
+
+  return allHours;
+}
+
+export function useHiddenHours() {
+  // The localStorage cache is read through the stored-value store, so the
+  // first render of a client-side mount already has it (the calendar does not
+  // flash default hours), and every mounted copy of this hook follows a change
+  // made through any other.
+  const raw = useStoredString(CACHE_KEY);
+  const settings = useMemo(
+    () => (raw === null ? DEFAULT_SETTINGS : normalize(parseStored(CACHE_KEY, raw))),
+    [raw],
+  );
+  // False on the server and while hydrating, when storage is not readable yet.
+  const loaded = useHydrated();
+
+  // The database value is authoritative: it replaces the cache when present.
+  useEffect(() => {
     let active = true;
     fetch('/api/settings')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!active) return;
         const dbValue = data?.settings?.[SETTING_KEY];
+        const cached = readCached();
         if (dbValue && typeof dbValue === 'object') {
-          const norm = normalize(dbValue);
-          setSettingsState(norm);
-          try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(norm));
-          } catch {
-            // ignore
-          }
+          writeStored(CACHE_KEY, JSON.stringify(normalize(dbValue)));
         } else if (cached) {
           // One-time migration: DB has no value yet but this device had a local
           // one — push it up so it persists and reaches other devices.
@@ -93,23 +160,18 @@ export function useHiddenHours() {
   }, []);
 
   const setSettings = useCallback((newSettings: Partial<HiddenHoursSettings>) => {
-    setSettingsState((prev) => {
-      const updated = { ...prev, ...newSettings };
-      // Cache locally for instant paint next load.
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-      // Persist to the DB (requires settings permission; a display-only session
-      // silently keeps the local value if the PATCH is refused).
-      fetch('/api/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: SETTING_KEY, value: updated }),
-      }).catch(() => {});
-      return updated;
-    });
+    // Built on the store rather than the last render, so two calls in one
+    // batch build on each other.
+    const updated = { ...(readCached() ?? DEFAULT_SETTINGS), ...newSettings };
+    // Cache locally for instant paint next load.
+    writeStored(CACHE_KEY, JSON.stringify(updated));
+    // Persist to the DB (requires settings permission; a display-only session
+    // silently keeps the local value if the PATCH is refused).
+    fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: SETTING_KEY, value: updated }),
+    }).catch(() => {});
   }, []);
 
   // Toggle hidden state
@@ -122,67 +184,10 @@ export function useHiddenHours() {
     setSettings({ startHour, endHour });
   }, [setSettings]);
 
-  const clampHour = (hour: number) => Math.min(23, Math.max(0, hour));
-
-  const getVisibleHours = useCallback((events?: CalendarEvent[], range?: { from: Date; to: Date }): number[] => {
-    const allHours = Array.from({ length: 24 }, (_, i) => i);
-    if (!settings.enabled) {
-      return allHours;
-    }
-
-    if (settings.mode === 'manual') {
-      return allHours.filter((hour) => {
-        if (settings.startHour <= settings.endHour) {
-          return hour < settings.startHour || hour >= settings.endHour;
-        }
-        return hour >= settings.endHour && hour < settings.startHour;
-      });
-    }
-
-    if (settings.mode === 'auto-fit' && events && range) {
-      const timedEvents = events.filter((event) =>
-        !event.allDay && event.endTime > range.from && event.startTime < range.to
-      );
-
-      if (timedEvents.length === 0) {
-        return allHours.filter((hour) => hour >= 8 && hour <= 18);
-      }
-
-      let minHour = 23;
-      let maxHour = 0;
-
-      for (const event of timedEvents) {
-        const eventStart = event.startTime < range.from ? range.from : event.startTime;
-        const eventEnd = event.endTime > range.to ? range.to : event.endTime;
-        const startHour = eventStart.getHours();
-
-        let endHour = eventEnd.getHours();
-        if (
-          eventEnd.getMinutes() === 0 &&
-          eventEnd.getSeconds() === 0 &&
-          eventEnd.getMilliseconds() === 0
-        ) {
-          endHour = Math.max(startHour, endHour - 1);
-        }
-
-        minHour = Math.min(minHour, startHour);
-        maxHour = Math.max(maxHour, endHour);
-      }
-
-      minHour = clampHour(minHour - settings.bufferHours);
-      maxHour = clampHour(maxHour + settings.bufferHours);
-
-      if (maxHour - minHour < 4) {
-        const center = (minHour + maxHour) / 2;
-        minHour = clampHour(Math.floor(center - 2));
-        maxHour = clampHour(Math.ceil(center + 2));
-      }
-
-      return allHours.filter((hour) => hour >= minHour && hour <= maxHour);
-    }
-
-    return allHours;
-  }, [settings.enabled, settings.mode, settings.startHour, settings.endHour, settings.bufferHours]);
+  const getVisibleHours = useCallback(
+    (events?: CalendarEvent[], range?: { from: Date; to: Date }): number[] => visibleHours(settings, events, range),
+    [settings],
+  );
 
   return {
     settings,

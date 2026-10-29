@@ -52,17 +52,16 @@ export const ClockWidget = React.memo(function ClockWidget({
   const effectiveTimeFormat = format24Hour === undefined
     ? globalTimeFormat
     : format24Hour ? '24h' : '12h';
-  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  // The current time, read when the widget mounts and then on aligned ticks, so
+  // a wall display changes minute on the minute rather than drifting.
+  const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
 
   useEffect(() => {
-    const update = () => setCurrentTime(new Date());
-    update();
-
     const intervalMs = showSeconds ? 1_000 : 60_000;
     let intervalId: ReturnType<typeof setInterval> | null = null;
     const timeoutId = setTimeout(() => {
-      update();
-      intervalId = setInterval(update, intervalMs);
+      setCurrentTime(new Date());
+      intervalId = setInterval(() => setCurrentTime(new Date()), intervalMs);
     }, millisecondsUntilNextClockTick(showSeconds));
 
     return () => {
@@ -135,11 +134,9 @@ export const ClockWidget = React.memo(function ClockWidget({
 });
 
 export function useCurrentTime(updateInterval = 1000): Date {
-  const [time, setTime] = useState<Date>(new Date());
+  const [time, setTime] = useState<Date>(() => new Date());
 
   useEffect(() => {
-    setTime(new Date());
-
     const intervalId = setInterval(() => {
       setTime(new Date());
     }, updateInterval);
