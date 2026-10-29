@@ -33,8 +33,12 @@ export function LazyOverlays() {
     <>
       {babysitterActive && <BabysitterModeOverlay toggle={toggleBabysitter} />}
       {isAway && <AwayModeOverlay toggle={toggleAway} />}
-      {/* The solar observatory is itself an always-on wall display. */}
-      {isIdle && pathname !== '/solar' && <Screensaver idleOverride={isIdle} />}
+      {/* Mounted while awake as well as idle: the idle-dim layer and the
+          calm-mode handshake both live in the Screensaver and have to be in
+          place before the display goes idle. Its data work is gated on `isIdle`
+          inside, so an awake page does not poll for it.
+          The solar observatory is itself an always-on wall display. */}
+      {pathname !== '/solar' && <Screensaver idleOverride={isIdle} />}
     </>
   );
 }

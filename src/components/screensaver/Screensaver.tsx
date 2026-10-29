@@ -105,11 +105,15 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
         null
       : null;
   const effectiveOrientation = orientationOverride || screenOrientation;
+  // Only while the overlay is up: this component stays mounted so the idle dim
+  // layer and the calm handshake exist, but it should not fetch photos for a
+  // dashboard nobody is idling on.
   const { photos } = usePhotos({
     sort: 'random',
     limit: performanceMode ? 1 : 50,
     usage: 'screensaver',
     orientation: autoOrientation ? effectiveOrientation : undefined,
+    enabled: isIdle,
   });
   // Tell the polling layer the display is covered. On a wall-mounted screen
   // this is the only pause signal that ever fires: document.hidden cannot,
