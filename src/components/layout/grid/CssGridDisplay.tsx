@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { WidgetBgOverrideProvider } from '@/components/widgets/WidgetContainer';
 import {
   CUSTOM_WIDGET_SHELL_CLASS,
@@ -27,7 +27,8 @@ interface WidgetCellProps {
   deferOffscreen: boolean;
   /** Calm mode's idle state: drawn at zero opacity, still holding its place. */
   faded?: boolean;
-  cellRef?: (el: HTMLDivElement | null) => void;
+  /** Slow burn-in drift while the display is idle. */
+  drift?: boolean;
 }
 
 function DeferredWidget({
@@ -137,8 +138,14 @@ const WidgetCell = memo(function WidgetCell({
   initiallyVisible,
   deferOffscreen,
   faded = false,
-  cellRef,
+  drift = false,
 }: WidgetCellProps) {
+  const cellRef = useRef<HTMLDivElement>(null);
+  // A faded widget does not drift: there is nothing on screen to protect.
+  useEffect(() => {
+    if (cellRef.current) setCellDrift(cellRef.current, drift && !faded);
+  }, [drift, faded]);
+
   const widgetStyle = getWidgetStyle(widget);
   const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget);
@@ -229,28 +236,6 @@ export function CssGridDisplay({
     () => layout.filter(w => w.visible !== false),
     [layout],
   );
-
-  // A faded widget does not drift: there is nothing on screen to protect.
-  const cells = useRef(new Map<string, HTMLDivElement>());
-  // One stable ref callback per widget, so a memoized cell is not re-rendered
-  // just because the parent rendered again.
-  const cellRefCallbacks = useRef(new Map<string, (el: HTMLDivElement | null) => void>());
-  const cellRefFor = useCallback((id: string) => {
-    let callback = cellRefCallbacks.current.get(id);
-    if (!callback) {
-      callback = (el: HTMLDivElement | null) => {
-        if (el) cells.current.set(id, el);
-        else cells.current.delete(id);
-      };
-      cellRefCallbacks.current.set(id, callback);
-    }
-    return callback;
-  }, []);
-  useLayoutEffect(() => {
-    for (const [id, el] of cells.current) {
-      setCellDrift(el, drift && !fadedIds?.has(id));
-    }
-  }, [drift, fadedIds, visibleWidgets]);
 
   // --- Fit-to-screen (targetRows set) --------------------------------------
   // The design is a fixed `cols × targetRows` canvas. How it maps onto the real
@@ -428,7 +413,7 @@ export function CssGridDisplay({
             }
             deferOffscreen={deferOffscreen}
             faded={fadedIds?.has(widget.i) ?? false}
-            cellRef={cellRefFor(widget.i)}
+            drift={drift}
           />
         ))}
       </div>

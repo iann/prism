@@ -57,13 +57,21 @@ test.describe('Upstream regression contracts', () => {
 
   for (const route of ['travel', 'weekend'] as const) {
     test(`scoped ${route} route renders its data surface`, async ({ page }) => {
+      // The dev server compiles the scoped route on first visit, which alone can
+      // outlast Playwright's default 30 s on a loaded CI runner.
+      test.setTimeout(120_000);
       await loginViaAPI(page, parentName);
       const slug = await getDefaultDashboardSlug(page);
       const response = await page.goto(`/d/${slug}/${route}`);
       expect(response?.ok()).toBeTruthy();
-      await waitForStableUi(page, 900);
 
       if (route === 'travel') {
+        // MapLibre keeps streaming map tiles, so 'networkidle' is not a signal
+        // that this page has settled — waiting for it can time out even though
+        // the route is fine.
+        await page.waitForLoadState('domcontentloaded');
+        await page.waitForTimeout(900);
+
         // MapLibre needs a real WebGL context, which is not available in every
         // developer container or headless CI host. The API contract plus the
         // successful scoped document response still verifies the new route
@@ -73,6 +81,7 @@ test.describe('Upstream regression contracts', () => {
         await expect(page).toHaveURL(new RegExp(`/d/${slug}/travel$`));
         await expect(page.locator('body')).not.toContainText('404');
       } else {
+        await waitForStableUi(page, 900);
         await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
         await expect(page.getByPlaceholder('Search places…')).toBeVisible();
       }
