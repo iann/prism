@@ -143,7 +143,11 @@ async function waitForDashboardWidgets(page: Page) {
   await page.waitForFunction(
     () => {
       const cell = document.querySelector('.widget-cell[data-widget="tasks"]');
-      return cell ? !cell.querySelector('.animate-pulse') : true;
+      if (!cell) return true;
+      // The cell exists before the widget's own data arrives, and the skeleton
+      // can be mounted a beat later — require both the rows and the text.
+      const text = (cell.textContent ?? '').trim();
+      return text.length > 20 && !cell.querySelector('.animate-pulse');
     },
     null,
     { timeout: 30_000 },
