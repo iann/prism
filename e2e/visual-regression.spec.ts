@@ -140,10 +140,13 @@ async function expectPainted(page: Page, marker?: Locator) {
  * one; the rest start with it, and the extra beat lets them paint too.
  */
 async function waitForDashboardWidgets(page: Page) {
+  // The grid itself renders after the layouts request, so the cell can still be
+  // missing when network goes idle.
+  await page.locator('.widget-cell[data-widget="tasks"]').waitFor({ state: 'attached', timeout: 30_000 });
   await page.waitForFunction(
     () => {
       const cell = document.querySelector('.widget-cell[data-widget="tasks"]');
-      if (!cell) return true;
+      if (!cell) return false;
       // The cell exists before the widget's own data arrives, and the skeleton
       // can be mounted a beat later — require both the rows and the text.
       const text = (cell.textContent ?? '').trim();
