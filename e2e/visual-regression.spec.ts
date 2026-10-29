@@ -132,6 +132,26 @@ async function expectPainted(page: Page, marker?: Locator) {
 }
 
 /**
+ * Wait until the dashboard's widgets have data rather than skeletons.
+ *
+ * The widgets fetch after the layout does, and `networkidle` can be reached in
+ * the gap between the two: a baseline captured there is a wall of placeholder
+ * bars. The Tasks tile is the marker because the seeded dashboard always has
+ * one; the rest start with it, and the extra beat lets them paint too.
+ */
+async function waitForDashboardWidgets(page: Page) {
+  await page.waitForFunction(
+    () => {
+      const cell = document.querySelector('.widget-cell[data-widget="tasks"]');
+      return cell ? !cell.querySelector('.animate-pulse') : true;
+    },
+    null,
+    { timeout: 30_000 },
+  );
+  await page.waitForTimeout(400);
+}
+
+/**
  * Auth-required tests only run when a fresh test DB is available.
  * Live deployments have unknown PINs; running these would 400 on login.
  */
@@ -227,6 +247,7 @@ test.describe('Visual regression', () => {
       await page.waitForTimeout(800); // let theme + seasonal vars settle
 
       await expectPainted(page, page.locator('.widget-cell').first());
+      await waitForDashboardWidgets(page);
       await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
@@ -242,6 +263,7 @@ test.describe('Visual regression', () => {
       await page.waitForTimeout(800);
 
       await expectPainted(page, page.locator('.widget-cell').first());
+      await waitForDashboardWidgets(page);
       await expect(page).toHaveScreenshot(`dashboard-perf-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
