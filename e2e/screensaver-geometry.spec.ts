@@ -418,7 +418,15 @@ test.describe('calm mode idle screen', () => {
       expect(Object.keys(before).sort()).toEqual(WIDGETS.map((w) => w.i).sort());
 
       await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
-      await page.waitForTimeout(1500);
+      // The calm handshake crosses a store, so wait for the fade to land rather
+      // than assuming a fixed delay; a widget that fades is the state we assert.
+      await expect(page.locator('.widget-cell[data-widget="tasks"]')).toHaveAttribute(
+        'data-faded',
+        'true',
+        { timeout: 10_000 },
+      );
+      // Let the one-second fade finish before reading opacity.
+      await page.waitForTimeout(1200);
       const idle = await cells(page);
 
       // The separate screensaver did not come up over the dashboard.
@@ -448,7 +456,13 @@ test.describe('calm mode idle screen', () => {
       // useIdleDetection); the second wakes the display.
       const tasks = idle.tasks!;
       for (let n = 0; n < 2; n++) await page.mouse.click(tasks.x + tasks.w / 2, tasks.y + tasks.h / 2);
-      // Waking eases a drifted widget home over a second; it does not snap.
+      // As above: wait for the wake to reach the widgets before measuring the
+      // glide, which starts from that same moment.
+      await expect(page.locator('.widget-cell[data-widget="tasks"]')).not.toHaveAttribute(
+        'data-faded',
+        'true',
+        { timeout: 10_000 },
+      );
       const waking = await cells(page);
       expect(off('clock', before, waking), 'the clock glides back, not jumps').toBeGreaterThan(1.5);
       await page.waitForTimeout(1500);
@@ -499,7 +513,15 @@ test.describe('calm mode idle screen', () => {
 
       await page.locator('.widget-cell[data-widget="clock"]').waitFor();
       await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
-      await page.waitForTimeout(1500);
+      // The calm handshake crosses a store, so wait for the fade to land rather
+      // than assuming a fixed delay; here the clock is the one that fades.
+      await expect(page.locator('.widget-cell[data-widget="clock"]')).toHaveAttribute(
+        'data-faded',
+        'true',
+        { timeout: 10_000 },
+      );
+      // Let the one-second fade finish before reading opacity.
+      await page.waitForTimeout(1200);
       const idle = await cells(page);
       expect(idle.tasks!.opacity, 'tasks now stays').toBe(1);
       expect(idle.clock!.opacity, 'the clock now fades').toBe(0);
