@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePhotos } from '@/lib/hooks/usePhotos';
-import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
+import { usePerformanceLevel } from '@/lib/hooks/usePerformanceMode';
+import { useHydrated } from '@/lib/hooks/useStoredValue';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 
 const STORAGE_KEY = 'prism-wallpaper-enabled';
@@ -134,7 +135,9 @@ export function usePinnedPhoto(context: 'wallpaper' | 'screensaver') {
 
 export function WallpaperBackground() {
   const { enabled, interval } = useWallpaperSettings();
-  const { enabled: performanceMode, ready: performanceModeReady } = usePerformanceMode();
+  // Minimal is the level that shows a single static photo (see perfLevel.ts).
+  const performanceMode = usePerformanceLevel() === 'minimal';
+  const performanceModeReady = useHydrated();
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('wallpaper');
   const screenOrientation = useScreenOrientation();
