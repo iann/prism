@@ -1089,6 +1089,18 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: ea4f8d77
 
+132. **A Remove button on the widget itself**
+
+    Adds a red Remove button beside the selected widget's Move / Resize badge
+    in the layout editor, plus Delete and Backspace from a keyboard, with an
+    Undo in the toast that follows. Removal keeps the same hidden-flag entry,
+    so the widget's size, place and styling survive, and adding that type back
+    from the Widgets panel now restores the hidden instance instead of creating
+    a blank second one. The calm-mode Stays / Fades button steps aside while a
+    widget is selected, where the edit actions own that edge.
+
+    Commit: 566a86b8
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

@@ -185,6 +185,7 @@ See the dedicated [Mobile & PWA guide](features/MOBILE.md) for OS-specific steps
 | Ctrl+Shift+S | Calendar notes | Strikethrough |
 | Ctrl+Shift+L | Calendar notes | Bullet list |
 | Ctrl+Shift+M | Layout editor | Toggle measure mode |
+| Delete / Backspace | Layout editor | Remove the selected widget |
 
 ---
 

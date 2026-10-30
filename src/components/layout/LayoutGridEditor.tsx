@@ -23,6 +23,9 @@ const CssGridEditor = dynamic(
 );
 import { useSquareCells } from './grid/useSquareCells';
 import { useViewportSize } from '@/lib/hooks/useViewportSize';
+import { useLatestRef } from '@/lib/hooks/useLatestRef';
+import { toast } from '@/components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 
 export type { EditorTheme } from './grid/gridEditorTypes';
 export { DASHBOARD_THEME, SCREENSAVER_THEME } from './grid/gridEditorTypes';
@@ -315,6 +318,42 @@ export function LayoutGridEditor({
     ? stableLayout.find((w) => w.i === selectedId && w.visible !== false)
     : null;
   const selectedWidget = selectedWidgetConfig ? selectedId : null;
+
+  // Removing keeps the entry and clears its visible flag, as the Widgets panel
+  // always has: the widget's size, place and styling come back when it is
+  // added again. The toast is the way back, since the board gives no hint that
+  // anything was kept.
+  const latestLayoutRef = useLatestRef(layout);
+  const handleRemoveWidget = useCallback(
+    (id: string) => {
+      const removed = latestLayoutRef.current.find((w) => w.i === id);
+      if (!removed) return;
+      const type = getWidgetType(removed);
+      const label = WIDGET_REGISTRY[type]?.label ?? type;
+
+      onLayoutChange(
+        latestLayoutRef.current.map((w) => (w.i === id ? { ...w, visible: false } : w))
+      );
+      setSelectedWidget(null);
+      toast({
+        title: `${label} removed`,
+        description: 'Add it back any time from the Widgets panel.',
+        action: (
+          <ToastAction
+            altText="Undo"
+            onClick={() => {
+              onLayoutChange(
+                latestLayoutRef.current.map((w) => (w.i === id ? { ...w, visible: true } : w))
+              );
+            }}
+          >
+            Undo
+          </ToastAction>
+        ),
+      });
+    },
+    [latestLayoutRef, onLayoutChange]
+  );
 
   // Get current color value for whichever target is active
   const getActiveColor = (widget: WidgetConfig): string | undefined => {
@@ -1031,6 +1070,7 @@ export function LayoutGridEditor({
                 totalCols={totalCols}
                 selectedWidget={selectedWidget}
                 onSelectWidget={setSelectedWidget}
+                onRemoveWidget={handleRemoveWidget}
                 theme={theme}
                 idleToggles={idleToggles}
               />

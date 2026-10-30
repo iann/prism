@@ -107,6 +107,18 @@ export function CoordinateEditor({
         return;
       }
 
+      // A removed dashboard widget is kept, hidden, with its place and styling.
+      // Adding that type back restores it rather than starting a blank second
+      // instance, which is what someone who just removed it means. A second
+      // instance is still one click away when nothing of that type is hidden.
+      const hidden = widgets.find(
+        (w) => getWidgetType(w) === widgetType && w.visible === false
+      );
+      if (hidden) {
+        onWidgetsChange(widgets.map((w) => (w.i === hidden.i ? { ...w, visible: true } : w)));
+        return;
+      }
+
       const instanceId = getNextWidgetInstanceId(widgetType, widgets);
       const { x, y } = findNextFreeSlot(widgets, reg.defaultW, reg.defaultH);
       onWidgetsChange([
@@ -175,7 +187,7 @@ export function CoordinateEditor({
                       backgroundColor: color,
                       border: `1px solid ${color}`,
                     }}
-                    title="Click to hide"
+                    title="Remove from the board (kept, so + Add widget puts it back)"
                   >
                     {label}
                   </button>
