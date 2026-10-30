@@ -6,7 +6,7 @@ import { useIdleDetection } from '@/lib/hooks/useIdleDetection';
 import { useAwayMode } from '@/lib/hooks/useAwayMode';
 import { useBabysitterMode } from '@/lib/hooks/useBabysitterMode';
 import { usePhotos } from '@/lib/hooks/usePhotos';
-import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
+import { useAutoPerformance, usePerformanceLevel } from '@/lib/hooks/usePerformanceMode';
 import {
   useAutoOrientationSetting,
   usePinnedPhoto,
@@ -67,7 +67,9 @@ export {
 
 export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
   const { isIdle: idleNow } = useIdleDetection();
-  const { enabled: performanceMode } = usePerformanceMode();
+  // Minimal is the level that shows a single static photo (see perfLevel.ts).
+  const perfLevel = usePerformanceLevel();
+  const performanceMode = perfLevel === 'minimal';
   // Away and Babysitter are deliberate, someone-chose-this states, and each
   // puts its own full-screen overlay up. The screensaver is rendered after both
   // in LazyOverlays, so on an untouched display it simply covered them: a home
@@ -95,6 +97,8 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
     setCalmIdle(idle && calm);
     return () => setCalmIdle(false);
   }, [idle, calm]);
+  // Going idle and waking are the fades Auto performance times.
+  useAutoPerformance(idle);
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: screensaverInterval } = useScreensaverInterval();
@@ -280,7 +284,7 @@ function ScreensaverGrid() {
   // win on thin clients, so handing those same displays a particle system would
   // be backwards. Both it and prefers-reduced-motion fall back to the plain
   // fade rather than to nothing, so the rotation still reads as intentional.
-  const { enabled: lowPower } = usePerformanceMode();
+  const lowPower = usePerformanceLevel() !== 'full';
   const reduced = useMemo(
     () => typeof window !== 'undefined'
       && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Cloud, CloudRain, CloudSnow, Sun, CloudSun, Droplets, Wind } from 'lucide-react';
 import { usePhotos } from '@/lib/hooks/usePhotos';
-import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
+import { usePerformanceLevel } from '@/lib/hooks/usePerformanceMode';
 import { useAutoOrientationSetting, usePinnedPhoto, useScreensaverInterval } from '@/components/layout/WallpaperBackground';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import { ExitAwayModeModal } from './ExitAwayModeModal';
@@ -16,7 +16,8 @@ interface AwayModeOverlayProps {
 }
 
 export function AwayModeOverlay({ toggle }: AwayModeOverlayProps) {
-  const { enabled: performanceMode } = usePerformanceMode();
+  // Minimal is the level that shows a single static photo (see perfLevel.ts).
+  const performanceMode = usePerformanceLevel() === 'minimal';
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: photoInterval } = useScreensaverInterval();
