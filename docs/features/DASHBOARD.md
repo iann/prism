@@ -27,7 +27,10 @@ On the live dashboard the content bounding box is stretched to fill the actual s
 
 - **Drag** a widget to reposition it on the grid.
 - **Resize** by dragging the corner handles.
+- **Remove** a widget by tapping it once to select it, then tapping the red **Remove** button that appears next to its **Move** / **Resize** label. With a keyboard, select the widget and press **Delete** or **Backspace**.
 - Open the **Widgets** button to show/hide each widget and to type exact `x / y / w / h` coordinates when you want pixel-precise placement.
+
+Removing keeps the widget's size, place and styling, so **Widgets → + Add widget** puts the same one back rather than a blank copy. The toast that follows a removal has an **Undo** for the same reason. Nothing is saved until you press **Save**; **Cancel** restores the board either way.
 
 Available widgets: **Clock, Weather, Calendar, Tasks, Chores, Shopping, Meals, Messages, Photos, Points/Goals, Birthdays, Wishes, and Bus Tracker.**
 

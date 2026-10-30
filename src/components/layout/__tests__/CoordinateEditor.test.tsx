@@ -111,4 +111,29 @@ describe('CoordinateEditor duplicate widget instances', () => {
     const nextWidgets = onWidgetsChange.mock.calls[0]![0] as WidgetConfig[];
     expect(nextWidgets).toEqual([expect.objectContaining({ i: 'calendar', visible: true })]);
   });
+
+  it('restores a removed dashboard widget, with its place and styling', () => {
+    const onWidgetsChange = jest.fn();
+    const removed = { ...calendar('calendar', false), backgroundColor: '#123456' };
+    render(
+      <CoordinateEditor
+        widgets={[removed]}
+        onWidgetsChange={onWidgetsChange}
+        mode="dashboard"
+      />
+    );
+
+    openAddMenu();
+    fireEvent.click(screen.getByRole('button', { name: /^Calendar$/ }));
+
+    const nextWidgets = onWidgetsChange.mock.calls[0]![0] as WidgetConfig[];
+    expect(nextWidgets).toHaveLength(1);
+    expect(nextWidgets[0]).toMatchObject({
+      i: 'calendar',
+      type: 'calendar',
+      visible: true,
+      backgroundColor: '#123456',
+      x: removed.x,
+    });
+  });
 });

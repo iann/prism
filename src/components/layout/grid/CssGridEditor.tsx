@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useCallback } from 'react';
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import {
   DndContext,
   useDraggable,
@@ -13,8 +13,9 @@ import {
   type DragStartEvent,
   type Modifier,
 } from '@dnd-kit/core';
-import { Moon } from 'lucide-react';
+import { Moon, Trash2 } from 'lucide-react';
 import { WidgetBgOverrideProvider } from '@/components/widgets/WidgetContainer';
+import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { useLatestRef } from '@/lib/hooks/useLatestRef';
 import { shownWhenIdle } from '@/components/screensaver/calmMode';
 import {
@@ -54,6 +55,11 @@ export interface CssGridEditorProps {
   totalCols: number;
   selectedWidget: string | null;
   onSelectWidget: (id: string | null) => void;
+  /**
+   * Takes the widget off the board. The parent owns the change (and its undo),
+   * so this component only says which instance was removed.
+   */
+  onRemoveWidget?: (id: string) => void;
   theme: EditorTheme;
   /**
    * Calm dashboards (#691): put a Stays / Fades switch on each widget, so what
@@ -75,6 +81,7 @@ export function CssGridEditor({
   totalCols,
   selectedWidget,
   onSelectWidget,
+  onRemoveWidget,
   theme,
   idleToggles = false,
 }: CssGridEditorProps) {
@@ -122,6 +129,26 @@ export function CssGridEditor({
     onSelectWidget(null);
     setEditMode('move');
   }, [onSelectWidget]);
+
+  // Delete / Backspace removes the selected widget, for anyone editing with a
+  // keyboard. Typing into a field (the coordinate boxes, a dashboard name)
+  // must keep Backspace to itself.
+  useEffect(() => {
+    if (!selectedWidget || !onRemoveWidget) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      }
+      event.preventDefault();
+      onRemoveWidget(selectedWidget);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedWidget, onRemoveWidget]);
 
   const visibleWidgets = useMemo(() => layout.filter((w) => w.visible !== false), [layout]);
 
@@ -292,6 +319,7 @@ export function CssGridEditor({
             renderWidget={renderWidget}
             theme={theme}
             onToggleIdle={idleToggles ? handleToggleIdle : undefined}
+            onRemove={onRemoveWidget ? () => onRemoveWidget(w.i) : undefined}
           />
         ))}
       </div>
@@ -376,6 +404,7 @@ interface DraggableWidgetProps {
   renderWidget: (widget: WidgetConfig) => React.ReactNode;
   theme: EditorTheme;
   onToggleIdle?: (id: string) => void;
+  onRemove?: () => void;
 }
 
 function DraggableWidget({
@@ -389,6 +418,7 @@ function DraggableWidget({
   renderWidget,
   theme,
   onToggleIdle,
+  onRemove,
 }: DraggableWidgetProps) {
   const inMoveMode = isSelected && editMode === 'move';
   const inResizeMode = isSelected && editMode === 'resize';
@@ -472,55 +502,79 @@ function DraggableWidget({
         </div>
       </WidgetBgOverrideProvider>
 
-      {/* Mode label — visible when selected */}
+      {/* Mode label, with Remove beside it — visible when selected. Remove is
+          its own button so a tap takes the widget off the board instead of
+          switching it between move and resize. Hidden in resize mode, where
+          the top edge is a handle. */}
       {isSelected && !isDragging && (
-        <div
-          className={`pointer-events-none absolute left-1/2 top-1 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium text-white shadow-xs ${
-            inResizeMode ? 'bg-warning/90' : 'bg-blue-500/90'
-          }`}
-        >
-          {inResizeMode ? (
-            <>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="15 3 21 3 21 9" />
-                <polyline points="9 21 3 21 3 15" />
-                <line x1="21" y1="3" x2="14" y2="10" />
-                <line x1="3" y1="21" x2="10" y2="14" />
-              </svg>
-              Resize
-            </>
-          ) : (
-            <>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="5 9 2 12 5 15" />
-                <polyline points="9 5 12 2 15 5" />
-                <polyline points="15 19 12 22 9 19" />
-                <polyline points="19 9 22 12 19 15" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <line x1="12" y1="2" x2="12" y2="22" />
-              </svg>
-              Move
-            </>
+        <div className="pointer-events-none absolute left-1/2 top-1 z-10 flex -translate-x-1/2 items-center gap-1">
+          <div
+            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium text-white shadow-xs ${
+              inResizeMode ? 'bg-warning/90' : 'bg-blue-500/90'
+            }`}
+          >
+            {inResizeMode ? (
+              <>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+                Resize
+              </>
+            ) : (
+              <>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="5 9 2 12 5 15" />
+                  <polyline points="9 5 12 2 15 5" />
+                  <polyline points="15 19 12 22 9 19" />
+                  <polyline points="19 9 22 12 19 15" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <line x1="12" y1="2" x2="12" y2="22" />
+                </svg>
+                Move
+              </>
+            )}
+          </div>
+          {onRemove && !inResizeMode && (
+            <button
+              type="button"
+              data-widget-remove
+              aria-label={`Remove ${widgetLabel(widget)} from the board`}
+              title="Remove from the board"
+              className="pointer-events-auto flex touch-manipulation items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-[12px] font-medium text-destructive-foreground shadow-xs"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove();
+              }}
+              onPointerDown={stopEvent}
+              onMouseDown={stopEvent}
+              onTouchStart={stopEvent}
+            >
+              <Trash2 className="h-3 w-3" aria-hidden />
+              Remove
+            </button>
           )}
         </div>
       )}
@@ -532,8 +586,10 @@ function DraggableWidget({
         </div>
       )}
 
-      {/* Idle switch, on the top edge at the right. Off in resize mode, where that corner is a handle. */}
-      {onToggleIdle && !inResizeMode && !isDragging && (
+      {/* Idle switch, on the top edge at the right. Hidden while the widget is
+          selected, where the edit actions own that edge, and in resize mode,
+          where that corner is a handle. */}
+      {onToggleIdle && !isSelected && !isDragging && (
         <IdleToggle stays={shownWhenIdle(widget)} onToggle={() => onToggleIdle(widget.i)} />
       )}
 
@@ -543,11 +599,21 @@ function DraggableWidget({
   );
 }
 
+/** Buttons on a widget's edge act on the widget; they must not start a drag or
+ *  change the selection underneath them. */
+function stopEvent(event: React.SyntheticEvent): void {
+  event.stopPropagation();
+}
+
+function widgetLabel(widget: WidgetConfig): string {
+  const type = getWidgetType(widget);
+  return WIDGET_REGISTRY[type]?.label ?? type;
+}
+
 // Whether a widget stays on the calm idle screen. Its own button, so a tap
 // changes only this and does not select, drag or resize the widget.
 function IdleToggle({ stays, onToggle }: { stays: boolean; onToggle: () => void }) {
-  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
-  return (
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();  return (
     <button
       type="button"
       data-idle-toggle
