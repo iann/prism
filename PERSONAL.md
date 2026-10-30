@@ -1101,6 +1101,17 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 566a86b8
 
+133. **A safe one-minute screen-cleaning mode**
+
+    Adds a **Clean screen** action to the dashboard header. It covers the
+    current view with a black screen for one minute, pauses touch and keyboard
+    input, and exits early with Escape. If a finger or cloth is still down at
+    the deadline, the cover stays up through release so the final wipe cannot
+    activate a dashboard control. The route and deliberate display mode remain
+    in place.
+
+    Commit: 0048f05d
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
