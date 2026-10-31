@@ -35,7 +35,8 @@ import { AwayModeToggle } from '@/components/away-mode';
 import { BabysitterModeToggle } from '@/components/babysitter-mode';
 import { PerformanceModeBadge } from '@/components/layout/PerformanceModeBadge';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
-import { RefreshCw } from 'lucide-react';
+import { Eraser, RefreshCw } from 'lucide-react';
+import { startScreenCleaning } from '@/lib/hooks/useScreenCleaning';
 
 
 /**
@@ -240,6 +241,16 @@ export function DashboardHeader({
         <PerformanceModeBadge />
         <BabysitterModeToggle />
         <AwayModeToggle />
+
+        <button
+          onMouseDown={(e) => { e.stopPropagation(); }}
+          onClick={(e) => { e.stopPropagation(); startScreenCleaning(); }}
+          className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
+          aria-label="Clean screen"
+          title="Clean screen"
+        >
+          <Eraser className="h-5 w-5" aria-hidden="true" />
+        </button>
 
         {onScreensaverClick && (
           <button

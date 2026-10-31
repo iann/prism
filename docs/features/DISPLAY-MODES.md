@@ -1,12 +1,28 @@
 # Display Modes
 
-Three "what's on the screen right now" modes beyond the default dashboard:
+Four "what's on the screen right now" modes beyond the default dashboard:
 
+- **Screen cleaning**: a temporary black cover that pauses input for one minute.
 - **Screensaver**: idle photo slideshow with widget overlays.
 - **Away Mode**: privacy screen showing only photos + clock, parent PIN to exit.
 - **Babysitter Mode**: caregiver overlay with house info, contacts, child notes.
 
-All three are layered on top of the dashboard. The dashboard is always running behind the scenes; these modes just cover it with a different presentation.
+All four are layered on top of the dashboard. The dashboard is always running behind the scenes; these modes just cover it with a different presentation.
+
+## Screen cleaning
+
+On a desktop or wall-display dashboard, choose **Clean screen** in the header to
+cover the display with a black screen for one minute. Touches and keyboard input
+are paused, and a countdown shows when the previous view will return. Press
+**Escape** to finish early. If a finger, hand or cloth is still touching the
+screen at the end, lift it first; Prism keeps the controls covered until the
+contact and its trailing tap have passed. The dashboard and its current mode
+remain underneath. Speech recognition and Prism's on-screen keyboard close when
+cleaning starts and stay closed afterwards.
+
+This is a temporary mode for the current tab. It does not change the Away or
+Babysitter setting on other displays. Browser and operating-system controls are
+outside the covered page.
 
 ---
 

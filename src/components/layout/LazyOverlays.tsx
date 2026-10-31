@@ -8,6 +8,7 @@ import { useBabysitterMode } from '@/lib/hooks/useBabysitterMode';
 import { useIdleDetection } from '@/lib/hooks/useIdleDetection';
 import { useIdleLogout } from '@/lib/hooks/useIdleLogout';
 import { setCalmIdle, useActiveScreensaverMode } from '@/components/screensaver/calmMode';
+import { ScreenCleaningOverlay } from '@/components/screen-cleaning/ScreenCleaningOverlay';
 
 // Its own chunk, but rendered rather than client-only: the idle-dim layer lives
 // inside it and has to exist while the display is awake, so it can ease in on
@@ -46,6 +47,7 @@ export function LazyOverlays() {
 
   return (
     <>
+      <ScreenCleaningOverlay />
       {babysitterActive && <BabysitterModeOverlay toggle={toggleBabysitter} />}
       {isAway && <AwayModeOverlay toggle={toggleAway} />}
       {/* Mounted while awake as well as idle, because the idle-dim layer has to
