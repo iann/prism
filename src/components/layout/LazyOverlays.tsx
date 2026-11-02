@@ -1,13 +1,11 @@
 'use client';
 
-import { useLayoutEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useAwayMode } from '@/lib/hooks/useAwayMode';
 import { useBabysitterMode } from '@/lib/hooks/useBabysitterMode';
 import { useIdleDetection } from '@/lib/hooks/useIdleDetection';
 import { useIdleLogout } from '@/lib/hooks/useIdleLogout';
-import { setCalmIdle, useActiveScreensaverMode } from '@/components/screensaver/calmMode';
 import { ScreenCleaningOverlay } from '@/components/screen-cleaning/ScreenCleaningOverlay';
 
 // Its own chunk, but rendered rather than client-only: the idle-dim layer lives
@@ -25,6 +23,10 @@ const BabysitterModeOverlay = dynamic(
   () => import('@/components/babysitter-mode/BabysitterModeOverlay').then(m => ({ default: m.BabysitterModeOverlay })),
   { ssr: false }
 );
+const AttentionPanel = dynamic(
+  () => import('@/components/attention/AttentionPanel').then(m => ({ default: m.AttentionPanel })),
+  { ssr: false }
+);
 
 export function LazyOverlays() {
   const pathname = usePathname();
@@ -34,16 +36,6 @@ export function LazyOverlays() {
   // Mounted here because this component is already in the root layout, so the
   // check runs on every page rather than only on the dashboard.
   useIdleLogout();
-
-  // A calm dashboard is its own idle screen (#691). Published from here rather
-  // than from inside the (lazily loaded) Screensaver so the dashboard hears
-  // about it in the same commit as the idle change, not a chunk load later.
-  const screensaverMode = useActiveScreensaverMode();
-  const calmIdleNow = isIdle && screensaverMode === 'calm';
-  useLayoutEffect(() => {
-    setCalmIdle(calmIdleNow);
-    return () => setCalmIdle(false);
-  }, [calmIdleNow]);
 
   return (
     <>
@@ -55,6 +47,8 @@ export function LazyOverlays() {
           `isIdle` inside, so an awake page does not poll for it.
           The solar observatory is itself an always-on wall display. */}
       {pathname !== '/solar' && <Screensaver idleOverride={isIdle} />}
+      {/* After the screensaver: same layer, so its notices show over it. */}
+      <AttentionPanel />
     </>
   );
 }

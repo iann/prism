@@ -79,7 +79,7 @@ For calendars you don't want to mark Public, or to sync **Reminders** as tasks, 
 
 The same flow works for **Nextcloud** (`https://your-server/remote.php/dav`), **Radicale**, **Baikal** (`https://your-server/dav.php`), and **Synology Calendar** (`https://your-nas:5001/caldav/`).
 
-Caveats: this path is **read-only for create/edit**: events and tasks pulled from CalDAV appear in the dashboard but can't be created or edited from Prism. There is one exception: **deleting a single (non-recurring) synced event in Prism now removes it from the source server too** (iCloud/Nextcloud/etc.), so treat that delete as destructive upstream. Recurring series still delete locally only. App-specific passwords are stored encrypted in the Prism database and never leave your server. Apple Reminders sync into Prism's Tasks list with the same priorities and due dates the iOS app uses.
+Caveats: **editing a CalDAV event in Prism changes it on the server too**. Prism reads the event, changes only the edited fields and writes it back, so alarms, invitees, the repeat rule and other apps' properties stay. On a repeating event, a new title, notes or place apply to the whole series, and a new time for one occurrence stays in Prism only (with a warning; the next sync puts it back). If the event changed elsewhere during the save, Prism refuses it rather than overwrite. A read-only calendar keeps the edit in Prism with a warning. **A new event created in Prism on a CalDAV calendar is created on the server too**, including a repeating one, which is written in the household time zone so it keeps its time of day across clock changes. **Deleting a single (non-recurring) synced event in Prism removes it from the source server too** (iCloud/Nextcloud/etc.), so treat that delete as destructive upstream. Recurring series still delete locally only. App-specific passwords are stored encrypted in the Prism database and never leave your server. Apple Reminders sync into Prism's Tasks list with the same priorities and due dates the iOS app uses.
 
 > Wondering what *else* you can pull from iCloud (Reminders, Notes, Photos, Find My)? See the [iCloud integration overview](ICLOUD.md). Short answer: calendars and contacts work, nothing else does, and there's a structural reason.
 
@@ -269,12 +269,12 @@ Cross-calendar events (e.g. the same event in your Google personal calendar and 
 Click **Add Event** in the calendar header (or on the CalendarWidget). The modal includes:
 
 - **Title** (required)
-- **Calendar**: picker filtered to calendars marked "Show in Add Event modal".
+- **Calendar**: Prism, Google and CalDAV calendars marked "Show in Add Event modal" (*Settings → Calendars*). iCal feeds, and calendars named like subscriptions (Birthdays, Holidays, Week Numbers), are not offered.
 - **Color**: preset palette + your profile color.
 - **Description**
 - **Location**
 - **Start / End time** or **All day** toggle.
-- **Recurrence**: None, Daily, Every weekday, Weekly, Monthly, Yearly (writes to Google Calendar's RRULE format if syncing to Google).
+- **Recurrence**: None, Daily, Every weekday, Weekly, Monthly, Yearly, or **Custom…**: every N days, weeks, months or years; chosen days of the week; monthly or yearly on the date or on the nth weekday ("the third Wednesday"); ending never, on a date, or after N times. A weekly repeat starts on the first chosen day on or after the start date. A rule from another app that the builder cannot show is kept unchanged. Opening any occurrence of a repeating event made in Prism edits the whole series.
 
 Subscription / read-only calendars are auto-hidden from the picker.
 

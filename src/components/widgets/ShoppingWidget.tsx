@@ -29,7 +29,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { ShoppingCart, Plus, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WidgetContainer, WidgetEmpty } from './WidgetContainer';
-import { Button, Checkbox, Badge, Progress } from '@/components/ui';
+import { Button, Badge, Progress } from '@/components/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,10 +42,13 @@ import {
  */
 // Shopping types imported from shared types
 import type { ShoppingItem, ShoppingList } from '@/types';
+import { useStoredString, writeStored } from '@/lib/hooks/useStoredValue';
 export type { ShoppingItem, ShoppingList };
 
 /** How long an item ticked on the widget stays visible before it is hidden. */
 const TICK_GRACE_MS = 5000;
+/** The list picked in the widget's menu, on this display. */
+const SELECTED_LIST_KEY = 'prism-shopping-widget-list';
 
 /**
  * SHOPPING WIDGET PROPS
@@ -105,10 +108,13 @@ export const ShoppingWidget = React.memo(function ShoppingWidget({
   // Use provided lists (no demo data fallback in production)
   const allLists = externalLists || [];
 
-  // Determine active list
-  const [selectedListId, setSelectedListId] = useState<string | undefined>(listId);
-  const activeListId = selectedListId || allLists[0]?.id;
-  const activeList = allLists.find((l) => l.id === activeListId);
+  // The list picked in the menu, kept per display: the dashboard and the
+  // screensaver draw separate copies of this widget, and the screensaver's
+  // used to start on the first list whatever had been picked. A stored list
+  // that no longer exists falls back to the first.
+  const storedListId = useStoredString(SELECTED_LIST_KEY);
+  const pickedListId = storedListId ?? listId;
+  const activeList = allLists.find((l) => l.id === pickedListId) ?? allLists[0];
 
   // Local state for optimistic updates
   const [localChecked, setLocalChecked] = useState<Record<string, boolean>>({});
@@ -140,7 +146,7 @@ export const ShoppingWidget = React.memo(function ShoppingWidget({
   }, [onItemToggle]);
 
   const handleListChange = useCallback((newListId: string) => {
-    setSelectedListId(newListId);
+    writeStored(SELECTED_LIST_KEY, newListId);
     onListChange?.(newListId);
   }, [onListChange]);
 
@@ -208,10 +214,12 @@ export const ShoppingWidget = React.memo(function ShoppingWidget({
       }
       className={className}
     >
-      {!activeList || items.length === 0 ? (
+      {/* Empty also when everything on the list is checked off: nothing is
+          left to buy, so a widget set to hide when empty (#738) hides. */}
+      {!activeList || visibleItems.length === 0 ? (
         <WidgetEmpty
           icon={<ShoppingCart className="h-8 w-8" />}
-          message="No items on your list"
+          message={items.length > 0 ? 'Everything is checked off' : 'No items on your list'}
           action={
             onAddClick && (
               <Button size="sm" variant="outline" onClick={onAddClick}>
@@ -233,11 +241,6 @@ export const ShoppingWidget = React.memo(function ShoppingWidget({
           )}
 
           <div className="overflow-auto h-full -mr-2 pr-2">
-            {visibleItems.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                Everything is checked off
-              </p>
-            )}
             <div className="space-y-2">
               {visibleItems.map((item) => {
                 const isChecked: boolean =
@@ -264,7 +267,7 @@ export const ShoppingWidget = React.memo(function ShoppingWidget({
 
 /**
  * SHOPPING ITEM ROW
- * A single shopping item with checkbox and details.
+ * A single shopping item: tap anywhere on it to cross it out.
  */
 function ShoppingItemRow({
   item,
@@ -283,27 +286,29 @@ function ShoppingItemRow({
     ? `${item.quantity}${item.unit ? ` ${item.unit}` : ''}`
     : null;
 
+  // The whole row is the tap target and a tap crosses the item out, as the
+  // recipe ingredients and the Shopping page do: no checkbox to aim for.
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={checked}
+      onClick={onToggle}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
       className={cn(
-        'flex items-start gap-3 p-2 rounded-lg',
+        'flex items-start gap-3 p-2 rounded-lg cursor-pointer select-none',
         'hover:bg-accent/50 transition-colors',
         'touch-action-manipulation',
         checked && 'opacity-60'
       )}
     >
-      {/* Checkbox */}
-      <Checkbox
-        checked={checked}
-        onCheckedChange={onToggle}
-        className="mt-0.5"
-      />
-
       {/* Item content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          {/* Category emoji */}
-          {categoryEmoji && <span className="text-sm"><Emoji e={categoryEmoji} /></span>}
+          {/* Category emoji, or a bullet */}
+          {categoryEmoji
+            ? <span className="text-sm"><Emoji e={categoryEmoji} /></span>
+            : <span className="text-muted-foreground">&bull;</span>}
 
           {/* Name */}
           <span

@@ -90,6 +90,21 @@ export interface CssGridDisplayProps {
    * of its outline to the clip on whichever side it had moved towards.
    */
   drift?: boolean;
+  /**
+   * When a screen's schedule changes the dashboard (#692), widgets on both
+   * slide and resize to their new places and the rest fade. Only the
+   * dashboard's own grid: names must be unique on the page, and a separate
+   * screensaver shows the same widgets.
+   */
+  morph?: boolean;
+  /**
+   * Hide widgets with nothing to show unless they are set otherwise (#738):
+   * true for the screensaver and a calm dashboard's idle screen. A hidden
+   * widget keeps its place, like a faded one, so nothing else moves.
+   */
+  hideEmptyByDefault?: boolean;
+  /** Which widgets are showing their empty state, as it changes. */
+  onEmptyChange?: (emptyIds: ReadonlySet<string>) => void;
   className?: string;
 }
 
@@ -113,8 +128,15 @@ export interface LayoutGridEditorProps {
   gridHelperText?: string;
   /** Display mode only; see CssGridDisplayProps. */
   fadedIds?: ReadonlySet<string>;
+  /**
+   * See CssGridDisplayProps. In edit mode it is the default the Hide when
+   * empty switch shows for a widget that has not been set.
+   */
+  hideEmptyByDefault?: boolean;
   /** Display mode only; see CssGridDisplayProps. */
   drift?: boolean;
+  /** Display mode only; see CssGridDisplayProps. */
+  morph?: boolean;
   /** Edit mode only; see CssGridEditorProps. */
   idleToggles?: boolean;
   className?: string;

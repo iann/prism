@@ -25,7 +25,6 @@ import { useOrientationOverride } from '../SettingsView';
 import { useScreensaverTimeout } from '@/lib/hooks/useScreensaverTimeout';
 import { useScreensaverMotion, type ScreensaverMotion } from '@/components/screensaver/useScreensaverMotion';
 import { useLocalCopy } from '@/lib/hooks/useLocalCopy';
-import { useScreensaverBackdrop, type ScreensaverBackdrop } from '@/components/screensaver/useScreensaverBackdrop';
 import { DIM_LEVELS, describeDimHours, useIdleDimSetting } from '@/components/screensaver/idleDim';
 import { useHiddenHours } from '@/lib/hooks/useHiddenHours';
 import { useIdleLogoutSetting, IDLE_LOGOUT_OPTIONS } from '@/lib/hooks/useIdleLogout';
@@ -39,6 +38,7 @@ import {
   normalizeSunsetOffsetMinutes,
 } from '@/lib/themes/sunsetTheme';
 import type { PerfLevel, PerfMode } from '@/lib/perfLevel';
+import { AURORA_SETTING } from '@/lib/integrations/aurora';
 
 function getCurrentMonthNum(): number {
   return new Date().getMonth() + 1;
@@ -661,7 +661,54 @@ function TimersCard() {
  * for it — the screensaver editor — didn't mention it either. Giving it a card
  * with its own name is the whole fix.
  */
-function ScreensaverCard() {
+/**
+ * Aurora on the night sky, for the whole household: one switch, because it is
+ * one forecast, fetched by the server for the household location.
+ */
+function AuroraToggle() {
+  const [on, setOn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setOn(data?.settings?.[AURORA_SETTING] === true))
+      .catch(() => setOn(false));
+  }, []);
+
+  const save = useCallback(async (next: boolean) => {
+    setOn(next);
+    try {
+      await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: AURORA_SETTING, value: next }),
+      });
+    } catch { /* ignore — UI already updated optimistically */ }
+  }, []);
+
+  if (on === null) return null;
+
+  return (
+    <div className="pl-2">
+      <label className="flex items-center gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(e) => save(e.target.checked)}
+          className="rounded border-border"
+        />
+        <span className="text-sm text-muted-foreground">Say when aurora may be visible</span>
+      </label>
+      <p className="text-xs text-muted-foreground mt-1">
+        On every display, the night sky checks NOAA&apos;s aurora forecast for the household location every 30 minutes
+        after dark and says so when aurora may be seen. Mostly seen far north or south, and farther from the poles only
+        in strong storms.
+      </p>
+    </div>
+  );
+}
+
+export function ScreensaverCard() {
   const { timeout: ssTimeout, setTimeout: setSsTimeout } = useScreensaverTimeout();
   const { interval: photoInterval, setInterval: setPhotoInterval } = useScreensaverInterval();
   const {
@@ -671,7 +718,6 @@ function ScreensaverCard() {
     shortcut, setShortcut, drift, setDrift,
     carbonation, setCarbonation, waterClear, setWaterClear, wobble, setWobble, speed, setSpeed,
   } = useScreensaverMotion();
-  const { backdrop, setBackdrop } = useScreensaverBackdrop();
   const { level: dimLevel, setLevel: setDimLevel } = useIdleDimSetting();
   const { settings: calendarHours } = useHiddenHours();
 
@@ -699,24 +745,10 @@ function ScreensaverCard() {
               <option value={0}>Never</option>
             </select>
           </div>
-          <div className="flex items-center gap-3 pl-2">
-            <span className="text-sm text-muted-foreground">Background</span>
-            <select
-              value={backdrop}
-              onChange={(e) => setBackdrop(e.target.value as ScreensaverBackdrop)}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
-            >
-              <option value="photos">Photos</option>
-              <option value="sky">Night sky</option>
-              <option value="skyAtNight">Photos by day, night sky after dark</option>
-            </select>
-          </div>
-          {backdrop !== 'photos' && (
-            <p className="text-xs text-muted-foreground pl-2">
-              The stars and moon as they are outside now, worked out from the location in
-              Settings &gt; General.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground pl-2">
+            Photos or the night sky behind it is chosen for each dashboard, in the layout editor.
+          </p>
+          <AuroraToggle />
           <div className="flex items-center gap-3 pl-2">
             <span className="text-sm text-muted-foreground">Widget transition effect</span>
             <select
@@ -772,17 +804,17 @@ function ScreensaverCard() {
               </select>
             </div>
           )}
-          {motion !== 'off' && (
-            <label className="flex items-center gap-3 pl-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!outlines}
-                onChange={(e) => setOutlines(!e.target.checked)}
-                className="rounded border-border"
-              />
-              <span className="text-sm text-muted-foreground">Hide widget outlines</span>
-            </label>
-          )}
+          {/* Outlines show with or without a transition effect, so this is
+              not under motion !== 'off' like the controls above. */}
+          <label className="flex items-center gap-3 pl-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!outlines}
+              onChange={(e) => setOutlines(!e.target.checked)}
+              className="rounded border-border"
+            />
+            <span className="text-sm text-muted-foreground">Hide widget outlines</span>
+          </label>
           <div className="flex items-center gap-3 pl-2">
             <span className="text-sm text-muted-foreground">Transition length</span>
             <select

@@ -2745,6 +2745,23 @@ body:has(.wall-display) [role='dialog'] select {
 }
 
 /**
+ * A widget's Outline set to None: the same perimeter as above, for one widget,
+ * on a dashboard or the screensaver.
+ *
+ * In the utilities layer, unlike .prism-no-outline, because it has to win with
+ * the screensaver's outlines on: that colour is a Tailwind !important utility,
+ * and an !important rule in a layer beats an unlayered one whatever the
+ * specificity (see .prism-shed below). Inside the layer this selector is the
+ * more specific one.
+ */
+@layer utilities {
+  .prism-outline-none [class*="bg-card"].border-border {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+/**
  * No backdrop blur on a screensaver widget.
  *
  * The card is backdrop-blurred, and any transform animation on or above it
@@ -2814,6 +2831,45 @@ body:has(.wall-display) [role='dialog'] select {
 
 @media (prefers-reduced-motion: reduce) {
   [data-drift] { animation: none; }
+}
+
+/* A screen's schedule changing the dashboard (#692). React names each widget
+   for the change (CssGridDisplay); a widget on both dashboards slides and
+   resizes to its new place, slowly, each a little after the one before, and
+   one on only one of them fades. Only transform and opacity are animated, on
+   snapshots, so weak wall hardware keeps up; the widget's real content is
+   there from the end. The minimal level skips the animation altogether. */
+::view-transition-group(.schedule-morph) {
+  animation-duration: 900ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+::view-transition-old(.schedule-morph),
+::view-transition-new(.schedule-morph) {
+  /* Fill the moving box at an even scale: stretched to its shape, a card's
+     text went tall and thin on the way. */
+  height: 100%;
+  object-fit: contain;
+  animation-duration: 900ms;
+}
+::view-transition-new(.schedule-fade-in) {
+  animation: 500ms ease-out 400ms both schedule-fade-in;
+}
+::view-transition-old(.schedule-fade-out) {
+  animation: 400ms ease-in both schedule-fade-out;
+}
+@keyframes schedule-fade-in { from { opacity: 0; } }
+@keyframes schedule-fade-out { to { opacity: 0; } }
+
+/* Reduced motion: nothing slides, the two dashboards crossfade quickly. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(.schedule-morph) { animation: none; }
+  ::view-transition-old(.schedule-morph),
+  ::view-transition-new(.schedule-morph),
+  ::view-transition-new(.schedule-fade-in),
+  ::view-transition-old(.schedule-fade-out) {
+    animation-duration: 200ms;
+    animation-delay: 0s;
+  }
 }
 
 /* The minimal performance level (#691): a calm dashboard's widgets blink out

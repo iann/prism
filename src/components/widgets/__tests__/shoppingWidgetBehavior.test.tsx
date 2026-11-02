@@ -5,7 +5,7 @@
 /**
  * Behavioral tests for ShoppingWidget.
  *
- * Covers interactions: checkbox toggle (optimistic update), progress bar,
+ * Covers interactions: tap-to-cross toggle (optimistic update), progress bar,
  * list switching, all-checked state, and empty state.
  *
  * Smoke tests (render-only) live in widgetRender.test.tsx — not duplicated here.
@@ -113,12 +113,16 @@ const secondList: ShoppingList = {
   ],
 };
 
-// Helper: get all checkboxes rendered in order
-function getCheckboxes(): HTMLInputElement[] {
-  return screen.getAllByRole('checkbox') as HTMLInputElement[];
+// Helper: the item rows in order. A row is the tap target (tap to cross
+// out), and aria-pressed says whether it is crossed out.
+function getRows(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[role="button"][aria-pressed]'));
 }
+const isCrossed = (row: HTMLElement) => row.getAttribute('aria-pressed') === 'true';
 
 // ---- Tests ----
+beforeEach(() => localStorage.clear());
+
 describe('ShoppingWidget — behavioral', () => {
   describe('Check off item', () => {
     it('calls onItemToggle with correct itemId and true when checking an unchecked item', () => {
@@ -126,14 +130,26 @@ describe('ShoppingWidget — behavioral', () => {
       render(<ShoppingWidget lists={[makeList()]} onItemToggle={onItemToggle} />);
 
       // Apples (i1) is unchecked — it's the first checkbox
-      const checkboxes = getCheckboxes();
+      const checkboxes = getRows();
       const applesCheckbox = checkboxes[0]!; // i1 — unchecked
-      expect(applesCheckbox.checked).toBe(false);
+      expect(isCrossed(applesCheckbox)).toBe(false);
 
       fireEvent.click(applesCheckbox);
 
       expect(onItemToggle).toHaveBeenCalledTimes(1);
       expect(onItemToggle).toHaveBeenCalledWith('i1', true);
+    });
+  });
+
+  describe('Tap to cross out', () => {
+    it('has no checkbox: tapping the item itself crosses it out', () => {
+      const onItemToggle = jest.fn();
+      render(<ShoppingWidget lists={[makeList()]} onItemToggle={onItemToggle} />);
+      expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+
+      fireEvent.click(screen.getByText('Apples'));
+      expect(onItemToggle).toHaveBeenCalledWith('i1', true);
+      expect(screen.getByText('Apples').className).toContain('line-through');
     });
   });
 
@@ -143,9 +159,9 @@ describe('ShoppingWidget — behavioral', () => {
       render(<ShoppingWidget lists={[makeList()]} onItemToggle={onItemToggle} showChecked />);
 
       // Milk (i2) is checked — it's the second checkbox
-      const checkboxes = getCheckboxes();
+      const checkboxes = getRows();
       const milkCheckbox = checkboxes[1]!; // i2 — checked
-      expect(milkCheckbox.checked).toBe(true);
+      expect(isCrossed(milkCheckbox)).toBe(true);
 
       fireEvent.click(milkCheckbox);
 
@@ -177,9 +193,9 @@ describe('ShoppingWidget — behavioral', () => {
       jest.useFakeTimers();
       render(<ShoppingWidget lists={[makeList()]} onItemToggle={jest.fn()} />);
 
-      fireEvent.click(getCheckboxes()[0]!); // Apples
+      fireEvent.click(getRows()[0]!); // Apples
       expect(screen.getByText('Apples')).toBeTruthy();
-      expect(getCheckboxes()[0]!.checked).toBe(true);
+      expect(isCrossed(getRows()[0]!)).toBe(true);
 
       React.act(() => { jest.advanceTimersByTime(5000); });
       expect(screen.queryByText('Apples')).toBeNull();
@@ -190,21 +206,31 @@ describe('ShoppingWidget — behavioral', () => {
       const onItemToggle = jest.fn();
       render(<ShoppingWidget lists={[makeList()]} onItemToggle={onItemToggle} />);
 
-      fireEvent.click(getCheckboxes()[0]!);
+      fireEvent.click(getRows()[0]!);
       React.act(() => { jest.advanceTimersByTime(2000); });
-      fireEvent.click(getCheckboxes()[0]!);
+      fireEvent.click(getRows()[0]!);
       React.act(() => { jest.advanceTimersByTime(5000); });
 
       expect(onItemToggle).toHaveBeenLastCalledWith('i1', false);
       expect(screen.getByText('Apples')).toBeTruthy();
     });
 
-    it('says so when every item is checked off', () => {
+    it('is empty when every item is checked off, so Hide when empty can hide it', () => {
       const allChecked = makeList({
         items: makeList().items.map((i) => ({ ...i, checked: true })),
       });
       render(<ShoppingWidget lists={[allChecked]} />);
-      expect(screen.getByText('Everything is checked off')).toBeTruthy();
+      // WidgetEmpty is what tells the grid the widget is empty (#738).
+      expect(screen.getByTestId('widget-empty').textContent).toBe('Everything is checked off');
+    });
+
+    it('is empty when the picked list is all checked off, even if another list has items', () => {
+      const allChecked = makeList({
+        items: makeList().items.map((i) => ({ ...i, checked: true })),
+      });
+      render(<ShoppingWidget lists={[allChecked, secondList]} />);
+      expect(screen.getByTestId('widget-empty').textContent).toBe('Everything is checked off');
+      expect(screen.queryByText('Paper towels')).toBeNull();
     });
   });
 
@@ -214,15 +240,15 @@ describe('ShoppingWidget — behavioral', () => {
       const slowToggle = jest.fn();
       render(<ShoppingWidget lists={[makeList()]} onItemToggle={slowToggle} />);
 
-      const checkboxes = getCheckboxes();
+      const checkboxes = getRows();
       const applesCheckbox = checkboxes[0]!; // i1 starts unchecked
-      expect(applesCheckbox.checked).toBe(false);
+      expect(isCrossed(applesCheckbox)).toBe(false);
 
       fireEvent.click(applesCheckbox);
 
       // The UI should reflect the new checked state immediately (optimistic)
-      const updatedCheckboxes = getCheckboxes();
-      expect(updatedCheckboxes[0]!.checked).toBe(true);
+      const updatedCheckboxes = getRows();
+      expect(isCrossed(updatedCheckboxes[0]!)).toBe(true);
     });
   });
 
@@ -252,7 +278,7 @@ describe('ShoppingWidget — behavioral', () => {
       expect(progressBefore).toBeCloseTo(0, 0);
 
       // Check the first item → 1/2 = 50%
-      fireEvent.click(getCheckboxes()[0]!);
+      fireEvent.click(getRows()[0]!);
 
       const progressAfter = Number(
         screen.getByRole('progressbar').getAttribute('aria-valuenow')
@@ -298,6 +324,23 @@ describe('ShoppingWidget — behavioral', () => {
       // Now the Target list item should be visible
       expect(screen.getByText('Paper towels')).toBeTruthy();
     });
+
+    it('remembers the picked list on this display, so the screensaver copy shows it too', () => {
+      const dashboard = render(<ShoppingWidget lists={[makeList(), secondList]} />);
+      fireEvent.click(screen.getByText('Target'));
+      dashboard.unmount();
+
+      // A second copy of the widget, as the screensaver draws.
+      render(<ShoppingWidget lists={[makeList(), secondList]} />);
+      expect(screen.getByText('Paper towels')).toBeTruthy();
+      expect(screen.queryByText('Apples')).toBeNull();
+    });
+
+    it('falls back to the first list when the remembered one is gone', () => {
+      localStorage.setItem('prism-shopping-widget-list', 'deleted-list');
+      render(<ShoppingWidget lists={[makeList(), secondList]} />);
+      expect(screen.getByText('Apples')).toBeTruthy();
+    });
   });
 
   describe('All checked', () => {
@@ -308,7 +351,7 @@ describe('ShoppingWidget — behavioral', () => {
           { id: 'i2', listId: 'l1', name: 'Milk', checked: true, createdAt: '2026-01-01' },
         ],
       });
-      render(<ShoppingWidget lists={[allCheckedList]} />);
+      render(<ShoppingWidget lists={[allCheckedList]} showChecked />);
 
       const progressbar = screen.getByRole('progressbar');
       expect(Number(progressbar.getAttribute('aria-valuenow'))).toBeCloseTo(100, 0);

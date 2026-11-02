@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { memo, useEffect, useMemo, useRef } from 'react';
-import { WidgetBgOverrideProvider } from '@/components/widgets/WidgetContainer';
+import { memo, useEffect, useMemo, useRef, ViewTransition } from 'react';
+import { SCHEDULE_TRANSITION } from '@/lib/displays/screenSchedule';
+import { WidgetBgOverrideProvider, WidgetEmptyReportContext } from '@/components/widgets/WidgetContainer';
 import {
   CUSTOM_WIDGET_SHELL_CLASS,
   getEffectiveWidgetTextColor,
@@ -10,8 +11,11 @@ import {
   getWidgetContentStyle,
   getTextColorClass,
   hasCustomWidgetShell,
+  getWidgetOutlineClass,
 } from './gridWidgetStyles';
 import { useSquareCells } from './useSquareCells';
+import { useEmptyWidgets } from './useEmptyWidgets';
+import { hidesWhenEmpty } from './hideWhenEmpty';
 import { useViewportSize } from '@/lib/hooks/useViewportSize';
 import { GRID_COLS } from '@/lib/constants/grid';
 import { resolveFitMode, containGeometry } from './fitMode';
@@ -29,6 +33,9 @@ interface WidgetCellProps {
   faded?: boolean;
   /** Slow burn-in drift while the display is idle. */
   drift?: boolean;
+  emptyHidden?: boolean;
+  reportEmpty: (empty: boolean) => void;
+  morph: boolean;
 }
 
 function DeferredWidget({
@@ -85,6 +92,21 @@ function DeferredWidget({
   );
 }
 
+// A widget on both dashboards moves; one on only one fades (schedule-* in
+// globals.css). Only under a scheduled change: any other transition, such as
+// a navigation, leaves the grid alone as before.
+const MORPH = { [SCHEDULE_TRANSITION]: 'schedule-morph', default: 'none' };
+const FADE_IN = { [SCHEDULE_TRANSITION]: 'schedule-fade-in', default: 'none' };
+const FADE_OUT = { [SCHEDULE_TRANSITION]: 'schedule-fade-out', default: 'none' };
+/** Each widget starts a little after the one before, up to this many steps. */
+const STAGGER_MS = 60;
+const STAGGER_STEPS = 8;
+
+/** A view-transition-name for a widget id (letters, digits, - and _ only). */
+function morphName(id: string): string {
+  return `widget-${id.replace(/[^A-Za-z0-9_-]/g, '_')}`;
+}
+
 /** One figure eight, in seconds. The keyframes are prism-drift in globals.css. */
 const DRIFT_PERIOD_S = 96;
 
@@ -139,16 +161,20 @@ const WidgetCell = memo(function WidgetCell({
   deferOffscreen,
   faded = false,
   drift = false,
+  emptyHidden = false,
+  reportEmpty,
+  morph,
 }: WidgetCellProps) {
   const cellRef = useRef<HTMLDivElement>(null);
   // A faded widget does not drift: there is nothing on screen to protect.
   useEffect(() => {
-    if (cellRef.current) setCellDrift(cellRef.current, drift && !faded);
-  }, [drift, faded]);
+    if (cellRef.current) setCellDrift(cellRef.current, drift && !faded && !emptyHidden);
+  }, [drift, faded, emptyHidden]);
 
   const widgetStyle = getWidgetStyle(widget);
   const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget);
+  const outlineClass = getWidgetOutlineClass(widget);
   const hasCustomShell = hasCustomWidgetShell(widget);
   const effectiveTextColor = getEffectiveWidgetTextColor(widget);
   const background = {
@@ -163,14 +189,16 @@ const WidgetCell = memo(function WidgetCell({
     cellBackgroundOpacity: widget.cellBackgroundOpacity,
   };
 
-  return (
+  const gone = faded || emptyHidden;
+  const cell = (
     <div
       ref={cellRef}
-      className={`widget-cell relative overflow-hidden ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${textClass} transition-opacity duration-1000 motion-reduce:duration-200`}
+      className={`widget-cell relative overflow-hidden ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${textClass} ${outlineClass} transition-opacity duration-1000 motion-reduce:duration-200`}
       data-widget={getWidgetType(widget)}
       data-widget-instance={widget.i}
       data-faded={faded || undefined}
-      aria-hidden={faded || undefined}
+      data-hidden-empty={emptyHidden || undefined}
+      aria-hidden={gone || undefined}
       style={{
         gridColumn: `${widget.x + 1} / span ${widget.w}`,
         gridRow: `${widget.y + 1} / span ${widget.h}`,
@@ -183,21 +211,26 @@ const WidgetCell = memo(function WidgetCell({
         // Faded, not removed: the cell keeps its place in the grid, so nothing
         // around it reflows. A tap on it falls to the empty grid, which wakes
         // the display without pressing anything.
-        ...(faded ? { opacity: 0, pointerEvents: 'none' as const } : {}),
+        ...(gone ? { opacity: 0, pointerEvents: 'none' as const } : {}),
       }}
     >
       <WidgetBgOverrideProvider value={background}>
-        <DeferredWidget
-          widget={widget}
-          renderWidget={renderWidget}
-          initiallyVisible={initiallyVisible}
-          deferOffscreen={deferOffscreen}
-          className="h-full w-full overflow-hidden"
-          style={contentStyle}
-        />
+        <WidgetEmptyReportContext.Provider value={reportEmpty}>
+          <DeferredWidget
+            widget={widget}
+            renderWidget={renderWidget}
+            initiallyVisible={initiallyVisible}
+            deferOffscreen={deferOffscreen}
+            className="h-full w-full overflow-hidden"
+            style={contentStyle}
+          />
+        </WidgetEmptyReportContext.Provider>
       </WidgetBgOverrideProvider>
     </div>
   );
+  return morph ? (
+    <ViewTransition key={widget.i} name={morphName(widget.i)} default="none" update={MORPH} share={MORPH} enter={FADE_IN} exit={FADE_OUT}>{cell}</ViewTransition>
+  ) : cell;
 });
 
 /**
@@ -223,6 +256,9 @@ export function CssGridDisplay({
   screenFrame,
   fadedIds,
   drift = false,
+  morph = false,
+  hideEmptyByDefault = false,
+  onEmptyChange,
   className,
 }: CssGridDisplayProps) {
   const { containerRef, cellSize: widthCellSize, width, top, zoom, remeasure } = useSquareCells(cols, containerPadding, margin, fillHeight);
@@ -237,6 +273,9 @@ export function CssGridDisplay({
     [layout],
   );
 
+  const { emptyIds, reporterFor } = useEmptyWidgets(onEmptyChange);
+
+  // A faded widget does not drift: there is nothing on screen to protect.
   // --- Fit-to-screen (targetRows set) --------------------------------------
   // The design is a fixed `cols × targetRows` canvas. How it maps onto the real
   // screen depends on whether the screen's orientation matches the design's:
@@ -401,6 +440,11 @@ export function CssGridDisplay({
           : {}),
       }}
     >
+      {morph && (
+        <style>{visibleWidgets.slice(0, STAGGER_STEPS).map((w, i) =>
+          `::view-transition-group(${morphName(w.i)}){animation-delay:${i * STAGGER_MS}ms}`,
+        ).join('') + '@media (prefers-reduced-motion:reduce){::view-transition-group(*){animation-delay:0s}}'}</style>
+      )}
       <div style={gridStyle}>
         {visibleWidgets.map((widget) => (
           <WidgetCell
@@ -414,6 +458,9 @@ export function CssGridDisplay({
             deferOffscreen={deferOffscreen}
             faded={fadedIds?.has(widget.i) ?? false}
             drift={drift}
+            emptyHidden={emptyIds.has(widget.i) && hidesWhenEmpty(widget, hideEmptyByDefault)}
+            reportEmpty={reporterFor(widget.i)}
+            morph={morph}
           />
         ))}
       </div>

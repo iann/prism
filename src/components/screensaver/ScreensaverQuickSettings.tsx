@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { EFFECT_ORDER, getEffect } from './effects';
 import { useScreensaverMotion, type ScreensaverMotion } from './useScreensaverMotion';
-import { useScreensaverBackdrop, type ScreensaverBackdrop } from './useScreensaverBackdrop';
 import { useScreensaverTimeout } from '@/lib/hooks/useScreensaverTimeout';
 import { useScreensaverInterval } from '@/components/layout/WallpaperBackground';
 
@@ -53,7 +52,6 @@ export function ScreensaverSettingsPanel({
     waterClear, setWaterClear,
     wobble, setWobble,
   } = useScreensaverMotion();
-  const { backdrop, setBackdrop } = useScreensaverBackdrop();
   const { timeout: ssTimeout, setTimeout: setSsTimeout } = useScreensaverTimeout();
   const { interval: photoInterval, setInterval: setPhotoInterval } = useScreensaverInterval();
 
@@ -91,19 +89,6 @@ export function ScreensaverSettingsPanel({
           </div>
 
           <div className="space-y-4">
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-sm text-white/70">Background</span>
-              <select
-                value={backdrop}
-                onChange={(e) => setBackdrop(e.target.value as ScreensaverBackdrop)}
-                className={select}
-              >
-                <option value="photos">Photos</option>
-                <option value="sky">Night sky</option>
-                <option value="skyAtNight">Photos by day, sky at night</option>
-              </select>
-            </label>
-
             <label className="flex items-center justify-between gap-3">
               <span className="text-sm text-white/70">Transition effect</span>
               <select
@@ -161,18 +146,20 @@ export function ScreensaverSettingsPanel({
                     ))}
                   </select>
                 </label>
-
-                <label className="flex items-center justify-between gap-3 cursor-pointer">
-                  <span className="text-sm text-white/70">Hide widget outlines</span>
-                  <input
-                    type="checkbox"
-                    checked={!outlines}
-                    onChange={(e) => setOutlines(!e.target.checked)}
-                    className="h-4 w-4 rounded border-white/30"
-                  />
-                </label>
               </>
             )}
+
+            {/* Outlines show with or without a transition effect, so this is
+                not inside the motion !== 'off' block above. */}
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <span className="text-sm text-white/70">Hide widget outlines</span>
+              <input
+                type="checkbox"
+                checked={!outlines}
+                onChange={(e) => setOutlines(!e.target.checked)}
+                className="h-4 w-4 rounded border-white/30"
+              />
+            </label>
               <label className="flex items-center justify-between gap-3">
                 <span className="text-sm text-white/70">Transition length</span>
                 <select

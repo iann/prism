@@ -4,9 +4,9 @@
  * anniversaries, and milestones sourced from Google Calendar.
  *
  * Columns: Event | Days Until | Type | Yrs | Date
- * (Days Until sits right after the name for fast scanning, and is marked
- * data-keep-color so its urgency coloring survives the screensaver's
- * force-white text override — see SCREENSAVER_WIDGET_CLASS.)
+ * (Days Until sits right after the name for fast scanning.) All text is one
+ * colour; how soon each date is shows as the colour of the line under its row,
+ * which the screensaver's force-white text override leaves alone.
  *
  */
 
@@ -25,6 +25,8 @@ export type BirthdaysWidgetProps = {
   error?: string | null;
   maxItems?: number;
   titleHref?: string;
+  /** Tapping a row offers to remove it. Omitted: rows do nothing. */
+  onRemove?: (birthday: Birthday) => void;
 };
 
 const TYPE_ICONS: Record<string, string> = {
@@ -38,13 +40,13 @@ function formatDate(dateStr: string, locale: string): string {
   return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
-function daysUntilColor(days: number): string {
+export function rowLineColor(days: number): string {
   // Today is green: it reads as "happening now" against the red/amber urgency
   // ramp used for the days still counting down.
-  if (days === 0) return 'text-success font-bold';
-  if (days < 7) return 'text-destructive font-semibold';
-  if (days < 30) return 'text-warning';
-  return 'text-muted-foreground';
+  if (days === 0) return 'border-success';
+  if (days < 7) return 'border-destructive';
+  if (days < 30) return 'border-warning';
+  return 'border-border/50';
 }
 
 export const BirthdaysWidget = React.memo(function BirthdaysWidget({
@@ -53,6 +55,7 @@ export const BirthdaysWidget = React.memo(function BirthdaysWidget({
   error = null,
   maxItems = 8,
   titleHref,
+  onRemove,
 }: BirthdaysWidgetProps) {
   const t = useTranslations('birthdays');
   const locale = useLocale();
@@ -103,7 +106,7 @@ export const BirthdaysWidget = React.memo(function BirthdaysWidget({
         <div ref={listRef} className="overflow-hidden h-full">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-xs text-muted-foreground">
+              <tr className="border-b text-xs">
                 <th className="text-left py-1 pr-2 font-medium">{t('colEvent')}</th>
                 <th className="text-right py-1 px-1 font-medium w-20">{t('colDays')}</th>
                 <th className="py-1 px-1 font-medium w-8"></th>
@@ -115,9 +118,18 @@ export const BirthdaysWidget = React.memo(function BirthdaysWidget({
               {visible.map((item) => (
                 <tr
                   key={item.id}
+                  data-row-line
+                  onClick={onRemove ? () => onRemove(item) : undefined}
+                  onKeyDown={onRemove ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRemove(item); } } : undefined}
+                  role={onRemove ? 'button' : undefined}
+                  tabIndex={onRemove ? 0 : undefined}
+                  aria-label={onRemove ? `Remove ${item.name}` : undefined}
+                  title={onRemove ? 'Tap to remove' : undefined}
                   className={cn(
-                    'border-b border-border/50 last:border-0',
-                    item.daysUntil === 0 && 'bg-success/10'
+                    'border-b-2',
+                    rowLineColor(item.daysUntil),
+                    item.daysUntil === 0 && 'bg-success/10',
+                    onRemove && 'cursor-pointer hover:bg-accent/40'
                   )}
                 >
                   <td className="py-1.5 pr-2 truncate max-w-[140px]" title={item.name}>
@@ -129,18 +141,20 @@ export const BirthdaysWidget = React.memo(function BirthdaysWidget({
                     )}
                   </td>
                   <td
-                    data-keep-color
-                    className={cn('py-1.5 px-1 text-right tabular-nums', daysUntilColor(item.daysUntil))}
+                    className={cn(
+                      'py-1.5 px-1 text-right tabular-nums',
+                      item.daysUntil === 0 ? 'font-bold' : item.daysUntil < 7 && 'font-semibold',
+                    )}
                   >
                     {t('daysUntil', { days: item.daysUntil })}
                   </td>
                   <td className="py-1.5 px-1 text-center">
                     <Emoji e={TYPE_ICONS[item.eventType] || '⭐'} />
                   </td>
-                  <td className="py-1.5 px-1 text-right text-muted-foreground tabular-nums">
+                  <td className="py-1.5 px-1 text-right tabular-nums">
                     {item.age != null ? item.age : ''}
                   </td>
-                  <td className="py-1.5 pl-2 text-right text-muted-foreground whitespace-nowrap">
+                  <td className="py-1.5 pl-2 text-right whitespace-nowrap">
                     {formatDate(item.nextBirthday, locale)}
                   </td>
                 </tr>

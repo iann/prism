@@ -7,12 +7,13 @@
 
 import { createDAVClient, type DAVCalendar, type DAVObject } from 'tsdav';
 import ICAL from 'ical.js';
-import { validatePublicUrl, UnsafeUrlError } from '@/lib/utils/safeFetch';
+import { safeFetch, validatePublicUrl, UnsafeUrlError } from '@/lib/utils/safeFetch';
 import { parseHexColor } from '@/lib/utils/color';
 import { localDateToFloatingAllDay } from '@/lib/utils/timeFormat';
 import { dueFromInstant, wallDue, type TaskDue } from '@/lib/utils/taskDue';
 import { isValidTimezone } from '@/lib/utils/timezone';
 import { todayKey, wallTimeAt, zonedWallTimeToUtc } from '@/lib/utils/zonedDate';
+import { buildVTimezone } from '@/lib/utils/vtimezone';
 
 /**
  * Guard a user-supplied CalDAV server URL before handing it to tsdav.
@@ -660,15 +661,14 @@ function formatICalDate(date: Date): string {
 
 /**
  * Two-way write: create / update / delete events back to the CalDAV
- * server. Wraps tsdav's createCalendarObject / updateCalendarObject /
- * deleteCalendarObject. iCal serialization uses ical.js so we share
- * the same parser/serializer the read path already pulls in.
+ * server. Create is a plain PUT of a new object and delete wraps tsdav's
+ * deleteCalendarObject. An update reads the stored object, changes only the
+ * edited fields with ical.js and writes it back (patchCalDAVEvent), so the
+ * properties Prism does not model survive the edit.
  *
- * NOTE on scope: only single (non-recurring) VEVENTs are supported here.
- * Recurrence + exceptions are intentionally deferred — they need
- * EXDATE / RRULE-edits / split-occurrence semantics that don't fit a
- * naive iCal roundtrip and would need a proper RRULE-aware UI on the
- * Prism side first (issue #59).
+ * NOTE on scope: an update edits the master VEVENT, so a text edit on a
+ * repeating event applies to the whole series. Moving a series' times and
+ * editing one occurrence (a RECURRENCE-ID exception) are not supported.
  */
 
 export interface CalDAVEventWrite {
@@ -679,6 +679,12 @@ export interface CalDAVEventWrite {
   startTime: Date;
   endTime: Date;
   allDay?: boolean;
+  /**
+   * A repeating event's RRULE and the zone it repeats in. A timed one is
+   * written in that zone (DTSTART;TZID=...) with its VTIMEZONE, so its wall
+   * time holds across a clock change, which a UTC DTSTART would not.
+   */
+  recurrence?: { rule: string; timeZone: string };
 }
 
 /**
@@ -720,16 +726,43 @@ function buildVEventICalString(ev: CalDAVEventWrite): string {
     start.isDate = true;
     end.isDate = true;
   }
-  vevent.updatePropertyWithValue('dtstart', start);
-  vevent.updatePropertyWithValue('dtend', end);
 
+  const zone = ev.recurrence && !ev.allDay ? ev.recurrence.timeZone : null;
+  if (zone) {
+    // The wall times in the zone, with the zone named on each property.
+    const dtstart = vevent.updatePropertyWithValue('dtstart', wallTimeIn(ev.startTime, zone));
+    const dtend = vevent.updatePropertyWithValue('dtend', wallTimeIn(ev.endTime, zone));
+    dtstart.setParameter('tzid', zone);
+    dtend.setParameter('tzid', zone);
+  } else {
+    vevent.updatePropertyWithValue('dtstart', start);
+    vevent.updatePropertyWithValue('dtend', end);
+  }
+  if (ev.recurrence) {
+    vevent.updatePropertyWithValue('rrule', ICAL.Recur.fromString(ev.recurrence.rule.replace(/^RRULE:/i, '')));
+  }
+
+  if (zone) {
+    vcalendar.addSubcomponent(new ICAL.Component(ICAL.parse(
+      `BEGIN:VCALENDAR\r\n${buildVTimezone(zone, ev.startTime.getUTCFullYear())}\r\nEND:VCALENDAR`,
+    )).getFirstSubcomponent('vtimezone')!);
+  }
   vcalendar.addSubcomponent(vevent);
   return vcalendar.toString();
 }
 
+/** An instant as a floating ICAL time reading the wall clock in `timeZone`. */
+function wallTimeIn(instant: Date, timeZone: string): ICAL.Time {
+  const [year, month, day] = todayKey(timeZone, instant).split('-').map(Number) as [number, number, number];
+  const [hour, minute] = wallTimeAt(timeZone, instant).split(':').map(Number) as [number, number];
+  return ICAL.Time.fromData({ year, month, day, hour, minute, second: instant.getUTCSeconds() });
+}
+
 /**
- * Push a new VEVENT to the given CalDAV calendar. Returns the href the
- * server assigned so callers can store it for later update / delete.
+ * Push a new VEVENT to the given CalDAV calendar, as `<uid>.ics` inside it.
+ * `If-None-Match: *` makes the server refuse rather than replace an object
+ * already at that name. Returns the object's href and the ETag the server
+ * sent (null when it sends none; the next sync fills it in), or why it failed.
  */
 export async function createCalDAVEvent(
   serverUrl: string,
@@ -737,67 +770,255 @@ export async function createCalDAVEvent(
   password: string,
   calendarHref: string,
   ev: CalDAVEventWrite,
-): Promise<{ href: string }> {
+): Promise<CalDAVCreateResult> {
   assertSafeCalDAVUrl(serverUrl);
+  const collection = new URL(calendarHref, serverUrl);
+  if (!collection.pathname.endsWith('/')) collection.pathname += '/';
+  const href = new URL(`${encodeURIComponent(ev.uid)}.ics`, collection).toString();
 
-  const client = await createDAVClient({
-    serverUrl,
-    credentials: { username, password },
-    authMethod: 'Basic',
-    defaultAccountType: 'caldav',
+  const res = await safeFetch(href, {
+    method: 'PUT',
+    headers: {
+      Authorization: basicAuth(username, password),
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'If-None-Match': '*',
+    },
+    body: buildVEventICalString(ev),
   });
+  if (!res.ok) return davFailure(res.status, 'create');
+  return { ok: true, href, etag: res.headers.get('etag') };
+}
 
-  const calendars = await client.fetchCalendars();
-  const calendar = calendars.find((c: DAVCalendar) => c.url === calendarHref);
-  if (!calendar) throw new Error(`Calendar not found: ${calendarHref}`);
+export type CalDAVCreateResult =
+  | { ok: true; href: string; etag: string | null }
+  | { ok: false; reason: 'forbidden' | 'not-found' | 'error'; message: string };
 
-  const iCalString = buildVEventICalString(ev);
-  const filename = `${ev.uid}.ics`;
-  const response = await client.createCalendarObject({ calendar, iCalString, filename });
+function basicAuth(username: string, password: string): string {
+  return `Basic ${Buffer.from(`${username}:${password}`, 'utf8').toString('base64')}`;
+}
 
-  if (!response.ok) {
-    throw new Error(`CalDAV create failed: ${response.status} ${response.statusText}`);
-  }
-
-  // tsdav returns the raw fetch Response; the Location header carries the
-  // server-assigned href. Fall back to the constructed href if absent.
-  const loc = response.headers.get('Location') || response.headers.get('location');
-  const href = loc || new URL(filename, calendarHref).toString();
-  return { href };
+function davFailure(status: number, step: string): { ok: false; reason: 'forbidden' | 'not-found' | 'error'; message: string } {
+  const message = `CalDAV ${step} failed: ${status}`;
+  if (status === 401 || status === 403) return { ok: false, reason: 'forbidden', message };
+  if (status === 404 || status === 410) return { ok: false, reason: 'not-found', message };
+  return { ok: false, reason: 'error', message };
 }
 
 /**
- * Replace the VEVENT body for an existing CalDAV calendar object. The
- * server identifies the target by its href (path on the calendar).
+ * The fields Prism edits on an existing event. A field left out is not
+ * touched; `null` for description or location removes the property. `times`
+ * carries the start, end and all-day flag together, because one cannot be
+ * written without knowing the other two.
  */
-export async function updateCalDAVEvent(
+export interface CalDAVEventChanges {
+  title?: string;
+  description?: string | null;
+  location?: string | null;
+  times?: { startTime: Date; endTime: Date; allDay: boolean };
+}
+
+/**
+ * Apply `changes` to the VEVENT for `uid` in a calendar object and return the
+ * new object, or null when nothing differs from what is already there.
+ *
+ * Only the edited properties are rewritten. Alarms, attendees, the repeat
+ * rule, exceptions, time zones and properties other apps store (X-...) are
+ * kept as they were, which a rebuilt object would lose. A field is rewritten
+ * only when its value differs, so a caller may pass everything it has.
+ *
+ * Times keep the zone they were written in: a TZID stays that TZID with the
+ * new wall time, UTC stays UTC, and a floating time stays floating in the
+ * household zone, the zone the read path reads it in. Moving the times of a
+ * repeating series is refused: it would shift its exceptions off their slots.
+ */
+export function applyCalDAVEventChanges(
+  ics: string,
+  uid: string,
+  changes: CalDAVEventChanges,
+  timeZone: string,
+  now: Date = new Date(),
+): string | null {
+  const vcalendar = new ICAL.Component(ICAL.parse(ics));
+  const vevent = vcalendar
+    .getAllSubcomponents('vevent')
+    .find((v) => v.getFirstPropertyValue('uid') === uid && !v.hasProperty('recurrence-id'));
+  if (!vevent) throw new Error(`No VEVENT with UID ${uid} in the calendar object`);
+
+  let changed = false;
+  const setText = (name: string, value: string | null | undefined) => {
+    if (value === undefined) return;
+    const next = value ? icalSafe(value) : null;
+    const current = (vevent.getFirstPropertyValue(name) as string | null) || null;
+    if (next === current) return;
+    if (next === null) vevent.removeAllProperties(name);
+    else vevent.updatePropertyWithValue(name, next);
+    changed = true;
+  };
+  setText('summary', changes.title);
+  setText('description', changes.description);
+  setText('location', changes.location);
+
+  let timesChanged = false;
+  if (changes.times) {
+    timesChanged = writeTimes(vevent, changes.times, timeZone);
+    changed ||= timesChanged;
+  }
+
+  if (!changed) return null;
+
+  const stamp = ICAL.Time.fromJSDate(now, true);
+  vevent.updatePropertyWithValue('dtstamp', stamp);
+  vevent.updatePropertyWithValue('last-modified', stamp.clone());
+  // RFC 5545 3.8.7.4: SEQUENCE goes up when the times change, so invitees'
+  // calendars treat this as a newer version of the event.
+  if (timesChanged) {
+    const sequence = Number(vevent.getFirstPropertyValue('sequence')) || 0;
+    vevent.updatePropertyWithValue('sequence', sequence + 1);
+  }
+  return vcalendar.toString();
+}
+
+/** Rewrite DTSTART and DTEND (or DURATION). Returns false when they already match. */
+function writeTimes(
+  vevent: ICAL.Component,
+  times: NonNullable<CalDAVEventChanges['times']>,
+  timeZone: string,
+): boolean {
+  const startProp = vevent.getFirstProperty('dtstart');
+  if (!startProp) throw new Error('VEVENT has no DTSTART');
+  const event = new ICAL.Event(vevent);
+  const wasAllDay = isAllDay(vevent);
+  if (
+    wasAllDay === times.allDay &&
+    icalTimeToDate(event.startDate, wasAllDay, timeZone).getTime() === times.startTime.getTime() &&
+    icalTimeToDate(event.endDate, wasAllDay, timeZone).getTime() === times.endTime.getTime()
+  ) {
+    return false;
+  }
+  if (vevent.hasProperty('rrule') || vevent.hasProperty('rdate')) {
+    throw new Error('Moving the times of a repeating event is not supported');
+  }
+
+  const oldStart = startProp.getFirstValue() as ICAL.Time;
+  const endProp = vevent.getFirstProperty('dtend');
+  const oldEnd = (endProp?.getFirstValue() as ICAL.Time | undefined) ?? oldStart;
+
+  setTimeProperty(startProp, times.startTime, times.allDay, oldStart, timeZone);
+  const durationProp = vevent.getFirstProperty('duration');
+  if (durationProp && !endProp) {
+    const seconds = Math.round((times.endTime.getTime() - times.startTime.getTime()) / 1000);
+    durationProp.setValue(ICAL.Duration.fromSeconds(seconds));
+  } else {
+    const prop = endProp ?? vevent.addProperty(new ICAL.Property('dtend'));
+    setTimeProperty(prop, times.endTime, times.allDay, oldEnd, timeZone);
+  }
+  return true;
+}
+
+/**
+ * Write `instant` into a DTSTART/DTEND property in the zone its old value
+ * used. The cases mirror icalTimeToDate, so the read path reads back the
+ * instant written here.
+ */
+function setTimeProperty(
+  prop: ICAL.Property,
+  instant: Date,
+  allDay: boolean,
+  old: ICAL.Time,
+  timeZone: string,
+): void {
+  // ical.js keeps a TZID parameter through setValue, so it is set or
+  // cleared explicitly after each write.
+  const write = (time: ICAL.Time, tzid: string | null) => {
+    prop.setValue(time);
+    if (tzid) prop.setParameter('tzid', tzid);
+    else prop.removeParameter('tzid');
+  };
+
+  // All-day values are floating UTC midnights (see allDayRange.ts).
+  if (allDay) {
+    write(ICAL.Time.fromData({
+      year: instant.getUTCFullYear(),
+      month: instant.getUTCMonth() + 1,
+      day: instant.getUTCDate(),
+      isDate: true,
+    }), null);
+    return;
+  }
+
+  // A date has no zone to keep, so a formerly all-day event gets UTC.
+  if (old.isDate || old.zone === ICAL.Timezone.utcTimezone) {
+    write(ICAL.Time.fromJSDate(instant, true), null);
+    return;
+  }
+
+  // A zone the object defines in a VTIMEZONE: convert with that definition.
+  if (old.zone && old.zone !== ICAL.Timezone.localTimezone) {
+    write(ICAL.Time.fromJSDate(instant, true).convertToZone(old.zone), old.zone.tzid);
+    return;
+  }
+
+  // An IANA TZID with no VTIMEZONE, or a floating time (household zone). An
+  // unknown TZID is read in the household zone too, so it is written there.
+  const tzid = (old as ICAL.Time & { timezone?: string }).timezone ?? null;
+  const zone = tzid && isValidTimezone(tzid) ? tzid : timeZone;
+  const [year, month, day] = todayKey(zone, instant).split('-').map(Number);
+  const [hour, minute] = wallTimeAt(zone, instant).split(':').map(Number);
+  write(ICAL.Time.fromData({ year, month, day, hour, minute, second: 0, isDate: false }), tzid);
+}
+
+export type CalDAVPatchResult =
+  | { ok: true; etag: string | null }
+  | { ok: false; reason: 'conflict' | 'forbidden' | 'not-found' | 'error'; message: string };
+
+/**
+ * Edit an event on a CalDAV server: fetch its calendar object, apply only the
+ * changed fields (applyCalDAVEventChanges), and PUT it back with If-Match on
+ * the ETag just read. If another app changed it in between (412), fetch and
+ * apply once more, then report a conflict rather than overwrite that change.
+ * Returns the new ETag, or null when the server sends none.
+ */
+export async function patchCalDAVEvent(
   serverUrl: string,
   username: string,
   password: string,
   calendarObjectHref: string,
-  etag: string | undefined,
-  ev: CalDAVEventWrite,
-): Promise<void> {
+  uid: string,
+  changes: CalDAVEventChanges,
+  timeZone: string,
+): Promise<CalDAVPatchResult> {
   assertSafeCalDAVUrl(serverUrl);
+  const url = new URL(calendarObjectHref, serverUrl).toString();
+  const authorization = basicAuth(username, password);
 
-  const client = await createDAVClient({
-    serverUrl,
-    credentials: { username, password },
-    authMethod: 'Basic',
-    defaultAccountType: 'caldav',
-  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const current = await safeFetch(url, {
+      headers: { Authorization: authorization, Accept: 'text/calendar' },
+    });
+    if (!current.ok) return davFailure(current.status, 'read');
+    const etag = current.headers.get('etag');
 
-  const iCalString = buildVEventICalString(ev);
-  const response = await client.updateCalendarObject({
-    calendarObject: {
-      url: calendarObjectHref,
-      etag: etag ?? '',
-      data: iCalString,
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`CalDAV update failed: ${response.status} ${response.statusText}`);
+    const next = applyCalDAVEventChanges(await current.text(), uid, changes, timeZone);
+    if (next === null) return { ok: true, etag };
+
+    const put = await safeFetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: authorization,
+        'Content-Type': 'text/calendar; charset=utf-8',
+        ...(etag ? { 'If-Match': etag } : {}),
+      },
+      body: next,
+    });
+    if (put.status === 412) continue;
+    if (!put.ok) return davFailure(put.status, 'update');
+    return { ok: true, etag: put.headers.get('etag') };
   }
+  return {
+    ok: false,
+    reason: 'conflict',
+    message: 'The event changed on the server while Prism was saving it',
+  };
 }
 
 /**

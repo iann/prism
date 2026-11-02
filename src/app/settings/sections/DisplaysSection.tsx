@@ -13,7 +13,11 @@ import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
 import { useLayouts } from '@/lib/hooks/useLayouts';
 import { reloadForRemoteChange, resetSyncBase, syncScreenSettings } from '@/lib/displays/displaySettingsSync';
 import type { ScreenSettingChanges, ScreenSettings } from '@/lib/displays/screenSettings';
+import { SCREEN_SCHEDULE_KEY } from '@/lib/displays/screenSchedule';
+import { SCREEN_ATTENTION_KEY } from '@/lib/displays/screenAttention';
 import { ScreenSettingsPanel } from './ScreenSettingsPanel';
+import { ScreenSchedulePanel } from './ScreenSchedulePanel';
+import { ScreenAttentionPanel } from './ScreenAttentionPanel';
 
 /**
  * Settings > Displays (#690): name each screen in the house, see which are on,
@@ -61,6 +65,8 @@ export function DisplaysSection() {
   const [alsoTrust, setAlsoTrust] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [scheduleId, setScheduleId] = useState<string | null>(null);
+  const [noticesId, setNoticesId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +177,13 @@ export function DisplaysSection() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ settings }),
     }));
+
+  // This screen takes its new schedule or notices at once rather than on its next heartbeat.
+  const saveOwnEditor = async (id: string, key: typeof SCREEN_SCHEDULE_KEY | typeof SCREEN_ATTENTION_KEY, raw: string | null) => {
+    const ok = await saveSettings(id, { [key]: raw });
+    if (ok && id === currentId) await syncScreenSettings();
+    return ok;
+  };
 
   const rename = async (id: string) => {
     const ok = await run(() => fetch(`/api/displays/${id}`, {
@@ -343,7 +356,10 @@ export function DisplaysSection() {
           <CardTitle>All screens</CardTitle>
           <CardDescription>
             A screen shows as online while it is switched on. Pick the dashboard each one
-            opens on; a screen showing its home page switches within a minute.
+            opens on; a screen showing its home page switches within a minute. Schedule
+            shows other dashboards at set times, such as a morning one on school days. Notices
+            puts a small card at the side when the bus is close, an event is about to start or
+            a message comes in.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -411,6 +427,22 @@ export function DisplaysSection() {
                     <Button
                       size="sm"
                       variant="outline"
+                      aria-expanded={scheduleId === d.id}
+                      onClick={() => setScheduleId(scheduleId === d.id ? null : d.id)}
+                    >
+                      Schedule
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-expanded={noticesId === d.id}
+                      onClick={() => setNoticesId(noticesId === d.id ? null : d.id)}
+                    >
+                      Notices
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       disabled={busy}
                       onClick={() => { setEditingId(d.id); setEditName(d.name); }}
                     >
@@ -425,6 +457,24 @@ export function DisplaysSection() {
                         settings={d.settings ?? {}}
                         online={d.online}
                         save={(changes) => saveSettings(d.id, changes)}
+                      />
+                    )}
+                    {scheduleId === d.id && (
+                      <ScreenSchedulePanel
+                        name={d.name}
+                        stored={d.settings?.[SCREEN_SCHEDULE_KEY]}
+                        dashboards={layouts.map((l) => ({ id: l.id, name: l.name }))}
+                        homeId={d.dashboardId ?? layouts.find((l) => l.isDefault)?.id ?? ''}
+                        online={d.online}
+                        save={(raw) => saveOwnEditor(d.id, SCREEN_SCHEDULE_KEY, raw)}
+                      />
+                    )}
+                    {noticesId === d.id && (
+                      <ScreenAttentionPanel
+                        name={d.name}
+                        stored={d.settings?.[SCREEN_ATTENTION_KEY]}
+                        online={d.online}
+                        save={(raw) => saveOwnEditor(d.id, SCREEN_ATTENTION_KEY, raw)}
                       />
                     )}
                   </>

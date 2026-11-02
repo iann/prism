@@ -1,18 +1,19 @@
 /**
  * Two-way write to a CalDAV calendar.
  *
- * Scoped narrow on purpose: this PR ships the writeback path for review,
- * but does NOT yet wire it into the main /api/events flow. The main events
- * route will mirror the change locally, then call this endpoint when the
- * event lives on a CalDAV source whose `providerConfig.writable === true`.
- * That wiring is the next PR.
+ * The app does not call this: /api/events and /api/events/[id] write CalDAV
+ * events through the same calendar-sync helpers directly (#687). It stays as
+ * an API for scripts, and only for a source whose
+ * `providerConfig.writable === true`.
  *
  *   POST  /api/caldav/events/[sourceId]                 — create
- *   PATCH /api/caldav/events/[sourceId]?href=…&etag=…   — update
+ *   PATCH /api/caldav/events/[sourceId]?href=…          — update
  *   DELETE /api/caldav/events/[sourceId]?href=…&etag=…  — delete
  *
  * Body shape (POST + PATCH): { uid, title, description?, location?,
- * startTime, endTime, allDay? }. Dates are ISO 8601 strings.
+ * startTime, endTime, allDay? }. Dates are ISO 8601 strings. PATCH reads the
+ * stored object and changes only the fields that differ, keeping everything
+ * else on it; a 409 means it changed on the server during the save.
  *
  * Requires `canModifySettings` for now — once integrated into /api/events,
  * permissions will be inherited from that route.
@@ -84,8 +85,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
   try {
     const body = (await req.json()) as BodyShape;
     const result = await pushCalDAVEventCreate(sourceId, parseBody(body));
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
-    return NextResponse.json({ href: result.href }, { status: 201 });
+    if (!result.ok) return NextResponse.json({ error: result.message }, { status: 502 });
+    return NextResponse.json({ href: result.href, etag: result.etag }, { status: 201 });
   } catch (err) {
     logError('CalDAV event create failed', err);
     return NextResponse.json({ error: 'Create failed' }, { status: 500 });
@@ -103,14 +104,21 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
   if (writable !== true) return writable;
 
   const href = req.nextUrl.searchParams.get('href');
-  const etag = req.nextUrl.searchParams.get('etag') ?? undefined;
   if (!href) return NextResponse.json({ error: 'href required' }, { status: 400 });
 
   try {
     const body = (await req.json()) as BodyShape;
-    const result = await pushCalDAVEventUpdate(sourceId, href, etag, parseBody(body));
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
-    return NextResponse.json({ ok: true });
+    const ev = parseBody(body);
+    const result = await pushCalDAVEventUpdate(sourceId, href, ev.uid, {
+      title: ev.title,
+      description: ev.description,
+      location: ev.location,
+      times: { startTime: ev.startTime, endTime: ev.endTime, allDay: Boolean(ev.allDay) },
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.message }, { status: result.reason === 'conflict' ? 409 : 502 });
+    }
+    return NextResponse.json({ ok: true, etag: result.etag });
   } catch (err) {
     logError('CalDAV event update failed', err);
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });

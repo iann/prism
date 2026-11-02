@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, gte, inArray, isNotNull, lt } from 'drizzle-orm';
 import { getDisplayAuth } from '@/lib/auth';
 import { db } from '@/lib/db/client';
 import { busRoutes, busStopVisits, settings, vehicleFixes, vehicleTracks } from '@/lib/db/schema';
@@ -7,7 +7,7 @@ import { getHouseholdTimezone } from '@/lib/householdTimezone';
 import { todayKey } from '@/lib/utils/zonedDate';
 import { combineTraces, type LngLat } from '@/lib/map/routeAhead';
 import { pickRiderStop, projectStops } from '@/lib/services/bus-eta';
-import { firstMoves, usualLateness } from '@/lib/services/bus-history';
+import { firstMoves, leastLate, recentLateness, typicalLate } from '@/lib/services/bus-history';
 import { logError } from '@/lib/utils/logError';
 import { BUS_DRIVER_NAMES_SETTING, driverLabel, isDriverNames, type DriverNames } from '@/lib/services/bus-driver-names';
 import {
@@ -100,6 +100,26 @@ async function usualPath(routeId: string, direction: string | null, before: stri
   return path;
 }
 
+/** A live provider that has sent no trip in this long is taken to be gone. */
+const PROVIDER_DAYS = 30;
+
+/**
+ * Whether a live provider feeds this household: any trip on an enabled route
+ * in the last month. Then the widget never falls back to the email view,
+ * which only email-fed routes keep up to date.
+ */
+async function hasProvider(today: string): Promise<boolean> {
+  const from = new Date(`${today}T00:00:00Z`);
+  from.setUTCDate(from.getUTCDate() - PROVIDER_DAYS);
+  const [row] = await db
+    .select({ id: vehicleTracks.id })
+    .from(vehicleTracks)
+    .innerJoin(busRoutes, eq(vehicleTracks.routeId, busRoutes.id))
+    .where(and(gte(vehicleTracks.tripDate, from.toISOString().slice(0, 10)), eq(busRoutes.enabled, true)))
+    .limit(1);
+  return row !== undefined;
+}
+
 async function driverNames(): Promise<DriverNames> {
   try {
     const [row] = await db.select().from(settings).where(eq(settings.key, BUS_DRIVER_NAMES_SETTING));
@@ -116,7 +136,7 @@ async function driverNames(): Promise<DriverNames> {
  */
 export async function GET(request: NextRequest) {
   const auth = await getDisplayAuth();
-  if (!auth) return NextResponse.json({ tracks: [] });
+  if (!auth) return NextResponse.json({ tracks: [], provider: false });
 
   const sinceParam = request.nextUrl.searchParams.get('since');
   const since = sinceParam ? new Date(sinceParam) : null;
@@ -146,7 +166,7 @@ export async function GET(request: NextRequest) {
         usual.set(track.id, await usualPath(route.id, track.direction ?? route.direction ?? null, today).catch(() => null));
       }
     }
-    const [visits, fixes, unit, display, names, moved] = await Promise.all([
+    const [visits, fixes, unit, display, names, moved, provider] = await Promise.all([
       ids.length
         ? db.select().from(busStopVisits).where(inArray(busStopVisits.trackId, ids))
         : Promise.resolve([]),
@@ -163,6 +183,8 @@ export async function GET(request: NextRequest) {
       mapDisplay(),
       driverNames(),
       firstMoves(ids),
+      // Sent with the first load only, like the usual path.
+      since ? Promise.resolve(undefined) : hasProvider(today).catch(() => false),
     ]);
 
     // With nothing new the cursor stays put; stepping back every time would
@@ -176,10 +198,13 @@ export async function GET(request: NextRequest) {
       cursor = new Date(Math.max(back, since?.getTime() ?? 0)).toISOString();
     }
 
-    // How late the bus has been at the rider's stop lately, the ETA's floor before the first stop.
-    const usualLate = new Map(await Promise.all(rows.map(async ({ track, route }) => {
+    // How late the bus has been at the rider's stop lately: the least is the
+    // ETA's floor before the first stop, the typical is what the card compares today with.
+    const pastLate = new Map(await Promise.all(rows.map(async ({ track, route }) => {
       const key = pickRiderStop(track.stops, route.stopName);
-      return [track.id, key ? await usualLateness(route.id, key, today).catch(() => null) : null] as const;
+      const order = track.stops.find((s) => s.key === key)?.order;
+      const late = order !== undefined ? await recentLateness(route.id, order, today).catch(() => []) : [];
+      return [track.id, { least: leastLate(late), typical: typicalLate(late) }] as const;
     })));
 
     const tracks = rows.map(({ track, route }) => {
@@ -188,7 +213,7 @@ export async function GET(request: NextRequest) {
         visits.filter((v) => v.trackId === track.id),
         track.progress,
         now,
-        { plannedStart: track.plannedStart, departedAt: moved.get(track.id) ?? null, usualLateMs: usualLate.get(track.id) ?? null },
+        { plannedStart: track.plannedStart, departedAt: moved.get(track.id) ?? null, usualLateMs: pastLate.get(track.id)?.least ?? null },
       );
       return {
         id: track.id,
@@ -205,6 +230,8 @@ export async function GET(request: NextRequest) {
         lastFixAt: track.lastFixAt?.toISOString() ?? null,
         riderStopKey: pickRiderStop(track.stops, route.stopName),
         shiftMs: projection.shiftMs,
+        shiftMeasured: projection.shiftMeasured,
+        typicalLateMs: pastLate.get(track.id)?.typical ?? null,
         stops: projection.stops,
         ...(since ? {} : { usualPath: usual.get(track.id) ?? null }),
         fixes: fixes
@@ -222,7 +249,10 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ serverTime: now.toISOString(), cursor, speedUnit: unit, ...display, tracks });
+    return NextResponse.json({
+      serverTime: now.toISOString(), cursor, speedUnit: unit, ...display, tracks,
+      ...(provider === undefined ? {} : { provider }),
+    });
   } catch (error) {
     logError('Failed to get live bus tracks:', error);
     return NextResponse.json({ error: 'Failed to get live bus tracks' }, { status: 500 });
