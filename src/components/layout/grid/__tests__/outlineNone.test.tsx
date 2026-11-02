@@ -32,7 +32,9 @@ describe('widget Outline: None', () => {
   it('hides the card border and adds none', () => {
     expect(NO_OUTLINE_SELECTOR).not.toBe('');
     const { cell, card } = renderWidget('transparent');
-    expect(card.matches(NO_OUTLINE_SELECTOR)).toBe(true);
+    // Customized widgets own the shared one-pixel shell on the cell itself;
+    // default widgets keep their card border inside the cell.
+    expect(cell.matches('.prism-outline-none.border-border')).toBe(true);
     expect(cell.style.border).toBe('');
   });
 

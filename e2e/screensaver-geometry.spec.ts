@@ -938,8 +938,10 @@ test.describe('screensaver widget outlines', () => {
     const alpha = await page.evaluate(() => {
       const out: Record<string, number> = {};
       for (const id of ['clock', 'weather']) {
-        const card = document.querySelector<HTMLElement>(
-          `.fixed.inset-0 .widget-cell[data-widget="${id}"] [class*="bg-card"].border-border`);
+        const cell = document.querySelector<HTMLElement>(
+          `.fixed.inset-0 .widget-cell[data-widget="${id}"]`);
+        const card = cell?.matches('.border-border') ? cell : cell?.querySelector<HTMLElement>(
+          '[class*="bg-card"].border-border');
         if (!card) { out[id] = -1; continue; }
         const c = getComputedStyle(card).borderTopColor;
         const slash = c.match(/\/\s*([\d.]+)\s*\)$/);
@@ -1004,7 +1006,9 @@ test.describe('screensaver widget outlines', () => {
     await page.waitForTimeout(1500);
 
     const result = await page.evaluate(() => {
-      const cells = [...document.querySelectorAll<HTMLElement>('.fixed.inset-0.z-9999 .widget-cell')];
+      // Empty widgets keep their grid slot but intentionally do not drift.
+      const cells = [...document.querySelectorAll<HTMLElement>(
+        '.fixed.inset-0.z-9999 .widget-cell:not([data-hidden-empty="true"])')];
       const gap = parseFloat(getComputedStyle(cells[0]!.parentElement!).columnGap);
       const drifts = cells.flatMap((c) => c.getAnimations()).filter(
         (a) => a instanceof CSSAnimation && a.animationName === 'prism-drift');
