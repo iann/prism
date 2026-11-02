@@ -1,4 +1,7 @@
-import type { ScreensaverMode, WidgetConfig } from '@/lib/hooks/useLayouts';
+import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+import type { IdleBackground } from '@/lib/idleBackground';
+import type { EditTab, IdleHalf } from '@/components/dashboard/useDashboardLayout';
+import type { IdleSwitchCheck } from './useIdleSwitchCheck';
 
 export const EXPORT_VERSION = 3;
 
@@ -25,20 +28,30 @@ export interface LayoutEditorProps {
   onDeleteLayout?: (id: string) => void;
   layoutName?: string;
   savedLayouts?: SavedLayout[];
+  /** The Dashboard or Idle screen tab (#782). */
+  editTab?: EditTab;
+  onEditTabChange?: (tab: EditTab) => void;
+  /** Which tabs hold unsaved changes. */
+  dashboardDirty?: boolean;
+  idleDirty?: boolean;
+  /** The Idle screen tab, arranging a screensaver layout. */
   editingScreensaver?: boolean;
-  onToggleScreensaverEdit?: () => void;
   screensaverWidgets?: WidgetConfig[];
   onScreensaverWidgetToggle?: (widgetType: string, visible: boolean) => void;
-  onScreensaverSave?: () => void;
   onScreensaverSaveAs?: () => void;
   onScreensaverReset?: () => void;
   onSelectScreensaverTemplate?: (templateWidgets: WidgetConfig[]) => void;
   screensaverPresets?: Array<{ name: string; widgets: WidgetConfig[] }>;
   onSelectScreensaverPreset?: (widgets: WidgetConfig[]) => void;
   onDeleteScreensaverPreset?: (name: string) => void;
-  /** What the display shows when idle (#691). Omitted: no picker. */
-  screensaverMode?: ScreensaverMode;
-  onScreensaverModeChange?: (mode: ScreensaverMode) => void;
+  /** What the display shows behind it when idle (#782). Omitted: no picker. */
+  idleBackground?: IdleBackground;
+  onIdleBackgroundChange?: (bg: IdleBackground) => void;
+  /** Which half of a day and night pair the Idle screen tab shows. */
+  idleHalf?: IdleHalf;
+  onIdleHalfChange?: (half: IdleHalf) => void;
+  /** Tonight's times and whether the offsets cross, for a day and night pair. */
+  idleCheck?: IdleSwitchCheck;
   screenGuideOrientation?: 'landscape' | 'portrait';
   onScreenGuideOrientationChange?: (o: 'landscape' | 'portrait') => void;
   enabledSizes?: string[];

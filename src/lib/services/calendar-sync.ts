@@ -1,6 +1,8 @@
 import { db } from '@/lib/db/client';
 import { calendarSources, events, tasks, taskLists, dismissedEvents, settings } from '@/lib/db/schema';
 import { decideDeletionReview } from '@/lib/services/taskDeletionReview';
+import { eq, and, gte, lte, sql, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY } from '@/lib/constants';
 
 /**
  * How long a CalDAV task must have been absent before it is flagged. Matches
@@ -8,12 +10,13 @@ import { decideDeletionReview } from '@/lib/services/taskDeletionReview';
  * on its own.
  */
 const CALDAV_MISSING_GRACE_MS = 6 * 60 * 1000;
-import { eq, and, gte, lte, sql, inArray, isNotNull } from 'drizzle-orm';
-import { AUTO_DELETE_REMOVED_CALENDAR_EVENTS_SETTING_KEY } from '@/lib/constants';
 import {
   fetchCalDAVEvents,
   fetchCalDAVTasks,
   type CalDAVConnectionConfig,
+  type CalDAVCreateResult,
+  type CalDAVEventChanges,
+  type CalDAVPatchResult,
 } from '@/lib/integrations/caldav';
 import {
   fetchCalendarEvents,
@@ -107,6 +110,23 @@ function eventChanged(a: EventContent, b: EventContent): boolean {
 }
 
 /** A zero net-change result, optionally carrying errors (for early returns). */
+/**
+ * Remove the series rows Prism wrote for repeating events it added to this
+ * calendar (#59) once the calendar sends their occurrences. A series row has
+ * the series' id as its external id, a rule, and no series key; until the
+ * occurrences arrive, it is what shows the series. Removed here rather than
+ * flagged like an event deleted upstream, since nothing was deleted.
+ */
+async function dropReplacedSeriesRows(sourceId: string, seriesKeys: Set<string>): Promise<void> {
+  if (seriesKeys.size === 0) return;
+  await db.delete(events).where(and(
+    eq(events.calendarSourceId, sourceId),
+    isNull(events.seriesKey),
+    isNotNull(events.recurrenceRule),
+    inArray(events.externalEventId, [...seriesKeys]),
+  ));
+}
+
 function emptyCounts(errors: string[] = []): SyncCounts {
   return { added: 0, updated: 0, removed: 0, autoDeleted: 0, unchanged: 0, synced: 0, errors };
 }
@@ -358,6 +378,11 @@ export async function syncGoogleCalendarSource(
       errors.push(`Failed to sync event ${googleEvent.id}: ${error}`);
     }
   }
+
+  await dropReplacedSeriesRows(
+    sourceId,
+    new Set(googleEvents.flatMap((e) => (e.status !== 'cancelled' && e.recurringEventId ? [e.recurringEventId] : []))),
+  );
 
   // Delete events that exist in Prism but were removed from Google
   // (Google is source of truth for synced events; cancelled events excluded above)
@@ -1137,6 +1162,11 @@ export async function syncCalDAVCalendarSource(
       }
     }
 
+    await dropReplacedSeriesRows(
+      sourceId,
+      new Set(caldavEvents.flatMap((e) => (e.seriesKey ? [e.seriesKey] : []))),
+    );
+
     // Drop events that no longer exist upstream (within the sync window only —
     // matches the behavior of the Google + iCal paths in this file).
     const upstreamUids = new Set(caldavEvents.map((e) => e.uid));
@@ -1462,32 +1492,33 @@ async function loadCalDAVAuth(sourceId: string): Promise<{
 export async function pushCalDAVEventCreate(
   sourceId: string,
   ev: { uid: string; title: string; description?: string | null; location?: string | null; startTime: Date; endTime: Date; allDay?: boolean },
-): Promise<{ ok: true; href: string } | { ok: false; error: string }> {
+): Promise<CalDAVCreateResult> {
   const auth = await loadCalDAVAuth(sourceId);
-  if ('error' in auth) return { ok: false, error: auth.error };
+  if ('error' in auth) return { ok: false, reason: 'error', message: auth.error };
   try {
     const { createCalDAVEvent } = await import('@/lib/integrations/caldav');
-    const { href } = await createCalDAVEvent(auth.serverUrl, auth.username, auth.password, auth.sourceCalendarId, ev);
-    return { ok: true, href };
+    return await createCalDAVEvent(auth.serverUrl, auth.username, auth.password, auth.sourceCalendarId, ev);
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return { ok: false, reason: 'error', message: err instanceof Error ? err.message : String(err) };
   }
 }
 
 export async function pushCalDAVEventUpdate(
   sourceId: string,
   calendarObjectHref: string,
-  etag: string | undefined,
-  ev: { uid: string; title: string; description?: string | null; location?: string | null; startTime: Date; endTime: Date; allDay?: boolean },
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  uid: string,
+  changes: CalDAVEventChanges,
+): Promise<CalDAVPatchResult> {
   const auth = await loadCalDAVAuth(sourceId);
-  if ('error' in auth) return { ok: false, error: auth.error };
+  if ('error' in auth) return { ok: false, reason: 'error', message: auth.error };
   try {
-    const { updateCalDAVEvent } = await import('@/lib/integrations/caldav');
-    await updateCalDAVEvent(auth.serverUrl, auth.username, auth.password, calendarObjectHref, etag, ev);
-    return { ok: true };
+    const { patchCalDAVEvent } = await import('@/lib/integrations/caldav');
+    return await patchCalDAVEvent(
+      auth.serverUrl, auth.username, auth.password, calendarObjectHref, uid, changes,
+      await getHouseholdTimezone(),
+    );
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return { ok: false, reason: 'error', message: err instanceof Error ? err.message : String(err) };
   }
 }
 

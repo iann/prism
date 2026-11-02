@@ -22,6 +22,7 @@ import { GRID_COLS } from '@/lib/constants/grid';
 import { CssGridDisplay } from '@/components/layout/grid/CssGridDisplay';
 import { CalendarPrefsScopeContext } from '@/lib/hooks/useCalendarWidgetPrefs';
 import { loadScreensaverLayout } from './screensaverStorage';
+import { hidesWhenEmpty } from '@/components/layout/grid/hideWhenEmpty';
 import { shouldShowScreensaver } from './shouldShowScreensaver';
 import { rotate, showingCount } from './screensaverRotation';
 import { useScreensaverMotion } from './useScreensaverMotion';
@@ -35,8 +36,9 @@ import { useViewportSize } from '@/lib/hooks/useViewportSize';
 import { setDisplayIdle } from '@/lib/hooks/useDisplayIdle';
 import { PollingScopeContext } from '@/lib/hooks/pollingScope';
 import { useResetOn } from '@/lib/hooks/useResetOn';
-import { useScreensaverBackdrop, useSkyLocation, useSkyShowing } from './useScreensaverBackdrop';
-import { setCalmIdle, useActiveScreensaverMode } from './calmMode';
+import { useIdleSource, useSkyLocation } from './useIdleBackground';
+import { setCalmIdle, useActiveIdleBackground } from './calmMode';
+import { needsLocation } from '@/lib/idleBackground';
 import { IdleDim } from './idleDim';
 
 // Only displays that choose the sky load its star catalogue.
@@ -89,9 +91,14 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
     away: isAway,
     babysitter: isBabysitter,
   });
-  // A calm dashboard is its own idle screen (#691): this decides when, and the
+  // What shows behind it (#782), which can change with the time of day. When
+  // it is the dashboard itself (calm mode, #691) this decides when, and the
   // dashboard does the showing, so there is no overlay to put up.
-  const calm = useActiveScreensaverMode() === 'calm';
+  const background = useActiveIdleBackground();
+  const { lat, lon, eclipse } = useSkyLocation(needsLocation(background));
+  const source = useIdleSource(background, lat, lon, idle);
+  const calm = source === 'dashboard';
+  const showSky = source === 'sky';
   const isIdle = idle && !calm;
   useEffect(() => {
     setCalmIdle(idle && calm);
@@ -128,10 +135,6 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
     setDisplayIdle(isIdle);
     return () => setDisplayIdle(false);
   }, [isIdle]);
-
-  const { backdrop } = useScreensaverBackdrop();
-  const { lat, lon } = useSkyLocation(backdrop !== 'photos');
-  const showSky = useSkyShowing(backdrop, lat, lon, isIdle);
 
   const [visible, setVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -197,7 +200,7 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
         )}
         {showSky ? (
           <React.Suspense fallback={null}>
-            <NightSky lat={lat} lon={lon} />
+            <NightSky lat={lat} lon={lon} eclipse={eclipse} />
           </React.Suspense>
         ) : (
           // Photos are dimmed so the white widget text reads over them. The sky
@@ -263,9 +266,15 @@ function ScreensaverGrid() {
   // Which widgets are currently on screen. Off by default, in which case every
   // widget shows and all of this is inert.
   const { motion, interval: motionInterval, floor, ceiling, outlines, drift, waterClear, ready } = useScreensaverMotion();
+  // Widgets showing their empty state. One set to hide when empty (on by
+  // default here, #738) sits out the rotation too, or it would take a turn and
+  // leave a gap where it should have been.
+  const [emptyIds, setEmptyIds] = useState<ReadonlySet<string>>(() => new Set());
   const widgetIds = useMemo(
-    () => layout.filter((w) => w.visible !== false).map((w) => w.i),
-    [layout],
+    () => layout
+      .filter((w) => w.visible !== false && !(emptyIds.has(w.i) && hidesWhenEmpty(w, true)))
+      .map((w) => w.i),
+    [layout, emptyIds],
   );
 
   /** Horizontal centre of each widget, so a pour can find a partner across the
@@ -469,6 +478,8 @@ function ScreensaverGrid() {
         screenFrame={screenFrame}
         headerOffset={0}
         drift={drift}
+        hideEmptyByDefault
+        onEmptyChange={setEmptyIds}
         className="w-full h-full"
       />
       </EffectStage>

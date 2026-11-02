@@ -417,7 +417,8 @@ CREATE TABLE IF NOT EXISTS public.layouts (
     orientation character varying(20) DEFAULT 'landscape'::character varying,
     font_scale integer,
     floating_card_settings jsonb,
-    screensaver_mode character varying(20) DEFAULT 'calm'::character varying NOT NULL
+    screensaver_mode character varying(20) DEFAULT 'calm'::character varying NOT NULL,
+    idle_background jsonb DEFAULT '{"source": "dashboard"}'::jsonb NOT NULL
 );
 
 ALTER TABLE public.layouts ADD COLUMN IF NOT EXISTS floating_card_settings jsonb;

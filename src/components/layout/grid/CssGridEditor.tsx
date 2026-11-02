@@ -13,8 +13,8 @@ import {
   type DragStartEvent,
   type Modifier,
 } from '@dnd-kit/core';
-import { Moon, Trash2 } from 'lucide-react';
-import { WidgetBgOverrideProvider } from '@/components/widgets/WidgetContainer';
+import { EyeOff, Moon, Trash2 } from 'lucide-react';
+import { WidgetBgOverrideProvider, WidgetEmptyReportContext } from '@/components/widgets/WidgetContainer';
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { useLatestRef } from '@/lib/hooks/useLatestRef';
 import { shownWhenIdle } from '@/components/screensaver/calmMode';
@@ -25,8 +25,11 @@ import {
   getWidgetContentStyle,
   getTextColorClass,
   hasCustomWidgetShell,
+  getWidgetOutlineClass,
 } from './gridWidgetStyles';
 import type { EditorTheme } from './gridEditorTypes';
+import { useEmptyWidgets } from './useEmptyWidgets';
+import { canHideWhenEmpty, hidesWhenEmpty } from './hideWhenEmpty';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { getWidgetType } from '@/lib/utils/widgetInstances';
 
@@ -66,6 +69,8 @@ export interface CssGridEditorProps {
    * the idle screen keeps is set where the widgets are.
    */
   idleToggles?: boolean;
+  /** See CssGridDisplayProps: whether an unset widget hides when empty. */
+  hideEmptyByDefault?: boolean;
 }
 
 export function CssGridEditor({
@@ -84,8 +89,10 @@ export function CssGridEditor({
   onRemoveWidget,
   theme,
   idleToggles = false,
+  hideEmptyByDefault = false,
 }: CssGridEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const { emptyIds, reporterFor } = useEmptyWidgets();
   const [editMode, setEditMode] = useState<EditMode>('move');
   const [resizePreview, setResizePreview] = useState<ResizePreview | null>(null);
   const resizePreviewRef = useRef<ResizePreview | null>(null);
@@ -320,6 +327,12 @@ export function CssGridEditor({
             theme={theme}
             onToggleIdle={idleToggles ? handleToggleIdle : undefined}
             onRemove={onRemoveWidget ? () => onRemoveWidget(w.i) : undefined}
+            reportEmpty={reporterFor(w.i)}
+            emptyHidden={!emptyIds.has(w.i) ? null
+              : hidesWhenEmpty(w, hideEmptyByDefault) ? 'always'
+              // A calm dashboard's idle screen hides an unset widget.
+              : idleToggles && w.hideWhenEmpty === undefined && canHideWhenEmpty(w.i) ? 'idle'
+              : null}
           />
         ))}
       </div>
@@ -355,6 +368,7 @@ function DragOverlayContent({
   const textClass = getTextColorClass(widget);
   const hasCustomShell = hasCustomWidgetShell(widget);
   const effectiveTextColor = getEffectiveWidgetTextColor(widget);
+  const outlineClass = getWidgetOutlineClass(widget);
 
   return (
     <div
@@ -366,7 +380,7 @@ function DragOverlayContent({
         borderColor: 'hsl(var(--primary))',
         opacity: 0.85,
       }}
-      className={`rounded-xl border-2 border-primary shadow-lg ${textClass}`}
+      className={`rounded-xl border-2 border-primary shadow-lg ${textClass} ${outlineClass}`}
     >
       <WidgetBgOverrideProvider
         value={{
@@ -405,6 +419,9 @@ interface DraggableWidgetProps {
   theme: EditorTheme;
   onToggleIdle?: (id: string) => void;
   onRemove?: () => void;
+  reportEmpty: (empty: boolean) => void;
+  /** Empty now and so hidden on the live screen, always or only when idle. */
+  emptyHidden: 'always' | 'idle' | null;
 }
 
 function DraggableWidget({
@@ -419,6 +436,8 @@ function DraggableWidget({
   theme,
   onToggleIdle,
   onRemove,
+  reportEmpty,
+  emptyHidden,
 }: DraggableWidgetProps) {
   const inMoveMode = isSelected && editMode === 'move';
   const inResizeMode = isSelected && editMode === 'resize';
@@ -432,6 +451,7 @@ function DraggableWidget({
   const widgetStyle = getWidgetStyle(widget);
   const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget, '');
+  const outlineClass = getWidgetOutlineClass(widget);
   const hasCustomBg = !!widget.backgroundColor;
   const hasCustomShell = hasCustomWidgetShell(widget);
   const effectiveTextColor = getEffectiveWidgetTextColor(widget);
@@ -494,18 +514,29 @@ function DraggableWidget({
           cellBackgroundOpacity: widget.cellBackgroundOpacity,
         }}
       >
-        <div
-          className={`h-full w-full overflow-hidden ${textClass}`}
-          style={{ pointerEvents: 'none', ...contentStyle }}
-        >
-          {renderWidget(widget)}
-        </div>
+        <WidgetEmptyReportContext.Provider value={reportEmpty}>
+          <div
+            className={`h-full w-full overflow-hidden ${textClass} ${outlineClass} ${emptyHidden ? 'opacity-50' : ''}`}
+            style={{ pointerEvents: 'none', ...contentStyle }}
+          >
+            {renderWidget(widget)}
+          </div>
+        </WidgetEmptyReportContext.Provider>
       </WidgetBgOverrideProvider>
 
       {/* Mode label, with Remove beside it — visible when selected. Remove is
           its own button so a tap takes the widget off the board instead of
           switching it between move and resize. Hidden in resize mode, where
           the top edge is a handle. */}
+      {/* Edit mode always shows the widget, so say when the live screen does
+          not (#738). Top edge at the left; the idle switch is at the right. */}
+      {emptyHidden && !isDragging && (
+        <div data-empty-marker className="absolute -top-2.5 left-3 z-30 flex items-center gap-1 rounded-full bg-neutral-600 px-2 py-0.5 text-xs leading-4 font-medium text-white shadow-xs pointer-events-none">
+          <EyeOff className="h-3.5 w-3.5" aria-hidden />
+          {emptyHidden === 'idle' ? 'Empty: hidden when idle' : 'Empty: hidden'}
+        </div>
+      )}
+
       {isSelected && !isDragging && (
         <div className="pointer-events-none absolute left-1/2 top-1 z-10 flex -translate-x-1/2 items-center gap-1">
           <div

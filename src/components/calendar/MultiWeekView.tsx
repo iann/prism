@@ -22,6 +22,7 @@ import { SpanningEventRows } from './cells';
 import { useTimeFormat } from '@/components/providers';
 import { eventOccursOnDisplayDay, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
+import { canDragEvent } from '@/lib/utils/eventMove';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
 import { useTranslations } from 'next-intl';
 import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
@@ -365,10 +366,7 @@ function DayCell({
       >
         {cards
           ? visibleEvents.map((event) => {
-              // Only locally-managed events are safe to drag; external (Google,
-              // iCal feed, etc.) events would either round-trip or be reverted
-              // on next sync. `calendarId === 'local'` marks internal events.
-              const draggable = enableDnd && event.calendarId === 'local';
+              const draggable = enableDnd && canDragEvent(event);
               return (
                 <WeekItemCard
                   key={event.id}

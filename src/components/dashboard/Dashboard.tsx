@@ -46,11 +46,15 @@ import { MediaPlayerPlaybackCard } from '@/components/widgets/MediaPlayerPlaybac
 import { FloatingCardStack } from './FloatingCardStack';
 import { renderScreensaverPreview } from '@/components/screensaver/ScreensaverWidgetPreview';
 import { SCREENSAVER_WIDGET_CLASS } from '@/components/screensaver/Screensaver';
-import type { ScreensaverMode, WidgetConfig } from '@/lib/hooks/useLayouts';
+import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+import { parseIdleBackground, withoutDashboard, PHOTOS, type IdleBackground } from '@/lib/idleBackground';
 import { WidgetErrorBoundary } from '@/components/dashboard/WidgetErrorBoundary';
 import { WidgetExpandProvider, useWidgetExpand } from '@/components/dashboard/WidgetExpandProvider';
 import { useDashboardData } from './useDashboardData';
 import { useDashboardLayout, editLink } from './useDashboardLayout';
+import { useScreenSchedule } from './useScreenSchedule';
+import { useRemoveBirthday } from './useRemoveBirthday';
+import { useIdleSwitchCheck } from '@/components/layout/useIdleSwitchCheck';
 import { buildWidgetProps } from './useWidgetProps';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
@@ -59,7 +63,7 @@ import { getWidgetType } from '@/lib/utils/widgetInstances';
 import { BirthdayCelebration, PartyModeButton } from '@/components/birthday';
 import { useLatestRef } from '@/lib/hooks/useLatestRef';
 import { useLocalCopy } from '@/lib/hooks/useLocalCopy';
-import { setActiveScreensaverMode, shownWhenIdle, useCalmIdle } from '@/components/screensaver/calmMode';
+import { setActiveIdleBackground, shownWhenIdle, useCalmIdle } from '@/components/screensaver/calmMode';
 import { useScreensaverMotion } from '@/components/screensaver/useScreensaverMotion';
 
 const VISIBLE_WIDGETS_KEY = 'prism-visible-widgets';
@@ -160,7 +164,16 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     deleteChore: () => {},
   });
 
-  const layout = useDashboardLayout(data.layouts, slug);
+  // A named screen's time-of-day rules pick which dashboard this page shows (#692).
+  const editingRef = useRef(false);
+  const schedule = useScreenSchedule({
+    routeSlug: slug,
+    layouts: data.layouts.allLayouts,
+    loading: data.layouts.loading,
+    editing: editingRef,
+  });
+  const layout = useDashboardLayout(data.layouts, schedule.slug);
+  useEffect(() => { editingRef.current = layout.isEditing; }, [layout.isEditing]);
 
   useEffect(() => {
     const ids = visibleWidgetIds(layout.activeWidgets);
@@ -198,23 +211,18 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   // Grid control state shared between LayoutEditor toolbar and LayoutGridEditor
   const { allSizeNames } = useScreenSafeZones();
 
-  // Calm mode (#691): tell the Screensaver this dashboard is its own idle
-  // screen, and take it back when the dashboard goes, so other pages still get
-  // the ordinary screensaver. The phone layout has no calm idle state.
-  const screensaverMode = isMobile ? 'separate' : layout.activeLayout?.screensaverMode ?? 'separate';
+  // Tell the Screensaver what this dashboard shows behind it when idle (#782),
+  // which may be the dashboard itself (calm mode, #691). When the dashboard
+  // goes, other pages keep its photos or sky but have no dashboard to show.
+  // The phone layout has no calm idle state. Keyed by its JSON so a fresh copy
+  // of the same value is not a change.
+  const idleBackground = layout.activeLayout ? parseIdleBackground(layout.activeLayout.idleBackground) : PHOTOS;
+  const idleKey = JSON.stringify(isMobile ? withoutDashboard(idleBackground) : idleBackground);
   useEffect(() => {
-    setActiveScreensaverMode(screensaverMode);
-    return () => setActiveScreensaverMode('separate');
-  }, [screensaverMode]);
-  const setScreensaverMode = useCallback(async (mode: ScreensaverMode) => {
-    const active = layout.activeLayout;
-    if (!active) return;
-    try {
-      await data.layouts.saveLayout({ id: active.id, name: active.name, widgets: active.widgets, screensaverMode: mode });
-    } catch (err) {
-      console.error('Failed to save the screensaver mode:', err);
-    }
-  }, [layout.activeLayout, data.layouts]);
+    const bg = JSON.parse(idleKey) as IdleBackground;
+    setActiveIdleBackground(bg);
+    return () => setActiveIdleBackground(withoutDashboard(bg));
+  }, [idleKey]);
   const calmIdle = useCalmIdle() && !layout.isEditing;
   const fadedIds = useMemo(
     () => calmIdle ? new Set(layout.activeWidgets.filter(w => !shownWhenIdle(w)).map(w => w.i)) : undefined,
@@ -285,9 +293,11 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   // Dashboard management callbacks for LayoutEditor
   // Only offered inside the layout editor, so the next dashboard opens in edit
   // mode too.
+  const { pick: pickDashboard } = schedule;
   const handleSwitchDashboard = useCallback((targetSlug: string) => {
+    pickDashboard(targetSlug);
     router.push(editLink(`/d/${targetSlug}`));
-  }, [router]);
+  }, [router, pickDashboard]);
 
   const handleCreateDashboard = useCallback(
     async (name: string, startFrom: 'blank' | 'template' | 'copy') => {
@@ -340,6 +350,12 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     }
   }, [layout.activeLayout, data.layouts, router]);
 
+  const removeBirthday = useRemoveBirthday(confirmAction);
+  const idleCheck = useIdleSwitchCheck(layout.isEditing ? layout.editingBackground : null);
+  const idleBarHeight = layout.isEditing && layout.editTab === 'idle'
+    ? ('switch' in layout.editingBackground ? 130 : 36)
+    : 0;
+
   const widgetProps = useMemo(
     () =>
       buildWidgetProps(
@@ -357,6 +373,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
           onEditTask: setEditingTask,
           onEditChore: setEditingChore,
           onEditMeal: setEditingMeal,
+          onRemoveBirthday: removeBirthday,
         }
       ),
     [
@@ -371,6 +388,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
       setEditingTask,
       setEditingChore,
       setEditingMeal,
+      removeBirthday,
     ]
   );
   const widgetPropsRef = useLatestRef(widgetProps);
@@ -402,6 +420,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
       data.points,
     ]
   );
+
 
   const handleLogin = async () => {
     await requireAuth('Login', 'Select your profile');
@@ -525,9 +544,12 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
       </FloatingCardStack>
     ) : null;
 
+  // Always this wrapper, styled or not, so a change of text size does not
+  // remount the dashboard under it.
   if (isMobile) {
     return (
-      <AppShell
+      <div style={schedule.zoomStyle}>
+       <AppShell
         user={
           activeUser
             ? {
@@ -552,110 +574,103 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
         >
           <MobileDashboard data={data} />
         </LCARSFrame>
-      </AppShell>
+       </AppShell>
+      </div>
     );
   }
 
   return (
-    <AppShell
-      user={
-        activeUser
-          ? {
-              id: activeUser.id,
-              name: activeUser.name,
-              avatarUrl: activeUser.avatarUrl,
-              color: activeUser.color,
-            }
-          : undefined
-      }
-      onLogout={activeUser ? clearActiveUser : undefined}
-      onLogin={handleLogin}
-      showWallpaper
-    >
-      <BirthdayCelebration celebrations={data.birthdays.birthdays} />
-      <PartyModeButton celebrations={data.birthdays.birthdays} />
-      <DashboardLayout className={cn(className, isLCARS && 'lcars-dashboard')}>
-        <DashboardHeader
-          onScreensaverClick={() => window.dispatchEvent(new Event('prism:screensaver'))}
-          onEditClick={
-            activeUser && activeUser.role !== 'parent' ? undefined : layout.handleEditStart
-          }
-        />
 
-        {layout.isEditing && (
-          <LayoutEditor
-            widgets={layout.editingWidgets}
-            onWidgetsChange={layout.setEditingWidgets}
-            onSave={layout.handleSave}
-            onSaveAs={layout.handleSaveAs}
-            onReset={layout.handleReset}
-            onCancel={() => {
-              layout.setEditingScreensaver(false);
-              layout.handleCancel();
-            }}
-            onDeleteLayout={data.layouts.deleteLayout}
-            layoutName={layout.activeLayout?.name}
-            savedLayouts={data.layouts.allLayouts.map((l) => ({
-              id: l.id,
-              name: l.name,
-              widgets: l.widgets,
-            }))}
-            editingScreensaver={layout.editingScreensaver}
-            onToggleScreensaverEdit={() => layout.setEditingScreensaver(!layout.editingScreensaver)}
-            screensaverWidgets={layout.ssLayout}
-            onScreensaverWidgetToggle={layout.handleSsWidgetToggle}
-            onScreensaverSave={layout.handleSsSave}
-            onScreensaverSaveAs={layout.handleSsSaveAs}
-            onScreensaverReset={layout.handleSsReset}
-            onSelectScreensaverTemplate={layout.handleSelectSsTemplate}
-            screensaverPresets={layout.ssPresets}
-            onSelectScreensaverPreset={layout.handleSelectSsPreset}
-            onDeleteScreensaverPreset={layout.handleDeleteSsPreset}
-            screensaverMode={layout.activeLayout ? screensaverMode : undefined}
-            onScreensaverModeChange={setScreensaverMode}
-            screenGuideOrientation={screenGuideOrientation}
-            onScreenGuideOrientationChange={setScreenGuideOrientation}
-            enabledSizes={enabledSizes}
-            onToggleSize={handleToggleSize}
-            gridScrollY={gridScrollY}
-            gridVisibleRows={gridVisibleRows}
-            gridScrollX={gridScrollX}
-            gridVisibleCols={gridVisibleCols}
-            gridTotalRows={gridTotalRows}
-            gridTotalCols={gridTotalCols}
-            scrollToGridRef={scrollToGridRef}
-            allDashboards={data.layouts.allLayouts.map((l) => ({
-              id: l.id,
-              name: l.name,
-              slug: l.slug,
-              isDefault: l.isDefault,
-            }))}
-            currentDashboardId={layout.activeLayout?.id}
-            onSwitchDashboard={handleSwitchDashboard}
-            onCreateDashboard={handleCreateDashboard}
-            onRenameDashboard={handleRenameDashboard}
-            onDeleteDashboard={handleDeleteDashboard}
+    <div style={schedule.zoomStyle}>
+      <AppShell
+        user={activeUser ? { id: activeUser.id, name: activeUser.name, avatarUrl: activeUser.avatarUrl, color: activeUser.color } : undefined}
+        onLogout={activeUser ? clearActiveUser : undefined}
+        onLogin={handleLogin}
+        showWallpaper
+      >
+        <BirthdayCelebration celebrations={data.birthdays.birthdays} />
+        <PartyModeButton celebrations={data.birthdays.birthdays} />
+        <DashboardLayout className={cn(className, isLCARS && 'lcars-dashboard')}>
+          <DashboardHeader
+            onScreensaverClick={() => window.dispatchEvent(new Event('prism:screensaver'))}
+            onEditClick={activeUser && activeUser.role !== 'parent' ? undefined : layout.handleEditStart}
+
           />
-        )}
 
-        <LCARSFrame
-          enabled={isLCARS}
-          chromeHidden={uiHidden}
-          label={`${layout.activeLayout?.name ?? 'Primary dashboard'} / Operations`}
-          code="OPS-47"
-        >
-          {layout.editingScreensaver && layout.isEditing ? (
+
+          {layout.isEditing && (
+            <LayoutEditor
+              widgets={layout.editingWidgets}
+              onWidgetsChange={layout.setEditingWidgets}
+              onSave={layout.handleSave}
+              onSaveAs={layout.handleSaveAs}
+              onReset={layout.handleReset}
+              onCancel={layout.handleCancel}
+              onDeleteLayout={data.layouts.deleteLayout}
+              layoutName={layout.activeLayout?.name}
+              savedLayouts={data.layouts.allLayouts.map(l => ({ id: l.id, name: l.name, widgets: l.widgets }))}
+              editTab={layout.editTab}
+              onEditTabChange={layout.setEditTab}
+              dashboardDirty={layout.dashboardDirty}
+              idleDirty={layout.idleDirty}
+              editingScreensaver={layout.editingScreensaver}
+              screensaverWidgets={layout.ssLayout}
+              onScreensaverWidgetToggle={layout.handleSsWidgetToggle}
+              onScreensaverSaveAs={layout.handleSsSaveAs}
+              onScreensaverReset={layout.handleSsReset}
+              onSelectScreensaverTemplate={layout.handleSelectSsTemplate}
+              screensaverPresets={layout.ssPresets}
+              onSelectScreensaverPreset={layout.handleSelectSsPreset}
+              onDeleteScreensaverPreset={layout.handleDeleteSsPreset}
+              idleBackground={layout.activeLayout ? layout.editingBackground : undefined}
+              onIdleBackgroundChange={layout.setEditingBackground}
+              idleHalf={layout.idleHalf}
+              onIdleHalfChange={layout.setIdleHalf}
+              idleCheck={idleCheck}
+              screenGuideOrientation={screenGuideOrientation}
+              onScreenGuideOrientationChange={setScreenGuideOrientation}
+              enabledSizes={enabledSizes}
+              onToggleSize={handleToggleSize}
+              gridScrollY={gridScrollY}
+              gridVisibleRows={gridVisibleRows}
+              gridScrollX={gridScrollX}
+              gridVisibleCols={gridVisibleCols}
+              gridTotalRows={gridTotalRows}
+              gridTotalCols={gridTotalCols}
+              scrollToGridRef={scrollToGridRef}
+              allDashboards={data.layouts.allLayouts.map(l => ({ id: l.id, name: l.name, slug: l.slug, isDefault: l.isDefault }))}
+              currentDashboardId={layout.activeLayout?.id}
+              onSwitchDashboard={handleSwitchDashboard}
+              onCreateDashboard={handleCreateDashboard}
+              onRenameDashboard={handleRenameDashboard}
+              onDeleteDashboard={handleDeleteDashboard}
+            />
+          )}
+
+          <LCARSFrame
+            enabled={isLCARS}
+            chromeHidden={uiHidden}
+            label={`${layout.activeLayout?.name ?? 'Primary dashboard'} / Operations`}
+            code="OPS-47"
+          >
+          {layout.editingScreensaver ? (
+
             <LayoutGridEditor
               layout={layout.ssLayout}
               onLayoutChange={layout.handleSsLayoutChange}
               isEditable
               renderWidget={renderSsWidget}
               margin={4}
-              headerOffset={isLCARS ? 200 : 100}
+
+              headerOffset={isLCARS ? 200 : 100 + idleBarHeight}
+
               bottomOffset={bottomOffset}
               minVisibleRows={8}
               theme={SCREENSAVER_THEME}
               previewFit="contain"
+
+              hideEmptyByDefault
+
               gridHelperText="Drag widgets to reposition &bull; Scroll to see more"
               className="mx-4"
               screenGuideOrientation={screenGuideOrientation}
@@ -672,14 +687,17 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
                   isEditable={layout.isEditing}
                   renderWidget={renderDashboardWidget}
                   fadedIds={fadedIds}
+
+                  hideEmptyByDefault={calmIdle}
                   drift={idleDrift}
-                  idleToggles={layout.isEditing && screensaverMode === 'calm'}
-                  widgetRevisions={widgetRevisions}
+                  morph
+                  // Stays / Fades belongs to the Idle screen tab, on a dashboard that is its own idle screen.
+                  idleToggles={layout.isEditing && layout.editTab === 'idle' && !isMobile}
                   widgetConstraints={dashboardConstraints}
+                  widgetRevisions={widgetRevisions}
                   margin={isLCARS ? 5 : 8}
-                  headerOffset={
-                    layout.isEditing ? (isLCARS ? 210 : 140) : uiHidden ? 0 : isLCARS ? 150 : 50
-                  }
+                  headerOffset={layout.isEditing ? (isLCARS ? 210 + idleBarHeight : 140 + idleBarHeight) : uiHidden ? 0 : isLCARS ? 150 : 56}
+
                   bottomOffset={bottomOffset}
                   screenGuideOrientation={screenGuideOrientation}
                   enabledSizes={enabledSizes}
@@ -689,7 +707,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
               </WidgetExpandProvider>
             </WidgetErrorBoundary>
           )}
-        </LCARSFrame>
+          </LCARSFrame>
 
         {floatingCards}
 
@@ -833,6 +851,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
       </DashboardLayout>
       <ConfirmDialog {...confirmDialogProps} />
     </AppShell>
+    </div>
   );
 }
 

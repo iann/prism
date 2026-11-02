@@ -40,9 +40,10 @@ Click a widget to select it, then use the **properties toolbar** to style it ind
 
 - Background color (including a **frosted-glass** option used by the Ambient templates)
 - Opacity
-- Outline
+- Outline, including **None** to remove the widget's border
 - Text color
 - Text size
+- **Hide when empty**: the widget is not drawn while it has nothing to show (no open tasks, no messages, an empty shopping list, no birthdays coming up, no meals planned) and comes back when something arrives. Its space stays empty, so nothing else moves. On by default on the screensaver and on a calm dashboard's idle screen, off by default on a dashboard in use. Clock, Weather, Calendar, Photos and Travel always have something to show, so they don't offer it. In the editor the widget always shows, marked **Empty: hidden** when the live screen leaves it out.
 
 ---
 
@@ -87,7 +88,7 @@ Submitting to the gallery needs a GitHub account. Without one, use **Download fi
 
 ### Copy between the dashboard and the screensaver
 
-**More → Copy to screensaver** replaces the screensaver's layout with the dashboard you are editing, and switches to the screensaver so you can check it; **Save** keeps it and **Cancel** puts the old one back. While editing the screensaver the same item reads **Copy to dashboard**. The screensaver shows fewer kinds of widget than the dashboard, so any it cannot show are left out, and the confirmation says which.
+**More → Use as idle screen** replaces the idle screen's layout with the dashboard you are editing, and switches to the Idle screen tab so you can check it; **Save** keeps it and **Cancel** puts the old one back. On the Idle screen tab the same item reads **Use as dashboard**. Both need photos or the night sky behind the idle screen, since a dashboard that is its own idle screen has no separate layout. The screensaver shows fewer kinds of widget than the dashboard, so any it cannot show are left out, and the confirmation says which.
 
 ### Export & Import
 
@@ -131,6 +132,22 @@ Create separate dashboards for different rooms or displays. Click the dashboard-
 - Named dashboards get URLs like **`/d/kitchen`** or **`/d/living-room`**.
 - Each dashboard has an **independent** widget layout, screensaver layout, and orientation.
 - Bookmark a dashboard URL on a dedicated device for instant access.
+
+### Different dashboards at different times
+
+A named screen (*Settings → Displays*) can show other dashboards at set times, for example a morning dashboard with the bus large on school days. In *Settings → Displays*, **Schedule** on the screen's row lists its times: each shows one dashboard from a start to an end time on the days ticked. Outside every time the screen shows its own dashboard. Times are in the household time zone; one that ends before it starts runs past midnight, and one that starts and ends at the same time lasts the whole day. When two times overlap, the higher one in the list wins.
+
+Make the dashboard for a time with **Save As** in the editor and rearrange it there. When a time starts or ends, the screen changes over in place: widgets that are on both dashboards slide to their new places and the rest fade. The change waits until nobody has touched the screen for a minute, and never happens while the layout is being edited. Opening another dashboard by hand keeps it until the next time starts or ends. With reduced motion the dashboards crossfade, and at the **Minimal** performance level they swap at once.
+
+### Notices
+
+A named screen can show small notice cards down the top right of its dashboard. In *Settings → Displays*, **Notices** on the screen's row turns each kind on, with how many minutes it covers:
+
+- **Bus**: the bus is due at your stop within the set minutes (the live position where there is one, else the emailed estimate). Goes once the bus has passed the stop.
+- **Event**: a timed event starts within the set minutes. Goes when it starts. All-day events never show.
+- **Message**: a family message was posted within the set minutes.
+
+The newest card is on top and at most four show. New messages are checked for every half minute and events every minute. Tap the **×** on a card to dismiss it. The dashboard underneath does not move; the cards cover what is behind them until they go. Cards show on dashboards only, also over the screensaver, where they turn dark and keep updating, and dim with it.
 
 ### Saving
 

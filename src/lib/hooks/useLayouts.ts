@@ -4,10 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import { normalizeWidgetInstances } from '@/lib/utils/widgetInstances';
 import { useVisibilityPolling } from './useVisibilityPolling';
 import { useFetchOnMount } from './useFetchOnMount';
-
-/** What the display shows when idle: a separate screensaver layout, or the
- *  dashboard itself with only some widgets left showing (calm mode, #691). */
-export type ScreensaverMode = 'separate' | 'calm';
+import type { IdleBackground } from '@/lib/idleBackground';
 
 export interface WidgetConfig {
   /** Unique instance key used by the grid, React, and drag/drop. */
@@ -32,6 +29,10 @@ export interface WidgetConfig {
   /** Calm mode: stays on screen while the display is idle. Unset uses the
    *  default for the widget (see shownWhenIdle). */
   showWhenIdle?: boolean;
+  /** Not drawn while it has nothing to show (#738). Unset uses the default for
+   *  where it is drawn: on for the screensaver and a calm dashboard's idle
+   *  screen, off for a dashboard in use. See hideWhenEmpty.ts. */
+  hideWhenEmpty?: boolean;
   settings?: Record<string, unknown>;
 }
 
@@ -42,7 +43,7 @@ export interface Layout {
   isDefault: boolean;
   widgets: WidgetConfig[];
   screensaverWidgets: WidgetConfig[] | null;
-  screensaverMode?: ScreensaverMode;
+  idleBackground?: IdleBackground;
   orientation: string;
   fontScale: number | null;
   floatingCardSettings?: {

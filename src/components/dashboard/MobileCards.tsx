@@ -45,8 +45,10 @@ type DashData = ReturnType<typeof useDashboardData>;
 const LayoutCtx = createContext<MobileLayoutMode>('rows');
 export const MobileLayoutProvider = LayoutCtx.Provider;
 
-function CardShell({ href, icon, title, count, children }: {
+function CardShell({ href, onOpen, icon, title, count, children }: {
   href?: string;
+  /** Opens something in place (a full widget) instead of following a link. */
+  onOpen?: () => void;
   icon: React.ReactNode;
   title: string;
   count?: number;
@@ -63,7 +65,7 @@ function CardShell({ href, icon, title, count, children }: {
             <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full shrink-0">{count}</span>
           )}
         </div>
-        {href && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+        {(href || onOpen) && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
       </div>
       {!compact && children}
     </div>
@@ -71,6 +73,9 @@ function CardShell({ href, icon, title, count, children }: {
 
   if (href) {
     return <Link href={href} prefetch={false} className="block">{inner}</Link>;
+  }
+  if (onOpen) {
+    return <button type="button" onClick={onOpen} className="block w-full text-left">{inner}</button>;
   }
   return inner;
 }
@@ -256,7 +261,7 @@ export function MessagesCard({ data }: { data: DashData['messages'] }) {
   );
 }
 
-export function BirthdaysCard({ data }: { data: DashData['birthdays'] }) {
+export function BirthdaysCard({ data, onOpen }: { data: DashData['birthdays']; onOpen?: () => void }) {
   const upcoming = useMemo(() => {
     if (!data.birthdays) return [];
     return data.birthdays.slice(0, 2);
@@ -265,7 +270,7 @@ export function BirthdaysCard({ data }: { data: DashData['birthdays'] }) {
   if (upcoming.length === 0) return null;
 
   return (
-    <CardShell icon={<Cake className="h-4 w-4 text-pink-500" />} title="Birthdays" count={upcoming.length}>
+    <CardShell onOpen={onOpen} icon={<Cake className="h-4 w-4 text-pink-500" />} title="Birthdays" count={upcoming.length}>
       <div className="space-y-1">
         {upcoming.map((b) => (
           <p key={b.id} className="text-xs text-muted-foreground">
@@ -342,7 +347,12 @@ function busStatusText(p: BusPrediction): string {
   }
 }
 
-export function BusTrackingCard({ routes, live }: { routes: BusRouteStatus[]; live?: LiveTrack | null }) {
+export function BusTrackingCard({ routes, live, provider }: {
+  routes: BusRouteStatus[];
+  live?: LiveTrack | null;
+  /** Whether a live provider feeds the routes; then the email view is never shown. Null until known. */
+  provider?: boolean | null;
+}) {
   if (live) {
     return (
       <CardShell icon={<Bus className="h-4 w-4 text-amber-600" />} title="Bus Tracker" count={1}>
@@ -357,6 +367,14 @@ export function BusTrackingCard({ routes, live }: { routes: BusRouteStatus[]; li
     );
   }
   if (!routes || routes.length === 0) return null;
+  if (provider === null) return null;
+  if (provider) {
+    return (
+      <CardShell icon={<Bus className="h-4 w-4 text-amber-600" />} title="Bus Tracker">
+        <p className="text-xs text-muted-foreground">No bus today</p>
+      </CardShell>
+    );
+  }
 
   const active = routes.filter((r) => r.prediction.status !== 'no_data');
 

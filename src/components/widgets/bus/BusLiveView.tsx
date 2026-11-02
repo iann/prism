@@ -54,6 +54,24 @@ export function lateness(shiftMs: number | null): string | null {
   return min > 0 ? `${min} min late` : `${-min} min early`;
 }
 
+/**
+ * Today against the bus's habit, beside the schedule lateness: a bus that is
+ * always 8 minutes behind the timetable is "about usual" at 8. Before anything
+ * on this trip is measured, the lateness shown is itself borrowed from recent
+ * trips, so then this only says what is typical.
+ */
+export function versusUsual(shiftMs: number | null, typicalMs: number | null, measured: boolean): string | null {
+  if (typicalMs === null) return null;
+  const typical = Math.round(typicalMs / MS_PER_MIN);
+  if (shiftMs === null || !measured) {
+    if (typical === 0) return 'usually on time';
+    return typical > 0 ? `usually ${typical} min late` : `usually ${-typical} min early`;
+  }
+  const diff = Math.round((shiftMs - typicalMs) / MS_PER_MIN);
+  if (Math.abs(diff) <= 1) return 'about usual';
+  return diff > 0 ? `${diff} min later than usual` : `${-diff} min earlier than usual`;
+}
+
 export function formatSpeed(metresPerSecond: number, unit: 'mph' | 'km/h'): string {
   const value = unit === 'mph' ? metresPerSecond * 2.23694 : metresPerSecond * 3.6;
   return `${Math.round(value)} ${unit}`;
@@ -166,9 +184,10 @@ const CARD_ROWS = new Set(['Running', 'Updated', 'Stops', 'Now']);
  */
 export function stopProgress(track: Pick<LiveTrack, 'progress' | 'stops'>): string | null {
   const p = track.progress;
-  if (p && p.totalStops > 0) return `${p.lastVisitedStop} of ${p.totalStops}`;
-  if (track.stops.length === 0) return null;
-  return `${track.stops.filter((s) => s.passed).length} of ${track.stops.length}`;
+  // Only the provider knows the whole route. The track's own stops are just
+  // the household's stop and the school, so counting those ("0 of 2") would
+  // mislead before the provider sends its count.
+  return p && p.totalStops > 0 ? `${p.lastVisitedStop} of ${p.totalStops}` : null;
 }
 
 export function BusLivePanel({
@@ -212,7 +231,8 @@ export function BusLivePanel({
   }
 
   const rows: [string, React.ReactNode][] = [];
-  if (late) rows.push(['Running', late]);
+  const usual = versusUsual(track.shiftMs, track.typicalLateMs, track.shiftMeasured);
+  if (late) rows.push(['Running', usual ? `${late} · ${usual}` : late]);
   // High in the list, beside how late it is: how fresh the position is
   // decides how far to trust everything else, so it is never the row dropped.
   if (lastFixMs === null) {
@@ -274,7 +294,8 @@ export function LiveBusSummary({ track, className }: { track: LiveTrack; classNa
 
   const rider = track.stops.find((s) => s.key === track.riderStopKey);
   const time = (iso: string) => formatDisplayTime(new Date(iso), timeFormat, {}, displayTimezone);
-  let text = 'Bus is moving';
+  // A trip shown before it starts, or once its feed has gone quiet, is not moving.
+  let text = track.lastFixAt ? 'Bus is moving' : 'Waiting for the bus';
   if (rider?.passed && rider.arrivedAt) {
     text = `${rider.name ?? 'Your stop'}: arrived ${time(rider.arrivedAt)}`;
   } else if (rider?.projectedAt) {

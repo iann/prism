@@ -17,6 +17,8 @@ import type { ScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
 
 interface ToolbarLeftProps {
   editingScreensaver: boolean;
+  /** On the Idle screen tab, with or without a screensaver layout to edit. */
+  idleTab?: boolean;
   layoutName?: string;
   mode: 'dashboard' | 'screensaver';
   activePopover: ActivePopover;
@@ -54,6 +56,7 @@ const moreItemClass = 'w-full text-left px-3 py-1.5 text-sm hover:bg-accent tran
 
 export function LayoutEditorToolbarLeft({
   editingScreensaver,
+  idleTab = false,
   layoutName,
   mode,
   activePopover,
@@ -107,7 +110,7 @@ export function LayoutEditorToolbarLeft({
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
-      {!editingScreensaver && onRenameOpen ? (
+      {!idleTab && onRenameOpen ? (
         <button
           onClick={onRenameOpen}
           className="p-1 rounded hover:bg-accent transition-colors"
@@ -119,10 +122,10 @@ export function LayoutEditorToolbarLeft({
         <EditIcon />
       )}
 
-      {editingScreensaver ? (
+      {idleTab ? (
         <>
           <ScreensaverSettingsPanel open={motionOpen} onClose={() => setMotionOpen(false)} />
-          <span className="text-sm font-medium">Screensaver</span>
+          <span className="text-sm font-medium">Idle screen</span>
           {/* This editor arranges the widgets; how they come and go is a
               setting, not layout. That split is not guessable — and sending
               someone to the settings page to cross it means leaving the thing
@@ -165,6 +168,9 @@ export function LayoutEditorToolbarLeft({
         {screenGuideOrientation === 'landscape' ? '\u2B1C Landscape' : '\u25AF Portrait'}
       </button>
 
+      {/* A dashboard that is its own idle screen has no layout here to
+          arrange: only each widget's Stays / Fades. */}
+      {(!idleTab || editingScreensaver) && <>
       {/* Widgets popover */}
       <PopoverButton
         label="Widgets"
@@ -221,6 +227,7 @@ export function LayoutEditorToolbarLeft({
           <CommunityGallery mode={mode} onApplyLayout={onApplyCommunityLayout} currentOrientation={screenGuideOrientation} />
         </div>
       </PopoverButton>
+      </>}
 
       {/* Mini-map popover — layout overview + screen-size toggles + validation */}
       <PopoverButton

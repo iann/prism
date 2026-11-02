@@ -59,6 +59,7 @@ import { PartyModeSection } from './sections/PartyModeSection';
 import { DisplaysSection } from './sections/DisplaysSection';
 import { TextSizeSection } from './sections/TextSizeSection';
 import { IntegrationsSection } from './sections/integrations/IntegrationsSection';
+import { InsecurePageNotice } from './components/InsecurePageNotice';
 import { useLayouts } from '@/lib/hooks/useLayouts';
 import { useResetOn } from '@/lib/hooks/useResetOn';
 
@@ -325,6 +326,7 @@ export function SettingsView() {
                 The column itself keeps its width — the space goes into a new
                 column beside it, not into stretching the old one. */}
             <div className={activeSection === 'display' ? 'max-w-2xl xl:max-w-none' : 'max-w-2xl'}>
+              <InsecurePageNotice />
               {activeSection === 'account' && <AccountSection />}
               {activeSection === 'family' && <FamilySection />}
               {activeSection === 'party-mode' && <PartyModeSection />}

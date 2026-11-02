@@ -1,9 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
 import { getFirstParent, getSeededParentId, verifySettingsPinViaAPI } from './helpers/auth';
 import {
-  facingFor, localSiderealTime, project, toHorizontal,
+  facingFor, localSiderealTime, moonPosition, project, toHorizontal,
 } from '../src/components/screensaver/nightSky/sky';
 import { FIGURES } from '../src/components/screensaver/nightSky/catalog';
+import type { IdleBackground } from '../src/lib/idleBackground';
 
 /**
  * A widget sized in the screensaver editor lands at the same size and place in
@@ -59,7 +60,9 @@ async function openScreensaverEditor(page: Page, orientation: 'landscape' | 'por
   }, LAYOUT);
   await page.goto('/');
   await page.getByLabel('Edit layout').click({ timeout: 60000 });
-  await page.getByRole('button', { name: 'Screensaver', exact: true }).click();
+  // The seeded dashboard shows the screensaver over photos, so the Idle
+  // screen tab arranges its layout.
+  await page.getByRole('tab', { name: /Idle screen/ }).click();
   // The guide orientation is saved on the dashboard, so another test may have
   // left it either way.
   const toggle = page.getByRole('button', { name: /Landscape|Portrait/ });
@@ -153,26 +156,50 @@ const NIGHT = '2026-06-22T03:30:00Z';
 /** Full dark and no moon: late evening four days after the August new moon. */
 const DEEP = '2026-08-15T06:00:00Z';
 
+const BACKGROUNDS = {
+  sky: { source: 'sky' },
+  dayNight: { day: 'photos', night: 'sky', switch: { by: 'sun', duskOffset: 0, dawnOffset: 0 } },
+} satisfies Record<string, IdleBackground>;
+
+function idleLayout(idleBackground: IdleBackground) {
+  return {
+    id: '00000000-0000-4000-8000-000000000782', name: 'Idle e2e', slug: 'idle-e2e', isDefault: true,
+    widgets: [{ i: 'clock', x: 0, y: 0, w: 16, h: 12 }], screensaverWidgets: null, idleBackground,
+    orientation: 'landscape', fontScale: null, createdAt: NOON, updatedAt: NOON,
+  };
+}
+
 test.describe('screensaver night sky', () => {
   test.use({ viewport: { width: 1280, height: 720 } });
   test.setTimeout(90_000);
 
-  async function openScreensaver(page: Page, backdrop: string, at: string) {
+  /**
+   * The background is stored with the dashboard (#782), so the page is handed
+   * one dashboard with it set. Nothing is written to the database.
+   */
+  async function openDashboard(page: Page, background: IdleBackground, at: string, weather: Record<string, unknown> = {}) {
     await page.clock.setFixedTime(new Date(at));
     await page.route('**/api/weather*', async (route) => {
       const response = await route.fetch();
       if (!response.ok()) return route.fulfill({ response });
-      return route.fulfill({ response, json: { ...(await response.json()), lat: 45, lon: -100 } });
+      return route.fulfill({ response, json: { ...(await response.json()), lat: 45, lon: -100, ...weather } });
     });
-    await page.addInitScript((value) => {
-      localStorage.setItem('prism-screensaver-backdrop', value);
+    await page.route('**/api/layouts', (route) => route.request().method() === 'GET'
+      ? route.fulfill({ json: { layouts: [idleLayout(background)] } })
+      : route.fallback());
+    await page.addInitScript(() => {
       // Auto performance can step down on a slow CI runner, and a lighter
       // level stops the twinkle and shooting stars on purpose.
       localStorage.setItem('prism-perf-mode', 'false');
-    }, backdrop);
+    });
     await page.goto('/');
+    await page.locator('.widget-cell[data-widget="clock"]').waitFor({ timeout: 60000 });
     await page.waitForLoadState('networkidle');
     await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+  }
+
+  async function openScreensaver(page: Page, backdrop: keyof typeof BACKGROUNDS, at: string, weather: Record<string, unknown> = {}) {
+    await openDashboard(page, BACKGROUNDS[backdrop], at, weather);
     await page.locator('.fixed.inset-0.z-9999').waitFor();
     await page.waitForTimeout(1500);
   }
@@ -340,14 +367,109 @@ test.describe('screensaver night sky', () => {
     await expect(lesson).toHaveClass(/night-sky-still/);
   });
 
+  test('names a meteor shower on its peak night, and not outside it', async ({ page }) => {
+    // The Geminids peak on 14 December, their radiant high in the south-east
+    // at midnight, so it is on screen and marked.
+    await openScreensaver(page, 'sky', '2026-12-14T07:00:00Z');
+    await expect(page.getByTestId('night-sky-shower')).toContainText('Geminids peak tonight');
+    const radiant = await page.getByTestId('night-sky-radiant').boundingBox();
+    expect(radiant, 'the radiant is marked').not.toBeNull();
+    expect(radiant!.x > 0 && radiant!.x < 1280 && radiant!.y > 0 && radiant!.y < 720, 'on screen').toBe(true);
+
+    await page.clock.setFixedTime(new Date('2026-12-26T07:00:00Z'));
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+    await page.locator('[data-testid="night-sky"]').waitFor();
+    await page.waitForTimeout(1500);
+    await expect(page.getByTestId('night-sky-shower')).toHaveCount(0);
+  });
+
+  test('says when aurora may be visible, and leaves the line off when the forecast fails', async ({ page }) => {
+    // The forecast itself is NOAA's and changes by the hour, so the server's
+    // answer is handed over: aurora low in the north tonight.
+    await page.route('**/api/aurora', (route) => route.fulfill({ json: { enabled: true, chance: 'horizon' } }));
+    await openScreensaver(page, 'sky', DEEP);
+    await expect(page.getByTestId('night-sky-aurora')).toHaveText('Aurora possible now, low in the northern sky');
+    const line = await page.getByTestId('night-sky-aurora').boundingBox();
+    expect(line!.y, 'at the top of the sky').toBeLessThan(720 * 0.2);
+
+    // NOAA did not answer: no line, and the sky draws as normal.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await page.route('**/api/aurora', (route) => route.fulfill({ status: 502, json: { error: 'Aurora forecast unavailable' } }));
+    await openScreensaver(page, 'sky', DEEP);
+    await expect(page.getByTestId('night-sky-aurora')).toHaveCount(0);
+    expect((await sky(page))!.alpha, 'the sky is drawn').toBe(255);
+  });
+
+  test('asks for no aurora forecast by day', async ({ page }) => {
+    let asked = 0;
+    await page.route('**/api/aurora', (route) => {
+      asked++;
+      return route.fulfill({ json: { enabled: true, chance: 'overhead' } });
+    });
+    await openScreensaver(page, 'sky', NOON);
+    await page.locator('[data-testid="night-sky"]').waitFor();
+    await page.waitForTimeout(2000);
+    expect(asked, 'a plain daytime sky fetches nothing').toBe(0);
+    await expect(page.getByTestId('night-sky-aurora')).toHaveCount(0);
+  });
+
+  test('the moon is copper during a lunar eclipse seen from here', async ({ page }) => {
+    // The total lunar eclipse of 3 March 2026, at its peak. The eclipse comes
+    // from the weather response, which works it out for the server's today, so
+    // the test hands it over for the fixed date. The place is a point in the
+    // open Pacific where it is local midnight and the moon is high.
+    const peak = '2026-03-03T11:33:00Z';
+    const place = { lat: 30, lon: -160 };
+    const moon = moonPosition(new Date(peak), place.lat, place.lon);
+    expect(moon.alt, 'precondition: the moon is up at the peak').toBeGreaterThan(5);
+    const at = project(moon, { width: 1280, height: 720, facing: facingFor(place.lat) });
+    expect(at.x > 20 && at.x < 1260 && at.y > 20 && at.y < 700, 'precondition: the moon is on screen').toBe(true);
+
+    const moonPixel = () => page.evaluate(({ x, y }) => {
+      const el = document.querySelector<HTMLCanvasElement>('[data-testid="night-sky"]')!;
+      const k = el.width / el.clientWidth;
+      const [r, g, b] = el.getContext('2d')!.getImageData(Math.round(x * k), Math.round(y * k), 1, 1).data;
+      return { r: r!, g: g!, b: b! };
+    }, at);
+
+    await openScreensaver(page, 'sky', peak, {
+      ...place,
+      eclipse: { body: 'moon', kind: 'total', begin: '2026-03-03T09:50:00Z', peak, end: '2026-03-03T13:17:00Z', obscuration: 1 },
+    });
+    const copper = await moonPixel();
+    expect(copper.r - copper.b, 'red well above blue: copper').toBeGreaterThan(80);
+
+    // The same moon with no eclipse is near white.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await openScreensaver(page, 'sky', peak, { ...place, eclipse: null });
+    const white = await moonPixel();
+    expect(white.r - white.b, 'no eclipse: near white').toBeLessThan(40);
+  });
+
   test('after dark shows photos at noon and the sky at midnight', async ({ page }) => {
-    await openScreensaver(page, 'skyAtNight', NOON);
+    await openScreensaver(page, 'dayNight', NOON);
     expect(await sky(page), 'local noon: photos, no sky').toBeNull();
 
     await page.clock.setFixedTime(new Date(NIGHT));
     await page.reload();
     await page.waitForLoadState('networkidle');
     await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+    await page.locator('[data-testid="night-sky"]').waitFor();
+    expect((await sky(page))!.alpha).toBe(255);
+  });
+
+  test('a dashboard by day and the sky after dark: calm at noon, the sky at midnight', async ({ page }) => {
+    const background: IdleBackground = { day: 'dashboard', night: 'sky', switch: { by: 'sun', duskOffset: 0, dawnOffset: 0 } };
+    await openDashboard(page, background, NOON);
+    await page.waitForTimeout(1500);
+    expect(await page.locator('.fixed.inset-0.z-9999').count(), 'noon: no screensaver over the dashboard').toBe(0);
+    expect(await sky(page), 'noon: no sky').toBeNull();
+    await expect(page.locator('.widget-cell[data-widget="clock"]')).toBeVisible();
+
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await openDashboard(page, background, NIGHT);
     await page.locator('[data-testid="night-sky"]').waitFor();
     expect((await sky(page))!.alpha).toBe(255);
   });
@@ -403,7 +525,7 @@ test.describe('calm mode idle screen', () => {
     expect(created.status()).toBe(201);
     const layout = await created.json();
     // A dashboard created now is calm without being asked.
-    expect(layout.screensaverMode).toBe('calm');
+    expect(layout.idleBackground).toEqual({ source: 'dashboard' });
 
     // Drift takes its phase from the wall clock (every widget in step), so fix
     // the clock a quarter of the way into the 96 s cycle: the far right of the
@@ -513,7 +635,7 @@ test.describe('calm mode idle screen', () => {
     }
   });
 
-  test('each widget\'s Stays / Fades button in the editor sets whether it stays', async ({ page }) => {
+  test('Stays / Fades is on the Idle screen tab, and one Save keeps it with the background', async ({ page }) => {
     const login = await page.request.post('/api/auth/login', {
       data: { userId: getSeededParentId(), pin: PIN },
     });
@@ -530,6 +652,11 @@ test.describe('calm mode idle screen', () => {
       await page.goto(`/d/${layout.slug}`);
       await page.getByLabel('Edit layout').click({ timeout: 60000 });
       const toggle = (i: string) => page.locator(`[data-editor-widget="${i}"] [data-idle-toggle]`);
+      const tab = (name: RegExp) => page.getByRole('tab', { name });
+      // The Dashboard tab arranges the dashboard; what stays when idle is the Idle screen tab's.
+      await expect(tab(/Dashboard/)).toHaveAttribute('aria-selected', 'true');
+      await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
+      await tab(/Idle screen/).click();
       await expect(toggle('clock')).toHaveAttribute('aria-pressed', 'true');
       await expect(toggle('clock')).toContainText('Stays');
       await expect(toggle('tasks')).toHaveAttribute('aria-pressed', 'false');
@@ -541,12 +668,34 @@ test.describe('calm mode idle screen', () => {
       await expect(toggle('clock')).toHaveAttribute('aria-pressed', 'false');
       // The button changes only this; it does not select the widget to move it.
       await expect(page.getByText(/^Tap to (resize|deselect)$/)).toHaveCount(0);
+      // Only the Idle screen tab is marked as changed.
+      await expect(tab(/Idle screen/)).toHaveAttribute('data-dirty', 'true');
+      await expect(tab(/Dashboard/)).not.toHaveAttribute('data-dirty', 'true');
+
+      // To the Dashboard tab and back: the unsaved ticks are still there.
+      await tab(/Dashboard/).click();
+      await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
+      await tab(/Idle screen/).click();
+      await expect(toggle('tasks')).toHaveAttribute('aria-pressed', 'true');
+
+      // Photos behind it: the canvas becomes the screensaver layout. Then back
+      // to this dashboard, which is what gets saved.
+      const behind = (name: string) => page.getByRole('radio', { name, exact: true });
+      await behind('Photos').click();
+      await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
+      await expect(page.locator('[data-editor-widget]').first()).toBeVisible();
+      await behind('This dashboard').click();
+      await expect(toggle('tasks')).toHaveAttribute('aria-pressed', 'true');
+      // Nothing is stored before Save.
+      const before = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
+      expect(before.widgets.map((w: { showWhenIdle?: boolean }) => w.showWhenIdle)).toEqual([undefined, undefined]);
 
       await page.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
       const saved = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
       const tick = Object.fromEntries(saved.widgets.map((w: { i: string; showWhenIdle?: boolean }) => [w.i, w.showWhenIdle]));
       expect(tick).toEqual({ clock: false, tasks: true });
+      expect(saved.idleBackground).toEqual({ source: 'dashboard' });
 
       await page.locator('.widget-cell[data-widget="clock"]').waitFor();
       await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
@@ -562,6 +711,82 @@ test.describe('calm mode idle screen', () => {
       const idle = await cells(page);
       expect(idle.tasks!.opacity, 'tasks now stays').toBe(1);
       expect(idle.clock!.opacity, 'the clock now fades').toBe(0);
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+    }
+  });
+});
+
+/**
+ * The Idle screen tab's Behind it (#782): a day and night pair previews each
+ * half on the canvas, moves its edges by offsets, shows tonight's times, and
+ * is saved with the rest; offsets that cross near midsummer far north are
+ * refused.
+ */
+test.describe('idle background picker', () => {
+  test.skip(!HAS_TEST_DB, 'needs the seeded test database to log in and create a dashboard');
+  test.use({ viewport: { width: 1600, height: 900 } });
+  test.setTimeout(90_000);
+
+  async function editIdle(page: Page, place: { lat: number; lon: number }) {
+    const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
+    expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    const created = await page.request.post('/api/layouts', {
+      data: { name: `Behind it e2e ${Date.now()}`, widgets: [{ i: 'clock', x: 0, y: 0, w: 16, h: 12 }, { i: 'tasks', x: 16, y: 0, w: 16, h: 12 }] },
+    });
+    expect(created.status()).toBe(201);
+    const layout = await created.json();
+    await page.route('**/api/weather*', async (route) => {
+      const response = await route.fetch();
+      if (!response.ok()) return route.fulfill({ response });
+      return route.fulfill({ response, json: { ...(await response.json()), ...place } });
+    });
+    await page.goto(`/d/${layout.slug}`);
+    await page.getByLabel('Edit layout').click({ timeout: 60000 });
+    await page.getByRole('tab', { name: /Idle screen/ }).click();
+    await page.getByRole('radio', { name: 'Changes with the time of day' }).click();
+    return layout as { id: string };
+  }
+
+  test('a day and night pair: preview each half, move an edge, and Save', async ({ page }) => {
+    const layout = await editIdle(page, { lat: 45, lon: -100 });
+    try {
+      // By day it is this dashboard: Stays / Fades. After dark, the sky's layout.
+      await expect(page.locator('[data-idle-toggle]').first()).toBeVisible();
+      await page.getByRole('button', { name: 'Night', exact: true }).click();
+      await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Day', exact: true }).click();
+      await expect(page.locator('[data-idle-toggle]').first()).toBeVisible();
+
+      await page.getByLabel('Starts: amount').fill('30');
+      await page.getByLabel('Ends: unit').selectOption('hr');
+      await page.getByLabel('Ends: amount').fill('1');
+      await expect(page.locator('[data-night-start]')).toContainText(/\d/);
+      await expect(page.locator('[data-night-end]')).toContainText(/\d/);
+      await expect(page.locator('[data-idle-crossed]')).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(page.locator('[data-idle-background-bar]')).toHaveCount(0);
+      const saved = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
+      expect(saved.idleBackground).toEqual({
+        day: 'dashboard', night: 'sky', switch: { by: 'sun', duskOffset: 30, dawnOffset: -60 },
+      });
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+    }
+  });
+
+  test('offsets that cross near midsummer far north are refused', async ({ page }) => {
+    const layout = await editIdle(page, { lat: 64, lon: -150 });
+    try {
+      await page.getByLabel('Starts: unit').selectOption('hr');
+      await page.getByLabel('Starts: amount').fill('6');
+      await page.getByLabel('Ends: unit').selectOption('hr');
+      await page.getByLabel('Ends: amount').fill('6');
+      await expect(page.locator('[data-idle-crossed]')).toContainText('night would end before it starts');
+      await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
+      const stored = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
+      expect(stored.idleBackground).toEqual({ source: 'dashboard' });
     } finally {
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
@@ -690,6 +915,83 @@ test.describe('screensaver widget outlines', () => {
     expect(after[target], 'the outline is gone before the burst').toBe(0);
   });
 
+  test('a widget with Outline set to None has no outline, with outlines shown', async ({ page }) => {
+    // Outlines on is the default and the hard case: their colour is a Tailwind
+    // !important utility in a cascade layer, which beats any unlayered rule.
+    await page.addInitScript(() => {
+      localStorage.setItem('prism-screensaver-outlines', 'on');
+      localStorage.setItem('prism-screensaver-motion', 'off');
+      localStorage.setItem('prism-screensaver-motion-v2', '1');
+      localStorage.setItem('prism-screensaver-drift', 'off');
+      localStorage.setItem('prism-screensaver-layout', JSON.stringify([
+        { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true, outlineColor: 'transparent' },
+        { i: 'weather', x: 20, y: 2, w: 16, h: 10, visible: true },
+        { i: 'messages', x: 2, y: 14, w: 16, h: 10, visible: false },
+      ]));
+    });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+    await page.locator('.fixed.inset-0.z-9999 .widget-cell[data-widget="clock"]').waitFor();
+    await page.waitForTimeout(1000);
+
+    const alpha = await page.evaluate(() => {
+      const out: Record<string, number> = {};
+      for (const id of ['clock', 'weather']) {
+        const cell = document.querySelector<HTMLElement>(
+          `.fixed.inset-0 .widget-cell[data-widget="${id}"]`);
+        const card = cell?.matches('.border-border') ? cell : cell?.querySelector<HTMLElement>(
+          '[class*="bg-card"].border-border');
+        if (!card) { out[id] = -1; continue; }
+        const c = getComputedStyle(card).borderTopColor;
+        const slash = c.match(/\/\s*([\d.]+)\s*\)$/);
+        const rgba = c.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\)$/);
+        out[id] = c === 'transparent' ? 0 : slash ? Number(slash[1]) : rgba ? Number(rgba[1]) : 1;
+      }
+      return out;
+    });
+    expect(alpha.weather, 'precondition: a default widget shows its outline').toBeGreaterThan(0);
+    expect(alpha.clock, 'Outline: None hides the card outline').toBe(0);
+  });
+
+  test('an empty widget is hidden by default and keeps its place, unless set to show', async ({ page }) => {
+    // #738: on the screensaver an empty widget hides unless set otherwise.
+    // Messages is made empty by answering its fetch with nothing.
+    await page.route('**/api/messages?*', (route) => route.fulfill({ json: { messages: [] } }));
+    const open = async (messages: Record<string, unknown>) => {
+      await page.addInitScript((m) => {
+        localStorage.setItem('prism-screensaver-motion', 'off');
+        localStorage.setItem('prism-screensaver-motion-v2', '1');
+        localStorage.setItem('prism-screensaver-drift', 'off');
+        localStorage.setItem('prism-screensaver-layout', JSON.stringify([
+          { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true },
+          { i: 'messages', x: 20, y: 2, w: 16, h: 10, visible: true, ...m },
+          { i: 'weather', x: 2, y: 14, w: 16, h: 10, visible: false },
+        ]));
+      }, messages);
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+      await page.locator('.fixed.inset-0.z-9999 .widget-cell[data-widget="messages"]').waitFor();
+      await page.waitForTimeout(1500);
+      return page.evaluate(() => {
+        const cell = (id: string) => {
+          const el = document.querySelector<HTMLElement>(`.fixed.inset-0 .widget-cell[data-widget="${id}"]`)!;
+          return { opacity: Number(getComputedStyle(el).opacity), w: el.getBoundingClientRect().width };
+        };
+        return { clock: cell('clock'), messages: cell('messages') };
+      });
+    };
+
+    const byDefault = await open({});
+    expect(byDefault.clock.opacity, 'the clock always shows').toBe(1);
+    expect(byDefault.messages.opacity, 'empty messages are hidden').toBe(0);
+    expect(byDefault.messages.w, 'and keep their place').toBeGreaterThan(0);
+
+    const shown = await open({ hideWhenEmpty: false });
+    expect(shown.messages.opacity, 'set to always show, it shows').toBe(1);
+  });
+
   test('drifting widgets keep their gaps through a whole cycle, with nothing stored', async ({ page }) => {
     // Drift is on by default. It used to run each widget on its own phase, so
     // neighbours could drift towards each other and overlap (-14.8 px measured
@@ -704,7 +1006,9 @@ test.describe('screensaver widget outlines', () => {
     await page.waitForTimeout(1500);
 
     const result = await page.evaluate(() => {
-      const cells = [...document.querySelectorAll<HTMLElement>('.fixed.inset-0.z-9999 .widget-cell')];
+      // Empty widgets keep their grid slot but intentionally do not drift.
+      const cells = [...document.querySelectorAll<HTMLElement>(
+        '.fixed.inset-0.z-9999 .widget-cell:not([data-hidden-empty="true"])')];
       const gap = parseFloat(getComputedStyle(cells[0]!.parentElement!).columnGap);
       const drifts = cells.flatMap((c) => c.getAnimations()).filter(
         (a) => a instanceof CSSAnimation && a.animationName === 'prism-drift');

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
-import { PaintBucket, Square, Type } from 'lucide-react';
+import { EyeOff, PaintBucket, Square, Type } from 'lucide-react';
 import { isLightColor } from '@/lib/utils/color';
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { useScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
@@ -16,6 +16,7 @@ import {
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { GRID_COLS } from '@/lib/constants/grid';
 import { CssGridDisplay } from './grid/CssGridDisplay';
+import { canHideWhenEmpty, hidesWhenEmpty } from './grid/hideWhenEmpty';
 import dynamic from 'next/dynamic';
 const CssGridEditor = dynamic(
   () => import('./grid/CssGridEditor').then((m) => ({ default: m.CssGridEditor })),
@@ -50,7 +51,9 @@ export function LayoutGridEditor({
   theme = DASHBOARD_THEME,
   previewFit = 'stretch',
   fadedIds,
+  hideEmptyByDefault = false,
   drift,
+  morph,
   idleToggles,
   gridHelperText,
   className,
@@ -449,7 +452,7 @@ export function LayoutGridEditor({
       target === 'fill'
         ? bgColor && bgColor !== 'transparent'
         : target === 'outline'
-          ? !!olColor
+          ? !!olColor && olColor !== 'transparent'
           : false;
     const isFrosted = target === 'fill' && bgColor === 'frosted';
 
@@ -497,23 +500,12 @@ export function LayoutGridEditor({
               </svg>
             </div>
           </button>
-          {/* Transparent (fill only) */}
-          {target === 'fill' && (
-            <button
-              onClick={() => apply('transparent')}
-              onPointerDown={(e) => e.stopPropagation()}
-              className={`h-7 w-7 touch-manipulation overflow-hidden rounded-full border border-gray-300 transition-transform hover:scale-110 ${bgColor === 'transparent' ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-              title="Transparent"
-            >
-              <svg viewBox="0 0 32 32" className="h-full w-full">
-                <pattern id="chk-pop" width="8" height="8" patternUnits="userSpaceOnUse">
-                  <rect width="4" height="4" fill="#ccc" />
-                  <rect x="4" y="4" width="4" height="4" fill="#ccc" />
-                  <rect x="4" width="4" height="4" fill="#fff" />
-                  <rect y="4" width="4" height="4" fill="#fff" />
-                </pattern>
-                <circle cx="16" cy="16" r="16" fill="url(#chk-pop)" />
-              </svg>
+          {/* Transparent (fill), or None (outline: hides the card's own border too) */}
+          {target !== 'text' && (
+            <button onClick={() => apply('transparent')} onPointerDown={(e) => e.stopPropagation()}
+              className={`w-7 h-7 rounded-full border border-gray-300 overflow-hidden transition-transform hover:scale-110 touch-manipulation ${color === 'transparent' ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+              title={target === 'outline' ? 'None' : 'Transparent'} aria-label={target === 'outline' ? 'No outline' : 'Transparent fill'}>
+              <svg viewBox="0 0 32 32" className="w-full h-full"><pattern id="chk-pop" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#ccc" /><rect x="4" y="4" width="4" height="4" fill="#ccc" /><rect x="4" width="4" height="4" fill="#fff" /><rect y="4" width="4" height="4" fill="#fff" /></pattern><circle cx="16" cy="16" r="16" fill="url(#chk-pop)" /></svg>
             </button>
           )}
           {/* Frosted (fill only) */}
@@ -855,6 +847,32 @@ export function LayoutGridEditor({
               );
             })()}
 
+          {/* Hide when empty (#738), for widgets that have an empty state.
+              Stores the choice even when it matches the default, like
+              Stays / Fades, so a later change to the default leaves it be. */}
+          {canHideWhenEmpty(selectedWidgetConfig.i) && (() => {
+            const on = hidesWhenEmpty(selectedWidgetConfig, hideEmptyByDefault);
+            // A calm dashboard's idle screen hides empty widgets by default,
+            // so an unset widget there is hidden only while idle. Say so.
+            const idleOnly = !!idleToggles && selectedWidgetConfig.hideWhenEmpty === undefined;
+            return (
+              <button
+                onClick={() => onLayoutChange(stableLayout.map(w => w.i === selectedWidget ? { ...w, hideWhenEmpty: !on } : w))}
+                onPointerDown={(e) => e.stopPropagation()}
+                aria-pressed={on}
+                title={on ? 'Hidden while it has nothing to show. Tap to always show it.'
+                  : idleOnly ? 'Hidden while it has nothing to show, only when the screen is idle. Tap to hide it then in use too.'
+                  : 'Always shown. Tap to hide it while it has nothing to show.'}
+                className={`flex items-center gap-1.5 px-2.5 py-2 text-xs rounded-md border transition-colors touch-manipulation min-h-[40px] ${
+                  on ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent/50'
+                }`}
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                <span>{idleOnly ? 'Hide when empty: idle only' : 'Hide when empty'}</span>
+              </button>
+            );
+          })()}
+
           {/* Spacer + close */}
           <div className="flex-1" />
           <button
@@ -1025,6 +1043,7 @@ export function LayoutGridEditor({
           cols={cols}
           containMode
           screenFrame={frame}
+          hideEmptyByDefault={hideEmptyByDefault}
           headerOffset={measureHideNav ? 0 : 50}
           bottomOffset={measureHideNav ? 0 : bottomOffset}
         />
@@ -1073,6 +1092,7 @@ export function LayoutGridEditor({
                 onRemoveWidget={handleRemoveWidget}
                 theme={theme}
                 idleToggles={idleToggles}
+                hideEmptyByDefault={hideEmptyByDefault}
               />
             ) : (
               <div style={{ padding: 20, color: 'yellow' }}>Waiting for container width...</div>
@@ -1099,7 +1119,9 @@ export function LayoutGridEditor({
       targetRows={displayTargetRows}
       designOrientation={screenGuideOrientation}
       fadedIds={fadedIds}
+      hideEmptyByDefault={hideEmptyByDefault}
       drift={drift}
+      morph={morph}
       className={className}
     />
   );

@@ -22,12 +22,14 @@ import { events, calendarSources, dismissedEvents } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { invalidateEntity } from '@/lib/cache/cacheKeys';
 import { updateCalendarEvent, deleteCalendarEvent, createCalendarEvent, moveCalendarEvent, refreshAccessToken, toGoogleAllDayRange } from '@/lib/integrations/google-calendar';
-import { pushCalDAVEventDelete } from '@/lib/services/calendar-sync';
+import { pushCalDAVEventDelete, pushCalDAVEventUpdate } from '@/lib/services/calendar-sync';
+import type { CalDAVEventChanges } from '@/lib/integrations/caldav';
 import { decrypt, encrypt } from '@/lib/utils/crypto';
 import { logActivity } from '@/lib/services/auditLog';
 import { logError } from '@/lib/utils/logError';
 import { getHouseholdTimezone } from '@/lib/householdTimezone';
 import { normalizeAllDayRange } from '@/lib/utils/allDayRange';
+import { isSeriesRow, parseEventId } from '@/lib/utils/recurrence';
 
 
 interface RouteParams {
@@ -35,6 +37,9 @@ interface RouteParams {
 }
 
 type CalendarSourceRow = typeof calendarSources.$inferSelect;
+
+const READ_ONLY_WARNING =
+  'Prism cannot write to this calendar. The change is saved here, but the next sync will replace it with the version from that calendar.';
 
 /**
  * Decrypt a Google source's access token, refreshing and persisting it when
@@ -112,7 +117,7 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const { id } = await params;
+    const { rowId: id } = parseEventId((await params).id);
 
     const [eventWithSource] = await db
       .select({
@@ -200,10 +205,13 @@ export async function GET(
  * }
  *
  * SYNC NOTE:
- * Google events push their edits upstream. Calendar reassignment is followed
- * too: switching an event onto a Google calendar creates it there, switching
- * between Google calendars moves it, and switching away from Google deletes
- * the upstream copy (tombstoned so the sync won't re-import it).
+ * Google and CalDAV events push their edits upstream. On CalDAV, an
+ * occurrence of a repeating event sends its text edits to the whole series
+ * and keeps a time change local, with a warning. Calendar reassignment is
+ * followed for Google: switching an event onto a Google calendar creates it
+ * there, switching between Google calendars moves it, and switching away
+ * from Google deletes the upstream copy (tombstoned so the sync won't
+ * re-import it).
  */
 export async function PATCH(
   request: NextRequest,
@@ -213,7 +221,7 @@ export async function PATCH(
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const { id } = await params;
+    const { rowId: id, occurrenceStart } = parseEventId((await params).id);
     const body = await request.json();
 
     // Check if event exists and get calendar source info
@@ -229,6 +237,10 @@ export async function PATCH(
         startTime: events.startTime,
         endTime: events.endTime,
         allDay: events.allDay,
+        recurring: events.recurring,
+        recurrenceRule: events.recurrenceRule,
+        seriesKey: events.seriesKey,
+        caldavHref: events.caldavHref,
       })
       .from(events)
       .where(eq(events.id, id));
@@ -373,15 +385,29 @@ export async function PATCH(
       updateData.endTime = effectiveEnd;
     }
 
-    // Google is the only provider with a write path from this route. An event
-    // on any other synced calendar changes locally and nowhere else, so the next
-    // sync pulls the original back and the edit vanishes with no explanation.
-    // Say so at save time rather than letting it silently revert.
-    //
-    // Wiring the CalDAV writeback in here is its own piece of work: the endpoint
-    // at /api/caldav/events/[sourceId] rebuilds the VEVENT from uid, summary,
-    // description, location and dates alone, which would strip alarms,
-    // attendees and recurrence rules off a shared event.
+    // The form shows one occurrence of a series row, and the
+    // edit belongs to the series row (#59): a moved time moves every
+    // occurrence by the same amount, and the series keeps its first date.
+    // Turning the repeat off leaves the event where the form put it.
+    const keepsRule = !('recurrenceRule' in body) || Boolean(body.recurrenceRule);
+    if (occurrenceStart && isSeriesRow(existingEvent) && keepsRule) {
+      const lengthMs = existingEvent.endTime.getTime() - existingEvent.startTime.getTime();
+      const occurrenceEnd = occurrenceStart.getTime() + lengthMs;
+      if (updateData.startTime) {
+        effectiveStart = new Date(existingEvent.startTime.getTime() + effectiveStart.getTime() - occurrenceStart.getTime());
+        updateData.startTime = effectiveStart;
+      }
+      if (updateData.endTime) {
+        effectiveEnd = new Date(existingEvent.endTime.getTime() + effectiveEnd.getTime() - occurrenceEnd);
+        updateData.endTime = effectiveEnd;
+      }
+    }
+
+    // Google and CalDAV edits are written upstream. An event on any other
+    // synced calendar (an iCal feed), or a change CalDAV cannot take, changes
+    // locally and nowhere else, so the next sync pulls the original back and
+    // the edit vanishes with no explanation. Say so at save time rather than
+    // letting it silently revert.
     let localOnlyWarning: string | null = null;
 
     // Resolve which calendar the event lives on before and after this request,
@@ -552,9 +578,66 @@ export async function PATCH(
         })
         .onConflictDoNothing();
       updateData.externalEventId = null;
+    } else if (
+      !reassigning && oldSource?.provider === 'caldav' && existingEvent.externalEventId && existingEvent.caldavHref
+    ) {
+      // CalDAV edits the stored object in place (patchCalDAVEvent), so the
+      // alarms, attendees and repeat rule on it survive. A row of a repeating
+      // series is one occurrence of a shared object: text edits go to the
+      // whole series, and a time change stays local, since moving one
+      // occurrence needs a RECURRENCE-ID exception (#687 scope).
+      const series = existingEvent.recurring || existingEvent.seriesKey !== null;
+      // The form sends every field on each save, so compare with the row: an
+      // occurrence with its own title must not push that title to the series
+      // when only its time was edited.
+      const changes: CalDAVEventChanges = {};
+      if ('title' in body && updateData.title !== existingEvent.title) {
+        changes.title = updateData.title as string;
+      }
+      if ('description' in body && updateData.description !== (existingEvent.description || null)) {
+        changes.description = updateData.description as string | null;
+      }
+      if ('location' in body && updateData.location !== (existingEvent.location || null)) {
+        changes.location = updateData.location as string | null;
+      }
+      const timesChanged =
+        effectiveStart.getTime() !== existingEvent.startTime.getTime() ||
+        effectiveEnd.getTime() !== existingEvent.endTime.getTime() ||
+        effectiveAllDay !== existingEvent.allDay;
+      if (timesChanged && !series) {
+        changes.times = { startTime: effectiveStart, endTime: effectiveEnd, allDay: effectiveAllDay };
+      }
+
+      if (Object.keys(changes).length > 0) {
+        const result = await pushCalDAVEventUpdate(
+          oldSource.id,
+          existingEvent.caldavHref,
+          existingEvent.seriesKey ?? existingEvent.externalEventId,
+          changes,
+        );
+        if (result.ok) {
+          updateData.caldavEtag = result.etag;
+        } else if (result.reason === 'forbidden') {
+          localOnlyWarning = READ_ONLY_WARNING;
+        } else if (result.reason === 'conflict') {
+          return NextResponse.json(
+            { error: 'This event was changed in another app while saving. Open it again to see the latest version.' },
+            { status: 409 }
+          );
+        } else {
+          logError('Failed to update event on CalDAV server:', result.message);
+          return NextResponse.json(
+            { error: 'The calendar could not be updated. Your local event was left unchanged.' },
+            { status: 502 }
+          );
+        }
+      }
+      if (timesChanged && series && !localOnlyWarning) {
+        localOnlyWarning =
+          'The new time is saved here only. Prism cannot move one occurrence of a repeating event on this calendar, so the next sync will put it back. Change it in the calendar app instead.';
+      }
     } else if (!reassigning && oldSource && oldSource.provider !== 'google' && existingEvent.externalEventId) {
-      localOnlyWarning =
-        'Prism cannot write to this calendar. The change is saved here, but the next sync will replace it with the version from that calendar.';
+      localOnlyWarning = READ_ONLY_WARNING;
     }
 
     // Execute update
@@ -664,7 +747,7 @@ export async function DELETE(
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const { id } = await params;
+    const { rowId: id } = parseEventId((await params).id);
 
     // Check if event exists
     const [existingEvent] = await db
