@@ -44,6 +44,8 @@ describe('widget Outline: None', () => {
   it('still draws a chosen outline colour', () => {
     const { cell, card } = renderWidget('#ff0000');
     expect(card.matches(NO_OUTLINE_SELECTOR)).toBe(false);
-    expect(cell.style.border).toContain('2px solid');
+    // Personal widgets use a one-pixel custom shell; an explicit color paints
+    // that shared boundary instead of introducing upstream's thicker border.
+    expect(cell.style.border).toContain('1px solid');
   });
 });

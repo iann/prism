@@ -531,7 +531,7 @@ function DraggableWidget({
       {/* Edit mode always shows the widget, so say when the live screen does
           not (#738). Top edge at the left; the idle switch is at the right. */}
       {emptyHidden && !isDragging && (
-        <div data-empty-marker className="absolute -top-2.5 left-3 z-30 flex items-center gap-1 rounded-full bg-neutral-600 px-2 py-0.5 text-[11px] leading-4 font-medium text-white shadow-xs pointer-events-none">
+        <div data-empty-marker className="absolute -top-2.5 left-3 z-30 flex items-center gap-1 rounded-full bg-neutral-600 px-2 py-0.5 text-xs leading-4 font-medium text-white shadow-xs pointer-events-none">
           <EyeOff className="h-3.5 w-3.5" aria-hidden />
           {emptyHidden === 'idle' ? 'Empty: hidden when idle' : 'Empty: hidden'}
         </div>

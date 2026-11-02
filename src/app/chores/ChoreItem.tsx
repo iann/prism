@@ -81,7 +81,7 @@ export function ChoreItem({
       onClick={complete}
       onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); complete(); } }}
       className={cn(
-        'flex items-center gap-4 p-4 rounded-lg border border-border bg-card/85 dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm select-none',
+        'flex items-center gap-4 p-4 rounded-lg border border-border bg-card dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm select-none',
         'hover:border-seasonal-accent hover:ring-2 hover:ring-seasonal-accent/50 transition-all group',
         chore.enabled && 'cursor-pointer',
         !chore.enabled && 'opacity-50',
