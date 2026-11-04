@@ -22,7 +22,7 @@ import { useWeekStartsOn } from '@/lib/hooks/useWeekStartsOn';
 import type { CalendarEvent } from '@/types/calendar';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 import { useTimeFormat } from '@/components/providers';
-import { SpanningEventRows } from './cells';
+import { SpanningEventRows, ChipProbe, useChipMetrics, type ChipMetrics } from './cells';
 import { eventOccursOnDisplayDay, formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
@@ -45,7 +45,9 @@ function MiniMonth({
   onDateClick,
   isCenter,
   bordered = false,
+  chip,
 }: {
+  chip: ChipMetrics | undefined;
   month: Date;
   events: CalendarEvent[];
   onEventClick: (event: CalendarEvent) => void;
@@ -150,9 +152,10 @@ function MiniMonth({
               return (
                 <div
                   key={dayIndex}
+                  data-three-month-day={format(date, 'yyyy-MM-dd')}
                   onClick={() => onDateClick(date)}
                   className={cn(
-                    'relative flex flex-col rounded text-xs cursor-pointer overflow-visible p-0.5',
+                    'relative flex min-h-0 flex-col rounded text-xs cursor-pointer overflow-visible p-0.5',
                     bordered && 'border border-border',
                     !transparentMode && 'bg-calendar-surface',
                     !inMonth && 'text-muted-foreground',
@@ -180,7 +183,6 @@ function MiniMonth({
                       columnGapPx={1}
                     />
                   )}
-                  {/* Event list — scrollable within day cell */}
                   {inMonth && dayEvents.length > 0 && (
                     <ul className="flex-1 overflow-y-auto mt-0.5 scrollbar-thin list-none m-0 p-0 flex flex-col gap-(--event-gap)">
                       {dayEvents.map((event) => (
@@ -223,15 +225,17 @@ export function ThreeMonthView({
   const nextMonth = addMonths(currentDate, 1);
   const orientation = useOrientation();
   const isPortrait = orientation === 'portrait';
+  const [chip, onMeasure] = useChipMetrics();
 
   return (
     <div className={cn(
-      "h-full gap-2 overflow-y-auto pb-4 md:pb-20",
+      "relative h-full gap-2 overflow-y-auto pb-4 md:pb-20",
       isPortrait ? "flex flex-col" : "flex flex-row"
     )}>
-      <MiniMonth month={prevMonth} events={events} onEventClick={onEventClick} onDateClick={onDateClick} isCenter={false} bordered={bordered} />
-      <MiniMonth month={currentDate} events={events} onEventClick={onEventClick} onDateClick={onDateClick} isCenter={true} bordered={bordered} />
-      <MiniMonth month={nextMonth} events={events} onEventClick={onEventClick} onDateClick={onDateClick} isCenter={false} bordered={bordered} />
+      <ChipProbe onMeasure={onMeasure} compact showTime={false} />
+      <MiniMonth month={prevMonth} events={events} onEventClick={onEventClick} onDateClick={onDateClick} isCenter={false} bordered={bordered} chip={chip} />
+      <MiniMonth month={currentDate} events={events} onEventClick={onEventClick} onDateClick={onDateClick} isCenter={true} bordered={bordered} chip={chip} />
+      <MiniMonth month={nextMonth} events={events} onEventClick={onEventClick} onDateClick={onDateClick} isCenter={false} bordered={bordered} chip={chip} />
     </div>
   );
 }

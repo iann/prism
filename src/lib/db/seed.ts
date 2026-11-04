@@ -16,6 +16,7 @@ import postgres from 'postgres';
 import * as bcrypt from 'bcryptjs';
 import * as schema from './schema';
 import { DB_SESSION_PARAMS } from './client';
+import { afternoonTripEvents } from './seedBusTrip';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -915,7 +916,7 @@ async function seed() {
   // ─── BUS ROUTES (Emma's AM/PM) ────────────────────────────────────────────
   console.log('Creating bus routes...');
 
-  await db.insert(schema.busRoutes).values([
+  const busRoutes = await db.insert(schema.busRoutes).values([
     {
       studentName: 'Emma',
       userId: emma.id,
@@ -952,9 +953,18 @@ async function seed() {
       enabled: true,
       sortOrder: 1,
     },
-  ]);
+  ]).returning();
 
   console.log(`  Created 2 bus routes`);
+
+  // Today's afternoon trip, once it has ended, so an afternoon seed shows the
+  // bus at its stop rather than an overdue route.
+  const pmRoute = busRoutes.find((r) => r.direction === 'PM');
+  const pmTrip = afternoonTripEvents(NOW);
+  if (pmRoute && pmTrip.length > 0) {
+    await db.insert(schema.busGeofenceLog).values(pmTrip.map((e) => ({ ...e, routeId: pmRoute.id })));
+    console.log(`  Logged today's afternoon trip`);
+  }
 
   // ─── SETTINGS ─────────────────────────────────────────────────────────────
   console.log('Creating default settings...');
@@ -967,9 +977,13 @@ async function seed() {
     // The wizard normally writes this row after creating the first parent;
     // since the seed creates parents directly, we shortcut here.
     { key: 'setupComplete', value: { completedAt: NOW.toISOString() } },
+    // The wall's signed-out view shows this member's layouts and calendars.
+    // The wizard sets it to the first parent (api/setup/complete); without it
+    // a seeded instance shows signed-out visitors no layouts at all.
+    { key: 'displayUserId', value: alex.id },
   ]);
 
-  console.log(`  Created 4 settings (including setupComplete)`);
+  console.log(`  Created 5 settings (including setupComplete and displayUserId)`);
 
   // ─── LAYOUTS ──────────────────────────────────────────────────────────────
   console.log('Creating default layout...');

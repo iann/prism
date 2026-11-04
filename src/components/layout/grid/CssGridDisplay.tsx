@@ -255,6 +255,7 @@ export function CssGridDisplay({
   containMode = false,
   screenFrame,
   fadedIds,
+  idleClear = false,
   drift = false,
   morph = false,
   hideEmptyByDefault = false,

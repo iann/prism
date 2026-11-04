@@ -1,5 +1,6 @@
 'use client';
 
+import { eventTintStyle } from '@/lib/design/eventStyle';
 import {
   format,
   startOfWeek,

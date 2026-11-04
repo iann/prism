@@ -7,6 +7,7 @@ import { useTimeFormat } from '@/components/providers';
 import { useFollowToday } from '@/lib/hooks/useFollowToday';
 import { useResetOn } from '@/lib/hooks/useResetOn';
 import { toDisplayDate } from '@/lib/utils/timeFormat';
+import { migrateWidgetView, type WidgetView } from '@/lib/utils/retiredCalendarViews';
 
 /**
  * Scopes CalendarWidget preference storage. Empty string = the shared keys used
@@ -17,30 +18,9 @@ import { toDisplayDate } from '@/lib/utils/timeFormat';
  */
 export const CalendarPrefsScopeContext = createContext<string>('');
 
-export type WidgetViewType =
-  | 'agenda'
-  | 'list'
-  | 'day'
-  | 'week'
-  | 'multiWeek'
-  | 'multiWeek2'
-  | 'multiWeek3'
-  | 'multiWeek4'
-  | 'month';
+export type WidgetViewType = WidgetView;
 
 export type ResolvedViewType = 'agenda' | 'list' | 'day' | 'week' | 'multiWeek' | 'month';
-
-const VALID_VIEWS: WidgetViewType[] = [
-  'agenda',
-  'list',
-  'day',
-  'week',
-  'multiWeek',
-  'multiWeek2',
-  'multiWeek3',
-  'multiWeek4',
-  'month',
-];
 
 /**
  * `labelKey` indexes the `calendar.views` catalogue rather than holding copy:
@@ -52,88 +32,47 @@ export const VIEW_OPTIONS: { value: WidgetViewType; labelKey: string }[] = [
   { value: 'day', labelKey: 'day' },
   { value: 'list', labelKey: 'list' },
   { value: 'week', labelKey: 'schedule' },
-  { value: 'multiWeek', labelKey: 'week1Short' },
   { value: 'multiWeek2', labelKey: 'week2Short' },
-  { value: 'multiWeek3', labelKey: 'week3Short' },
-  { value: 'multiWeek4', labelKey: 'week4Short' },
   { value: 'month', labelKey: 'month' },
 ];
 
 /** Which views are available at a given grid size (48-column grid) */
 export function getAvailableViews(gridW: number, gridH: number): WidgetViewType[] {
-  const mw: WidgetViewType[] = ['multiWeek', 'multiWeek2', 'multiWeek3', 'multiWeek4'];
   // 'day' is a single-day timeline (one time gutter + a column per shown
   // calendar; merged = one column), so it needs no more width than 'week',
   // which always draws seven day-columns. Offer 'day' wherever 'week' is
   // offered rather than gating it behind a much wider widget.
-  if (gridW >= 36 && gridH >= 24) return ['agenda', 'list', 'day', 'week', ...mw, 'month'];
-  if (gridW >= 24 && gridH >= 36) return ['agenda', 'list', 'day', 'week', ...mw, 'month'];
-  if (gridW >= 24 && gridH >= 24) return ['agenda', 'list', 'day', 'week', ...mw, 'month'];
-  if (gridW >= 16 && gridH >= 16) return ['agenda', 'list', 'day', 'week', ...mw];
+  if (gridW >= 36 && gridH >= 24) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'month'];
+  if (gridW >= 24 && gridH >= 36) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'month'];
+  if (gridW >= 24 && gridH >= 24) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'month'];
+  if (gridW >= 16 && gridH >= 16) return ['agenda', 'list', 'day', 'week', 'multiWeek2'];
   return ['agenda'];
 }
 
-/** Resolve multiWeekN variant to base view + week count */
-export function resolveMultiWeek(vt: WidgetViewType): {
-  baseView: ResolvedViewType;
-  weekCount: 1 | 2 | 3 | 4;
-} {
-  if (vt === 'multiWeek') return { baseView: 'multiWeek', weekCount: 1 };
+/** Resolve the 2W grid to its base view + week count */
+export function resolveMultiWeek(vt: WidgetViewType): { baseView: ResolvedViewType; weekCount: 2 } {
   if (vt === 'multiWeek2') return { baseView: 'multiWeek', weekCount: 2 };
-  if (vt === 'multiWeek3') return { baseView: 'multiWeek', weekCount: 3 };
-  if (vt === 'multiWeek4') return { baseView: 'multiWeek', weekCount: 4 };
   return { baseView: vt as ResolvedViewType, weekCount: 2 };
 }
 
-function getStoragePrefix(instanceId?: string): string {
-  // Keep the legacy keys for the original calendar instance so existing
-  // users retain their current preference. Additional instances get their
-  // own namespace.
-  return instanceId && instanceId !== 'calendar'
-    ? `prism-calendar-${instanceId}`
-    : 'prism-calendar';
-}
-
-function getStorageKey(storagePrefix: string, name: string, suffix: string): string {
-  return storagePrefix + '-' + name + suffix;
-}
-
-function readViewPref(storagePrefix: string, suffix: string): WidgetViewType {
+function readViewPref(suffix: string): WidgetViewType {
   if (typeof window === 'undefined') return 'agenda';
-  // A scoped calendar (e.g. screensaver) inherits the dashboard's current
-  // view until it gets a scoped preference of its own.
-  const saved =
-    localStorage.getItem(getStorageKey(storagePrefix, 'view', suffix)) ??
-    (suffix ? localStorage.getItem(getStorageKey(storagePrefix, 'view', '')) : null);
-  // Migrate legacy formats
-  if (saved === 'twoWeek') return 'multiWeek2';
-  if (saved === 'multiWeek') {
-    const wc = Number(localStorage.getItem(getStorageKey(storagePrefix, 'weekcount', suffix)) || '2');
-    if (wc === 1) return 'multiWeek';
-    if (wc === 3) return 'multiWeek3';
-    if (wc === 4) return 'multiWeek4';
-    return 'multiWeek2';
-  }
-  if (saved === 'list') return 'agenda';
-  if (saved && VALID_VIEWS.includes(saved as WidgetViewType)) return saved as WidgetViewType;
-  return 'agenda';
+  // A scoped calendar (e.g. screensaver) with no saved view yet inherits the
+  // dashboard's current view, then diverges once the user changes it.
+  const saved = localStorage.getItem(`prism-calendar-view${suffix}`)
+    ?? (suffix ? localStorage.getItem('prism-calendar-view') : null);
+  return migrateWidgetView(saved, localStorage.getItem(`prism-calendar-weekcount${suffix}`));
 }
 
 /**
  * Manages view-type selection, date navigation, and preference persistence
  * for the CalendarWidget. Extracted from the component to keep it under 250 lines.
  */
-export function useCalendarWidgetPrefs(
-  gridW: number,
-  gridH: number,
-  instanceId?: string,
-  scope = ''
-) {
-  const storagePrefix = getStoragePrefix(instanceId);
-  // Non-empty scope suffixes every storage key so the screensaver calendar
-  // keeps preferences independent of the dashboard calendar.
-  const suffix = scope ? ':' + scope : '';
+export function useCalendarWidgetPrefs(gridW: number, gridH: number, scope = '') {
   const { displayTimezone } = useTimeFormat();
+  // Non-empty scope suffixes every storage key so this calendar (e.g. the one on
+  // the screensaver) keeps prefs independent of the dashboard's. Empty = shared.
+  const suffix = scope ? `:${scope}` : '';
   const [currentDate, setCurrentDate] = useState(() => new Date());
 
   // Back to today in the display zone whenever the zone changes, including
@@ -142,39 +81,26 @@ export function useCalendarWidgetPrefs(
   useResetOn(displayTimezone, () => setCurrentDate(toDisplayDate(new Date(), displayTimezone)));
   useFollowToday(currentDate, setCurrentDate, displayTimezone);
   const [widgetBordered, setWidgetBordered] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      localStorage.getItem(getStorageKey(storagePrefix, 'bordered', suffix)) === 'true'
+    () => typeof window !== 'undefined' && localStorage.getItem(`prism-calendar-bordered${suffix}`) === 'true'
   );
   const [mergedView, setMergedView] = useState(false);
   const [showNotes, setShowNotes] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      localStorage.getItem(getStorageKey(storagePrefix, 'notes-visible', suffix)) === 'true'
+    () => typeof window !== 'undefined' && localStorage.getItem(`prism-calendar-notes-visible${suffix}`) === 'true'
   );
-  const [viewType, setViewType] = useState<WidgetViewType>(() =>
-    readViewPref(storagePrefix, suffix)
-  );
+  const [viewType, setViewType] = useState<WidgetViewType>(() => readViewPref(suffix));
   const [displayMode, setDisplayMode] = useState<'inline' | 'cards'>(
     // Match useCalendarViewData's default: 'cards' only if explicitly set,
     // else 'inline'. Same localStorage key — divergent defaults caused the
     // widget and subpage to render differently on first load.
-    () =>
-      typeof window !== 'undefined' &&
-      localStorage.getItem(getStorageKey(storagePrefix, 'display-mode', suffix)) === 'cards'
-        ? 'cards'
-        : 'inline'
+    () => (typeof window !== 'undefined' && localStorage.getItem(`prism-calendar-display-mode${suffix}`) === 'cards') ? 'cards' : 'inline'
   );
   const [hideWeekends, setHideWeekends] = useState<boolean>(
-    () =>
-      typeof window !== 'undefined' &&
-      localStorage.getItem(getStorageKey(storagePrefix, 'hide-weekends', suffix)) === 'true'
+    () => typeof window !== 'undefined' && localStorage.getItem(`prism-calendar-hide-weekends${suffix}`) === 'true'
   );
   const [overlays, setOverlays] = useState<OverlayFlags>(() => {
-    if (typeof window === 'undefined')
-      return { events: true, meals: true, chores: true, tasks: true };
+    if (typeof window === 'undefined') return { events: true, meals: true, chores: true, tasks: true };
     try {
-      const raw = localStorage.getItem(getStorageKey(storagePrefix, 'overlays', suffix));
+      const raw = localStorage.getItem(`prism-calendar-overlays${suffix}`);
       if (raw) {
         const parsed = JSON.parse(raw);
         return {
@@ -184,31 +110,17 @@ export function useCalendarWidgetPrefs(
           tasks: parsed.tasks !== false,
         };
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     return { events: true, meals: true, chores: true, tasks: true };
   });
 
-  // Persist prefs
-  useEffect(() => {
-    localStorage.setItem(getStorageKey(storagePrefix, 'view', suffix), viewType);
-  }, [storagePrefix, suffix, viewType]);
-  useEffect(() => {
-    localStorage.setItem(getStorageKey(storagePrefix, 'bordered', suffix), String(widgetBordered));
-  }, [storagePrefix, suffix, widgetBordered]);
-  useEffect(() => {
-    localStorage.setItem(getStorageKey(storagePrefix, 'notes-visible', suffix), String(showNotes));
-  }, [storagePrefix, suffix, showNotes]);
-  useEffect(() => {
-    localStorage.setItem(getStorageKey(storagePrefix, 'display-mode', suffix), displayMode);
-  }, [storagePrefix, suffix, displayMode]);
-  useEffect(() => {
-    localStorage.setItem(getStorageKey(storagePrefix, 'hide-weekends', suffix), String(hideWeekends));
-  }, [storagePrefix, suffix, hideWeekends]);
-  useEffect(() => {
-    localStorage.setItem(getStorageKey(storagePrefix, 'overlays', suffix), JSON.stringify(overlays));
-  }, [storagePrefix, suffix, overlays]);
+  // Persist prefs (keyed by scope)
+  useEffect(() => { localStorage.setItem(`prism-calendar-view${suffix}`, viewType); }, [viewType, suffix]);
+  useEffect(() => { localStorage.setItem(`prism-calendar-bordered${suffix}`, String(widgetBordered)); }, [widgetBordered, suffix]);
+  useEffect(() => { localStorage.setItem(`prism-calendar-notes-visible${suffix}`, String(showNotes)); }, [showNotes, suffix]);
+  useEffect(() => { localStorage.setItem(`prism-calendar-display-mode${suffix}`, displayMode); }, [displayMode, suffix]);
+  useEffect(() => { localStorage.setItem(`prism-calendar-hide-weekends${suffix}`, String(hideWeekends)); }, [hideWeekends, suffix]);
+  useEffect(() => { localStorage.setItem(`prism-calendar-overlays${suffix}`, JSON.stringify(overlays)); }, [overlays, suffix]);
 
   // Derived view state
   const availableViews = useMemo(() => getAvailableViews(gridW, gridH), [gridW, gridH]);
@@ -222,64 +134,44 @@ export function useCalendarWidgetPrefs(
     [displayTimezone],
   );
   const goToPrevious = useCallback(() => {
-    setCurrentDate((d) => {
+    setCurrentDate(d => {
       switch (resolvedView) {
-        case 'day':
-          return subDays(d, 1);
+        case 'day': return subDays(d, 1);
         case 'list':
-        case 'week':
-          return subWeeks(d, 1);
-        case 'multiWeek':
-          return subWeeks(d, resolvedWeekCount);
-        case 'month':
-          return subMonths(d, 1);
-        default:
-          return subDays(d, 3);
+        case 'week': return subWeeks(d, 1);
+        case 'multiWeek': return subWeeks(d, resolvedWeekCount);
+        case 'month': return subMonths(d, 1);
+        default: return subDays(d, 3);
       }
     });
   }, [resolvedView, resolvedWeekCount]);
   const goToNext = useCallback(() => {
-    setCurrentDate((d) => {
+    setCurrentDate(d => {
       switch (resolvedView) {
-        case 'day':
-          return addDays(d, 1);
+        case 'day': return addDays(d, 1);
         case 'list':
-        case 'week':
-          return addWeeks(d, 1);
-        case 'multiWeek':
-          return addWeeks(d, resolvedWeekCount);
-        case 'month':
-          return addMonths(d, 1);
-        default:
-          return addDays(d, 3);
+        case 'week': return addWeeks(d, 1);
+        case 'multiWeek': return addWeeks(d, resolvedWeekCount);
+        case 'month': return addMonths(d, 1);
+        default: return addDays(d, 3);
       }
     });
   }, [resolvedView, resolvedWeekCount]);
 
   return {
-    currentDate,
-    setCurrentDate,
-    widgetBordered,
-    setWidgetBordered,
-    mergedView,
-    setMergedView,
-    showNotes,
-    setShowNotes,
-    viewType,
-    setViewType,
-    displayMode,
-    setDisplayMode,
-    hideWeekends,
-    setHideWeekends,
-    overlays,
-    setOverlays,
+    currentDate, setCurrentDate,
+    widgetBordered, setWidgetBordered,
+    mergedView, setMergedView,
+    showNotes, setShowNotes,
+    viewType, setViewType,
+    displayMode, setDisplayMode,
+    hideWeekends, setHideWeekends,
+    overlays, setOverlays,
     availableViews,
     effectiveView,
     resolvedView,
     resolvedWeekCount,
     viewUnavailable,
-    goToToday,
-    goToPrevious,
-    goToNext,
+    goToToday, goToPrevious, goToNext,
   };
 }

@@ -9,7 +9,22 @@ import { idleBackgroundSchema } from '@/lib/idleBackground';
 
 // COMMON SCHEMAS
 
-export const uuidSchema = z.string().uuid();
+/**
+ * An update schema from a create schema: every field optional, and none
+ * filled in when the request leaves it out. `.partial()` alone keeps each
+ * field's `.default()`, so an update that never mentioned a field would write
+ * the create-time default over the stored value (a chore's points back to 0,
+ * a bus route's checkpoints emptied, a layout no longer the default).
+ */
+export function updateOf<S extends z.ZodRawShape>(schema: z.ZodObject<S>): ReturnType<z.ZodObject<S>['partial']> {
+  const undefaulted: Record<string, z.ZodType> = {};
+  for (const [key, field] of Object.entries(schema.shape)) {
+    if (field instanceof z.ZodDefault) undefaulted[key] = field.unwrap() as z.ZodType;
+  }
+  return schema.extend(undefaulted).partial() as unknown as ReturnType<z.ZodObject<S>['partial']>;
+}
+
+export const uuidSchema = z.guid();
 export const hexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color');
 export const isoDateSchema = z.string().datetime();
 
@@ -50,7 +65,7 @@ export const createEventSchema = eventBaseSchema.refine(
   }
 );
 
-export const updateEventSchema = eventBaseSchema.partial();
+export const updateEventSchema = updateOf(eventBaseSchema);
 
 /**
  * PATCH /api/events/[id].
@@ -65,9 +80,7 @@ export const updateEventSchema = eventBaseSchema.partial();
  * `z.string().datetime()` does, and tightening that is a separate decision
  * from bounding the text fields.
  */
-export const patchEventSchema = eventBaseSchema
-  .omit({ startTime: true, endTime: true })
-  .partial()
+export const patchEventSchema = updateOf(eventBaseSchema.omit({ startTime: true, endTime: true }))
   .extend({
     description: eventBaseSchema.shape.description.unwrap().nullish(),
     location: eventBaseSchema.shape.location.unwrap().nullish(),
@@ -94,7 +107,7 @@ export const createTaskSchema = z.object({
   listId: uuidSchema.optional().nullable(),
 });
 
-export const updateTaskSchema = createTaskSchema.partial().extend({
+export const updateTaskSchema = updateOf(createTaskSchema).extend({
   completed: z.boolean().optional(),
 });
 
@@ -134,7 +147,7 @@ export const createChoreSchema = z.object({
     .optional(),
 });
 
-export const updateChoreSchema = createChoreSchema.partial().extend({
+export const updateChoreSchema = updateOf(createChoreSchema).extend({
   enabled: z.boolean().optional(),
 });
 
@@ -153,12 +166,14 @@ export const createShoppingListSchema = z.object({
   color: hexColorSchema.optional(),
   listType: z.enum(['grocery', 'hardware', 'general', 'other']).optional(),
   sortOrder: z.number().int().optional(),
-  visibleCategories: z.array(z.string().max(100)).nullable().optional(),
+  visibleCategories: z.array(z.string().max(100)).max(200).nullable().optional(),
   // Who this list is assigned to (only they can check off items)
   // Null/undefined means anyone can check off items (family list)
   assignedTo: uuidSchema.optional(),
   createdBy: uuidSchema.optional(),
 });
+
+export const updateShoppingListSchema = updateOf(createShoppingListSchema);
 
 export const createShoppingItemSchema = z.object({
   listId: uuidSchema,
@@ -172,7 +187,7 @@ export const createShoppingItemSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
-export const updateShoppingItemSchema = createShoppingItemSchema.partial().extend({
+export const updateShoppingItemSchema = updateOf(createShoppingItemSchema).extend({
   checked: z.boolean().optional(),
 });
 
@@ -202,7 +217,7 @@ export const createMealSchema = z.object({
   createdBy: uuidSchema.optional(),
 });
 
-export const updateMealSchema = createMealSchema.partial().extend({
+export const updateMealSchema = updateOf(createMealSchema).extend({
   cookedBy: uuidSchema.nullable().optional(),
 });
 
@@ -237,6 +252,8 @@ export const createMaintenanceSchema = z.object({
   createdBy: uuidSchema.optional(),
 });
 
+export const updateMaintenanceSchema = updateOf(createMaintenanceSchema);
+
 export const completeMaintenanceSchema = z.object({
   completedBy: uuidSchema.optional(),
   cost: z.number().positive().optional(),
@@ -255,6 +272,8 @@ export const createBirthdaySchema = z.object({
   sendCardDaysBefore: z.number().int().min(0).max(30).optional().default(7),
 });
 
+export const updateBirthdaySchema = updateOf(createBirthdaySchema);
+
 // WISH ITEM SCHEMAS
 
 export const createWishItemSchema = z.object({
@@ -265,7 +284,7 @@ export const createWishItemSchema = z.object({
   addedBy: uuidSchema.optional(),
 });
 
-export const updateWishItemSchema = createWishItemSchema.partial();
+export const updateWishItemSchema = updateOf(createWishItemSchema);
 
 // GIFT IDEA SCHEMAS
 
@@ -277,7 +296,7 @@ export const createGiftIdeaSchema = z.object({
   price: z.string().max(20).optional(),
 });
 
-export const updateGiftIdeaSchema = createGiftIdeaSchema.partial();
+export const updateGiftIdeaSchema = updateOf(createGiftIdeaSchema);
 
 // WISH ITEM SOURCE SCHEMAS
 
@@ -313,7 +332,7 @@ export const createGoalSchema = z.object({
   active: z.boolean().optional().default(true),
 });
 
-export const updateGoalSchema = createGoalSchema.partial();
+export const updateGoalSchema = updateOf(createGoalSchema);
 
 // BUS ROUTE SCHEMAS
 
@@ -346,7 +365,7 @@ export const createBusRouteSchema = z.object({
   }).nullable().optional(),
 });
 
-export const updateBusRouteSchema = createBusRouteSchema.partial();
+export const updateBusRouteSchema = updateOf(createBusRouteSchema);
 
 // CALENDAR NOTE SCHEMAS
 
@@ -422,7 +441,7 @@ const widgetConfigSchema = z.object({
   cellBackgroundOpacity: z.number().min(0).max(1).optional(),
   showWhenIdle: z.boolean().optional(),
   hideWhenEmpty: z.boolean().optional(),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
 });
 
 function validateUniqueWidgetIds(
@@ -470,7 +489,7 @@ export const createLayoutSchema = z.object({
   createdBy: uuidSchema.optional(),
 });
 
-export const updateLayoutSchema = createLayoutSchema.partial();
+export const updateLayoutSchema = updateOf(createLayoutSchema);
 
 // HELPER FUNCTION
 

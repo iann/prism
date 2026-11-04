@@ -1,9 +1,9 @@
 'use client';
 
+import { eventTintStyle } from '@/lib/design/eventStyle';
 import { addDays, isSameDay } from 'date-fns';
 import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
-import { contrastText } from '@/lib/utils/color';
 import type { CalendarEvent } from '@/types/calendar';
 import { useTimeFormat } from '@/components/providers';
 import { inlineTimedEventStyle } from '../eventStyles';
@@ -367,8 +367,7 @@ export function SpanningEventRows({
               !filled && 'invisible',
             )}
             style={filled ? {
-              backgroundColor: cards ? undefined : laneEvent.color,
-              color: cards ? undefined : past ? contrastText(laneEvent.color) : '#fff',
+              ...(cards ? {} : eventTintStyle(laneEvent.color, reachesBack ? 'none' : 'inset')),
               ...(cards
                 ? {
                     // Washed toward --card rather than made translucent: a

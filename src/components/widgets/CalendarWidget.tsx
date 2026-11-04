@@ -28,6 +28,8 @@ import { isLightColor } from '@/lib/utils/color';
 import { deduplicateEvents } from '@/lib/utils/calendarDedup';
 import { WidgetContainer, useWidgetBgOverride } from './WidgetContainer';
 import { useCalendarEvents, useCalendarFilter, useCalendarNotes } from '@/lib/hooks';
+import { useCalendarSources } from '@/lib/hooks/useCalendarEvents';
+import { ConnectCalendarInvite, needsCalendarInvite } from '@/components/calendar/ConnectCalendarInvite';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 import { addDaysToKey } from '@/lib/utils/zonedDate';
@@ -43,6 +45,8 @@ import {
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useCalendarSyncHealth } from '@/lib/hooks/useCalendarSyncHealth';
 import { CalendarWidgetControls } from './CalendarWidgetControls';
+import { DayPagingContext } from '@/lib/hooks/useDayPaging';
+import { useMediaQuery } from '@/lib/hooks/useMediaQuery';
 import type { CalendarEvent } from '@/types/calendar';
 import type { Chore, Meal, Task } from '@/types';
 import type { WeatherData } from './WeatherWidget';
@@ -116,6 +120,9 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   const bgOverride = useWidgetBgOverride();
   const transparentMode = bgOverride?.hasCustomBg === true;
 
+  const prefsScope = useContext(CalendarPrefsScopeContext);
+  const preferenceScope = [prefsScope, instanceId].filter(Boolean).join(':');
+
   const {
     currentDate,
     setCurrentDate,
@@ -144,8 +151,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   } = useCalendarWidgetPrefs(
     gridW,
     gridH,
-    instanceId,
-    useContext(CalendarPrefsScopeContext)
+    preferenceScope
   );
 
   const hasExternalEvents = externalEvents !== undefined;
@@ -164,7 +170,6 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   // on the wallpaper. The screensaver renders its own copy of this widget over
   // a still-mounted dashboard, so switching the check off here also keeps that
   // copy from doubling the polling for a badge it will never draw.
-  const prefsScope = useContext(CalendarPrefsScopeContext);
   const { needsReauth, stalled: syncPaused } = useCalendarSyncHealth({
     enabled: prefsScope !== 'screensaver',
   });
@@ -238,6 +243,12 @@ export const CalendarWidget = React.memo(function CalendarWidget({
 
   // Hide events from the calendar surface when the events overlay is off.
   const visibleEvents = useMemo(() => (overlays.events ? events : []), [overlays.events, events]);
+  const { calendars: sources, loading: sourcesLoading } = useCalendarSources();
+  const noCalendarYet = needsCalendarInvite({
+    loading: sourcesLoading || apiLoading,
+    eventCount: apiEvents.length,
+    providers: sources.map((c) => c.provider),
+  });
 
   // Drag-and-drop wiring: same dnd-kit setup as /week and the calendar
   // subpage so meals/chores/tasks can be reordered between days.
@@ -372,6 +383,9 @@ export const CalendarWidget = React.memo(function CalendarWidget({
       </div>
     ) : null;
 
+  // A wall or tablet screen pages a busy day; a phone keeps "+N more" (#801).
+  const pageBusyDays = useMediaQuery('(min-width: 768px)');
+
   return (
     <WidgetContainer
       title={t('title')}
@@ -415,7 +429,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
       {syncPaused && (
         <Link
           href="/calendar?manage=calendars"
-          className="flex items-center justify-center gap-1 text-[10px] text-warning py-1 bg-warning/10 rounded mb-1 hover:bg-warning/20"
+          className="flex items-center justify-center gap-1 text-3xs text-warning py-1 bg-warning/10 rounded mb-1 hover:bg-warning/20"
           title="Sync has stopped for one or more calendars — reconnect to resume"
         >
           <AlertTriangle className="h-3 w-3 shrink-0" />
@@ -439,6 +453,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
 
       {/* flex-1 min-h-0: fills remaining space after chips / notices */}
       <div className="min-h-0 flex-1 overflow-hidden">
+        {noCalendarYet ? <ConnectCalendarInvite /> : (
         <DndContext
           sensors={dndSensors}
           onDragStart={handleDragStart}
@@ -448,6 +463,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
             setMoveError(null);
           }}
         >
+          <DayPagingContext.Provider value={pageBusyDays}>
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center">
@@ -556,7 +572,9 @@ export const CalendarWidget = React.memo(function CalendarWidget({
               </div>
             )}
           </Suspense>
+          </DayPagingContext.Provider>
         </DndContext>
+        )}
       </div>
     </WidgetContainer>
   );

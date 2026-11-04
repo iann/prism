@@ -34,6 +34,7 @@ export type { LayoutGridEditorProps } from './grid/gridEditorTypes';
 
 // Re-import for local use
 import { DASHBOARD_THEME } from './grid/gridEditorTypes';
+import { isSeeThroughFill } from './grid/gridWidgetStyles';
 import type { LayoutGridEditorProps } from './grid/gridEditorTypes';
 import { getWidgetType } from '@/lib/utils/widgetInstances';
 
@@ -51,6 +52,7 @@ export function LayoutGridEditor({
   theme = DASHBOARD_THEME,
   previewFit = 'stretch',
   fadedIds,
+  idleClear,
   hideEmptyByDefault = false,
   drift,
   morph,
@@ -1119,6 +1121,7 @@ export function LayoutGridEditor({
       targetRows={displayTargetRows}
       designOrientation={screenGuideOrientation}
       fadedIds={fadedIds}
+      idleClear={idleClear}
       hideEmptyByDefault={hideEmptyByDefault}
       drift={drift}
       morph={morph}

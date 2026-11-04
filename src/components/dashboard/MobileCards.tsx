@@ -360,7 +360,7 @@ export function BusTrackingCard({ routes, live, provider }: {
           <span className="text-xs font-medium truncate block">{live.routeLabel}</span>
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full shrink-0 bg-amber-500" />
-            <LiveBusSummary track={live} className="text-[11px] text-muted-foreground" />
+            <LiveBusSummary track={live} className="text-2xs text-muted-foreground" />
           </div>
         </div>
       </CardShell>

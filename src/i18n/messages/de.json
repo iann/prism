@@ -46,6 +46,7 @@
     "nothingPlanned": "Nichts geplant",
     "noUpcomingEvents": "Keine anstehenden Termine",
     "moreEvents": "+ {count} weitere",
+    "dayPageLabel": "Seite {page} von {pages}, {count} weitere",
     "moreItems": "+{count} weitere Einträge",
     "dayHeader": "{label} – {date}",
     "dateAtTime": "{date} um {time}",
@@ -66,16 +67,10 @@
       "day": "Tag",
       "list": "Liste",
       "schedule": "Terminplan",
-      "week1": "1 Woche",
       "week2": "2 Wochen",
-      "week3": "3 Wochen",
-      "week4": "4 Wochen",
       "month": "Monat",
       "threeMonth": "3 Monate",
-      "week1Short": "1 Wo.",
-      "week2Short": "2 Wo.",
-      "week3Short": "3 Wo.",
-      "week4Short": "4 Wo."
+      "week2Short": "2 Wo."
     },
     "options": {
       "trigger": "Ansicht",
@@ -209,7 +204,13 @@
       "backToDashboard": "Zurück zur Übersicht",
       "hideFailed": "Termin konnte nicht ausgeblendet werden",
       "unhideFailed": "Termin konnte nicht wieder eingeblendet werden"
-    }
+    },
+    "connectInvite": {
+      "title": "Holen Sie Ihre Kalender herein",
+      "body": "Verbinden Sie Google, iCloud, Outlook oder einen Kalender-Link, und die Woche der Familie erscheint hier.",
+      "action": "Kalender verbinden"
+    },
+    "now": "Jetzt"
   },
   "birthdays": {
     "title": "Anstehende Geburtstage & Meilensteine",
@@ -270,5 +271,21 @@
       "line": "{name}: {begin} bis {end}, Maximum {peak}",
       "marker": "Finsternis {peak}"
     }
+  },
+  "nowNext": {
+    "title": "Jetzt & Danach",
+    "now": "Jetzt",
+    "next": "Danach",
+    "until": "bis {time}",
+    "at": "{time} · in {countdown}",
+    "startsIn": "beginnt in {countdown}",
+    "noEvents": "Heute: keine Termine",
+    "nothingElse": "Heute nichts mehr",
+    "bus": "Bus",
+    "busAt": "an der Haltestelle {time} · in {countdown}",
+    "busHere": "jetzt an der Haltestelle",
+    "minutes": "{count} Min.",
+    "hours": "{count} Std.",
+    "hoursMinutes": "{h} Std. {m} Min."
   }
 }

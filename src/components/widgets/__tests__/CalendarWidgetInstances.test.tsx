@@ -10,6 +10,10 @@ jest.mock('@/components/providers', () => ({
   useTimeFormat: () => ({ timeFormat: '12h', displayTimezone: 'UTC' }),
 }));
 
+jest.mock('@/lib/hooks/useCalendarEvents', () => ({
+  useCalendarSources: () => ({ calendars: [{ provider: 'google' }], loading: false }),
+}));
+
 jest.mock('@/lib/hooks', () => ({
   useCalendarEvents: jest.fn(),
   useCalendarFilter: jest.fn(),
@@ -76,7 +80,7 @@ const calendarPrefs = {
   availableViews: ['agenda' as const],
   effectiveView: 'agenda' as const,
   resolvedView: 'agenda' as const,
-  resolvedWeekCount: 1 as const,
+  resolvedWeekCount: 2 as const,
   viewUnavailable: false,
   goToToday: jest.fn(),
   goToPrevious: jest.fn(),
@@ -130,7 +134,7 @@ describe('CalendarWidget instance integration', () => {
       await Promise.resolve();
     });
 
-    expect(useCalendarWidgetPrefs).toHaveBeenCalledWith(24, 24, 'calendar-2', '');
+    expect(useCalendarWidgetPrefs).toHaveBeenCalledWith(24, 24, 'calendar-2');
     expect(useCalendarEvents).toHaveBeenCalledWith({ daysToShow: 60, enabled: false });
   });
 

@@ -20,10 +20,10 @@
  * against an ephemeral seeded database.
  *
  * Photos: the seed does not create photos (they need image bytes), so before
- * capturing this script auto-seeds a handful of Bing daily wallpapers into the
- * target if it has none, and pins one as the dashboard wallpaper. That keeps the
- * Photos page, the dashboard hero, and the screensaver populated with no manual
- * prep. If Bing is unreachable, capture still proceeds (photo shots just empty).
+ * capturing this script uploads the park photos Prism ships (public/scenery)
+ * into the target if it has none, and pins one as the dashboard wallpaper. That
+ * keeps the Photos page, the dashboard hero, and the screensaver populated with
+ * no manual prep and no network.
  *
  * Saves to docs/demos/ with stable filenames so the docs site + README
  * references stay valid across re-runs. Captures both light + dark theme for the
@@ -31,11 +31,31 @@
  *
  * Login is automatic, using Alex (parent) with PIN 1234 from the seed. No setup
  * wizard needed; the seed pre-creates users + settings + layout.
+ *
+ * Fixed clock: set PRISM_SEED_NOW (and TZ, default America/Chicago) for both
+ * the seed and this script, and every shot draws the same moment. The refresh
+ * workflow does.
+ *
+ * Hero set (`npm run screenshots:capture -- hero`): the same moment on a 1080p
+ * touch wall and a tablet (signed out) and a phone (signed in), light and dark,
+ * on the Family Central layout. frame-screenshots.ts then puts each trio into
+ * device frames: docs/demos/hero-light.png and hero-dark.png. Design rules for
+ * what those screens should look like are in docs/DESIGN.md.
+ *
+ * Gallery set (`-- look- idle- widget- phone-`): what a family sees, for
+ * docs/screenshots.md: the wall in each look, its idle screen, the calendar,
+ * chores and shopping widgets close up, and a parent's phone. The list of
+ * shots lives in screenshot-specs.ts.
  */
 
 import { chromium, Browser, BrowserContext, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { frameAll } from './frame-screenshots';
+import { SCENERY } from '../src/lib/scenery';
+import { freezeWeather } from './frozen-weather';
+import { LOOKS } from '../src/lib/looks';
+import { DEVICES, SCREENSHOTS, STAGE_LAYOUTS, themeOf, type CaptureSpec, type Stage } from './screenshot-specs';
 
 // Refuse to run against anything that is not a declared test database. This is
 // the same flag e2e/*.spec.ts gate on. It is a deliberate choice rather than a
@@ -61,247 +81,15 @@ const OUT_DIR = path.resolve(__dirname, '..', 'docs', 'demos');
 const DESKTOP_VIEWPORT = { width: 1440, height: 900 };
 const MOBILE_VIEWPORT = { width: 390, height: 844 }; // iPhone 14
 
-type CalendarViewType =
-  | 'agenda'
-  | 'day'
-  | 'week'
-  | 'weekVertical'
-  | 'multiWeek'
-  | 'month'
-  | 'threeMonth';
+/**
+ * A fixed clock, so a re-run draws the same day. The seed takes the same
+ * instant (PRISM_SEED_NOW), so the fixtures and the page agree on "today".
+ * setFixedTime, not clock.install: Date is frozen, intervals still run.
+ */
+const FIXED_NOW = process.env.PRISM_SEED_NOW;
 
-interface CaptureSpec {
-  name: string;
-  url: string;
-  description: string;
-  /** Wait extra ms after navigation (for animations / lazy-load) */
-  settleMs?: number;
-  /** Set the theme before capture: 'light' | 'dark' (default light) */
-  theme?: 'light' | 'dark';
-  /** Mobile viewport instead of desktop */
-  mobile?: boolean;
-  /**
-   * Pre-seed the calendar view via localStorage before navigation. The view
-   * picker (ViewMenu) reads `prism-calendar-view-type` and `prism-calendar-
-   * week-count` on mount, so this is the most reliable way to land on a
-   * specific view — no need to click through the popover.
-   */
-  calendarView?: CalendarViewType;
-  calendarWeekCount?: 1 | 2 | 3 | 4;
-  /**
-   * Pre-seed the calendar display mode (inline strips vs stacked cards).
-   * Reads `prism-calendar-display-mode` localStorage on mount.
-   */
-  calendarDisplayMode?: 'inline' | 'cards';
-  /** Optional pre-screenshot setup (e.g. click into a sub-view) */
-  setup?: (page: Page) => Promise<void>;
-  /**
-   * Pin a landscape wallpaper photo before capture so the photo-forward
-   * dashboard renders with a stable hero image (and light/dark match). No-op if
-   * the target has no wallpaper photos.
-   */
-  pinWallpaper?: boolean;
-}
-
-const SCREENSHOTS: CaptureSpec[] = [
-  // ─── Dashboard ─────────────────────────────────────────────
-  {
-    name: 'dashboard-light',
-    url: '/',
-    description: 'Dashboard with widgets (light mode)',
-    theme: 'light',
-    settleMs: 15000, // dashboard has many lazy-loaded widgets that each fetch async
-    pinWallpaper: true,
-  },
-  {
-    name: 'dashboard-dark',
-    url: '/',
-    description: 'Dashboard with widgets (dark mode)',
-    theme: 'dark',
-    settleMs: 15000,
-    pinWallpaper: true,
-  },
-  {
-    name: 'dashboard-mobile',
-    url: '/',
-    description: 'Mobile dashboard (single-column cards)',
-    mobile: true,
-    settleMs: 15000, // mobile cards each fetch async — match desktop dashboard
-  },
-
-  // ─── Calendar ──────────────────────────────────────────────
-  // Each view is pre-seeded via localStorage rather than clicking the view
-  // picker — see CaptureSpec.calendarView above for the rationale.
-  {
-    name: 'calendar-month',
-    url: '/calendar',
-    description: 'Calendar month view',
-    settleMs: 6000,
-    calendarView: 'month',
-  },
-  {
-    name: 'calendar-multiweek',
-    url: '/calendar',
-    description: 'Calendar multi-week view (2 weeks)',
-    settleMs: 6000,
-    calendarView: 'multiWeek',
-    calendarWeekCount: 2,
-  },
-  {
-    name: 'calendar-week',
-    url: '/calendar',
-    description: 'Calendar schedule view (single-week timeline)',
-    settleMs: 6000,
-    calendarView: 'week',
-  },
-  {
-    name: 'calendar-day',
-    url: '/calendar',
-    description: 'Calendar day view (side-by-side per-person columns)',
-    settleMs: 6000,
-    calendarView: 'day',
-  },
-  {
-    name: 'calendar-agenda',
-    url: '/calendar',
-    description: 'Calendar agenda view (chronological list)',
-    settleMs: 6000,
-    calendarView: 'agenda',
-  },
-  {
-    name: 'calendar-mobile',
-    url: '/calendar',
-    description: 'Mobile calendar (agenda-only)',
-    mobile: true,
-    settleMs: 5000,
-    calendarView: 'agenda',
-  },
-  // Cards-mode variants — show stacked event cards in each day cell, with
-  // overlay rows below the calendar grid for meals/chores/tasks per day.
-  {
-    name: 'calendar-month-cards',
-    url: '/calendar',
-    description: 'Calendar month view in cards mode (with meal/chore/task overlays)',
-    settleMs: 7000,
-    calendarView: 'month',
-    calendarDisplayMode: 'cards',
-  },
-  {
-    name: 'calendar-multiweek-cards',
-    url: '/calendar',
-    description: 'Calendar multi-week view in cards mode (2 weeks)',
-    settleMs: 7000,
-    calendarView: 'multiWeek',
-    calendarWeekCount: 2,
-    calendarDisplayMode: 'cards',
-  },
-  {
-    name: 'calendar-mobile-cards',
-    url: '/calendar',
-    description: 'Mobile calendar in cards mode',
-    mobile: true,
-    settleMs: 6000,
-    calendarView: 'agenda',
-    calendarDisplayMode: 'cards',
-  },
-
-  // ─── Shopping ──────────────────────────────────────────────
-  {
-    name: 'shopping',
-    url: '/shopping',
-    description: 'Shopping list with category grid',
-    settleMs: 1000,
-  },
-  {
-    name: 'shopping-mobile',
-    url: '/shopping',
-    description: 'Mobile shopping list',
-    mobile: true,
-    settleMs: 1000,
-  },
-
-  // ─── Recipes ───────────────────────────────────────────────
-  {
-    name: 'recipes',
-    url: '/recipes',
-    description: 'Recipe library grid',
-    settleMs: 1000,
-  },
-
-  // ─── Tasks ─────────────────────────────────────────────────
-  {
-    name: 'tasks',
-    url: '/tasks',
-    description: 'Tasks grouped by person',
-    settleMs: 1500,
-    setup: groupByPerson,
-  },
-
-  // ─── Chores ────────────────────────────────────────────────
-  {
-    name: 'chores',
-    url: '/chores',
-    description: 'Chores grouped by person',
-    settleMs: 1000,
-  },
-
-  // ─── Meals ─────────────────────────────────────────────────
-  {
-    name: 'meals',
-    url: '/meals',
-    description: 'Weekly meal planner',
-    settleMs: 1000,
-  },
-
-  // ─── Goals ─────────────────────────────────────────────────
-  {
-    name: 'goals',
-    url: '/goals',
-    description: 'Goals page with points waterfall',
-    settleMs: 1000,
-  },
-
-  // ─── Wishes & Gift Ideas ───────────────────────────────────
-  {
-    name: 'wishes',
-    url: '/wishes',
-    description: 'Wish lists grouped by person, with claim tracking',
-    settleMs: 1500,
-    setup: groupByPerson,
-  },
-
-  // ─── Photos ────────────────────────────────────────────────
-  {
-    name: 'photos',
-    url: '/photos',
-    description: 'Photo gallery',
-    settleMs: 3500,
-  },
-
-  // ─── Travel Map ────────────────────────────────────────────
-  {
-    name: 'travel-globe',
-    url: '/travel',
-    description: 'Travel map globe with pins',
-    settleMs: 3500, // globe takes time to render
-  },
-
-  // ─── Weekend Ideas ─────────────────────────────────────────
-  {
-    name: 'weekend',
-    url: '/weekend',
-    description: 'Weekend Ideas activity board',
-    settleMs: 3000,
-  },
-
-  // ─── Messages ──────────────────────────────────────────────
-  {
-    name: 'messages',
-    url: '/messages',
-    description: 'Family message board',
-    settleMs: 1000,
-  },
-];
+/** The demo family lives in Springfield, IL. The seed must run in the same zone. */
+const TIMEZONE = process.env.TZ || 'America/Chicago';
 
 async function loginAsAlex(page: Page) {
   const familyResp = await page.request.get('/api/family');
@@ -322,58 +110,21 @@ async function loginAsAlex(page: Page) {
 }
 
 /**
- * Switch a list page (Tasks, Wishes) into group-by-person view via its "Group"
- * filter dropdown, so the screenshot shows per-member columns. Best-effort: if
- * the control isn't found the page is left in its default flat view.
+ * The park photos Prism ships (public/scenery, public domain, credited in
+ * CREDITS.md). Read from disk, so a capture needs no network and never puts
+ * someone else's copyrighted photo in the published screenshots.
  */
-async function groupByPerson(page: Page): Promise<void> {
-  try {
-    // The FilterDropdown trigger's accessible name is its label ("Group").
-    await page.getByRole('button', { name: /^Group/ }).first().click({ timeout: 6000 });
-    // Options render as Radix menuitemcheckbox rows labelled "None" / "Person".
-    await page.getByRole('menuitemcheckbox', { name: /^Person$/ }).first().click({ timeout: 3000 });
-    await page.keyboard.press('Escape').catch(() => {});
-    await page.waitForTimeout(1000);
-  } catch {
-    // Leave the page in its default view.
-  }
-}
-
-/** Fetch a handful of Bing daily wallpapers (landscape + a few portrait). */
-async function fetchBingWallpapers(): Promise<{ name: string; buffer: Buffer }[]> {
-  const bases: string[] = [];
-  for (const idx of [0, 7]) {
-    try {
-      const r = await fetch(`https://www.bing.com/HPImageArchive.aspx?format=js&idx=${idx}&n=8&mkt=en-US`);
-      const j = (await r.json()) as { images?: { urlbase: string }[] };
-      for (const im of j.images ?? []) if (!bases.includes(im.urlbase)) bases.push(im.urlbase);
-    } catch {
-      // Bing unreachable — return whatever we have.
-    }
-  }
-  const jobs: { url: string; name: string }[] = [];
-  // Landscape and portrait must come from DISJOINT bases, or the same image
-  // shows up twice (once cropped landscape, once cropped portrait).
-  bases.slice(0, 8).forEach((ub, i) => jobs.push({ url: `https://www.bing.com${ub}_1920x1080.jpg`, name: `demo-land-${i}.jpg` }));
-  bases.slice(8, 11).forEach((ub, i) => jobs.push({ url: `https://www.bing.com${ub}_1080x1920.jpg`, name: `demo-port-${i}.jpg` }));
-  const out: { name: string; buffer: Buffer }[] = [];
-  for (const job of jobs) {
-    try {
-      const r = await fetch(job.url);
-      if (!r.ok) continue;
-      const buffer = Buffer.from(await r.arrayBuffer());
-      if (buffer.length > 10_000) out.push({ name: job.name, buffer });
-    } catch {
-      // Skip a failed image; keep going.
-    }
-  }
-  return out;
+function loadBundledScenery(): { name: string; buffer: Buffer }[] {
+  return SCENERY.map((s) => ({
+    name: `${s.id}.webp`,
+    buffer: fs.readFileSync(path.join(process.cwd(), 'public', s.src)),
+  }));
 }
 
 /**
  * Make sure the target has demo photos before capturing. The seed omits photos
- * (they need image bytes), so if the instance has none we upload a few Bing
- * wallpapers through the real upload API (which builds thumbnails, dimensions,
+ * (they need image bytes), so if the instance has none we upload the bundled
+ * park scenery through the real upload API (which builds thumbnails, dimensions,
  * orientation, and tags them wallpaper+gallery+screensaver). Best-effort: any
  * failure leaves the photo-dependent shots empty rather than aborting capture.
  */
@@ -388,16 +139,16 @@ async function ensureDemoPhotos(browser: Browser): Promise<void> {
     const json = await resp.json();
     const list = Array.isArray(json) ? json : (json.photos ?? []);
     if (list.length > 0) {
-      console.log('  photos already present — skipping Bing seed');
+      console.log('  photos already present — skipping the scenery seed');
       return;
     }
 
-    console.log('  no photos found — seeding Bing wallpapers...');
-    const images = await fetchBingWallpapers();
+    console.log('  no photos found — uploading the bundled park scenery...');
+    const images = loadBundledScenery();
     let uploaded = 0;
     for (const img of images) {
       const up = await page.request.post('/api/photos', {
-        multipart: { file: { name: img.name, mimeType: 'image/jpeg', buffer: img.buffer } },
+        multipart: { file: { name: img.name, mimeType: 'image/webp', buffer: img.buffer } },
       });
       if (up.ok()) uploaded++;
     }
@@ -407,6 +158,75 @@ async function ensureDemoPhotos(browser: Browser): Promise<void> {
   } finally {
     await context.close();
   }
+}
+
+/**
+ * Stage the seeded install in one of a new install's looks (#808, the LOOKS
+ * table the setup wizard applies): the look's palette, its card fill and,
+ * for Photo and Night, the bundled park scenery (shown only while the install
+ * has no photos of its own, which is why staged shots run before
+ * ensureDemoPhotos), on the hero's or the gallery's dashboard. Signed-out
+ * screens show the display member's default layout, which is this one.
+ * Returns a function that puts everything back.
+ */
+async function stageLook(browser: Browser, stage: Stage): Promise<() => Promise<void>> {
+  const look = LOOKS[stage.look];
+  const context = await browser.newContext({ baseURL: BASE_URL });
+  const page = await context.newPage();
+  await page.goto('/', { waitUntil: 'load', timeout: 60_000 });
+  await loginAsAlex(page);
+  const listed = await page.request.get('/api/layouts');
+  const json = await listed.json().catch(() => ({}));
+  type Listed = { id: string; name?: string; isDefault?: boolean; widgets: unknown; idleBackground?: unknown };
+  const all: Listed[] = json.layouts ?? [];
+  const layout = all.find((l) => l.isDefault);
+  if (!layout) {
+    await context.close();
+    // Say what came back: a failed request and a list without a default need
+    // different fixes, and the run log is all there is to go on.
+    const seen = all.map((l) => `${l.name}${l.isDefault ? ' (default)' : ''}`).join(', ') || 'none';
+    throw new Error(
+      `No default layout to stage the ${stage.look} look: GET /api/layouts answered ${listed.status()}, ` +
+        `layouts: ${seen}${json.error ? `, error: ${json.error}` : ''}`,
+    );
+  }
+  const settings = (await (await page.request.get('/api/settings')).json()) as Record<string, unknown>;
+  const setSetting = (key: string, value: unknown) =>
+    page.request.patch('/api/settings', { data: { key, value } });
+
+  const original = {
+    widgets: layout.widgets, idleBackground: layout.idleBackground,
+    theme: settings.theme, scenery: settings.wallpaperScenery,
+  };
+  const widgets = STAGE_LAYOUTS[stage.layout].map((w) =>
+    look.fill ? { ...w, backgroundColor: look.fill } : w,
+  );
+  for (const resp of [
+    await page.request.patch(`/api/layouts/${layout.id}`, {
+      data: { widgets, idleBackground: { source: 'dashboard' } },
+    }),
+    await setSetting('theme', { ...(original.theme as object | undefined), paletteId: look.paletteId }),
+    await setSetting('wallpaperScenery', look.scenery),
+  ]) {
+    if (!resp.ok()) throw new Error(`Staging the ${stage.look} look failed: ${resp.status()}`);
+  }
+  console.log(`  staged the ${stage.look} look on the ${stage.layout} dashboard`);
+  return async () => {
+    // Check each answer: a restore that fails quietly leaves the next staging
+    // to start from whatever this one left behind.
+    const answers = [
+      await page.request.patch(`/api/layouts/${layout.id}`, {
+        data: { widgets: original.widgets, idleBackground: original.idleBackground ?? { source: 'photos' } },
+      }),
+      await setSetting('theme', original.theme ?? { mode: 'system' }),
+      await setSetting('wallpaperScenery', original.scenery ?? false),
+    ];
+    await context.close();
+    const failed = answers.filter((r) => !r.ok());
+    if (failed.length > 0) {
+      throw new Error(`Restoring after the ${stage.look} look failed: ${failed.map((r) => `${r.url()} ${r.status()}`).join(', ')}`);
+    }
+  };
 }
 
 /**
@@ -444,16 +264,56 @@ async function waitForContentReady(page: Page, settleMs = 3500): Promise<void> {
   await page.waitForTimeout(settleMs);
 }
 
-async function captureOnce(browser: Browser, spec: CaptureSpec): Promise<void> {
-  const viewport = spec.mobile ? MOBILE_VIEWPORT : DESKTOP_VIEWPORT;
+/** One browser per pointer type, launched on first use (see DEVICES). */
+const browsers = new Map<'fine' | 'coarse', Promise<Browser>>();
+function browserFor(spec: CaptureSpec): Promise<Browser> {
+  const pointer = spec.device ? 'coarse' : 'fine';
+  if (!browsers.has(pointer)) {
+    browsers.set(
+      pointer,
+      chromium.launch(
+        pointer === 'coarse'
+          ? { args: ['--blink-settings=primaryPointerType=2,availablePointerTypes=2'] }
+          : {},
+      ),
+    );
+  }
+  return browsers.get(pointer)!;
+}
+
+async function captureOnce(spec: CaptureSpec): Promise<void> {
+  const browser = await browserFor(spec);
+  const device = spec.device ? DEVICES[spec.device] : null;
+  const viewport = device?.viewport ?? (spec.mobile ? MOBILE_VIEWPORT : DESKTOP_VIEWPORT);
   const context: BrowserContext = await browser.newContext({
     baseURL: BASE_URL,
     viewport,
+    deviceScaleFactor: device?.scale ?? 1,
+    isMobile: device?.isMobile ?? false,
+    hasTouch: Boolean(device),
+    timezoneId: TIMEZONE,
     reducedMotion: 'reduce',
-    colorScheme: spec.theme === 'dark' ? 'dark' : 'light',
+    colorScheme: themeOf(spec) === 'dark' ? 'dark' : 'light',
   });
 
   const page = await context.newPage();
+  // This screen's own auto-hide choice, so the rail and bar hide whatever the
+  // household default is (it is on only for the scenery look).
+  if (spec.idleChrome) {
+    await page.addInitScript(() => {
+      try { localStorage.setItem('prism:auto-hide-ui', 'true'); } catch { /* storage blocked */ }
+    });
+  }
+  if (FIXED_NOW) {
+    await page.clock.setFixedTime(new Date(FIXED_NOW));
+    // The forecast is live; draw the fixed moment's weather instead, or a June
+    // afternoon shows November's hours, sunrise and sunset.
+    await context.route('**/api/weather**', async (route) => {
+      const response = await route.fetch();
+      if (!response.ok()) return route.fulfill({ response });
+      await route.fulfill({ response, json: freezeWeather(await response.json(), FIXED_NOW) });
+    });
+  }
 
   // Pre-seed localStorage BEFORE first paint so the page renders directly in
   // the requested state (theme + calendar view) without a mid-load swap.
@@ -489,7 +349,7 @@ async function captureOnce(browser: Browser, spec: CaptureSpec): Promise<void> {
       } catch {}
     },
     {
-      theme: spec.theme ?? null,
+      theme: themeOf(spec) ?? null,
       calendarView: spec.calendarView ?? null,
       calendarWeekCount: spec.calendarWeekCount ?? null,
       calendarDisplayMode: spec.calendarDisplayMode ?? null,
@@ -503,29 +363,8 @@ async function captureOnce(browser: Browser, spec: CaptureSpec): Promise<void> {
     await page.goto('/', { waitUntil: 'load', timeout: 60_000 });
     await loginAsAlex(page);
 
-    // Pin a landscape wallpaper (if requested) so the dashboard renders over a
-    // stable photo hero. Added as an init script so it applies before the
-    // dashboard's first paint on the navigation below.
-    if (spec.pinWallpaper) {
-      try {
-        const resp = await page.request.get('/api/photos?usage=wallpaper&orientation=landscape&limit=1');
-        const json = await resp.json();
-        const list = Array.isArray(json) ? json : (json.photos ?? []);
-        const id: string | undefined = list[0]?.id;
-        if (id) {
-          await page.addInitScript((pid: string) => {
-            try {
-              localStorage.setItem('prism-wallpaper-enabled', 'true');
-              localStorage.setItem('prism-pinned-wallpaper', pid);
-            } catch {
-              // localStorage unavailable — dashboard falls back to auto-pick.
-            }
-          }, id);
-        }
-      } catch {
-        // No wallpaper photo available — dashboard renders without a pinned hero.
-      }
-    }
+    // A wall runs signed out. Signing in above was only to find the photo.
+    if (spec.signedOut) await context.clearCookies();
 
     // Navigate to the target page.
     await page.goto(spec.url, { waitUntil: 'load', timeout: 60_000 });
@@ -553,6 +392,43 @@ async function captureOnce(browser: Browser, spec: CaptureSpec): Promise<void> {
     // spec's settleMs override; otherwise the function default applies.
     await waitForContentReady(page, spec.settleMs);
 
+    // In dev mode a signed-out load can open "Sign in to make changes" on its
+    // own: the time-zone backfill in TimeFormatProvider runs when its effect is
+    // cancelled, and dev runs effects twice. Close it until that is fixed.
+    if (spec.signedOut) {
+      // The box has no dialog role and ignores Escape, so press its close button.
+      const title = page.getByText('Sign in to make changes');
+      if (await title.isVisible().catch(() => false)) {
+        await title.locator('xpath=ancestor::div[.//button][1]').locator('button').first().click();
+        await title.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+        await page.waitForTimeout(500);
+      }
+    }
+
+    // Auto-hide takes the rail and bar away after 10 s without a touch; the
+    // click above counts as one. Measure what is on screen rather than a class:
+    // the rail slid off the left edge and the dashboard's top bar collapsed.
+    // (A check on <main>'s margin passed while both still showed, because the
+    // dashboard renders its own <main>.) Fail rather than ship the chrome.
+    if (spec.idleChrome) {
+      await page
+        .waitForFunction(() => {
+          const rail = document.querySelector('aside')?.getBoundingClientRect();
+          const bar = document.querySelector('header')?.getBoundingClientRect();
+          return (!rail || rail.right <= 1) && (!bar || bar.height <= 1);
+        }, null, { timeout: 25_000 })
+        .catch(() => {
+          throw new Error(`${spec.name}: the side rail and top bar did not auto-hide`);
+        });
+      await page.waitForTimeout(800); // let the fade finish
+    }
+    if (spec.idle) {
+      // The toolbar's "screensaver now" event, which a calm dashboard answers
+      // by fading in place rather than opening the separate screensaver.
+      await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+      await page.waitForTimeout(2500);
+    }
+
     // Wait for any <img> (photo thumbnails, recipe images, avatars) to finish
     // loading. waitForContentReady only tracks spinners/skeletons, not images,
     // so without this the Photos gallery can capture blank thumbnails.
@@ -571,8 +447,16 @@ async function captureOnce(browser: Browser, spec: CaptureSpec): Promise<void> {
       );
     });
 
+    // The dev overlay's badge ("N 1 Issue") can outlive the style tag above,
+    // which React may drop from <head>. Take the overlay out of the page.
+    await page.evaluate(() => document.querySelectorAll('nextjs-portal').forEach((el) => el.remove()));
+
     const outPath = path.join(OUT_DIR, `${spec.name}.png`);
-    await page.screenshot({ path: outPath, fullPage: false });
+    if (spec.widget) {
+      await page.locator(`.widget-cell[data-widget="${spec.widget}"]`).screenshot({ path: outPath });
+    } else {
+      await page.screenshot({ path: outPath, fullPage: false });
+    }
   } finally {
     await context.close();
   }
@@ -597,10 +481,10 @@ async function waitForStackReady(timeoutMs = 180_000): Promise<boolean> {
   return false;
 }
 
-async function captureOne(browser: Browser, spec: CaptureSpec): Promise<boolean> {
+async function captureOne(spec: CaptureSpec): Promise<boolean> {
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await captureOnce(browser, spec);
+      await captureOnce(spec);
       console.log(`  ✓ ${spec.name}.png  (${spec.description})`);
       return true;
     } catch (err) {
@@ -659,26 +543,51 @@ async function main() {
     process.exit(1);
   }
 
-  const browser = await chromium.launch();
+  if (!FIXED_NOW) {
+    console.warn('  PRISM_SEED_NOW is not set: shots use the real clock and will differ run to run.');
+  }
+
   let ok = 0;
   let failed = 0;
+  let restore: (() => Promise<void>) | null = null;
+  const run = async (spec: CaptureSpec) => {
+    if (await captureOne(spec)) ok++;
+    else failed++;
+    // Small pause between captures so the dev server has time to recover
+    // from the previous on-demand compile before we hit it with another.
+    await new Promise((r) => setTimeout(r, 1_500));
+  };
+  // Staged shots, grouped by look and dashboard so each is staged once.
+  const stages = new Map<string, CaptureSpec[]>();
+  for (const spec of specs) {
+    if (!spec.stage) continue;
+    const key = `${spec.stage.layout}:${spec.stage.look}`;
+    stages.set(key, [...(stages.get(key) ?? []), spec]);
+  }
+  const otherSpecs = specs.filter((s) => !s.stage);
 
   try {
-    // Ensure the target has demo photos (Photos page, dashboard hero,
-    // screensaver) before capturing. Skipped automatically if a photo filter
-    // is not part of the run but photos are cheap and shared, so always run it.
-    await ensureDemoPhotos(browser);
-
-    for (const spec of specs) {
-      const success = await captureOne(browser, spec);
-      if (success) ok++;
-      else failed++;
-      // Small pause between captures so the dev server has time to recover
-      // from the previous on-demand compile before we hit it with another.
-      await new Promise((r) => setTimeout(r, 1_500));
+    // Staged shots show a new install, so they run before any demo photos
+    // exist: with photos, the scenery steps aside.
+    for (const group of stages.values()) {
+      restore = await stageLook(await browserFor({} as CaptureSpec), group[0]!.stage!);
+      for (const spec of group) await run(spec);
+      await restore();
+      restore = null;
     }
+
+    // Demo photos for the Photos page and the screensaver. Cheap and shared,
+    // so always run it.
+    if (otherSpecs.length > 0) await ensureDemoPhotos(await browserFor({} as CaptureSpec));
+    for (const spec of otherSpecs) await run(spec);
   } finally {
-    await browser.close();
+    if (restore) await restore().catch(() => {});
+    for (const b of browsers.values()) await (await b).close();
+  }
+
+  if (specs.some((s) => s.name.startsWith('hero-'))) {
+    console.log('\nFraming hero shots...');
+    for (const f of await frameAll(OUT_DIR)) console.log(`  ✓ ${path.basename(f)}`);
   }
 
   console.log(`\nDone. ${ok} of ${specs.length} captured`);

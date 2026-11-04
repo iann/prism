@@ -501,12 +501,18 @@ export const WeatherWidget = React.memo(function WeatherWidget({
       // getBoundingClientRect keeps container + row in one coordinate space so
       // any dashboard transform-scale cancels. -6 absorbs the list's small top
       // margin + sub-pixel rounding so we round DOWN to whole rows.
-      const h = el.getBoundingClientRect().height;
-      if (h <= 0) return;
+      // No width means no layout yet (SSR, tests): keep the default. A real
+      // list squeezed to no height by the rows above it fits no day at all.
+      const box = el.getBoundingClientRect();
+      if (box.width <= 0) return;
+      const h = box.height;
+      if (h <= 0) { setMaxDayRows(0); return; }
       const row = el.querySelector('[data-day-row]');
       const rowH = row ? row.getBoundingClientRect().height : 44;
       if (rowH <= 0) return;
-      setMaxDayRows(Math.max(1, Math.floor((h - 6) / rowH)));
+      // Zero when not even one whole row fits: the section then shows nothing
+      // rather than half a day.
+      setMaxDayRows(Math.max(0, Math.floor((h - 6) / rowH)));
     };
     measure();
     const ro = new ResizeObserver(measure);
