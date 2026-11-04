@@ -173,7 +173,7 @@ describe('SpanningEventRows', () => {
     expect(bar.className).not.toMatch(/\bh-5\b/);
     expect(bar.className).toContain('px-(--event-padding-x,0.25rem)');
     // text-event is --event-font-size with the text floor (#798).
-    expect(bar.className).toContain('text-event');
+    expect(bar.className).toContain('text-(length:--event-font-size,0.75rem)');
   });
 
   it('holds an empty lane open with an invisible bar, not a fixed height', () => {

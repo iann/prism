@@ -38,9 +38,9 @@ it('draws an agenda event as a tint with a bar, in the normal text colour', () =
   render(<AgendaView events={[event]} days={1} onEventClick={() => {}} />);
   const row = screen.getByText('Soccer practice').closest('button')!;
 
-  expect(row.style.color).toBe('hsl(var(--card-foreground))');
-  expect(row.getAttribute('style')).toContain('var(--ds-event-tint)');
-  expect(row.style.borderLeft).toContain('var(--ds-event-bar)');
+  expect(row.style.color).toBe('hsl(var(--foreground))');
+  expect(row.style.backgroundColor).toBe('rgba(16, 185, 129, 0.14)');
+  expect(row.style.borderLeft).toBe('3px solid rgb(16, 185, 129)');
   expect(row.innerHTML).not.toContain('text-white');
 });
 

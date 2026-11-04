@@ -3,6 +3,7 @@ import {
   type Theme as GalleryTheme,
   type ThemeTokens as GalleryThemeTokens,
 } from './tokens';
+import { PAPER as PAPER_TOKENS } from '@/lib/design/tokens';
 
 export const APP_THEME_IDS = [
   'prism',
@@ -1146,8 +1147,20 @@ const NOTICE_BOARD: GalleryTheme = {
   modes: { events: 'compact', surface: 'flat' },
 };
 
+const PAPER: GalleryTheme = {
+  id: 'paper',
+  name: 'Paper',
+  description: 'Warm paper neutrals with one blue accent.',
+  light: Object.fromEntries(THEME_TOKENS.map((token) => [token, PAPER_TOKENS.light[token]])) as GalleryThemeTokens,
+  dark: Object.fromEntries(THEME_TOKENS.map((token) => [token, PAPER_TOKENS.dark[token]])) as GalleryThemeTokens,
+  shape: { radius: 0.8, density: 1, borderWidth: 1 },
+  font: 'sans',
+  modes: { events: 'compact', surface: 'card' },
+};
+
 export const BUILTIN_THEMES: GalleryTheme[] = [
   PRISM,
+  PAPER,
   CLAY,
   HARVEST,
   SNOW_DAY,

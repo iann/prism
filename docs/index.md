@@ -15,8 +15,8 @@ hide:
 
 Prism is a configurable family dashboard for large wall-mounted screens, tablets, and phones. It connects to Google Calendar, Apple iCloud (CalDAV), Microsoft To Do, OneDrive, Open-Meteo / OpenWeatherMap, Kroger / Mariano's, and more, and surfaces the information your family actually needs in one place. Built for people who value privacy, hate subscriptions, and are comfortable with Docker.
 
-![Prism on a wall display, a tablet and a phone](demos/hero-light.png#only-light){ width="900" }
-![Prism on a wall display, a tablet and a phone](demos/hero-dark.png#only-dark){ width="900" }
+![Prism on a wall display, a tablet and a phone](demos/dashboard-light.png#only-light){ width="900" }
+![Prism on a wall display, a tablet and a phone](demos/dashboard-dark.png#only-dark){ width="900" }
 
 ## What's inside
 

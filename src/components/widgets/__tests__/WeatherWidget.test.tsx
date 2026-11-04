@@ -585,16 +585,19 @@ describe('forecastDays prop', () => {
   // And when the rows above squeeze the list to no height at all, it showed
   // a "4-Day Forecast" label over an empty strip.
   it.each([30, 0])('shows no half day when not even one row fits (list %ipx tall)', (listH) => {
-    const spy = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'getBoundingClientRect');
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', { configurable: true, value: function (this: HTMLElement) {
       const h = this.dataset.testid === 'weather-day-list' ? listH : 44;
       return { height: h, width: 300, top: 0, left: 0, right: 300, bottom: h, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
-    });
+    } });
     try {
       render(<WeatherWidget data={makeWeatherData()} gridH={12} />);
       expect(screen.queryByText(/-Day Forecast/)).toBeNull();
       expect(screen.queryByText('MON')).toBeNull();
     } finally {
-      spy.mockRestore();
+      if (descriptor) Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', descriptor);
+      else Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', { configurable: true, value: original });
     }
   });
 

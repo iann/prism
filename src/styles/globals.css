@@ -297,6 +297,12 @@
   If we ever want to remove these styles, we need to add an explicit border
   color utility to any element that depends on these defaults.
 */
+/* Keep the glass card readable without compositor blur in performance mode. */
+html.performance-mode {
+  --ds-glass-filter: none;
+  --ds-glass-alpha: 0.94;
+}
+
 @layer base {
   *,
   ::after,

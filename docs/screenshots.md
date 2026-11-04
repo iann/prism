@@ -7,8 +7,8 @@ hide:
 
 What a family sees, captured against a fresh seed (the synthetic Alex / Jordan / Emma / Sophie family) in the looks a new install offers. Your own dashboard will look different. These images are illustrative. The feature pages show the screens for setting things up.
 
-![Prism on a wall display, a tablet and a phone](demos/hero-light.png#only-light)
-![Prism on a wall display, a tablet and a phone](demos/hero-dark.png#only-dark)
+![Prism on a wall display, a tablet and a phone](demos/dashboard-light.png#only-light)
+![Prism on a wall display, a tablet and a phone](demos/dashboard-dark.png#only-dark)
 
 === "The wall"
 
@@ -18,19 +18,19 @@ What a family sees, captured against a fresh seed (the synthetic Alex / Jordan /
 
     -   **Photo**: a photo behind glass cards (park scenery until the family adds its own)
 
-        ![The wall in the Photo look](demos/look-photo.png)
+
 
     -   **Night**: the same, dark
 
-        ![The wall in the Night look](demos/look-night.png)
+
 
     -   **Paper**: solid cards, no photo
 
-        ![The wall in the Paper look](demos/look-paper.png)
+
 
     -   **When nobody is using it**: the photo, the clock and the weather
 
-        ![The idle screen](demos/idle-screen.png)
+
 
     </div>
 
@@ -40,15 +40,15 @@ What a family sees, captured against a fresh seed (the synthetic Alex / Jordan /
 
     -   **Calendar**
 
-        ![The calendar widget](demos/widget-calendar.png)
+        ![The calendar widget](demos/calendar-week.png)
 
     -   **Chores**
 
-        ![The chores widget](demos/widget-chores.png)
+        ![The chores widget](demos/chores.png)
 
     -   **Shopping**
 
-        ![The shopping widget](demos/widget-shopping.png)
+        ![The shopping widget](demos/shopping.png)
 
     </div>
 
@@ -58,14 +58,14 @@ What a family sees, captured against a fresh seed (the synthetic Alex / Jordan /
 
     -   **Home**
 
-        ![Phone home screen](demos/phone-home.png){ width="300" }
+        ![Phone home screen](demos/dashboard-mobile.png){ width="300" }
 
     -   **Calendar**
 
-        ![Phone calendar](demos/phone-calendar.png){ width="300" }
+        ![Phone calendar](demos/calendar-mobile.png){ width="300" }
 
     -   **Shopping**
 
-        ![Phone shopping list](demos/phone-shopping.png){ width="300" }
+        ![Phone shopping list](demos/shopping-mobile.png){ width="300" }
 
     </div>
