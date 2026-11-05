@@ -486,7 +486,9 @@ test.describe('busy days page on the wall', () => {
     // capacity in both inline and cards modes.
     const titles = Array.from({ length: 6 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
     const layout = await (await page.request.post('/api/layouts', {
-      data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 8 }] },
+      // Month is unavailable below 24 grid rows; shorter cells silently fall
+      // back to Agenda and never render the day-page controls this checks.
+      data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 24 }] },
     })).json();
     try {
       const fixtureEvents = titles.map((title, i) => {
