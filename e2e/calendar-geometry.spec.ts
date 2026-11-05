@@ -300,10 +300,19 @@ async function pointerPage(
   return { browser, page: await context.newPage() };
 }
 
-/** Reset only this isolated test user's event quota before bulk fixture creation. */
-async function resetEventRateLimit(userId: string) {
-  if (!process.env.REDIS_URL) throw new Error('REDIS_URL is required for event fixtures');
-  execFileSync('redis-cli', ['-u', process.env.REDIS_URL, 'DEL', `ratelimit:${userId}:events`], { stdio: 'pipe', timeout: 5_000 });
+/** Insert fixture rows directly: visual tests should not spend time in API rate limits. */
+function insertCalendarEvents(events: Array<{ title: string; start: Date; end: Date; userId: string }>) {
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for calendar fixtures');
+  const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+  const values = events.map(({ title, start, end, userId }) =>
+    `(${quote(title)}, ${quote(start.toISOString())}, ${quote(end.toISOString())}, false, ${quote(userId)}::uuid)`,
+  ).join(',\n');
+  const sql = `INSERT INTO events (title, start_time, end_time, all_day, created_by) VALUES ${values} RETURNING id;`;
+  return execFileSync('psql', [process.env.DATABASE_URL, '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql], {
+    encoding: 'utf8',
+    timeout: 10_000,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim().split('\n');
 }
 
 function isDashboardEventsResponse(response: Response) {
@@ -404,7 +413,6 @@ test.describe('3 Months folds a busy day', () => {
     const { browser, page } = await pointerPage(playwright, info, 1, { width: 1920, height: 1080 });
     const login = await page.request.post('/api/auth/login', { data: { userId: parentId, pin: PIN } });
     expect(login.ok(), 'precondition: login must succeed').toBe(true);
-    await resetEventRateLimit(parentId);
     // The 12th of the current month is always in the middle mini month. Six is
     // more than a 1080p cell holds (four) and needs no other events that day.
     const now = new Date();
@@ -484,7 +492,6 @@ test.describe('busy days page on the wall', () => {
     const { browser, page } = await pointerPage(playwright, info, 1, { width: 1920, height: 1080 });
     const login = await page.request.post('/api/auth/login', { data: { userId: parentId, pin: PIN } });
     expect(login.ok(), 'precondition: login must succeed').toBe(true);
-    await resetEventRateLimit(parentId);
     // The 12th of the current month is always in the month grid. Each project
     // runs in parallel against one database, so the titles carry its name.
     const now = new Date();
@@ -498,13 +505,12 @@ test.describe('busy days page on the wall', () => {
       data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 8 }] },
     })).json();
     try {
-      for (const [i, title] of titles.entries()) {
+      const fixtureEvents = titles.map((title, i) => {
         // 06:00-08:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
         const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6, i * 15));
-        const res = await page.request.post('/api/events', { data: { title, startTime: start.toISOString(), endTime: new Date(start.getTime() + 30 * 60_000).toISOString(), allDay: false, createdBy: parentId }, timeout: 15_000 });
-        expect(res.status()).toBe(201);
-        created.push((await res.json()).id);
-      }
+        return { title, start, end: new Date(start.getTime() + 30 * 60_000), userId: parentId };
+      });
+      created.push(...insertCalendarEvents(fixtureEvents));
       await page.clock.install({ time: now });
       for (const mode of ['inline', 'cards'] as const) {
         await page.addInitScript((m) => {
