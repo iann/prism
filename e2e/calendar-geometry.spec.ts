@@ -1,4 +1,4 @@
-import { test, expect, type Page, type TestInfo, type BrowserType } from '@playwright/test';
+import { test, expect, type Page, type TestInfo, type BrowserType, type Response } from '@playwright/test';
 import { getSeededParentId } from './helpers/auth';
 
 /**
@@ -313,6 +313,17 @@ async function postEvent(page: Page, data: Record<string, unknown>) {
   }
 }
 
+function isDashboardEventsResponse(response: Response) {
+  const url = new URL(response.url());
+  if (url.pathname !== '/api/events' || response.request().method() !== 'GET') return false;
+  const start = Date.parse(url.searchParams.get('startDate') ?? '');
+  const end = Date.parse(url.searchParams.get('endDate') ?? '');
+  const spanDays = (end - start) / 86_400_000;
+  // useDashboardData requests 30 days on either side of today (about 61 days
+  // total). The attention panel has a shorter window and cannot feed widgets.
+  return spanDays > 55 && spanDays < 70;
+}
+
 async function openCalendarView(page: Page, view: string) {
   if (HAS_TEST_DB) {
     const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
@@ -502,14 +513,12 @@ test.describe('busy days page on the wall', () => {
       await page.clock.install({ time: now });
       for (const mode of ['inline', 'cards'] as const) {
         await page.addInitScript((m) => {
+          localStorage.setItem('prism-visible-widgets', JSON.stringify(['calendar']));
           localStorage.setItem('prism-calendar-view', 'month');
           localStorage.setItem('prism-calendar-display-mode', m);
         }, mode);
         const eventsResponse = mode === 'inline'
-          ? page.waitForResponse((response) => {
-              const url = new URL(response.url());
-              return url.pathname === '/api/events' && response.request().method() === 'GET';
-            }, { timeout: 15_000 })
+          ? page.waitForResponse(isDashboardEventsResponse, { timeout: 15_000 })
           : null;
         await page.goto(`/d/${layout.slug}`, { waitUntil: 'load' });
         if (eventsResponse) {
@@ -582,15 +591,15 @@ test.describe('Now & Next widget', () => {
       data: { name: `Now next e2e ${Date.now()}`, widgets: [{ i: 'nowNext', x: 0, y: 0, w: 24, h: 8 }] },
     })).json();
     try {
-      for (const [title, start, end] of [[nowTitle, -20, 40], [nextTitle, 90, 150]] as const) {
+      for (const [title, start, end] of [[nowTitle, -720, 720], [nextTitle, 90, 150]] as const) {
         const res = await postEvent(page, { title, startTime: at(start), endTime: at(end), allDay: false, createdBy: parentId });
         expect(res.status()).toBe(201);
         created.push((await res.json()).id);
       }
-      const eventsResponse = page.waitForResponse((response) => {
-        const url = new URL(response.url());
-        return url.pathname === '/api/events' && response.request().method() === 'GET';
-      }, { timeout: 15_000 });
+      await page.addInitScript(() => {
+        localStorage.setItem('prism-visible-widgets', JSON.stringify(['nowNext']));
+      });
+      const eventsResponse = page.waitForResponse(isDashboardEventsResponse, { timeout: 15_000 });
       await page.goto(`/d/${layout.slug}`, { waitUntil: 'load' });
       const fetchedEvents = await (await eventsResponse).json();
       expect(fetchedEvents.events.map((event: { title: string }) => event.title)).toEqual(
