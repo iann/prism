@@ -137,10 +137,11 @@ async function expectPainted(page: Page, marker?: Locator) {
  * The widgets fetch after the layout does, and `networkidle` can be reached in
  * the gap between the two: a baseline captured there is a wall of placeholder
  * bars. The Tasks tile is the marker because the seeded dashboard always has
- * one. Other widgets can still be loading after Tasks has data, so wait for
- * every widget cell to leave its skeleton state.
+ * one. The Shopping tile also fetches independently and has seeded content in
+ * the standard dashboard screenshot, so wait for it there as well. Perf mode
+ * intentionally defers some widgets.
  */
-async function waitForDashboardWidgets(page: Page) {
+async function waitForDashboardWidgets(page: Page, includeShopping = false) {
   // The grid itself renders after the layouts request, so the cell can still be
   // missing when network goes idle.
   await page.locator('.widget-cell[data-widget="tasks"]').waitFor({ state: 'attached', timeout: 30_000 });
@@ -149,12 +150,21 @@ async function waitForDashboardWidgets(page: Page) {
       const cell = document.querySelector('.widget-cell[data-widget="tasks"]');
       if (!cell) return false;
       const text = (cell.textContent ?? '').trim();
-      const cells = [...document.querySelectorAll('.widget-cell')];
-      return text.length > 20 && cells.length > 0 && cells.every((item) => !item.querySelector('.animate-pulse'));
+      return text.length > 20 && !cell.querySelector('.animate-pulse');
     },
     null,
     { timeout: 30_000 },
   );
+  if (includeShopping) {
+    await page.waitForFunction(
+      () => {
+        const cell = document.querySelector('.widget-cell[data-widget="shopping"]');
+        return !!cell && (cell.textContent ?? '').trim().length > 20 && !cell.querySelector('.animate-pulse');
+      },
+      null,
+      { timeout: 30_000 },
+    );
+  }
   await page.waitForTimeout(400);
 }
 
@@ -254,7 +264,7 @@ test.describe('Visual regression', () => {
       await page.waitForTimeout(800); // let theme + seasonal vars settle
 
       await expectPainted(page, page.locator('.widget-cell').first());
-      await waitForDashboardWidgets(page);
+      await waitForDashboardWidgets(page, true);
       await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
