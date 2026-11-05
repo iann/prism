@@ -389,8 +389,8 @@ export function DisplaysSection() {
                 ) : (
                   <>
                     <div className="min-w-0 basis-full sm:basis-0 sm:flex-1 sm:min-w-[12rem]">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">{d.name}</span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate font-medium">{d.name}</span>
                         {d.id === currentId && <Badge variant="secondary">This screen</Badge>}
                       </div>
                       <div className="text-sm text-muted-foreground">
