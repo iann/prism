@@ -499,8 +499,8 @@ test.describe('busy days page on the wall', () => {
     const now = new Date();
     const busyDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-12`;
     const tag = info.project.name;
-    // Use enough events to exceed the capacity of a month-capable wall cell.
-    const titles = Array.from({ length: 24 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
+    // Six events exceed the measured capacity but keep the full page cycle short.
+    const titles = Array.from({ length: 6 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
     const layout = await (await page.request.post('/api/layouts', {
       // Month is unavailable below 24 grid rows; shorter cells silently fall
       // back to Agenda and never render the day-page controls this checks.
@@ -570,7 +570,9 @@ test.describe('busy days page on the wall', () => {
           });
           expect(shot.spill, `${mode} page ${p}: nothing drawn past the cell`).toBe(0);
           for (const t of shot.titles) seen.add(t);
-          await page.clock.runFor(8_000);
+          // Jump to the next interval once. runFor fires every elapsed timer
+          // callback and can advance several pages while Playwright polls DOM.
+          await page.clock.fastForward(8_000);
         }
         expect(await label.getAttribute('data-day-page'), `${mode}: wraps to the first page`).toBe(`1/${pages}`);
         for (const t of titles) expect([...seen].some((s) => s.startsWith(t)), `${mode}: "${t}" was on a page`).toBe(true);
