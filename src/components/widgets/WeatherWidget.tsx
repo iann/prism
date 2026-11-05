@@ -776,13 +776,14 @@ function CurrentConditions({
 
   return (
     <div
+      data-weather-current
       data-testid="weather-current-header"
       className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3"
     >
       {/* Keep both columns top-aligned, with compact, consistent line spacing
           inside each stack so the header does not grow around the large temp. */}
       <div className="min-w-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 in-data-[corner=right]:justify-end">
           <WeatherIcon
             condition={weather.condition}
             className={`h-10 w-10 shrink-0 ${conditionIconClass(weather.condition)}`}

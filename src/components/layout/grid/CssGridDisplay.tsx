@@ -25,6 +25,7 @@ import { getWidgetType } from '@/lib/utils/widgetInstances';
 
 interface WidgetCellProps {
   widget: WidgetConfig;
+  corner?: 'left' | 'right';
   renderWidget: CssGridDisplayProps['renderWidget'];
   revision: unknown;
   initiallyVisible: boolean;
@@ -156,6 +157,7 @@ function setCellDrift(el: HTMLElement, want: boolean) {
 
 const WidgetCell = memo(function WidgetCell({
   widget,
+  corner,
   renderWidget,
   initiallyVisible,
   deferOffscreen,
@@ -196,6 +198,7 @@ const WidgetCell = memo(function WidgetCell({
       className={`widget-cell relative overflow-hidden ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${textClass} ${outlineClass} transition-opacity duration-1000 motion-reduce:duration-200`}
       data-widget={getWidgetType(widget)}
       data-widget-instance={widget.i}
+      data-corner={corner}
       data-faded={faded || undefined}
       data-hidden-empty={emptyHidden || undefined}
       aria-hidden={gone || undefined}
@@ -451,6 +454,9 @@ export function CssGridDisplay({
           <WidgetCell
             key={widget.i}
             widget={widget}
+            corner={widget.y === 0 && widget.w * 3 <= cols
+              ? (widget.x === 0 ? 'left' : widget.x + widget.w >= cols ? 'right' : undefined)
+              : undefined}
             renderWidget={renderWidget}
             revision={widgetRevisions?.[getWidgetType(widget)]}
             initiallyVisible={
