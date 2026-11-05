@@ -30,6 +30,10 @@ export default defineConfig({
     {
       name: 'chromium-chicago',
       testMatch: /calendar-geometry\.spec\.ts/,
+      // Keep the second zone on tests that exercise calendar day boundaries.
+      // Static geometry, text floors, and tile sizing are already covered in
+      // the default Chromium project and do not need a duplicate run.
+      grep: /3 Months folds a busy day|busy days page on the wall|Now & Next widget/,
       use: { ...devices['Desktop Chrome'], timezoneId: 'America/Chicago' },
     },
   ],
