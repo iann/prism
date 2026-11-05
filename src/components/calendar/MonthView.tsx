@@ -25,7 +25,7 @@ import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { CardHeightProbe, ChipProbe, DayEventList, DayOverflowPopover, DroppableOverlayCell, SpanningEventRows, useChipMetrics, useDayDroppable, type ChipMetrics, type OverlayItemRef } from './cells';
 import { splitDay, useDayPageTick, useDayPagingEnabled } from '@/lib/hooks/useDayPaging';
 import { useTimeFormat } from '@/components/providers';
-import { eventOccursOnDisplayDay, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
+import { eventOccursOnDisplayDay, eventSpansMultipleDisplayDays, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
 
@@ -89,7 +89,13 @@ export function MonthView({
   // Scope the wide event list to this month grid's visible range once, so the
   // shared-lane + per-day filters iterate ~40 events instead of thousands.
   const scopedEvents = eventsOverlappingRange(events, calendarStart, calendarEnd);
-  const eventRowEvents = scopedEvents;
+  const eventRowEvents = scopedEvents.filter((event) =>
+    event.allDay || eventSpansMultipleDisplayDays(
+      event.startTime,
+      event.endTime,
+      event.allDay,
+      displayTimezone,
+    ));
   const eventRowEventSet = new Set(eventRowEvents);
 
   return (
