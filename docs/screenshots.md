@@ -5,132 +5,67 @@ hide:
 
 # Screenshots
 
-A visual tour of Prism, captured against a fresh seed (the synthetic Alex / Jordan / Emma / Sophie family). Your own dashboard will look different. These images are illustrative.
+What a family sees, captured against a fresh seed (the synthetic Alex / Jordan / Emma / Sophie family) in the looks a new install offers. Your own dashboard will look different. These images are illustrative. The feature pages show the screens for setting things up.
 
-=== "Dashboard"
+![Prism on a wall display, a tablet and a phone](demos/dashboard-light.png#only-light)
+![Prism on a wall display, a tablet and a phone](demos/dashboard-dark.png#only-dark)
+
+=== "The wall"
+
+    Setup offers three looks. Each is a starting point: the palette, the photo and the card fill can each be changed later.
 
     <div class="grid cards" markdown>
 
-    -   **Light mode**
+    -   **Photo**: a photo behind glass cards (park scenery until the family adds its own)
 
-        ![Dashboard light mode](demos/dashboard-light.png)
 
-    -   **Dark mode**
 
-        ![Dashboard dark mode](demos/dashboard-dark.png)
+    -   **Night**: the same, dark
 
-    -   **Mobile (PWA)**
 
-        ![Mobile dashboard](demos/dashboard-mobile.png){ width="300" }
+
+    -   **Paper**: solid cards, no photo
+
+
+
+    -   **When nobody is using it**: the photo, the clock and the weather
+
+
 
     </div>
 
-=== "Calendar"
-
-    Prism has five calendar views: pick the one that matches how your family thinks about time. Each view can also switch into **cards mode** to show stacked event cards plus optional overlay rows for meals, chores, and tasks per day.
+=== "Close up"
 
     <div class="grid cards" markdown>
 
-    -   **Month**
+    -   **Calendar**
 
-        ![Calendar month view](demos/calendar-month.png)
-
-    -   **Month (cards mode)**
-
-        ![Calendar month cards mode](demos/calendar-month-cards.png)
-
-    -   **Multi-week (2 weeks)**
-
-        ![Calendar multi-week view](demos/calendar-multiweek.png)
-
-    -   **Multi-week (cards mode)**
-
-        ![Calendar multi-week cards mode](demos/calendar-multiweek-cards.png)
-
-    -   **Schedule (single week, hourly)**
-
-        ![Calendar schedule view](demos/calendar-week.png)
-
-    -   **Day (per-person columns)**
-
-        ![Calendar day view](demos/calendar-day.png)
-
-    -   **Agenda (chronological list)**
-
-        ![Calendar agenda view](demos/calendar-agenda.png)
-
-    -   **Mobile (agenda-only)**
-
-        ![Mobile calendar](demos/calendar-mobile.png){ width="300" }
-
-    -   **Mobile (cards mode)**
-
-        ![Mobile calendar cards mode](demos/calendar-mobile-cards.png){ width="300" }
-
-    </div>
-
-=== "Lists"
-
-    <div class="grid cards" markdown>
-
-    -   **Shopping**
-
-        ![Shopping list](demos/shopping.png)
-
-    -   **Shopping (mobile)**
-
-        ![Mobile shopping](demos/shopping-mobile.png){ width="300" }
-
-    -   **Tasks**
-
-        ![Tasks page](demos/tasks.png)
+        ![The calendar widget](demos/calendar-week.png)
 
     -   **Chores**
 
-        ![Chores grouped by person](demos/chores.png)
+        ![The chores widget](demos/chores.png)
+
+    -   **Shopping**
+
+        ![The shopping widget](demos/shopping.png)
 
     </div>
 
-=== "Family"
+=== "On a phone"
 
     <div class="grid cards" markdown>
 
-    -   **Meals**
+    -   **Home**
 
-        ![Weekly meal planner](demos/meals.png)
+        ![Phone home screen](demos/dashboard-mobile.png){ width="300" }
 
-    -   **Recipes**
+    -   **Calendar**
 
-        ![Recipe library](demos/recipes.png)
+        ![Phone calendar](demos/calendar-mobile.png){ width="300" }
 
-    -   **Goals & Points**
+    -   **Shopping**
 
-        ![Goals waterfall](demos/goals.png)
-
-    -   **Messages**
-
-        ![Family message board](demos/messages.png)
-
-    -   **Wishes & Gift Ideas**
-
-        ![Wish lists with claim tracking](demos/wishes.png)
-
-    -   **Photos**
-
-        ![Photo gallery](demos/photos.png)
-
-    </div>
-
-=== "Maps & extras"
-
-    <div class="grid cards" markdown>
-
-    -   **Travel map**
-
-        ![Travel globe](demos/travel-globe.png)
-
-    -   **Weekend ideas**
-
-        ![Weekend activity board](demos/weekend.png)
+        ![Phone shopping list](demos/shopping-mobile.png){ width="300" }
 
     </div>

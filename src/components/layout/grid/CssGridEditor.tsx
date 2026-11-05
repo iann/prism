@@ -650,7 +650,7 @@ function IdleToggle({ stays, onToggle }: { stays: boolean; onToggle: () => void 
       data-idle-toggle
       aria-pressed={stays}
       title={stays ? 'Stays on screen when idle. Tap to fade it.' : 'Fades out when idle. Tap to keep it.'}
-      className={`absolute -top-2.5 right-3 z-30 flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] leading-4 font-medium shadow-xs touch-manipulation ${
+      className={`absolute -top-2.5 right-3 z-30 flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs leading-4 font-medium shadow-xs touch-manipulation ${
         stays ? 'bg-primary text-primary-foreground' : 'bg-neutral-600 text-white'
       }`}
       onClick={(e) => { e.stopPropagation(); onToggle(); }}

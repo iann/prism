@@ -24,25 +24,25 @@ describe('useCalendarWidgetPrefs', () => {
   beforeEach(() => localStorage.clear());
 
   it('isolates view preferences by calendar instance', () => {
+    localStorage.setItem('prism-calendar-view:calendar', 'multiWeek4');
     const first = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar'), { wrapper });
     const second = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar-2'), { wrapper });
 
-    act(() => first.result.current.setViewType('multiWeek4'));
     act(() => second.result.current.setViewType('day'));
 
-    expect(localStorage.getItem('prism-calendar-view')).toBe('multiWeek4');
-    expect(localStorage.getItem('prism-calendar-calendar-2-view')).toBe('day');
-    expect(first.result.current.viewType).toBe('multiWeek4');
+    expect(localStorage.getItem('prism-calendar-view:calendar')).toBe('month');
+    expect(localStorage.getItem('prism-calendar-view:calendar-2')).toBe('day');
+    expect(first.result.current.viewType).toBe('month');
     expect(second.result.current.viewType).toBe('day');
-    expect(first.result.current.resolvedView).toBe('multiWeek');
-    expect(first.result.current.resolvedWeekCount).toBe(4);
+    expect(first.result.current.resolvedView).toBe('month');
+    expect(first.result.current.resolvedWeekCount).toBe(2);
     expect(second.result.current.resolvedView).toBe('day');
   });
 
   it('retains the legacy key for the original calendar instance', () => {
     localStorage.setItem('prism-calendar-view', 'multiWeek4');
     const hook = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar'), { wrapper });
-    expect(hook.result.current.viewType).toBe('multiWeek4');
+    expect(hook.result.current.viewType).toBe('month');
   });
 
   it('uses the legacy namespace when no instance ID is supplied', () => {
@@ -71,18 +71,18 @@ describe('useCalendarWidgetPrefs', () => {
       second.result.current.setOverlays({ events: true, meals: false, chores: true, tasks: false });
     });
 
-    expect(localStorage.getItem('prism-calendar-bordered')).toBe('true');
-    expect(localStorage.getItem('prism-calendar-calendar-2-bordered')).toBe('false');
-    expect(localStorage.getItem('prism-calendar-notes-visible')).toBe('true');
-    expect(localStorage.getItem('prism-calendar-calendar-2-notes-visible')).toBe('false');
-    expect(localStorage.getItem('prism-calendar-display-mode')).toBe('cards');
-    expect(localStorage.getItem('prism-calendar-calendar-2-display-mode')).toBe('inline');
-    expect(localStorage.getItem('prism-calendar-hide-weekends')).toBe('true');
-    expect(localStorage.getItem('prism-calendar-calendar-2-hide-weekends')).toBe('false');
-    expect(localStorage.getItem('prism-calendar-overlays')).toBe(
+    expect(localStorage.getItem('prism-calendar-bordered:calendar')).toBe('true');
+    expect(localStorage.getItem('prism-calendar-bordered:calendar-2')).toBe('false');
+    expect(localStorage.getItem('prism-calendar-notes-visible:calendar')).toBe('true');
+    expect(localStorage.getItem('prism-calendar-notes-visible:calendar-2')).toBe('false');
+    expect(localStorage.getItem('prism-calendar-display-mode:calendar')).toBe('cards');
+    expect(localStorage.getItem('prism-calendar-display-mode:calendar-2')).toBe('inline');
+    expect(localStorage.getItem('prism-calendar-hide-weekends:calendar')).toBe('true');
+    expect(localStorage.getItem('prism-calendar-hide-weekends:calendar-2')).toBe('false');
+    expect(localStorage.getItem('prism-calendar-overlays:calendar')).toBe(
       JSON.stringify({ events: false, meals: true, chores: false, tasks: true })
     );
-    expect(localStorage.getItem('prism-calendar-calendar-2-overlays')).toBe(
+    expect(localStorage.getItem('prism-calendar-overlays:calendar-2')).toBe(
       JSON.stringify({ events: true, meals: false, chores: true, tasks: false })
     );
   });

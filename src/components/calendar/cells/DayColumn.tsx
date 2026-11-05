@@ -102,7 +102,7 @@ const SIZE_PROFILES: Record<WeekItemSize, SizeProfile> = {
     itemSize: 'xs',
     minHeight: 'min-h-[40px]',
     headerDateText: 'text-xs font-bold',
-    headerLabelText: 'text-[12px]',
+    headerLabelText: 'text-2xs',
     showWeather: false,
     showEmptyState: false,
     containerPadding: 'p-1',
@@ -112,7 +112,7 @@ const SIZE_PROFILES: Record<WeekItemSize, SizeProfile> = {
     itemSize: 'sm',
     minHeight: 'min-h-[70px]',
     headerDateText: 'text-base font-bold',
-    headerLabelText: 'text-[12px]',
+    headerLabelText: 'text-2xs',
     showWeather: false,
     showEmptyState: false,
     containerPadding: 'p-1.5',
@@ -304,7 +304,7 @@ export function DayColumn({
         ))}
 
       {profile.showEmptyState && isEmpty && (
-        <div className="flex flex-1 items-center justify-center rounded border border-dashed border-border bg-muted/30 py-3 text-[12px] text-muted-foreground">
+        <div className="flex flex-1 items-center justify-center rounded border border-dashed border-border bg-muted/30 py-3 text-2xs text-muted-foreground">
           {t('nothingPlanned')}
         </div>
       )}

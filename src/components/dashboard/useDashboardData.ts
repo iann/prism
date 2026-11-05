@@ -37,6 +37,7 @@ export const DASHBOARD_POLL_OFFSETS = {
 
 const WIDGET_DOMAIN_MAP: Record<string, string[]> = {
   calendar: ['calendar'],
+  nowNext: ['calendar'],
   weather: ['weather'],
   messages: ['messages'],
   tasks: ['tasks'],

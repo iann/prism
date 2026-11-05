@@ -388,9 +388,9 @@ export function DisplaysSection() {
                   </form>
                 ) : (
                   <>
-                    <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">{d.name}</span>
+                    <div className="min-w-0 basis-full md:landscape:basis-0 md:landscape:flex-1 md:landscape:min-w-[12rem]">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate font-medium">{d.name}</span>
                         {d.id === currentId && <Badge variant="secondary">This screen</Badge>}
                       </div>
                       <div className="text-sm text-muted-foreground">
@@ -403,7 +403,7 @@ export function DisplaysSection() {
                     </div>
                     <select
                       aria-label={`Dashboard for ${d.name}`}
-                      className="rounded-md border border-input bg-background px-2 py-1.5 text-sm max-w-[12rem]"
+                      className="rounded-md border border-input bg-background px-2 py-1.5 text-sm max-w-[18rem]"
                       disabled={busy}
                       value={d.dashboardId ?? ''}
                       onChange={(e) => void setDashboard(d.id, e.target.value || null)}

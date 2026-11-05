@@ -5,6 +5,7 @@ import {
 } from '../src/components/screensaver/nightSky/sky';
 import { FIGURES } from '../src/components/screensaver/nightSky/catalog';
 import type { IdleBackground } from '../src/lib/idleBackground';
+import { FIRST_SCREEN_TEMPLATE } from '../src/lib/constants/layoutTemplates';
 
 /**
  * A widget sized in the screensaver editor lands at the same size and place in
@@ -487,8 +488,9 @@ test.describe('calm mode idle screen', () => {
   test.setTimeout(90_000);
 
   // Clock and Tasks rely on the default ticks; Shopping and Weather override them.
+  // The clock is glass, which goes clear on the idle screen.
   const WIDGETS = [
-    { i: 'clock', x: 0, y: 0, w: 16, h: 12 },
+    { i: 'clock', x: 0, y: 0, w: 16, h: 12, backgroundColor: 'glass' },
     { i: 'tasks', x: 16, y: 0, w: 16, h: 12 },
     { i: 'shopping', x: 32, y: 0, w: 16, h: 12, showWhenIdle: true },
     { i: 'weather', x: 0, y: 12, w: 16, h: 12, showWhenIdle: false },
@@ -511,6 +513,17 @@ test.describe('calm mode idle screen', () => {
         };
       });
       return out;
+    });
+  }
+
+  /** The clock cell's fill alpha, and whether its text carries a shadow. */
+  async function clockFill(page: Page) {
+    return page.locator('.widget-cell[data-widget="clock"]').evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const m = cs.backgroundColor.match(/rgba?\(([^)]+)\)/);
+      const parts = m ? m[1]!.split(/[ ,/]+/).filter(Boolean) : [];
+      const alpha = parts.length === 4 ? Number(parts[3]) : parts.length === 3 ? 1 : 0;
+      return { alpha, blur: cs.backdropFilter, shadow: cs.textShadow };
     });
   }
 
@@ -538,6 +551,8 @@ test.describe('calm mode idle screen', () => {
       await page.waitForTimeout(800);
       const before = await cells(page);
       expect(Object.keys(before).sort()).toEqual(WIDGETS.map((w) => w.i).sort());
+      const glass = await clockFill(page);
+      expect(glass.alpha, 'premise: the clock is glass while awake').toBeGreaterThan(0.2);
 
       await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
       // The calm handshake crosses a store, so wait for the fade to land rather
@@ -550,6 +565,11 @@ test.describe('calm mode idle screen', () => {
       // Let the one-second fade finish before reading opacity.
       await page.waitForTimeout(1200);
       const idle = await cells(page);
+      // The glass clock that stays goes clear, with shadowed text, on the photo.
+      const clear = await clockFill(page);
+      expect(clear.alpha, 'idle glass is clear').toBe(0);
+      expect(clear.blur, 'idle glass has no blur').toBe('none');
+      expect(clear.shadow, 'idle text has a shadow').not.toBe('none');
 
       // The separate screensaver did not come up over the dashboard.
       await expect(page.locator('.fixed.inset-0 .widget-cell')).toHaveCount(0);
@@ -595,6 +615,7 @@ test.describe('calm mode idle screen', () => {
       await expect(page.locator('.widget-cell[data-widget="clock"]')).not.toHaveAttribute('data-drift', '');
       await page.waitForTimeout(1500);
       const awake = await cells(page);
+      expect((await clockFill(page)).alpha, 'the glass is back on waking').toBeGreaterThan(0.2);
       for (const i of [...SHOWN, ...FADED]) {
         expect(awake[i]!.opacity, `${i} is back`).toBe(1);
         expect(off(i, before, awake), `${i} is back in its place`).toBeLessThanOrEqual(1);
@@ -1075,5 +1096,130 @@ test.describe('screensaver widget outlines', () => {
     }
     const moved = first.some((m, n) => Math.hypot(m.x - second[n]!.x, m.y - second[n]!.y) > 0.2);
     expect(moved, 'the drift is still running').toBe(true);
+  });
+});
+
+
+/**
+ * The clock and weather as small tiles in the top corners (#905). A new
+ * install's Home layout puts them there, the photo between them, so the idle
+ * screen shows the time and weather on the photo's corners. In a small tile
+ * the weather shows icon, temperature and condition on one line each, and the
+ * details only once the tile has room; a corner tile's text lines up with the
+ * screen edge it touches.
+ */
+test.describe('corner clock and weather', () => {
+  test.skip(!HAS_TEST_DB, 'needs the seeded test database to log in and create a dashboard');
+  test.use({ viewport: { width: 1920, height: 1080 } });
+  test.setTimeout(90_000);
+
+  const day = new Date();
+  const at = (h: number, m: number) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m).toISOString();
+  /** A fixed /api/weather response, so the test needs no weather provider. */
+  const WEATHER = {
+    location: 'Springfield',
+    current: { temperature: 76, feelsLike: 75, condition: 'partly-cloudy', humidity: 48, windSpeed: 8, description: 'Partly Cloudy' },
+    forecast: [],
+    hourly: [],
+    sunrise: at(5, 14),
+    sunset: at(20, 28),
+    moonPhase: 0.1,
+    moonPhaseName: 'Waxing Crescent',
+    units: { temperature: 'F', windSpeed: 'mph', precipitation: 'in' },
+    lastUpdated: day.toISOString(),
+  };
+
+  async function openLayout(page: Page, widgets: unknown[]) {
+    const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
+    expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    const created = await page.request.post('/api/layouts', { data: { name: `Corners e2e ${Date.now()}`, widgets } });
+    expect(created.status()).toBe(201);
+    const layout = await created.json();
+    await page.route('**/api/weather*', (route) => route.fulfill({ json: WEATHER }));
+    await page.goto(`/d/${layout.slug}`);
+    await page.locator('[data-weather-current]').waitFor({ timeout: 60000 });
+    await page.locator('[data-clock-time]').waitFor();
+    await page.waitForTimeout(800);
+    return layout as { id: string };
+  }
+
+  type Rect = { left: number; right: number; top: number; bottom: number; width: number; height: number };
+  const rect = (page: Page, selector: string): Promise<Rect> => page.locator(selector).first().evaluate((el) => {
+    const b = el.getBoundingClientRect();
+    return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height };
+  });
+
+  test('Home puts a compact clock and weather in the top corners', async ({ page }) => {
+    const layout = await openLayout(page, FIRST_SCREEN_TEMPLATE.widgets);
+    try {
+      const clock = await rect(page, '.widget-cell[data-widget="clock"]');
+      const weather = await rect(page, '.widget-cell[data-widget="weather"]');
+      const calendar = await rect(page, '.widget-cell[data-widget="calendar"]');
+
+      // The tiles sit on the grid's top corners: the calendar spans the grid
+      // below them, so its edges are the grid's edges.
+      expect(Math.abs(clock.left - calendar.left), 'clock on the left edge').toBeLessThanOrEqual(1);
+      expect(Math.abs(weather.right - calendar.right), 'weather on the right edge').toBeLessThanOrEqual(1);
+      expect(Math.abs(clock.top - weather.top), 'one top line').toBeLessThanOrEqual(1);
+      expect(clock.bottom, 'both above the calendar').toBeLessThan(calendar.top);
+      // Compact: each about a quarter of the width, with the photo between.
+      expect(clock.width).toBeLessThan(calendar.width / 3);
+      expect(weather.width).toBeLessThan(calendar.width / 3);
+      expect(weather.left - clock.right, 'photo between them').toBeGreaterThan(calendar.width / 3);
+
+      // The clock's time lines up with the left edge rather than centring.
+      const time = await rect(page, '.widget-cell[data-widget="clock"] [data-clock-time]');
+      expect(time.left - clock.left, 'time hugs the left edge').toBeLessThan(40);
+
+      // The weather shows icon, temperature and condition, nothing else, lined
+      // up with the right edge and centred top to bottom like the clock.
+      await expect(page.locator('[data-weather-details]')).toBeHidden();
+      const current = await rect(page, '[data-weather-current]');
+      const condition = page.locator('[data-weather-condition]');
+      await expect(condition).toContainText(/partly cloudy/i);
+      const cond = await condition.evaluate((el) => ({
+        lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
+        cut: el.scrollWidth > el.clientWidth,
+      }));
+      expect(cond.lines, 'condition on one line').toBe(1);
+      expect(cond.cut, 'condition not cut off').toBe(false);
+      const temp = await rect(page, '[data-testid="weather-current-temperature"]');
+      expect(weather.right - temp.right, 'weather hugs the right edge').toBeLessThan(40);
+      const mid = (r: Rect) => (r.top + r.bottom) / 2;
+      expect(Math.abs(mid(current) - mid(weather)), 'weather centred in its tile').toBeLessThan(8);
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+    }
+  });
+
+  test('a large weather tile keeps its details, each on one line', async ({ page }) => {
+    const layout = await openLayout(page, [
+      { i: 'weather', x: 0, y: 0, w: 24, h: 16 },
+      { i: 'clock', x: 24, y: 0, w: 24, h: 8 },
+    ]);
+    try {
+      await expect(page.locator('[data-weather-details]')).toBeVisible();
+      const details = page.locator('[data-weather-details]');
+      await expect(details).toBeVisible();
+      const detailRows = await details.locator(':scope > div').evaluateAll((rows) => rows.map((row) => {
+        const style = getComputedStyle(row);
+        return {
+          height: row.getBoundingClientRect().height,
+          lineHeight: parseFloat(style.lineHeight),
+          overflows: row.scrollWidth > row.clientWidth,
+        };
+      }));
+      expect(detailRows.length).toBeGreaterThan(0);
+      for (const row of detailRows) {
+        expect(row.height, 'weather detail fits on one line').toBeLessThanOrEqual(row.lineHeight + 1);
+        expect(row.overflows, 'weather detail is not clipped').toBe(false);
+      }
+      // Not a corner tile (half the width), so the clock stays centred.
+      const clock = await rect(page, '.widget-cell[data-widget="clock"]');
+      const time = await rect(page, '.widget-cell[data-widget="clock"] [data-clock-time]');
+      expect(Math.abs((time.left + time.right) / 2 - (clock.left + clock.right) / 2)).toBeLessThan(8);
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+    }
   });
 });

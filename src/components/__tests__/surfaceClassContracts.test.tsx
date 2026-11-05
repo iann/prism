@@ -328,76 +328,9 @@ describe('surface class contracts', () => {
     );
 
     expect(subTwelveText).toEqual([
-      // Decorative up/down triangle glyphs.
-      'src/app/calendar/ViewMenu.tsx:text-[10px]',
-      'src/app/calendar/ViewMenu.tsx:text-[10px]',
-      // Avatar initials always have an adjacent full-size person name.
-      'src/app/chores/ChoreCompletionsList.tsx:text-[8px]',
-      'src/app/chores/ChoreItem.tsx:text-[8px]',
-      'src/app/chores/ChoreItem.tsx:text-[8px]',
-      'src/app/meals/MealsView.tsx:text-[8px]',
-      // Compact labels identify the active palette in settings.
       'src/app/settings/sections/DisplaySection.tsx:text-[10px]',
-      'src/app/settings/sections/DisplaySection.tsx:text-[10px]',
-      'src/app/settings/sections/InputSection.tsx:text-[11px]',
-      'src/app/settings/sections/InputSection.tsx:text-[11px]',
-      // Compact labels in the live bus tracking card.
-      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
-      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
-      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
-      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
-      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
-      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
-      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
-      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
-      'src/app/settings/sections/bus/LiveTrackingCard.tsx:text-[11px]',
-      // Compact OAuth scope strings are code snippets with fixed-width content.
-      'src/app/settings/sections/integrations/cards/GoogleManualTokenForm.tsx:text-[11px]',
-      'src/app/tasks/TaskItem.tsx:text-[8px]',
-      // Decorative selected-state check glyphs.
-      'src/app/travel/components/InlineChildAdd.tsx:text-[10px]',
-      'src/app/travel/components/PinForm.tsx:text-[10px]',
-      'src/app/travel/components/PinForm.tsx:text-[10px]',
-      'src/app/travel/components/PinList.tsx:text-[10px]',
-      // Compact calendar event labels and spacing metadata.
-      'src/components/calendar/TwoWeekView.tsx:text-[10px]',
-      'src/components/calendar/cells/InlineCalendarEvent.tsx:text-[8px]',
-      // Compact metadata labels on mobile dashboard cards.
-      'src/components/dashboard/MobileCards.tsx:text-[11px]',
-      // Compact metadata and screen-size labels in the community gallery.
-      'src/components/layout/CommunityGallery.tsx:text-[10px]',
-      'src/components/layout/CommunityGallery.tsx:text-[11px]',
-      // Compact labels identify the device frames in the layout gallery.
-      'src/components/layout/DevicePreviewGallery.tsx:text-[9px]',
-      // Navigation and modal avatar initials with adjacent names or labels.
       'src/components/layout/MobileFab.tsx:text-[10px]',
       'src/components/layout/MobileNav.tsx:text-[10px]',
-      // The Stays / Fades switch on a widget in a calm dashboard's editor.
-      'src/components/layout/grid/CssGridEditor.tsx:text-[11px]',
-
-      'src/components/modals/AddMessageModal.tsx:text-[10px]',
-      'src/components/modals/AddMessageModal.tsx:text-[10px]',
-      'src/components/modals/AddMessageModal.tsx:text-[10px]',
-      'src/components/modals/AddTaskModal.tsx:text-[10px]',
-      // Compact palette and theme metadata in the settings gallery.
-      'src/components/settings/CommunityThemeGallery.tsx:text-[10px]',
-      'src/components/settings/CommunityThemeGallery.tsx:text-[10px]',
-      'src/components/settings/CommunityThemeGallery.tsx:text-[10px]',
-      'src/components/settings/CommunityThemeGallery.tsx:text-[11px]',
-      'src/components/settings/CommunityThemeGallery.tsx:text-[11px]',
-      // Compact swatch metadata in the member colour picker.
-      'src/components/ui/MemberColorPicker.tsx:text-[11px]',
-      'src/components/ui/MemberColorPicker.tsx:text-[11px]',
-      'src/components/ui/MemberColorPicker.tsx:text-[11px]',
-      'src/components/ui/MemberColorPicker.tsx:text-[11px]',
-      // Compact avatar initials with adjacent names.
-      // Compact calendar sync status metadata.
-      'src/components/widgets/CalendarWidget.tsx:text-[10px]',
-      'src/components/widgets/ChoresWidget.tsx:text-[8px]',
-      'src/components/widgets/ChoresWidget.tsx:text-[8px]',
-      'src/components/widgets/MealsWidget.tsx:text-[8px]',
-      'src/components/widgets/MessagesWidget.tsx:text-[10px]',
-      'src/components/widgets/TasksWidget.tsx:text-[8px]',
     ]);
   });
 });

@@ -116,7 +116,7 @@ export function InputSection() {
                 }}
               />
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               The household setting. Applies to every device that uses it.
             </p>
           </div>
@@ -139,7 +139,7 @@ export function InputSection() {
                 <SelectItem value="never">Never</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               Saved in this browser only. Choose Never on a tablet to use its own keyboard,
               or Always on a display that has no other keyboard.
             </p>

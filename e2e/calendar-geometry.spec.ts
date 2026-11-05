@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type TestInfo, type BrowserType } from '@playwright/test';
 import { getSeededParentId } from './helpers/auth';
 
 /**
@@ -30,7 +30,6 @@ async function openCalendar(page: Page, mode: 'cards' | 'inline', view = 'multiW
   }
   await page.addInitScript(([m, v]) => {
     localStorage.setItem('prism-calendar-view-type', v as string);
-    localStorage.setItem('prism-calendar-week-count', '2');
     localStorage.setItem('prism-calendar-display-mode', m as string);
     localStorage.setItem('prism-calendar-bordered', 'true');
   }, [mode, view]);
@@ -233,4 +232,512 @@ test.describe('calendar grid geometry', () => {
       expect(c.free).toBeLessThan(c.cardHeight);
     }
   });
+});
+
+/**
+ * Text floor (#798): no text in a calendar view, or in the calendar widget
+ * under page and widget zoom, renders smaller than 14px on a wall screen or
+ * 12px at a desk. Measured as the rendered size: computed font-size times the
+ * CSS zoom in force, for every visible text node on screen.
+ *
+ * 3 Months is in since #894: its compact events draw at the floor and a busy
+ * day folds the rest into "+N" (see the test below). The calendar widget has no
+ * 3 Months view, so WIDGET_VIEWS does not list it.
+ */
+const FLOOR_VIEWS = ['agenda', 'day', 'week', 'weekVertical', 'multiWeek', 'month', 'threeMonth'];
+const WIDGET_VIEWS = ['agenda', 'list', 'day', 'week', 'multiWeek2', 'month'];
+const POINTERS = [
+  // Blink bitmask: none=1, fine=4. Set at launch; CDP emulation is ignored.
+  { name: 'wall (no pointer)', bits: 1, media: '(pointer: none)', floor: 14 },
+  { name: 'desk (mouse)', bits: 4, media: '(pointer: fine)', floor: 12 },
+];
+
+/** Every visible text node on screen drawn under `floor` px, and how many were measured. */
+async function textUnder(page: Page, floor: number, within?: string) {
+  return page.evaluate(([min, sel]) => {
+    const root = sel ? document.querySelector(sel) : document.body;
+    if (!root) return { count: 0, under: [] as Array<{ px: number; text: string; cls: string }> };
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const seen = new Set<Element>();
+    const under: Array<{ px: number; text: string; cls: string }> = [];
+    let count = 0;
+    let n: Node | null;
+    while ((n = walker.nextNode())) {
+      if (!n.textContent?.trim()) continue;
+      const el = n.parentElement;
+      if (!el || seen.has(el)) continue;
+      seen.add(el);
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility === 'hidden' || cs.opacity === '0') continue;
+      count++;
+      const px = parseFloat(cs.fontSize) * (el.currentCSSZoom || 1);
+      // 0.05 px of slack for rounding through zoom.
+      if (px < (min as number) - 0.05) {
+        under.push({ px: Math.round(px * 10) / 10, text: n.textContent.trim().slice(0, 30), cls: (el.getAttribute('class') || '').slice(0, 80) });
+      }
+    }
+    return { count, under };
+  }, [floor, within] as const);
+}
+
+/**
+ * A page in a browser launched with the given pointer type. Playwright sets
+ * launch options only per worker, and CDP pointer emulation is ignored.
+ */
+async function pointerPage(
+  playwright: { chromium: BrowserType },
+  info: TestInfo,
+  bits: number,
+  viewport: { width: number; height: number },
+) {
+  const browser = await playwright.chromium.launch({
+    args: [`--blink-settings=primaryPointerType=${bits},availablePointerTypes=${bits}`],
+  });
+  const context = await browser.newContext({ viewport, baseURL: info.project.use.baseURL, timezoneId: info.project.use.timezoneId });
+  return { browser, page: await context.newPage() };
+}
+
+/** Keep widget rendering fixtures independent of the events API write quota and database. */
+async function mockCalendarEvents(page: Page, events: Array<Record<string, unknown>>) {
+  await page.route('**/api/calendars**', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ calendars: [{
+        id: 'e2e-calendar',
+        provider: 'google',
+        dashboardCalendarName: 'E2E fixtures',
+        displayName: 'E2E fixtures',
+        color: '#3B82F6',
+        enabled: true,
+        lastSynced: new Date().toISOString(),
+        userId: null,
+      }] }),
+    });
+  });
+  await page.route('**/api/events**', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ events, total: events.length, dateRange: { start: '', end: '' }, limit: 100, offset: 0 }),
+    });
+  });
+}
+
+async function openCalendarView(page: Page, view: string) {
+  if (HAS_TEST_DB) {
+    const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
+    expect(login.ok(), 'precondition: login must succeed before measuring').toBe(true);
+  }
+  await page.addInitScript((v) => localStorage.setItem('prism-calendar-view-type', v), view);
+  await page.goto('/calendar', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Add Event' }).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1500);
+}
+
+for (const pointer of POINTERS) {
+  test.describe(`text floor, ${pointer.name}`, () => {
+    for (const [width, height] of [[1920, 1080], [1280, 720]] as const) {
+      test(`calendar views at ${width}x${height} never draw text under ${pointer.floor}px`, async ({ playwright }, info) => {
+        test.setTimeout(180_000);
+        const { browser, page } = await pointerPage(playwright, info, pointer.bits, { width, height });
+        try {
+          for (const view of FLOOR_VIEWS) {
+            await openCalendarView(page, view);
+            expect(await page.evaluate((m) => matchMedia(m).matches, pointer.media), `premise: ${pointer.media}`).toBe(true);
+            const { count, under } = await textUnder(page, pointer.floor);
+            expect(count, `${view}: something to measure`).toBeGreaterThan(10);
+            expect(under, `${view}: text under ${pointer.floor}px`).toEqual([]);
+          }
+        } finally {
+          await browser.close();
+        }
+      });
+    }
+
+    test(`calendar widget at 75% page zoom and 0.5 widget zoom never draws text under ${pointer.floor}px`, async ({ playwright }, info) => {
+      test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a fresh-seeded DB');
+      test.setTimeout(180_000);
+      const { browser, page } = await pointerPage(playwright, info, pointer.bits, { width: 1920, height: 1080 });
+      const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
+      expect(login.ok(), 'precondition: login must succeed').toBe(true);
+      const created = await page.request.post('/api/layouts', {
+        data: {
+          name: `Text floor e2e ${Date.now()}`,
+          widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 32, textScale: 0.5 }],
+        },
+      });
+      expect(created.status()).toBe(201);
+      const layout = await created.json();
+      try {
+        const zoomed = await page.request.patch(`/api/layouts/${layout.id}`, { data: { fontScale: 75 } });
+        expect(zoomed.ok(), 'precondition: page zoom saved').toBe(true);
+        for (const view of WIDGET_VIEWS) {
+          await page.addInitScript((v) => localStorage.setItem('prism-calendar-view', v), view);
+          await page.goto(`/d/${layout.slug}`, { waitUntil: 'networkidle' });
+          const cell = page.locator('.widget-cell[data-widget="calendar"]');
+          await cell.waitFor({ timeout: 60_000 });
+          await page.waitForTimeout(1500);
+          const zoom = await cell.evaluate((el) => {
+            const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) if (walker.currentNode.textContent?.trim()) return walker.currentNode.parentElement!.currentCSSZoom;
+            return 1;
+          });
+          expect(zoom, 'premise: page and widget zoom both apply').toBeCloseTo(0.375, 2);
+          const { count, under } = await textUnder(page, pointer.floor, '.widget-cell[data-widget="calendar"]');
+          expect(count, `${view}: something to measure`).toBeGreaterThan(2);
+          expect(under, `${view}: text under ${pointer.floor}px`).toEqual([]);
+        }
+      } finally {
+        await page.request.delete(`/api/layouts/${layout.id}`);
+        await browser.close();
+      }
+    });
+  });
+}
+
+/**
+ * 3 Months at the floor (#894). A day cell there is about 82x145 at 1080p and
+ * 52x79 at 720p, so at 14px only a few events fit. A busy day must show what
+ * fits and fold the rest into "+N", never spill out of the cell, never scroll
+ * inside it, and never fold while there is room for another event.
+ */
+test.describe('3 Months folds a busy day', () => {
+  test('at 1080p and 720p a busy day shows "+N" and keeps every event inside its cell', async ({ playwright }, info) => {
+    test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a fresh-seeded DB');
+    test.setTimeout(180_000);
+    const parentId = getSeededParentId();
+    // One set of events for both sizes: creating events is rate limited per user.
+    const { browser, page } = await pointerPage(playwright, info, 1, { width: 1920, height: 1080 });
+    const login = await page.request.post('/api/auth/login', { data: { userId: parentId, pin: PIN } });
+    expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    // The 12th of the current month is always in the middle mini month. Six is
+    // more than a 1080p cell holds (four) and needs no other events that day.
+    const now = new Date();
+    const busyDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-12`;
+    const created: string[] = [];
+    try {
+      for (let i = 0; i < 6; i++) {
+        // In UTC, 07:00-12:30 on the 12th is the 12th in every zone CI uses: the
+        // runner and server in Tokyo, the browser in Chicago or Tokyo.
+        const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 7 + i));
+        const res = await page.request.post('/api/events', { data: {
+          title: `Busy day e2e ${i + 1}`,
+          startTime: start.toISOString(),
+          endTime: new Date(start.getTime() + 30 * 60_000).toISOString(),
+          allDay: false,
+          createdBy: parentId,
+        } });
+        expect(res.status()).toBe(201);
+        created.push((await res.json()).id);
+      }
+      for (const [width, height] of [[1920, 1080], [1280, 720]] as const) {
+        await page.setViewportSize({ width, height });
+        await openCalendarView(page, 'threeMonth');
+        // Found by date, not by title: at 720p the cell shows one event, and a
+        // seeded event that sorts first (all-day, or earlier) may take that spot.
+        const day = page.locator(`[data-three-month-day="${busyDate}"]`);
+        await expect(day, `${width}x${height}: the busy day`).toHaveCount(1);
+        // The cell is drawn before its events arrive: wait for the fold, or
+        // the measurement can run on an empty day.
+        await expect(day.locator('[data-day-overflow]'), `${width}x${height}: the busy day folds`).toBeVisible();
+        const box = await day.evaluate((cell) => {
+          const r = cell.getBoundingClientRect();
+          const chips = [...cell.querySelectorAll('li button')].map((b) => b.getBoundingClientRect());
+          const trigger = cell.querySelector('[data-day-overflow]');
+          const t = trigger?.getBoundingClientRect();
+          const list = trigger?.parentElement?.parentElement?.getBoundingClientRect();
+          return {
+            label: trigger?.textContent?.trim() ?? null,
+            name: trigger?.getAttribute('aria-label') ?? null,
+            triggerFont: trigger ? parseFloat(getComputedStyle(trigger).fontSize) : 0,
+            chips: chips.length,
+            chipHeight: chips.length ? Math.max(...chips.map((c) => c.height)) : 0,
+            spill: [...chips, ...(t ? [t] : [])].filter((c) => c.bottom > r.bottom + 0.5 || c.right > r.right + 0.5).length,
+            free: t && list ? list.bottom - t.bottom : 0,
+          };
+        });
+        const at = `${width}x${height}`;
+        expect(box.label, `${at}: a busy day folds into +N`).toMatch(/^\+\d+$/);
+        expect(box.name, `${at}: the short label keeps its full accessible name`).toMatch(/\d/);
+        expect(box.triggerFont, `${at}: +N at the floor`).toBeGreaterThanOrEqual(13.95);
+        expect(box.spill, `${at}: nothing drawn past the cell`).toBe(0);
+        // Shown plus folded is every event that day (6 added, plus any seeded).
+        expect(box.chips + Number(box.label!.slice(1))).toBeGreaterThanOrEqual(6);
+        // Folding only when out of room: the space left under the trigger is
+        // less than one more event would need.
+        if (box.chips > 0) expect(box.free, `${at}: folded with room to spare`).toBeLessThan(box.chipHeight);
+      }
+    } finally {
+      for (const id of created) await page.request.delete(`/api/events/${id}`);
+      await browser.close();
+    }
+  });
+});
+
+/**
+ * Busy days page on the wall (#801). On a dashboard calendar widget at wall
+ * width, a day with more events than fit shows a page of them with a "1/N"
+ * label and turns the page every 8 seconds, so every event gets on screen
+ * without anyone tapping. Checked in both display modes, since inline is the
+ * widget's default and cards is the other. The Calendar page keeps "+N more".
+ */
+test.describe('busy days page on the wall', () => {
+  test('a busy day in the widget pages through every event; the Calendar page still folds', async ({ playwright }, info) => {
+    test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a fresh-seeded DB');
+    test.setTimeout(120_000);
+    const parentId = getSeededParentId();
+    const { browser, page } = await pointerPage(playwright, info, 1, { width: 1920, height: 1080 });
+    const login = await page.request.post('/api/auth/login', { data: { userId: parentId, pin: PIN } });
+    expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    // The 12th of the current month is always in the month grid. Each project
+    // runs in parallel against one database, so the titles carry its name.
+    const now = new Date();
+    const busyDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-12`;
+    const tag = info.project.name;
+    // Six events exceed the measured capacity but keep the full page cycle short.
+    const titles = Array.from({ length: 6 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
+    const layout = await (await page.request.post('/api/layouts', {
+      // Month is unavailable below 24 grid rows; shorter cells silently fall
+      // back to Agenda and never render the day-page controls this checks.
+      data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 24 }] },
+    })).json();
+    try {
+      const fixtureEvents = titles.map((title, i) => {
+        // 06:00-11:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
+        const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6, i * 15));
+        return {
+          id: `busy-${tag}-${i}`,
+          title,
+          description: null,
+          location: null,
+          startTime: start.toISOString(),
+          endTime: new Date(start.getTime() + 30 * 60_000).toISOString(),
+          allDay: false,
+          recurring: false,
+          recurrenceRule: null,
+          color: '#3B82F6',
+          reminderMinutes: null,
+          calendarName: 'E2E fixtures',
+          calendarId: `busy-${tag}`,
+        };
+      });
+      // This is a widget rendering test, so supply deterministic event data at
+      // the browser boundary instead of exercising the unrelated POST quota,
+      // Redis cache, and database setup paths.
+      await mockCalendarEvents(page, fixtureEvents);
+      await page.clock.install({ time: now });
+      for (const mode of ['inline', 'cards'] as const) {
+        await page.addInitScript((m) => {
+          localStorage.setItem('prism-visible-widgets', JSON.stringify(['calendar']));
+          // Dashboard widgets persist preferences per widget instance.
+          localStorage.setItem('prism-calendar-view:calendar', 'month');
+          localStorage.setItem('prism-calendar-display-mode:calendar', m);
+        }, mode);
+        await page.goto(`/d/${layout.slug}`, { waitUntil: 'load', timeout: 30_000 });
+        const day = page.locator(`.widget-cell[data-widget="calendar"] [data-month-day="${busyDate}"]`);
+        await day.waitFor({ state: 'visible', timeout: 15_000 });
+        await expect(day.locator('button').filter({ hasText: 'Paged e2e' }).first()).toBeVisible({ timeout: 15_000 });
+        const dayState = await day.evaluate((cell) => {
+          const widget = cell.closest('.widget-cell')!;
+          const box = widget.getBoundingClientRect();
+          return {
+            eventCount: [...cell.querySelectorAll('button')].filter((button) => /Paged e2e/.test(button.textContent ?? '')).length,
+            overflow: cell.querySelector('[data-day-overflow]')?.textContent ?? null,
+            desktop: window.matchMedia('(min-width: 768px)').matches,
+            widgetHeight: Math.round(box.height),
+          };
+        });
+        console.log(`busy-day ${mode}: ${JSON.stringify(dayState)}`);
+        const label = day.locator('[data-day-page]');
+        await expect(label, `${mode}: the busy day pages`).toHaveAttribute('data-day-page', /^1\/\d+$/, { timeout: 15_000 });
+        const pages = Number((await label.getAttribute('data-day-page'))!.split('/')[1]);
+        expect(pages, `${mode}: more than one page`).toBeGreaterThan(1);
+        const seen = new Set<string>();
+        for (let p = 1; p <= pages; p++) {
+          await expect(label, `${mode}: page ${p}`).toHaveAttribute('data-day-page', `${p}/${pages}`);
+          const shot = await day.evaluate((cell) => {
+            const r = cell.getBoundingClientRect();
+            const rows = [...cell.querySelectorAll('button')].filter((b) => /Paged e2e/.test(b.textContent ?? ''));
+            return {
+              titles: rows.map((b) => (b.textContent ?? '').replace(/^.*?(Paged e2e)/, '$1').trim()),
+              spill: rows.filter((b) => { const x = b.getBoundingClientRect(); return x.bottom > r.bottom + 0.5 || x.right > r.right + 0.5; }).length,
+            };
+          });
+          expect(shot.spill, `${mode} page ${p}: nothing drawn past the cell`).toBe(0);
+          for (const t of shot.titles) seen.add(t);
+          // Jump to the next interval once. runFor fires every elapsed timer
+          // callback and can advance several pages while Playwright polls DOM.
+          await page.clock.fastForward(8_000);
+        }
+        expect(await label.getAttribute('data-day-page'), `${mode}: wraps to the first page`).toBe(`1/${pages}`);
+        for (const t of titles) expect([...seen].some((s) => s.startsWith(t)), `${mode}: "${t}" was on a page`).toBe(true);
+      }
+      // The Calendar page keeps "+N more": tapping is quicker there.
+      await openCalendarView(page, 'month');
+      const pageDay = page.locator(`[data-month-day="${busyDate}"]`);
+      await expect(pageDay.locator('[data-day-overflow]')).toBeVisible();
+      await expect(pageDay.locator('[data-day-page]')).toHaveCount(0);
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+      await browser.close();
+    }
+  });
+});
+
+/**
+ * Now & Next (#806). The events sit around the current time, so "today" is one
+ * day in any zone CI uses (Tokyo, Chicago). Using real time keeps the browser
+ * clock aligned with the server-rendered dashboard clock. Measured on a wall screen at 1080p:
+ * the lines say what is on and what is next, nothing is under the floor and
+ * nothing is drawn outside the widget.
+ */
+test.describe('Now & Next widget', () => {
+  test('shows the event in progress, the next one with its countdown, at the floor', async ({ playwright }, info) => {
+    test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a fresh-seeded DB');
+    test.setTimeout(120_000);
+    const { browser, page } = await pointerPage(playwright, info, 1, { width: 1920, height: 1080 });
+    const parentId = getSeededParentId();
+    const login = await page.request.post('/api/auth/login', { data: { userId: parentId, pin: PIN } });
+    expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    // Use real wall time: the dashboard's server-rendered clock is not affected
+    // by Playwright's browser-only clock, and must agree with the test events.
+    const T = new Date();
+    T.setSeconds(0, 0);
+    const timeUntilMidnight = (timeZone: string) => {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(T);
+      const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
+      const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
+      return 24 * 60 - (hour * 60 + minute);
+    };
+    const zones = new Set(['UTC', 'America/Chicago', 'Asia/Tokyo', info.project.use.timezoneId ?? 'UTC']);
+    const nextMinutes = Math.max(5, Math.min(90, ...[...zones].map((zone) => timeUntilMidnight(zone) - 2)));
+    const at = (min: number) => new Date(T.getTime() + min * 60_000).toISOString();
+    // Each project runs in parallel against one database: own titles.
+    const tag = `${info.project.name} ${Date.now()}`;
+    const nowTitle = `Now e2e lesson ${tag}`;
+    const nextTitle = `Next e2e practice ${tag}`;
+    const fixtureEvents = [[nowTitle, -720, 720], [nextTitle, nextMinutes, nextMinutes + 60]] as const;
+    const layout = await (await page.request.post('/api/layouts', {
+      data: { name: `Now next e2e ${Date.now()}`, widgets: [{ i: 'nowNext', x: 0, y: 0, w: 24, h: 8 }] },
+    })).json();
+    try {
+      const events = fixtureEvents.map(([title, start, end], index) => ({
+          id: `now-next-${info.project.name}-${index}`,
+          title,
+          description: null,
+          location: null,
+          startTime: at(start),
+          endTime: at(end),
+          allDay: false,
+          recurring: false,
+          recurrenceRule: null,
+          color: '#3B82F6',
+          reminderMinutes: null,
+          calendarName: 'E2E fixtures',
+          calendarId: `now-next-${info.project.name}`,
+        }));
+      await mockCalendarEvents(page, events);
+      await page.addInitScript(() => {
+        localStorage.setItem('prism-visible-widgets', JSON.stringify(['nowNext']));
+      });
+      await page.goto(`/d/${layout.slug}`, { waitUntil: 'load' });
+      const cell = page.locator('.widget-cell[data-widget="nowNext"]');
+      await expect(cell.locator('[data-now-next="now"]', { hasText: nowTitle })).toBeVisible({ timeout: 15_000 });
+      // The other project's events can be on too; the next one is still ours
+      // or its twin, both 90 minutes out.
+      await expect(cell.locator('[data-now-next="next"]')).toContainText('Next e2e practice');
+      const countdown = nextMinutes >= 60
+        ? `in ${Math.floor(nextMinutes / 60)} h${nextMinutes % 60 ? ` ${nextMinutes % 60} min` : ''}`
+        : `in ${nextMinutes} min`;
+      await expect(cell.locator('[data-now-next="next"]')).toContainText(countdown);
+      const { count, under } = await textUnder(page, 14, '.widget-cell[data-widget="nowNext"]');
+      expect(count).toBeGreaterThan(3);
+      expect(under, 'Now & Next text under 14px').toEqual([]);
+      const spill = await cell.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return [...el.querySelectorAll('[data-now-next]')].filter((l) => {
+          const b = l.getBoundingClientRect();
+          return b.bottom > r.bottom + 0.5 || b.right > r.right + 0.5;
+        }).length;
+      });
+      expect(spill, 'lines drawn outside the widget').toBe(0);
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+      await browser.close();
+    }
+  });
+});
+
+/**
+ * The clock fits its tile (#808 hero). A tablet is a touch screen at 1180px, so
+ * it gets the 20px wall root; at that size "4:10 PM" in a small tile wrapped
+ * onto two lines and the date ran out of the box. The clock now sizes from its
+ * own box, so the time stays on one line and both lines stay inside the tile.
+ */
+test.describe('clock fits its tile', () => {
+  for (const [label, viewport] of [
+    ['tablet', { width: 1180, height: 820 }],
+    ['wall', { width: 1920, height: 1080 }],
+  ] as const) {
+    test(`a small clock tile on a ${label} holds the time on one line and the date inside`, async ({ playwright }, info) => {
+      test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a fresh-seeded DB');
+      test.setTimeout(120_000);
+      // Blink bitmask: coarse=2, as a tablet reports.
+      const { browser, page } = await pointerPage(playwright, info, 2, viewport);
+      const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
+      expect(login.ok(), 'precondition: login must succeed').toBe(true);
+      const created = await page.request.post('/api/layouts', {
+        data: {
+          name: `Clock fit e2e ${Date.now()}`,
+          // About the hero's tablet tile (some 210px wide), where it overflowed.
+          widgets: [
+            { i: 'calendar', x: 0, y: 0, w: 24, h: 27 },
+            { i: 'clock', x: 24, y: 19, w: 7, h: 8 },
+          ],
+        },
+      });
+      expect(created.status()).toBe(201);
+      const layout = await created.json();
+      try {
+        await page.goto(`/d/${layout.slug}`, { waitUntil: 'networkidle' });
+        const cell = page.locator('.widget-cell[data-widget="clock"]');
+        await cell.waitFor({ timeout: 60_000 });
+        await page.waitForTimeout(1000);
+        expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), 'premise: coarse pointer').toBe(true);
+        const m = await cell.evaluate((el) => {
+          const box = el.getBoundingClientRect();
+          const [time, date] = (['[data-clock-time]', '[data-clock-date]'] as const).map((sel) => {
+            const t = el.querySelector(sel)!;
+            const r = t.getBoundingClientRect();
+            const cs = getComputedStyle(t);
+            return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height, line: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2, weight: cs.fontWeight };
+          });
+          return { box: { left: box.left, right: box.right, top: box.top, bottom: box.bottom }, time: time!, date: date! };
+        });
+        expect(m.time.height, 'time is one line').toBeLessThan(m.time.line * 1.5);
+        // A lock screen (#800): the date sits above the time, which is medium weight.
+        expect(m.date.bottom, 'date above the time').toBeLessThanOrEqual(m.time.top + 0.5);
+        expect(m.time.weight, 'time at medium weight').toBe('500');
+        for (const [name, r] of [['time', m.time], ['date', m.date]] as const) {
+          expect(r.left, `${name} inside on the left`).toBeGreaterThanOrEqual(m.box.left - 0.5);
+          expect(r.right, `${name} inside on the right`).toBeLessThanOrEqual(m.box.right + 0.5);
+          expect(r.top, `${name} inside at the top`).toBeGreaterThanOrEqual(m.box.top - 0.5);
+          expect(r.bottom, `${name} inside at the bottom`).toBeLessThanOrEqual(m.box.bottom + 0.5);
+        }
+      } finally {
+        await page.request.delete(`/api/layouts/${layout.id}`);
+        await browser.close();
+      }
+    });
+  }
 });

@@ -1,5 +1,8 @@
 'use client';
 
+import { useNow } from '@/lib/hooks/useNow';
+import { isInProgress } from '@/lib/calendar/nowNext';
+import { eventTintStyle } from '@/lib/design/eventStyle';
 import {
   format,
   isSameDay,
@@ -68,6 +71,10 @@ type AgendaRow = {
   title: string;
   subtitle?: string;
   muted?: boolean;
+  /** A timed event happening right now (#806): gets a "Now" tag. */
+  inProgress?: boolean;
+  /** Translated "Now", carried on the row so the item needs no hook. */
+  nowLabel?: string;
   pendingApproval?: boolean;
   onClick?: () => void;
 };
@@ -194,7 +201,7 @@ function AgendaDaySection({
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
   const isCurrentDay = isSameDay(date, toDisplayDate(new Date(), displayTimezone));
   const isNoSchool = !isCurrentDay && (isWeekend(date) || events.some(isNoSchoolEvent));
-  const rows = buildAgendaRows({ date, events, bucket, onEventClick, mealColor, onItemClick, timeFormat, displayTimezone, t });
+  const rows = buildAgendaRows({ now: new Date(), date, events, bucket, onEventClick, mealColor, onItemClick, timeFormat, displayTimezone, t });
   const displayRows = maxEvents > 0 ? rows.slice(0, maxEvents) : rows;
   const remainingCount = maxEvents > 0 ? rows.length - maxEvents : 0;
 
@@ -218,7 +225,7 @@ function AgendaDaySection({
           {formatAgendaDayHeader(date, displayTimezone, t, d)}
         </span>
         {isCurrentDay && (
-          <Badge className="text-[12px] px-1.5 py-0 bg-calendar-today text-foreground">
+          <Badge className="text-2xs px-1.5 py-0 bg-calendar-today text-foreground">
             {t('today')}
           </Badge>
         )}
@@ -248,7 +255,9 @@ function buildAgendaRows({
   timeFormat,
   displayTimezone,
   t,
+  now,
 }: {
+  now: Date;
   date: Date;
   events: CalendarEvent[];
   bucket?: DayBucket;
@@ -286,6 +295,8 @@ function buildAgendaRows({
           : t('continues'),
       title: event.title,
       subtitle: event.location,
+      inProgress: isInProgress(event, now),
+      nowLabel: t('now'),
       onClick: onEventClick ? () => onEventClick(event) : undefined,
     });
   }
@@ -404,8 +415,16 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
         />
       )}
       <div className="flex-1 min-w-0">
-        <div className={cn('text-xs', cards ? 'text-muted-foreground' : 'opacity-80')}>
-          {row.timeLabel}
+        <div className="flex items-center gap-1.5">
+          <span className={cn('text-xs', cards ? 'text-muted-foreground' : 'opacity-80')}>
+            {row.timeLabel}
+          </span>
+          {row.inProgress && (
+            // Solid fill with its own foreground: readable over glass (#891).
+            <span data-agenda-now className="rounded-full bg-primary px-1.5 py-px text-xs font-semibold leading-tight text-primary-foreground">
+              {row.nowLabel}
+            </span>
+          )}
         </div>
         <div className={cn('flex items-center gap-1 text-sm font-medium', cards ? 'text-foreground' : 'text-inherit', row.muted && 'line-through')}>
           {row.dragId?.startsWith('meal:') && (

@@ -64,6 +64,7 @@ const WIDGET_LABELS: Record<string, string> = {
   birthdays: 'BDY',
   photos: 'PHO',
   points: 'PTS',
+  nowNext: 'NOW',
 };
 
 /**

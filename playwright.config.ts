@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const port = process.env.PORT ?? '3005';
+const baseURL = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: './e2e',
   testIgnore: ['**/demos/**'],
@@ -11,7 +14,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3005',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -27,12 +30,16 @@ export default defineConfig({
     {
       name: 'chromium-chicago',
       testMatch: /calendar-geometry\.spec\.ts/,
+      // Keep the second zone on tests that exercise calendar day boundaries.
+      // Static geometry, text floors, and tile sizing are already covered in
+      // the default Chromium project and do not need a duplicate run.
+      grep: /3 Months folds a busy day|busy days page on the wall|Now & Next widget/,
       use: { ...devices['Desktop Chrome'], timezoneId: 'America/Chicago' },
     },
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3005',
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
   },
 });

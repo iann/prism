@@ -11,6 +11,8 @@ export type WeekItemSize = 'xs' | 'sm' | 'md' | 'lg';
 export type WeekItemLayout = 'column' | 'row';
 
 interface WeekItemCardProps {
+  /** Extra classes on the card, such as the page-turn fade (#801). */
+  className?: string;
   variant: WeekItemVariant;
   /** Hex or CSS color used for the left stripe and (optionally) icon tint */
   stripeColor: string;
@@ -78,18 +80,18 @@ const SIZE_STYLES: Record<WeekItemSize, {
 }> = {
   xs: {
     padding: 'py-0.5 pr-1',
-    titleText: 'text-[12px] leading-tight',
+    titleText: 'text-2xs leading-tight',
     titleWeight: 'font-semibold',
-    metaText: 'text-[12px] leading-tight',
+    metaText: 'text-2xs leading-tight',
     stripeWidth: 'w-0.5',
     showSubtitle: false,
     showTime: false,
   },
   sm: {
     padding: 'py-1 pr-1.5',
-    titleText: 'text-[12px] leading-tight',
+    titleText: 'text-2xs leading-tight',
     titleWeight: 'font-semibold',
-    metaText: 'text-[12px] leading-tight',
+    metaText: 'text-2xs leading-tight',
     stripeWidth: 'w-[3px]',
     showSubtitle: false,
     showTime: true,
@@ -98,7 +100,7 @@ const SIZE_STYLES: Record<WeekItemSize, {
     padding: 'py-1.5 pr-2',
     titleText: 'text-xs leading-tight',
     titleWeight: 'font-semibold',
-    metaText: 'text-[12px] leading-tight',
+    metaText: 'text-2xs leading-tight',
     stripeWidth: 'w-[5px]',
     showSubtitle: true,
     showTime: true,
@@ -141,6 +143,7 @@ export function WeekItemCard({
   dragId,
   size = 'md',
   layout = 'column',
+  className,
 }: WeekItemCardProps) {
   const draggable = useDraggable({
     id: dragId ?? `__static__:${variant}:${title}`,
@@ -197,6 +200,7 @@ export function WeekItemCard({
           muted && 'opacity-60',
           subdued && 'opacity-55 saturate-[0.65]',
           styles.padding,
+          className,
         )}
       >
         {pendingApproval && (
@@ -246,6 +250,7 @@ export function WeekItemCard({
         draggable.isDragging && 'opacity-60 ring-2 ring-seasonal-accent shadow-xl',
         muted && 'opacity-60',
         subdued && 'opacity-55 saturate-[0.65]',
+        className,
       )}
     >
       {pendingApproval && (

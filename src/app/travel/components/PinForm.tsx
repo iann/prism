@@ -298,7 +298,7 @@ export function PinForm({ pin, initialLatLng, parentId, pinType = 'location', ch
                       >
                         <span className={cn('h-4 w-4 rounded border flex items-center justify-center shrink-0',
                           sel ? 'bg-success border-success' : 'border-border')}>
-                          {sel && <span className="text-white text-[10px] leading-none">✓</span>}
+                          {sel && <span className="text-white text-3xs leading-none">✓</span>}
                         </span>
                         <span className="flex-1 truncate">{u.name}</span>
                         <span className="text-[12px] text-muted-foreground uppercase shrink-0">
@@ -539,7 +539,7 @@ export function PinForm({ pin, initialLatLng, parentId, pinType = 'location', ch
                         >
                           <span className={cn('h-4 w-4 rounded border flex items-center justify-center shrink-0',
                             selected ? 'bg-success border-success' : 'border-border')}>
-                            {selected && <span className="text-white text-[10px] leading-none">✓</span>}
+                            {selected && <span className="text-white text-3xs leading-none">✓</span>}
                           </span>
                           <span className="flex-1 truncate">{u.name}</span>
                           <span className="text-[12px] text-muted-foreground uppercase shrink-0">

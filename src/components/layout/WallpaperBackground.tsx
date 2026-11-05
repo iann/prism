@@ -5,6 +5,8 @@ import { usePhotos } from '@/lib/hooks/usePhotos';
 import { usePerformanceLevel } from '@/lib/hooks/usePerformanceMode';
 import { useHydrated } from '@/lib/hooks/useStoredValue';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
+import { SCENERY } from '@/lib/scenery';
+import { useSceneryOn } from '@/lib/hooks/useSceneryOn';
 
 const STORAGE_KEY = 'prism-wallpaper-enabled';
 const INTERVAL_KEY = 'prism-wallpaper-interval';
@@ -133,6 +135,17 @@ export function usePinnedPhoto(context: 'wallpaper' | 'screensaver') {
   return { pinnedId, setPinnedId };
 }
 
+/** What to show: wallpaper photos added to Prism, or the bundled scenery when there are none. */
+export function wallpaperPool(
+  photos: Array<{ id: string }>,
+  photosLoading: boolean,
+  sceneryOn: boolean,
+): { items: Array<{ id: string; src: string }>; scenery: boolean } {
+  if (photos.length > 0) return { items: photos.map((p) => ({ id: p.id, src: `/api/photos/${p.id}/file` })), scenery: false };
+  if (sceneryOn && !photosLoading) return { items: SCENERY.map((s) => ({ id: s.id, src: s.src })), scenery: true };
+  return { items: [], scenery: false };
+}
+
 export function WallpaperBackground() {
   const { enabled, interval } = useWallpaperSettings();
   // Minimal is the level that shows a single static photo (see perfLevel.ts).
@@ -146,7 +159,7 @@ export function WallpaperBackground() {
   // Fetch all wallpaper photos, then PREFER the ones matching this screen's
   // orientation — but fall back to any photo when none match, so a display whose
   // orientation has no photos still shows a wallpaper instead of going blank.
-  const { photos: allPhotos } = usePhotos({
+  const { photos: allPhotos, loading: photosLoading } = usePhotos({
     sort: 'random',
     limit: performanceMode ? 1 : 40,
     usage: 'wallpaper',
@@ -169,8 +182,10 @@ export function WallpaperBackground() {
     setBrokenIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   }, []);
 
-  const usePinned = !!pinnedId && !brokenIds.has(pinnedId);
-  const pool = photos.filter((p) => !brokenIds.has(p.id));
+  const sceneryOn = useSceneryOn();
+  const { items, scenery } = wallpaperPool(photos, photosLoading, sceneryOn);
+  const usePinned = !scenery && !!pinnedId && !brokenIds.has(pinnedId);
+  const pool = items.filter((p) => !brokenIds.has(p.id));
 
   // Rotate photos (only if no pinned photo and interval is not "never")
   useEffect(() => {
@@ -214,8 +229,11 @@ export function WallpaperBackground() {
           opacity: fadingOut ? 0 : 1,
         }}
       />
-      {/* Dark overlay to keep widgets readable */}
-      <div className="absolute inset-0 bg-black/60 dark:bg-black/70" />
+      {/* Black layer that keeps widgets readable, PHOTO_DIM in
+          src/lib/design/tokens.ts (a test holds these classes to it). The
+          bundled scenery is shown with glass widgets, so it is only lightly
+          dimmed and the photo shows. */}
+      <div className={scenery ? 'absolute inset-0 bg-black/10 dark:bg-black/40' : 'absolute inset-0 bg-black/60 dark:bg-black/70'} />
     </div>
   );
 }

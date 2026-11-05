@@ -56,7 +56,7 @@ import { DemoBanner } from '@/components/layout/DemoBanner';
 
 // Toast notifications
 import { Toaster } from '@/components/ui/toaster';
-import { getServerTheme } from '@/lib/themes/serverTheme';
+import { getServerTheme, getServerDefaultMode, firstPaintScript } from '@/lib/themes/serverTheme';
 import { themeCss } from '@/lib/themes/applyTheme';
 import { PERF_CLASS_SCRIPT } from '@/lib/perfLevel';
 
@@ -221,7 +221,7 @@ export default async function RootLayout({
   // already the right palette. A wall display reloads on its own; a flash of
   // the default colours on every reload is the most visible thing about
   // theming, and it reads as a fault.
-  const { theme, persisted: hasPersistedPalette } = await getServerTheme();
+  const [{ theme, persisted: hasPersistedPalette }, defaultMode] = await Promise.all([getServerTheme(), getServerDefaultMode()]);
 
   return (
     <html
@@ -276,7 +276,7 @@ export default async function RootLayout({
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('prism-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');${PERF_CLASS_SCRIPT}}catch(e){}})()`,
+            __html: firstPaintScript(defaultMode, PERF_CLASS_SCRIPT),
           }}
         />
       </head>
