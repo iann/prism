@@ -1,4 +1,5 @@
 import { test, expect, type Page, type TestInfo, type BrowserType, type Response } from '@playwright/test';
+import { createClient } from 'redis';
 import { getSeededParentId } from './helpers/auth';
 
 /**
@@ -299,21 +300,14 @@ async function pointerPage(
   return { browser, page: await context.newPage() };
 }
 
-/**
- * Create an event, waiting out the per-user rate limit (30 a minute). Both
- * browser projects create events for the same seeded parent at about the same
- * time, so a run can hit the limit through no fault of the code under test.
- */
-async function postEvent(page: Page, data: Record<string, unknown>) {
-  for (;;) {
-    const res = await page.request.post('/api/events', { data });
-    if (res.status() !== 429) return res;
-    // Several geometry cases share one seeded account, and Chromium plus
-    // chromium-chicago share the same Redis-backed 30/minute quota. Wait for
-    // the fixed window to actually expire before retrying; a capped retry
-    // count can make the fixture fail before its first assertion runs.
-    const retryAfter = Number(res.headers()['retry-after'] ?? '60');
-    await page.waitForTimeout((Math.max(retryAfter, 1) + 1) * 1000);
+/** Reset only this isolated test user's event quota before bulk fixture creation. */
+async function resetEventRateLimit(userId: string) {
+  const client = createClient({ url: process.env.REDIS_URL });
+  await client.connect();
+  try {
+    await client.del(`ratelimit:${userId}:events`);
+  } finally {
+    await client.quit();
   }
 }
 
@@ -415,6 +409,7 @@ test.describe('3 Months folds a busy day', () => {
     const { browser, page } = await pointerPage(playwright, info, 1, { width: 1920, height: 1080 });
     const login = await page.request.post('/api/auth/login', { data: { userId: parentId, pin: PIN } });
     expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    await resetEventRateLimit(parentId);
     // The 12th of the current month is always in the middle mini month. Six is
     // more than a 1080p cell holds (four) and needs no other events that day.
     const now = new Date();
@@ -425,13 +420,13 @@ test.describe('3 Months folds a busy day', () => {
         // In UTC, 07:00-12:30 on the 12th is the 12th in every zone CI uses: the
         // runner and server in Tokyo, the browser in Chicago or Tokyo.
         const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 7 + i));
-        const res = await postEvent(page, {
+        const res = await page.request.post('/api/events', { data: {
           title: `Busy day e2e ${i + 1}`,
           startTime: start.toISOString(),
           endTime: new Date(start.getTime() + 30 * 60_000).toISOString(),
           allDay: false,
           createdBy: parentId,
-        });
+        } });
         expect(res.status()).toBe(201);
         created.push((await res.json()).id);
       }
@@ -494,6 +489,7 @@ test.describe('busy days page on the wall', () => {
     const { browser, page } = await pointerPage(playwright, info, 1, { width: 1920, height: 1080 });
     const login = await page.request.post('/api/auth/login', { data: { userId: parentId, pin: PIN } });
     expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    await resetEventRateLimit(parentId);
     // The 12th of the current month is always in the month grid. Each project
     // runs in parallel against one database, so the titles carry its name.
     const now = new Date();
@@ -510,7 +506,7 @@ test.describe('busy days page on the wall', () => {
       for (const [i, title] of titles.entries()) {
         // 06:00-08:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
         const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6, i * 15));
-        const res = await postEvent(page, { title, startTime: start.toISOString(), endTime: new Date(start.getTime() + 30 * 60_000).toISOString(), allDay: false, createdBy: parentId });
+        const res = await page.request.post('/api/events', { data: { title, startTime: start.toISOString(), endTime: new Date(start.getTime() + 30 * 60_000).toISOString(), allDay: false, createdBy: parentId } });
         expect(res.status()).toBe(201);
         created.push((await res.json()).id);
       }
@@ -621,7 +617,7 @@ test.describe('Now & Next widget', () => {
     })).json();
     try {
       for (const [title, start, end] of [[nowTitle, -720, 720], [nextTitle, nextMinutes, nextMinutes + 60]] as const) {
-        const res = await postEvent(page, { title, startTime: at(start), endTime: at(end), allDay: false, createdBy: parentId });
+        const res = await page.request.post('/api/events', { data: { title, startTime: at(start), endTime: at(end), allDay: false, createdBy: parentId } });
         expect(res.status()).toBe(201);
         created.push((await res.json()).id);
       }
