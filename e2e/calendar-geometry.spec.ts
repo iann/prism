@@ -499,9 +499,8 @@ test.describe('busy days page on the wall', () => {
     const now = new Date();
     const busyDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-12`;
     const tag = info.project.name;
-    // Keep the widget compact so a deliberately busy day exceeds its cell
-    // capacity in both inline and cards modes.
-    const titles = Array.from({ length: 6 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
+    // Use enough events to exceed the capacity of a month-capable wall cell.
+    const titles = Array.from({ length: 24 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
     const layout = await (await page.request.post('/api/layouts', {
       // Month is unavailable below 24 grid rows; shorter cells silently fall
       // back to Agenda and never render the day-page controls this checks.
@@ -509,7 +508,7 @@ test.describe('busy days page on the wall', () => {
     })).json();
     try {
       const fixtureEvents = titles.map((title, i) => {
-        // 06:00-08:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
+        // 06:00-11:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
         const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6, i * 15));
         return {
           id: `busy-${tag}-${i}`,
