@@ -301,6 +301,23 @@ async function pointerPage(
 
 /** Keep widget rendering fixtures independent of the events API write quota and database. */
 async function mockCalendarEvents(page: Page, events: Array<Record<string, unknown>>) {
+  await page.route('**/api/calendars**', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ calendars: [{
+        id: 'e2e-calendar',
+        provider: 'google',
+        dashboardCalendarName: 'E2E fixtures',
+        displayName: 'E2E fixtures',
+        color: '#3B82F6',
+        enabled: true,
+        lastSynced: new Date().toISOString(),
+        userId: null,
+      }] }),
+    });
+  });
   await page.route('**/api/events**', async (route) => {
     if (route.request().method() !== 'GET') return route.continue();
     return route.fulfill({
