@@ -505,10 +505,22 @@ test.describe('busy days page on the wall', () => {
           localStorage.setItem('prism-calendar-view', 'month');
           localStorage.setItem('prism-calendar-display-mode', m);
         }, mode);
+        const eventsResponse = mode === 'inline'
+          ? page.waitForResponse((response) => {
+              const url = new URL(response.url());
+              return url.pathname === '/api/events' && response.request().method() === 'GET';
+            }, { timeout: 15_000 })
+          : null;
         await page.goto(`/d/${layout.slug}`, { waitUntil: 'load' });
+        if (eventsResponse) {
+          const fetchedEvents = await (await eventsResponse).json();
+          expect(fetchedEvents.events.map((event: { title: string }) => event.title)).toEqual(
+            expect.arrayContaining(titles),
+          );
+        }
         const day = page.locator(`.widget-cell[data-widget="calendar"] [data-month-day="${busyDate}"]`);
         const label = day.locator('[data-day-page]');
-        await expect(label, `${mode}: the busy day pages`).toHaveAttribute('data-day-page', /^1\/\d+$/, { timeout: 60_000 });
+        await expect(label, `${mode}: the busy day pages`).toHaveAttribute('data-day-page', /^1\/\d+$/, { timeout: 15_000 });
         const pages = Number((await label.getAttribute('data-day-page'))!.split('/')[1]);
         expect(pages, `${mode}: more than one page`).toBeGreaterThan(1);
         const seen = new Set<string>();
@@ -576,9 +588,17 @@ test.describe('Now & Next widget', () => {
         created.push((await res.json()).id);
       }
       await page.clock.setFixedTime(T);
+      const eventsResponse = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === '/api/events' && response.request().method() === 'GET';
+      }, { timeout: 15_000 });
       await page.goto(`/d/${layout.slug}`, { waitUntil: 'load' });
+      const fetchedEvents = await (await eventsResponse).json();
+      expect(fetchedEvents.events.map((event: { title: string }) => event.title)).toEqual(
+        expect.arrayContaining([nowTitle, nextTitle]),
+      );
       const cell = page.locator('.widget-cell[data-widget="nowNext"]');
-      await expect(cell.locator('[data-now-next="now"]', { hasText: nowTitle })).toBeVisible({ timeout: 60_000 });
+      await expect(cell.locator('[data-now-next="now"]', { hasText: nowTitle })).toBeVisible({ timeout: 15_000 });
       // The other project's events can be on too; the next one is still ours
       // or its twin, both 90 minutes out.
       await expect(cell.locator('[data-now-next="next"]')).toContainText('Next e2e practice');
