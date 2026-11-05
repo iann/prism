@@ -137,7 +137,8 @@ async function expectPainted(page: Page, marker?: Locator) {
  * The widgets fetch after the layout does, and `networkidle` can be reached in
  * the gap between the two: a baseline captured there is a wall of placeholder
  * bars. The Tasks tile is the marker because the seeded dashboard always has
- * one; the rest start with it, and the extra beat lets them paint too.
+ * one. Other widgets can still be loading after Tasks has data, so wait for
+ * every widget cell to leave its skeleton state.
  */
 async function waitForDashboardWidgets(page: Page) {
   // The grid itself renders after the layouts request, so the cell can still be
@@ -147,10 +148,9 @@ async function waitForDashboardWidgets(page: Page) {
     () => {
       const cell = document.querySelector('.widget-cell[data-widget="tasks"]');
       if (!cell) return false;
-      // The cell exists before the widget's own data arrives, and the skeleton
-      // can be mounted a beat later — require both the rows and the text.
       const text = (cell.textContent ?? '').trim();
-      return text.length > 20 && !cell.querySelector('.animate-pulse');
+      const cells = [...document.querySelectorAll('.widget-cell')];
+      return text.length > 20 && cells.length > 0 && cells.every((item) => !item.querySelector('.animate-pulse'));
     },
     null,
     { timeout: 30_000 },
