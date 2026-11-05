@@ -1,5 +1,5 @@
 import { test, expect, type Page, type TestInfo, type BrowserType, type Response } from '@playwright/test';
-import { createClient } from 'redis';
+import { execFileSync } from 'node:child_process';
 import { getSeededParentId } from './helpers/auth';
 
 /**
@@ -302,13 +302,8 @@ async function pointerPage(
 
 /** Reset only this isolated test user's event quota before bulk fixture creation. */
 async function resetEventRateLimit(userId: string) {
-  const client = createClient({ url: process.env.REDIS_URL });
-  await client.connect();
-  try {
-    await client.del(`ratelimit:${userId}:events`);
-  } finally {
-    await client.quit();
-  }
+  if (!process.env.REDIS_URL) throw new Error('REDIS_URL is required for event fixtures');
+  execFileSync('redis-cli', ['-u', process.env.REDIS_URL, 'DEL', `ratelimit:${userId}:events`], { stdio: 'pipe', timeout: 5_000 });
 }
 
 function isDashboardEventsResponse(response: Response) {
@@ -497,16 +492,16 @@ test.describe('busy days page on the wall', () => {
     const tag = info.project.name;
     // Keep the widget compact so a deliberately busy day exceeds its cell
     // capacity in both inline and cards modes.
-    const titles = Array.from({ length: 12 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
+    const titles = Array.from({ length: 6 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
     const created: string[] = [];
     const layout = await (await page.request.post('/api/layouts', {
-      data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 12 }] },
+      data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 8 }] },
     })).json();
     try {
       for (const [i, title] of titles.entries()) {
         // 06:00-08:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
         const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6, i * 15));
-        const res = await page.request.post('/api/events', { data: { title, startTime: start.toISOString(), endTime: new Date(start.getTime() + 30 * 60_000).toISOString(), allDay: false, createdBy: parentId } });
+        const res = await page.request.post('/api/events', { data: { title, startTime: start.toISOString(), endTime: new Date(start.getTime() + 30 * 60_000).toISOString(), allDay: false, createdBy: parentId }, timeout: 15_000 });
         expect(res.status()).toBe(201);
         created.push((await res.json()).id);
       }
