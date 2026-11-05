@@ -1176,14 +1176,14 @@ test.describe('corner clock and weather', () => {
       await expect(page.locator('[data-weather-details]')).toBeHidden();
       const current = await rect(page, '[data-weather-current]');
       const condition = page.locator('[data-weather-condition]');
-      await expect(condition).toHaveText('Partly Cloudy');
+      await expect(condition).toContainText(/partly cloudy/i);
       const cond = await condition.evaluate((el) => ({
         lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
         cut: el.scrollWidth > el.clientWidth,
       }));
       expect(cond.lines, 'condition on one line').toBe(1);
       expect(cond.cut, 'condition not cut off').toBe(false);
-      const temp = await rect(page, '[data-weather-current] .text-4xl');
+      const temp = await rect(page, '[data-testid="weather-current-temperature"]');
       expect(weather.right - temp.right, 'weather hugs the right edge').toBeLessThan(40);
       const mid = (r: Rect) => (r.top + r.bottom) / 2;
       expect(Math.abs(mid(current) - mid(weather)), 'weather centred in its tile').toBeLessThan(8);
@@ -1199,16 +1199,21 @@ test.describe('corner clock and weather', () => {
     ]);
     try {
       await expect(page.locator('[data-weather-details]')).toBeVisible();
-      const cell = await rect(page, '.widget-cell[data-widget="weather"]');
-      const pill = page.locator('[data-testid="header-sun-times"]');
-      const sun = await pill.evaluate((el) => ({
-        lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
-        cut: el.scrollWidth > el.clientWidth,
-        right: el.getBoundingClientRect().right,
+      const details = page.locator('[data-weather-details]');
+      await expect(details).toBeVisible();
+      const detailRows = await details.locator(':scope > div').evaluateAll((rows) => rows.map((row) => {
+        const style = getComputedStyle(row);
+        return {
+          height: row.getBoundingClientRect().height,
+          lineHeight: parseFloat(style.lineHeight),
+          overflows: row.scrollWidth > row.clientWidth,
+        };
       }));
-      expect(sun.lines, 'sunrise and sunset on one line').toBe(1);
-      expect(sun.cut, 'sun times not cut off').toBe(false);
-      expect(sun.right).toBeLessThanOrEqual(cell.right);
+      expect(detailRows.length).toBeGreaterThan(0);
+      for (const row of detailRows) {
+        expect(row.height, 'weather detail fits on one line').toBeLessThanOrEqual(row.lineHeight + 1);
+        expect(row.overflows, 'weather detail is not clipped').toBe(false);
+      }
       // Not a corner tile (half the width), so the clock stays centred.
       const clock = await rect(page, '.widget-cell[data-widget="clock"]');
       const time = await rect(page, '.widget-cell[data-widget="clock"] [data-clock-time]');

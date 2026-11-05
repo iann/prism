@@ -533,6 +533,11 @@ export const WeatherWidget = React.memo(function WeatherWidget({
   });
   // Only the days that fit as whole rows (see maxDayRows above).
   const shownForecast = visibleForecast.slice(0, maxDayRows);
+  // Compact corner tiles with no forecast rows have only current conditions;
+  // use the available tile height to centre that summary beside a clock.
+  const currentOnly =
+    !(showHourly && weatherData.hourly && weatherData.hourly.length > 0) &&
+    !(showForecast && shownForecast.length > 0);
 
   const hasDays = weatherData.forecast.length > 0;
 
@@ -555,7 +560,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
       error={error}
       className={className}
     >
-      <div className={cn('flex flex-col gap-3 h-full overflow-hidden', isVertical ? 'pb-2' : '')}>
+      <div className={cn('flex flex-col gap-3 h-full overflow-hidden', isVertical ? 'pb-2' : '', currentOnly && 'justify-center')}>
 
         {/* CURRENT CONDITIONS */}
         <CurrentConditions
@@ -778,12 +783,12 @@ function CurrentConditions({
     <div
       data-weather-current
       data-testid="weather-current-header"
-      className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3"
+      className="@container grid grid-cols-1 items-start gap-x-3 @min-[32rem]:grid-cols-[minmax(0,1fr)_auto]"
     >
       {/* Keep both columns top-aligned, with compact, consistent line spacing
           inside each stack so the header does not grow around the large temp. */}
       <div className="min-w-0">
-        <div className="flex items-center gap-3 in-data-[corner=right]:justify-end">
+        <div className="flex min-w-0 items-center gap-3 in-data-[corner=right]:justify-end">
           <WeatherIcon
             condition={weather.condition}
             className={`h-10 w-10 shrink-0 ${conditionIconClass(weather.condition)}`}
@@ -819,8 +824,9 @@ function CurrentConditions({
                 current description here as well repeats copy such as
                 "Partly cloudy" / "Partly cloudy tonight." */}
             <div
+              data-weather-condition
               data-testid="weather-day-summary"
-              className="mt-1 whitespace-normal break-words text-lg leading-6 text-muted-foreground"
+              className="mt-1 truncate whitespace-nowrap text-sm leading-5 text-muted-foreground @min-[32rem]:whitespace-normal @min-[32rem]:text-lg @min-[32rem]:leading-6"
             >
               {daySummary}
             </div>
@@ -850,8 +856,9 @@ function CurrentConditions({
 
       {/* Right: current stats */}
       <div
+        data-weather-details
         data-testid="weather-current-stats"
-        className="flex flex-col items-end gap-1.5 pt-0.5 text-right text-[14px] leading-5 text-muted-foreground"
+        className="hidden flex-col items-end gap-1.5 pt-0.5 text-right text-[14px] leading-5 text-muted-foreground @min-[32rem]:flex"
       >
         <div data-testid="weather-humidity-dewpoint" className="flex items-center justify-end gap-2">
           <div className="flex items-center gap-1">

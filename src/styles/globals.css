@@ -303,6 +303,25 @@ html.performance-mode {
   --ds-glass-alpha: 0.94;
 }
 
+/* In calm mode, glass widgets that remain visible sit directly on the photo.
+   Keep their text legible while clearing nested card fills and shadows. */
+.widget-cell.idle-clear {
+  --foreground: 0 0% 100%;
+  --card-foreground: 0 0% 100%;
+  --muted-foreground: 0 0% 90%;
+  --background: 0 0% 0%;
+  --primary: 0 0% 100%;
+  color: hsl(var(--foreground));
+  text-shadow: var(--ds-idle-text-shadow);
+}
+.widget-cell.idle-clear .text-transparent { text-shadow: none; }
+.widget-cell.idle-clear *:not([data-keep-bg]) {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.widget-cell.idle-clear svg { filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5)); }
+
 @layer base {
   *,
   ::after,
