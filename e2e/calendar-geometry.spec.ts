@@ -495,16 +495,16 @@ test.describe('busy days page on the wall', () => {
     const now = new Date();
     const busyDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-12`;
     const tag = info.project.name;
-    // Keep the widget half-height so a deliberately busy day exceeds its cell
+    // Keep the widget compact so a deliberately busy day exceeds its cell
     // capacity in both inline and cards modes.
-    const titles = Array.from({ length: 8 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
+    const titles = Array.from({ length: 12 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
     const created: string[] = [];
     const layout = await (await page.request.post('/api/layouts', {
-      data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 16 }] },
+      data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 12 }] },
     })).json();
     try {
       for (const [i, title] of titles.entries()) {
-        // 06:00-07:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
+        // 06:00-08:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
         const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6, i * 15));
         const res = await postEvent(page, { title, startTime: start.toISOString(), endTime: new Date(start.getTime() + 30 * 60_000).toISOString(), allDay: false, createdBy: parentId });
         expect(res.status()).toBe(201);
@@ -528,6 +528,17 @@ test.describe('busy days page on the wall', () => {
           );
         }
         const day = page.locator(`.widget-cell[data-widget="calendar"] [data-month-day="${busyDate}"]`);
+        const dayState = await day.evaluate((cell) => {
+          const widget = cell.closest('.widget-cell')!;
+          const box = widget.getBoundingClientRect();
+          return {
+            eventCount: [...cell.querySelectorAll('button')].filter((button) => /Paged e2e/.test(button.textContent ?? '')).length,
+            overflow: cell.querySelector('[data-day-overflow]')?.textContent ?? null,
+            desktop: window.matchMedia('(min-width: 768px)').matches,
+            widgetHeight: Math.round(box.height),
+          };
+        });
+        console.log(`busy-day ${mode}: ${JSON.stringify(dayState)}`);
         const label = day.locator('[data-day-page]');
         await expect(label, `${mode}: the busy day pages`).toHaveAttribute('data-day-page', /^1\/\d+$/, { timeout: 15_000 });
         const pages = Number((await label.getAttribute('data-day-page'))!.split('/')[1]);
