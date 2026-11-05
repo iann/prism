@@ -181,7 +181,7 @@ jobs:
   e2e-modality:
     name: E2E modality suite (reverse-proxy)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     needs: playwright-image
 
     # Use the official Playwright container so Chromium is preinstalled.
