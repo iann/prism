@@ -388,7 +388,7 @@ export function DisplaysSection() {
                   </form>
                 ) : (
                   <>
-                    <div className="min-w-0 basis-full sm:basis-0 sm:flex-1 sm:min-w-[12rem]">
+                    <div className="min-w-0 basis-full md:landscape:basis-0 md:landscape:flex-1 md:landscape:min-w-[12rem]">
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="min-w-0 flex-1 truncate font-medium">{d.name}</span>
                         {d.id === currentId && <Badge variant="secondary">This screen</Badge>}
