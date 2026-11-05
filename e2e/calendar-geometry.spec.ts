@@ -305,11 +305,15 @@ async function pointerPage(
  * time, so a run can hit the limit through no fault of the code under test.
  */
 async function postEvent(page: Page, data: Record<string, unknown>) {
-  for (let attempt = 0; ; attempt++) {
+  for (;;) {
     const res = await page.request.post('/api/events', { data });
-    if (res.status() !== 429 || attempt >= 3) return res;
-    const wait = Number(res.headers()['retry-after'] ?? '20');
-    await page.waitForTimeout(Math.min(Math.max(wait, 1), 65) * 1000);
+    if (res.status() !== 429) return res;
+    // Several geometry cases share one seeded account, and Chromium plus
+    // chromium-chicago share the same Redis-backed 30/minute quota. Wait for
+    // the fixed window to actually expire before retrying; a capped retry
+    // count can make the fixture fail before its first assertion runs.
+    const retryAfter = Number(res.headers()['retry-after'] ?? '60');
+    await page.waitForTimeout((Math.max(retryAfter, 1) + 1) * 1000);
   }
 }
 
