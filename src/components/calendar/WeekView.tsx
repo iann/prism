@@ -256,14 +256,14 @@ export function WeekView({
                             }
                       }
                     >
-                      <span className={cn('truncate w-full text-[12px] font-medium leading-tight', cards && 'text-foreground')}>{event.title}</span>
+                      <span className={cn('truncate w-full text-3xs font-medium leading-tight', cards && 'text-foreground')}>{event.title}</span>
                       {contentVisibility.showTime && (
-                        <span className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
+                        <span className={cn('text-4xs leading-tight truncate w-full', cards && 'text-muted-foreground')}>
                           {formatDisplayTimeRange(event.startTime, event.endTime ?? new Date(event.startTime.getTime() + 3600000), timeFormat, displayTimezone)}
                         </span>
                       )}
                       {contentVisibility.showDetails && (event.location || event.calendarName) && (
-                        <span className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
+                        <span className={cn('text-4xs leading-tight truncate w-full', cards && 'text-muted-foreground')}>
                           {event.location || event.calendarName}
                         </span>
                       )}
@@ -305,7 +305,7 @@ export function WeekView({
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="text-[12px] text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
+                  className="text-4xs text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
                 >
                   {formatDisplayHour(new Date().setHours(hour, 0), timeFormat, { compact: true })}
                 </div>
@@ -322,7 +322,7 @@ export function WeekView({
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="text-[12px] text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
+                  className="text-4xs text-muted-foreground text-right pl-0.5 pr-0.5 border-t border-transparent flex items-start"
                 >
                   {formatDisplayHour(new Date().setHours(hour, 0), timeFormat, { compact: true })}
                 </div>
@@ -430,7 +430,7 @@ export function WeekView({
                           key={event.id}
                           onClick={() => onEventClick(event)}
                           className={cn(
-                           'w-full text-left text-[12px] font-medium px-1 py-px rounded truncate hover:opacity-80 transition-all leading-tight',
+                            'w-full text-left text-3xs font-medium px-1 py-px rounded truncate hover:opacity-80 transition-all leading-tight',
                            cards && 'bg-calendar-surface border border-border shadow-sm',
                           )}
                           style={
@@ -536,14 +536,14 @@ export function WeekView({
                                     }
                               }
                             >
-                              <div className={cn('font-medium truncate w-full text-[12px] leading-tight', cards && 'text-foreground')}>{event.title}</div>
+                              <div className={cn('font-medium truncate w-full text-3xs leading-tight', cards && 'text-foreground')}>{event.title}</div>
                               {contentVisibility.showTime && (
-                                <div className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
+                                <div className={cn('text-4xs leading-tight truncate w-full', cards && 'text-muted-foreground')}>
                                   {formatDisplayTimeRange(event.startTime, event.endTime ?? new Date(event.startTime.getTime() + 3600000), timeFormat, displayTimezone)}
                                 </div>
                               )}
                               {contentVisibility.showDetails && (event.location || event.calendarName) && (
-                                <div className={cn('text-[12px] leading-tight truncate w-full', cards && 'text-muted-foreground')}>
+                                <div className={cn('text-4xs leading-tight truncate w-full', cards && 'text-muted-foreground')}>
                                   {event.location || event.calendarName}
                                 </div>
                               )}

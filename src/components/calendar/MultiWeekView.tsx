@@ -315,7 +315,7 @@ function DayCell({
           <span
             className={cn(
               'font-medium leading-none truncate',
-              compact ? 'text-[12px]' : 'text-xs',
+              compact ? 'text-2xs' : 'text-xs',
               today ? 'font-semibold text-foreground' : 'text-muted-foreground',
             )}
           >
@@ -325,7 +325,7 @@ function DayCell({
         {dayWeather && (
           <div className={cn(
             'flex shrink-0 items-center gap-1 text-muted-foreground tabular-nums',
-            compact ? 'text-[12px]' : 'text-[12px]',
+            compact ? 'text-2xs' : 'text-2xs',
           )}>
             {weatherIcon(dayWeather.condition)}
             <span>{Math.round(dayWeather.high)}°/{Math.round(dayWeather.low)}°</span>

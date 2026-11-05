@@ -377,7 +377,7 @@ function DayCardsCell({
             onEventClick(event);
           }}
           className={cn(
-            'wall-month-event-card flex w-full items-center text-left border-border bg-calendar-surface text-[12px] px-2 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight',
+            'wall-month-event-card flex w-full items-center text-left border-border bg-calendar-surface text-2xs px-2 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight',
             isCalendarEventPast(
               event.startTime,
               event.endTime,

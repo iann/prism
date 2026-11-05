@@ -225,7 +225,7 @@ function AgendaDaySection({
           {formatAgendaDayHeader(date, displayTimezone, t, d)}
         </span>
         {isCurrentDay && (
-          <Badge className="text-[12px] px-1.5 py-0 bg-calendar-today text-foreground">
+          <Badge className="text-2xs px-1.5 py-0 bg-calendar-today text-foreground">
             {t('today')}
           </Badge>
         )}

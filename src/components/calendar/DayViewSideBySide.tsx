@@ -395,14 +395,14 @@ export function DayViewSideBySide({
                                     }
                               }
                             >
-                              <div className={cn('font-medium truncate w-full text-[12px] leading-tight', cards && 'text-foreground')}>{event.title}</div>
+                              <div className={cn('font-medium truncate w-full text-2xs leading-tight', cards && 'text-foreground')}>{event.title}</div>
                               {contentVisibility.showTime && (
-                                <div className={cn('text-[12px] leading-tight', cards && 'text-muted-foreground')}>
+                                <div className={cn('text-2xs leading-tight', cards && 'text-muted-foreground')}>
                                 {formatDisplayTimeRange(event.startTime, event.endTime ?? new Date(event.startTime.getTime() + 3600000), timeFormat, displayTimezone)}
                                 </div>
                               )}
                               {contentVisibility.showDetails && (event.location || event.calendarName) && (
-                                <div className={cn('w-full truncate text-[12px] leading-tight', cards && 'text-muted-foreground')}>
+                                <div className={cn('w-full truncate text-2xs leading-tight', cards && 'text-muted-foreground')}>
                                   {event.location || event.calendarName}
                                 </div>
                               )}
