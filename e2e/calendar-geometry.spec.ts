@@ -518,8 +518,9 @@ test.describe('busy days page on the wall', () => {
       for (const mode of ['inline', 'cards'] as const) {
         await page.addInitScript((m) => {
           localStorage.setItem('prism-visible-widgets', JSON.stringify(['calendar']));
-          localStorage.setItem('prism-calendar-view', 'month');
-          localStorage.setItem('prism-calendar-display-mode', m);
+          // Dashboard widgets persist preferences per widget instance.
+          localStorage.setItem('prism-calendar-view:calendar', 'month');
+          localStorage.setItem('prism-calendar-display-mode:calendar', m);
         }, mode);
         await page.goto(`/d/${layout.slug}`, { waitUntil: 'load', timeout: 30_000 });
         const day = page.locator(`.widget-cell[data-widget="calendar"] [data-month-day="${busyDate}"]`);
