@@ -332,7 +332,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
         <button
           onClick={() => toggleCalendar('all')}
           className={cn(
-            'touch-target rounded-full px-3 py-2 text-[14px] font-medium leading-none transition-colors',
+            'touch-target rounded-full px-3 py-2 text-sm font-medium leading-none transition-colors',
             selectedCalendarIds.has('all')
               ? 'bg-primary text-primary-foreground'
               : transparentMode
@@ -347,7 +347,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
             key={group.id}
             onClick={() => toggleCalendar(group.id)}
             className={cn(
-              'wall-family-chip touch-target inline-flex items-center gap-1 rounded-full px-3 py-2 text-[14px] font-medium leading-none transition-colors',
+              'wall-family-chip touch-target inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium leading-none transition-colors',
               selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all')
                 ? cn(
                     'wall-family-chip-active',
