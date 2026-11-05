@@ -274,7 +274,7 @@ export function SettingsView() {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <nav className="hidden md:block w-64 shrink-0 border-r border-border bg-card dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm p-4">
+          <nav className="hidden md:landscape:block w-64 shrink-0 border-r border-border bg-card dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm p-4">
             <div className="space-y-1">
               {sections.map((section) => {
                 const Icon = section.icon;
