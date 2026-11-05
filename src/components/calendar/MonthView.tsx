@@ -22,11 +22,10 @@ import { useDateLabels } from '@/lib/hooks/useDateLabels';
 import type { CalendarEvent } from '@/types/calendar';
 import { useCardCapacity } from '@/lib/hooks/useCardCapacity';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
-import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
-import { CardHeightProbe, ChipProbe, DayOverflowPopover, DroppableOverlayCell, SpanningEventRows, useChipMetrics, useDayDroppable, type ChipMetrics, type OverlayItemRef } from './cells';
+import { CardHeightProbe, ChipProbe, DayEventList, DayOverflowPopover, DroppableOverlayCell, SpanningEventRows, useChipMetrics, useDayDroppable, type ChipMetrics, type OverlayItemRef } from './cells';
 import { splitDay, useDayPageTick, useDayPagingEnabled } from '@/lib/hooks/useDayPaging';
 import { useTimeFormat } from '@/components/providers';
-import { eventOccursOnDisplayDay, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
+import { eventOccursOnDisplayDay, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
 
@@ -96,6 +95,7 @@ export function MonthView({
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden">
       {cards && <CardHeightProbe size="xs" onMeasure={setCardHeight} />}
+      {!cards && <ChipProbe onMeasure={onChip} />}
       {/* Month header — kept compact (py-1, text-sm) so it doesn't eat into
           the calendar grid. The toolbar already shows the month name; this
           band is mostly a colored anchor. */}
@@ -229,7 +229,7 @@ function MonthDayCell({
   onEventClick: (event: CalendarEvent) => void;
   onItemClick?: (ref: OverlayItemRef) => void;
 }) {
-  const { timeFormat, displayTimezone } = useTimeFormat();
+  const { displayTimezone } = useTimeFormat();
   const today = isSameDay(date, toDisplayDate(new Date(), displayTimezone));
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
 
@@ -288,29 +288,13 @@ function MonthDayCell({
           onItemClick={onItemClick}
         />
       ) : (
-        // Row gap follows the theme's events mode; the fallback is the
-        // 0.125rem that space-y-0.5 used to hard-code.
-        <ul className="flex-1 overflow-y-auto list-none m-0 px-1 pb-1 pt-0 flex flex-col gap-(--event-gap,0.125rem)">
-          {dayEvents.map((event) => (
-            <li
-              key={event.id}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEventClick(event);
-              }}
-              className={cn(
-                'wall-inline-event-card flex items-center text-xs px-2 rounded truncate cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-seasonal-accent/50 transition-all',
-                event.allDay ? 'py-px' : 'py-0.5'
-              )}
-              style={event.allDay
-                ? inlineAllDayEventStyle(event.color)
-                : inlineTimedEventStyle(event.color)
-              }
-            >
-              {event.allDay ? event.title : `• ${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`}
-            </li>
-          ))}
-        </ul>
+        <DayEventList
+          date={date}
+          events={dayEvents}
+          chip={chip}
+          onEventClick={onEventClick}
+          className="px-1 pb-1"
+        />
       )}
     </div>
   );
