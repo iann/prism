@@ -497,14 +497,14 @@ test.describe('busy days page on the wall', () => {
     const tag = info.project.name;
     // A full-screen widget cell holds more than the minimum two inline / three
     // cards. Use enough to force paging across both display modes.
-    const titles = Array.from({ length: 16 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
+    const titles = Array.from({ length: 24 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
     const created: string[] = [];
     const layout = await (await page.request.post('/api/layouts', {
       data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 32 }] },
     })).json();
     try {
       for (const [i, title] of titles.entries()) {
-        // 06:00-10:15 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
+        // 06:00-11:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
         const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6, i * 15));
         const res = await postEvent(page, { title, startTime: start.toISOString(), endTime: new Date(start.getTime() + 30 * 60_000).toISOString(), allDay: false, createdBy: parentId });
         expect(res.status()).toBe(201);
@@ -528,6 +528,13 @@ test.describe('busy days page on the wall', () => {
           );
         }
         const day = page.locator(`.widget-cell[data-widget="calendar"] [data-month-day="${busyDate}"]`);
+        const dayState = await day.evaluate((cell) => ({
+          eventCount: [...cell.querySelectorAll('button')].filter((button) => /Paged e2e/.test(button.textContent ?? '')).length,
+          overflow: cell.querySelector('[data-day-overflow]')?.textContent ?? null,
+          desktop: window.matchMedia('(min-width: 768px)').matches,
+          width: window.innerWidth,
+        }));
+        console.log(`busy-day ${mode}: ${JSON.stringify(dayState)}`);
         const label = day.locator('[data-day-page]');
         await expect(label, `${mode}: the busy day pages`).toHaveAttribute('data-day-page', /^1\/\d+$/, { timeout: 15_000 });
         const pages = Number((await label.getAttribute('data-day-page'))!.split('/')[1]);
@@ -581,6 +588,20 @@ test.describe('Now & Next widget', () => {
     // Use real wall time: the dashboard's server-rendered clock is not affected
     // by Playwright's browser-only clock, and must agree with the test events.
     const T = new Date();
+    T.setSeconds(0, 0);
+    const timeUntilMidnight = (timeZone: string) => {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(T);
+      const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
+      const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
+      return 24 * 60 - (hour * 60 + minute);
+    };
+    const zones = new Set(['UTC', 'America/Chicago', 'Asia/Tokyo', info.project.use.timezoneId ?? 'UTC']);
+    const nextMinutes = Math.max(5, Math.min(90, ...[...zones].map((zone) => timeUntilMidnight(zone) - 2)));
     const at = (min: number) => new Date(T.getTime() + min * 60_000).toISOString();
     const created: string[] = [];
     // Each project runs in parallel against one database: own titles.
@@ -591,7 +612,7 @@ test.describe('Now & Next widget', () => {
       data: { name: `Now next e2e ${Date.now()}`, widgets: [{ i: 'nowNext', x: 0, y: 0, w: 24, h: 8 }] },
     })).json();
     try {
-      for (const [title, start, end] of [[nowTitle, -720, 720], [nextTitle, 90, 150]] as const) {
+      for (const [title, start, end] of [[nowTitle, -720, 720], [nextTitle, nextMinutes, nextMinutes + 60]] as const) {
         const res = await postEvent(page, { title, startTime: at(start), endTime: at(end), allDay: false, createdBy: parentId });
         expect(res.status()).toBe(201);
         created.push((await res.json()).id);
@@ -610,7 +631,10 @@ test.describe('Now & Next widget', () => {
       // The other project's events can be on too; the next one is still ours
       // or its twin, both 90 minutes out.
       await expect(cell.locator('[data-now-next="next"]')).toContainText('Next e2e practice');
-      await expect(cell.locator('[data-now-next="next"]')).toContainText('in 1 h 30 min');
+      const countdown = nextMinutes >= 60
+        ? `in ${Math.floor(nextMinutes / 60)} h${nextMinutes % 60 ? ` ${nextMinutes % 60} min` : ''}`
+        : `in ${nextMinutes} min`;
+      await expect(cell.locator('[data-now-next="next"]')).toContainText(countdown);
       const { count, under } = await textUnder(page, 14, '.widget-cell[data-widget="nowNext"]');
       expect(count).toBeGreaterThan(3);
       expect(under, 'Now & Next text under 14px').toEqual([]);
