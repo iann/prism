@@ -484,17 +484,17 @@ test.describe('busy days page on the wall', () => {
     const now = new Date();
     const busyDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-12`;
     const tag = info.project.name;
-    // A day cell can show several events above the minimum two inline / three
+    // A full-screen widget cell holds more than the minimum two inline / three
     // cards. Use enough to force paging across both display modes.
-    const titles = Array.from({ length: 8 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
+    const titles = Array.from({ length: 16 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
     const created: string[] = [];
     const layout = await (await page.request.post('/api/layouts', {
       data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 32 }] },
     })).json();
     try {
       for (const [i, title] of titles.entries()) {
-        // 06:00-13:30 UTC is the 12th in every zone CI uses (Tokyo, Chicago).
-        const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6 + (i % 12)));
+        // 06:00-10:15 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
+        const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6, i * 15));
         const res = await postEvent(page, { title, startTime: start.toISOString(), endTime: new Date(start.getTime() + 30 * 60_000).toISOString(), allDay: false, createdBy: parentId });
         expect(res.status()).toBe(201);
         created.push((await res.json()).id);
@@ -555,9 +555,9 @@ test.describe('busy days page on the wall', () => {
 });
 
 /**
- * Now & Next (#806). The page clock is fixed at 12:00 UTC on a far date, and
- * the events sit around it, so "today" is one day in any zone CI uses (UTC,
- * Chicago) and the countdown is exact. Measured on a wall screen at 1080p:
+ * Now & Next (#806). The events sit around the current time, so "today" is one
+ * day in any zone CI uses (Tokyo, Chicago). Using real time keeps the browser
+ * clock aligned with the server-rendered dashboard clock. Measured on a wall screen at 1080p:
  * the lines say what is on and what is next, nothing is under the floor and
  * nothing is drawn outside the widget.
  */
@@ -569,8 +569,8 @@ test.describe('Now & Next widget', () => {
     const parentId = getSeededParentId();
     const login = await page.request.post('/api/auth/login', { data: { userId: parentId, pin: PIN } });
     expect(login.ok(), 'precondition: login must succeed').toBe(true);
-    // Keep the page's event-fetch window anchored to the same day the API uses.
-    // A far-future page clock can produce a valid empty window on some runners.
+    // Use real wall time: the dashboard's server-rendered clock is not affected
+    // by Playwright's browser-only clock, and must agree with the test events.
     const T = new Date();
     const at = (min: number) => new Date(T.getTime() + min * 60_000).toISOString();
     const created: string[] = [];
@@ -587,7 +587,6 @@ test.describe('Now & Next widget', () => {
         expect(res.status()).toBe(201);
         created.push((await res.json()).id);
       }
-      await page.clock.setFixedTime(T);
       const eventsResponse = page.waitForResponse((response) => {
         const url = new URL(response.url());
         return url.pathname === '/api/events' && response.request().method() === 'GET';
