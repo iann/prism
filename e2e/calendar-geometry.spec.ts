@@ -1,5 +1,4 @@
-import { test, expect, type Page, type TestInfo, type BrowserType, type Response } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
+import { test, expect, type Page, type TestInfo, type BrowserType } from '@playwright/test';
 import { getSeededParentId } from './helpers/auth';
 
 /**
@@ -300,30 +299,16 @@ async function pointerPage(
   return { browser, page: await context.newPage() };
 }
 
-/** Insert fixture rows directly: visual tests should not spend time in API rate limits. */
-function insertCalendarEvents(events: Array<{ title: string; start: Date; end: Date; userId: string }>) {
-  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for calendar fixtures');
-  const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
-  const values = events.map(({ title, start, end, userId }) =>
-    `(${quote(title)}, ${quote(start.toISOString())}, ${quote(end.toISOString())}, false, ${quote(userId)}::uuid)`,
-  ).join(',\n');
-  const sql = `INSERT INTO events (title, start_time, end_time, all_day, created_by) VALUES ${values} RETURNING id;`;
-  return execFileSync('psql', [process.env.DATABASE_URL, '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql], {
-    encoding: 'utf8',
-    timeout: 10_000,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  }).trim().split('\n');
-}
-
-function isDashboardEventsResponse(response: Response) {
-  const url = new URL(response.url());
-  if (url.pathname !== '/api/events' || response.request().method() !== 'GET') return false;
-  const start = Date.parse(url.searchParams.get('startDate') ?? '');
-  const end = Date.parse(url.searchParams.get('endDate') ?? '');
-  const spanDays = (end - start) / 86_400_000;
-  // useDashboardData requests 30 days on either side of today (about 61 days
-  // total). The attention panel has a shorter window and cannot feed widgets.
-  return spanDays > 55 && spanDays < 70;
+/** Keep widget rendering fixtures independent of the events API write quota and database. */
+async function mockCalendarEvents(page: Page, events: Array<Record<string, unknown>>) {
+  await page.route('**/api/events**', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ events, total: events.length, dateRange: { start: '', end: '' }, limit: 100, offset: 0 }),
+    });
+  });
 }
 
 async function openCalendarView(page: Page, view: string) {
@@ -487,7 +472,7 @@ test.describe('3 Months folds a busy day', () => {
 test.describe('busy days page on the wall', () => {
   test('a busy day in the widget pages through every event; the Calendar page still folds', async ({ playwright }, info) => {
     test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a fresh-seeded DB');
-    test.setTimeout(240_000);
+    test.setTimeout(120_000);
     const parentId = getSeededParentId();
     const { browser, page } = await pointerPage(playwright, info, 1, { width: 1920, height: 1080 });
     const login = await page.request.post('/api/auth/login', { data: { userId: parentId, pin: PIN } });
@@ -500,7 +485,6 @@ test.describe('busy days page on the wall', () => {
     // Keep the widget compact so a deliberately busy day exceeds its cell
     // capacity in both inline and cards modes.
     const titles = Array.from({ length: 6 }, (_, i) => `Paged e2e ${tag} ${i + 1}`);
-    const created: string[] = [];
     const layout = await (await page.request.post('/api/layouts', {
       data: { name: `Paging e2e ${Date.now()}`, widgets: [{ i: 'calendar', x: 0, y: 0, w: 32, h: 8 }] },
     })).json();
@@ -508,9 +492,26 @@ test.describe('busy days page on the wall', () => {
       const fixtureEvents = titles.map((title, i) => {
         // 06:00-08:45 UTC stays on the 12th in every zone CI uses (Tokyo, Chicago).
         const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 12, 6, i * 15));
-        return { title, start, end: new Date(start.getTime() + 30 * 60_000), userId: parentId };
+        return {
+          id: `busy-${tag}-${i}`,
+          title,
+          description: null,
+          location: null,
+          startTime: start.toISOString(),
+          endTime: new Date(start.getTime() + 30 * 60_000).toISOString(),
+          allDay: false,
+          recurring: false,
+          recurrenceRule: null,
+          color: '#3B82F6',
+          reminderMinutes: null,
+          calendarName: 'E2E fixtures',
+          calendarId: `busy-${tag}`,
+        };
       });
-      created.push(...insertCalendarEvents(fixtureEvents));
+      // This is a widget rendering test, so supply deterministic event data at
+      // the browser boundary instead of exercising the unrelated POST quota,
+      // Redis cache, and database setup paths.
+      await mockCalendarEvents(page, fixtureEvents);
       await page.clock.install({ time: now });
       for (const mode of ['inline', 'cards'] as const) {
         await page.addInitScript((m) => {
@@ -518,17 +519,10 @@ test.describe('busy days page on the wall', () => {
           localStorage.setItem('prism-calendar-view', 'month');
           localStorage.setItem('prism-calendar-display-mode', m);
         }, mode);
-        const eventsResponse = mode === 'inline'
-          ? page.waitForResponse(isDashboardEventsResponse, { timeout: 15_000 })
-          : null;
-        await page.goto(`/d/${layout.slug}`, { waitUntil: 'load' });
-        if (eventsResponse) {
-          const fetchedEvents = await (await eventsResponse).json();
-          expect(fetchedEvents.events.map((event: { title: string }) => event.title)).toEqual(
-            expect.arrayContaining(titles),
-          );
-        }
+        await page.goto(`/d/${layout.slug}`, { waitUntil: 'load', timeout: 30_000 });
         const day = page.locator(`.widget-cell[data-widget="calendar"] [data-month-day="${busyDate}"]`);
+        await day.waitFor({ state: 'visible', timeout: 15_000 });
+        await expect(day.locator('button').filter({ hasText: 'Paged e2e' }).first()).toBeVisible({ timeout: 15_000 });
         const dayState = await day.evaluate((cell) => {
           const widget = cell.closest('.widget-cell')!;
           const box = widget.getBoundingClientRect();
@@ -568,7 +562,6 @@ test.describe('busy days page on the wall', () => {
       await expect(pageDay.locator('[data-day-overflow]')).toBeVisible();
       await expect(pageDay.locator('[data-day-page]')).toHaveCount(0);
     } finally {
-      for (const id of created) await page.request.delete(`/api/events/${id}`);
       await page.request.delete(`/api/layouts/${layout.id}`);
       await browser.close();
     }
@@ -608,29 +601,35 @@ test.describe('Now & Next widget', () => {
     const zones = new Set(['UTC', 'America/Chicago', 'Asia/Tokyo', info.project.use.timezoneId ?? 'UTC']);
     const nextMinutes = Math.max(5, Math.min(90, ...[...zones].map((zone) => timeUntilMidnight(zone) - 2)));
     const at = (min: number) => new Date(T.getTime() + min * 60_000).toISOString();
-    const created: string[] = [];
     // Each project runs in parallel against one database: own titles.
     const tag = `${info.project.name} ${Date.now()}`;
     const nowTitle = `Now e2e lesson ${tag}`;
     const nextTitle = `Next e2e practice ${tag}`;
+    const fixtureEvents = [[nowTitle, -720, 720], [nextTitle, nextMinutes, nextMinutes + 60]] as const;
     const layout = await (await page.request.post('/api/layouts', {
       data: { name: `Now next e2e ${Date.now()}`, widgets: [{ i: 'nowNext', x: 0, y: 0, w: 24, h: 8 }] },
     })).json();
     try {
-      for (const [title, start, end] of [[nowTitle, -720, 720], [nextTitle, nextMinutes, nextMinutes + 60]] as const) {
-        const res = await page.request.post('/api/events', { data: { title, startTime: at(start), endTime: at(end), allDay: false, createdBy: parentId } });
-        expect(res.status()).toBe(201);
-        created.push((await res.json()).id);
-      }
+      const events = fixtureEvents.map(([title, start, end], index) => ({
+          id: `now-next-${info.project.name}-${index}`,
+          title,
+          description: null,
+          location: null,
+          startTime: at(start),
+          endTime: at(end),
+          allDay: false,
+          recurring: false,
+          recurrenceRule: null,
+          color: '#3B82F6',
+          reminderMinutes: null,
+          calendarName: 'E2E fixtures',
+          calendarId: `now-next-${info.project.name}`,
+        }));
+      await mockCalendarEvents(page, events);
       await page.addInitScript(() => {
         localStorage.setItem('prism-visible-widgets', JSON.stringify(['nowNext']));
       });
-      const eventsResponse = page.waitForResponse(isDashboardEventsResponse, { timeout: 15_000 });
       await page.goto(`/d/${layout.slug}`, { waitUntil: 'load' });
-      const fetchedEvents = await (await eventsResponse).json();
-      expect(fetchedEvents.events.map((event: { title: string }) => event.title)).toEqual(
-        expect.arrayContaining([nowTitle, nextTitle]),
-      );
       const cell = page.locator('.widget-cell[data-widget="nowNext"]');
       await expect(cell.locator('[data-now-next="now"]', { hasText: nowTitle })).toBeVisible({ timeout: 15_000 });
       // The other project's events can be on too; the next one is still ours
@@ -652,7 +651,6 @@ test.describe('Now & Next widget', () => {
       });
       expect(spill, 'lines drawn outside the widget').toBe(0);
     } finally {
-      for (const id of created) await page.request.delete(`/api/events/${id}`);
       await page.request.delete(`/api/layouts/${layout.id}`);
       await browser.close();
     }
