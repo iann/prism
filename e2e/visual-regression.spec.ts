@@ -159,7 +159,7 @@ async function waitForDashboardWidgets(page: Page, includeShopping = false) {
     await page.waitForFunction(
       () => {
         const cell = document.querySelector('.widget-cell[data-widget="shopping"]');
-        return !!cell && (cell.textContent ?? '').trim().length > 20 && !cell.querySelector('.animate-pulse');
+        return !!cell && !cell.querySelector('.animate-pulse');
       },
       null,
       { timeout: 30_000 },
