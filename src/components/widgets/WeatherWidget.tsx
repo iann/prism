@@ -438,17 +438,34 @@ function formatOutlookLines(
 
 /** Join the per-day outlook into a short forecast narrative. */
 function formatOutlookProse(lines: WeatherOutlookLine[]): string {
-  return lines
-    .map((line, index) => {
-      if (index === 0 && line.label === 'Today') {
-        return `${line.text} today.`;
-      }
+  const [first, ...rest] = lines;
+  if (!first) return '';
 
-      const dayName = line.dayName || line.label;
-      const text = line.text.charAt(0).toLocaleLowerCase() + line.text.slice(1);
-      return `On ${dayName}, ${text}.`;
-    })
-    .join(' ');
+  const lowerFirst = (value: string) =>
+    value.charAt(0).toLocaleLowerCase() + value.slice(1);
+  // The daily phrase can already contain "then" for its own two halves. Once
+  // a day-level "then" or "Next" is added, use "and" inside the day so the
+  // sentence does not stack connectives.
+  const joinDayParts = (value: string) => value.replace(/,\s*then\s+/gi, ' and ');
+
+  const firstText =
+    first.label === 'Today'
+      ? `${first.text} today`
+      : `On ${first.dayName || first.label}, ${lowerFirst(first.text)}`;
+
+  if (rest.length === 0) return `${firstText}.`;
+
+  const firstClause = rest.length > 0 ? joinDayParts(firstText) : firstText;
+  const second = rest[0]!;
+  const secondText = `${joinDayParts(lowerFirst(second.text))} ${second.dayName || second.label}`;
+  const sentences = [`${firstClause}, then ${secondText}.`];
+
+  rest.slice(1).forEach((line, index) => {
+    const text = `${joinDayParts(lowerFirst(line.text))} ${line.dayName || line.label}`;
+    sentences.push(`${index === 0 ? 'Next,' : 'After that,'} ${text}.`);
+  });
+
+  return sentences.join(' ');
 }
 
 
