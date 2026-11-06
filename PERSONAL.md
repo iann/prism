@@ -1142,6 +1142,20 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 6664e35c
 
+136. **Human-written three-day weather outlook**
+
+    Shows the National Weather Service's own narrative forecast for the next
+    three days beneath the current temperature, one day per line: "Today",
+    then weekday abbreviations such as "Sat" and "Sun". The text comes from the
+    free `api.weather.gov` forecast endpoint rather than a page scrape, cached
+    with the rest of the weather response. Official Title Case fragments are
+    softened into sentence-style prose, chance phrasing gets its article, and
+    "rain showers" is shortened to "showers". Locations outside NWS coverage,
+    NWS outages, and non-English locales keep the generated summary as the
+    fallback.
+
+    Commit: bfea986f
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
