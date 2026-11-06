@@ -41,7 +41,7 @@ For any non-trivial change, the relevant modalities below must sign off before t
 | Unit / integration tests | Logic + state-machine bugs | `npx jest` against a real test DB; do not mock Drizzle |
 | Headless browser execution | Render bugs, stacking-context bugs, hydration mismatches, dark-mode contrast | Playwright (`e2e/`) — capture screenshots in both themes for any visual change |
 | Install flow | Missing env vars, install.sh gaps, fresh-install failures | `scripts/test-fresh-install.sh` |
-| Reverse-proxy deployment | HTTPS detection, secure cookie handling, `x-forwarded-proto`-dependent code | `e2e/reverse-proxy.spec.ts` — runs in CI ("E2E modality suite") |
+| Reverse-proxy deployment | HTTPS detection, secure cookie handling, `x-forwarded-proto`-dependent code | `e2e/reverse-proxy.spec.ts` — runs in CI ("E2E (reverse-proxy + mobile)") |
 | Migration replay | Idempotency, recovery from partial failure | `npm run test:migration-replay` (`scripts/test-migration-replay.sh`) — runs in CI |
 | Visual regression | Color contrast, layout regressions across themes, accidental rendering changes | `e2e/visual-regression.spec.ts` — spec runs in CI; **Linux baselines still needed** (see below) |
 | Secret-shape scan | Committed API keys, tokens and private-key blocks | `npm run scan:secrets` (`scripts/scan-secrets.sh`) |
@@ -64,7 +64,7 @@ Boots a clean install and asserts the fresh-install env / secret contracts hold.
 
 ### Reverse-proxy deployment — `e2e/reverse-proxy.spec.ts`
 
-A Playwright suite that boots nginx in front of the app with a self-signed cert, hits `/api/auth/login` over HTTPS via the proxy, and asserts the response sets `Set-Cookie` with `Secure; HttpOnly`. Catches the `x-forwarded-proto` regression class. CI job: "E2E modality suite (reverse-proxy)" (also runs `e2e/mobile-pwa-settings.spec.ts`).
+A Playwright suite that boots nginx in front of the app with a self-signed cert, hits `/api/auth/login` over HTTPS via the proxy, and asserts the response sets `Set-Cookie` with `Secure; HttpOnly`. Catches the `x-forwarded-proto` regression class. CI job: "E2E (reverse-proxy + mobile)" (also runs `e2e/mobile-pwa-settings.spec.ts`).
 
 ### Migration replay — `scripts/test-migration-replay.sh`
 
