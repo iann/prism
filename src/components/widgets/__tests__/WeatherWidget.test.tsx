@@ -1022,6 +1022,33 @@ describe('current conditions', () => {
     expect(within(screen.getByTestId('weather-current-stats')).queryByTestId('air-quality-badge')).toBeNull();
   });
 
+  it('keeps the two-column header in a tall but narrow tile', () => {
+    // A portrait kitchen display letterboxes the grid, so a 23-column weather
+    // tile renders around 500px wide — narrower than the old 32rem breakpoint
+    // even though it is nearly 900px tall. Height, not rendered width, should
+    // decide whether the stats column fits.
+    render(<WeatherWidget data={makeWeatherData()} gridH={39} gridW={23} />);
+
+    const header = screen.getByTestId('weather-current-header');
+    const stats = screen.getByTestId('weather-current-stats');
+    expect(header.getAttribute('data-compact')).toBeNull();
+    expect(header.className).toContain('@min-[22rem]:grid-cols-[minmax(0,1fr)_auto]');
+    expect(stats.className).toContain('@min-[22rem]:flex');
+    expect(screen.getByTestId('weather-day-summary').className).not.toContain('truncate');
+  });
+
+  it('collapses the header to one column in a short corner tile', () => {
+    render(<WeatherWidget data={makeWeatherData()} gridH={5} gridW={12} />);
+
+    const header = screen.getByTestId('weather-current-header');
+    const stats = screen.getByTestId('weather-current-stats');
+    expect(header.getAttribute('data-compact')).toBe('true');
+    expect(header.className).not.toContain('grid-cols-[minmax(0,1fr)_auto]');
+    expect(stats.className).toContain('hidden');
+    expect(stats.className).not.toContain('@min-[22rem]:flex');
+    expect(screen.getByTestId('weather-day-summary').className).toContain('truncate');
+  });
+
   it('uses the published PM2.5 category breakpoints', () => {
     expect(getAirQualityStatus(9)?.label).toBe('Good');
     expect(getAirQualityStatus(9.1)?.label).toBe('Moderate');
