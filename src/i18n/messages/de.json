@@ -70,7 +70,8 @@
       "week2": "2 Wochen",
       "month": "Monat",
       "threeMonth": "3 Monate",
-      "week2Short": "2 Wo."
+      "week2Short": "2 Wo.",
+      "week4Short": "4 Wo."
     },
     "options": {
       "trigger": "Ansicht",

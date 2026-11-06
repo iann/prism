@@ -33,6 +33,7 @@ export const VIEW_OPTIONS: { value: WidgetViewType; labelKey: string }[] = [
   { value: 'list', labelKey: 'list' },
   { value: 'week', labelKey: 'schedule' },
   { value: 'multiWeek2', labelKey: 'week2Short' },
+  { value: 'multiWeek4', labelKey: 'week4Short' },
   { value: 'month', labelKey: 'month' },
 ];
 
@@ -42,16 +43,17 @@ export function getAvailableViews(gridW: number, gridH: number): WidgetViewType[
   // calendar; merged = one column), so it needs no more width than 'week',
   // which always draws seven day-columns. Offer 'day' wherever 'week' is
   // offered rather than gating it behind a much wider widget.
-  if (gridW >= 36 && gridH >= 24) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'month'];
-  if (gridW >= 24 && gridH >= 36) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'month'];
-  if (gridW >= 24 && gridH >= 24) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'month'];
-  if (gridW >= 16 && gridH >= 16) return ['agenda', 'list', 'day', 'week', 'multiWeek2'];
+  if (gridW >= 36 && gridH >= 24) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'multiWeek4', 'month'];
+  if (gridW >= 24 && gridH >= 36) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'multiWeek4', 'month'];
+  if (gridW >= 24 && gridH >= 24) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'multiWeek4', 'month'];
+  if (gridW >= 16 && gridH >= 16) return ['agenda', 'list', 'day', 'week', 'multiWeek2', 'multiWeek4'];
   return ['agenda'];
 }
 
 /** Resolve the 2W grid to its base view + week count */
-export function resolveMultiWeek(vt: WidgetViewType): { baseView: ResolvedViewType; weekCount: 2 } {
+export function resolveMultiWeek(vt: WidgetViewType): { baseView: ResolvedViewType; weekCount: 2 | 4 } {
   if (vt === 'multiWeek2') return { baseView: 'multiWeek', weekCount: 2 };
+  if (vt === 'multiWeek4') return { baseView: 'multiWeek', weekCount: 4 };
   return { baseView: vt as ResolvedViewType, weekCount: 2 };
 }
 

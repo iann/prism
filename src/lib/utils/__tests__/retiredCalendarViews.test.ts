@@ -3,7 +3,7 @@ import { VIEW_OPTIONS, getAvailableViews } from '@/lib/hooks/useCalendarWidgetPr
 import { VIEW_MENU_OPTIONS } from '@/app/calendar/ViewMenu';
 
 describe('migrateSubpageView', () => {
-  it('moves 1W to Schedule and 3W/4W to Month', () => {
+  it('moves 1W to Schedule and 3W/4W to Month on the calendar page', () => {
     expect(migrateSubpageView('multiWeek', '1')).toBe('week');
     expect(migrateSubpageView('multiWeek', '3')).toBe('month');
     expect(migrateSubpageView('multiWeek', '4')).toBe('month');
@@ -27,17 +27,17 @@ describe('migrateSubpageView', () => {
 });
 
 describe('migrateWidgetView', () => {
-  it('moves 1W to Schedule and 3W/4W to Month', () => {
+  it('moves 1W to Schedule and 3W to Month while retaining 4W', () => {
     expect(migrateWidgetView('multiWeek', null)).toBe('week');
     expect(migrateWidgetView('multiWeek3', null)).toBe('month');
-    expect(migrateWidgetView('multiWeek4', null)).toBe('month');
+    expect(migrateWidgetView('multiWeek4', null)).toBe('multiWeek4');
   });
 
   it('reads the older multiWeek + separate count format', () => {
     expect(migrateWidgetView('multiWeek', '1')).toBe('week');
     expect(migrateWidgetView('multiWeek', '2')).toBe('multiWeek2');
     expect(migrateWidgetView('multiWeek', '3')).toBe('month');
-    expect(migrateWidgetView('multiWeek', '4')).toBe('month');
+    expect(migrateWidgetView('multiWeek', '4')).toBe('multiWeek4');
   });
 
   it('keeps the older twoWeek and list values working', () => {
@@ -46,7 +46,7 @@ describe('migrateWidgetView', () => {
   });
 
   it('keeps every kept view and falls back to Agenda', () => {
-    for (const v of ['agenda', 'day', 'week', 'multiWeek2', 'month']) {
+    for (const v of ['agenda', 'day', 'week', 'multiWeek2', 'multiWeek4', 'month']) {
       expect(migrateWidgetView(v, null)).toBe(v);
     }
     expect(migrateWidgetView(null, null)).toBe('agenda');
@@ -61,14 +61,14 @@ describe('views offered', () => {
     );
   });
 
-  it('calendar widget offers no retired view at any size', () => {
-    expect(VIEW_OPTIONS.map((o) => o.value)).toEqual(['agenda', 'day', 'list', 'week', 'multiWeek2', 'month']);
+  it('calendar widget offers the restored 4-week view at supported sizes', () => {
+    expect(VIEW_OPTIONS.map((o) => o.value)).toEqual(['agenda', 'day', 'list', 'week', 'multiWeek2', 'multiWeek4', 'month']);
     for (const [w, h] of [[48, 48], [36, 24], [24, 36], [24, 24], [16, 16], [8, 8]] as const) {
       const views: string[] = getAvailableViews(w, h);
       expect(views).not.toEqual(expect.arrayContaining(['multiWeek']));
       expect(views).not.toEqual(expect.arrayContaining(['multiWeek3']));
-      expect(views).not.toEqual(expect.arrayContaining(['multiWeek4']));
+      if (w >= 16 && h >= 16) expect(views).toContain('multiWeek4');
     }
-    expect(getAvailableViews(24, 24)).toEqual(['agenda', 'list', 'day', 'week', 'multiWeek2', 'month']);
+    expect(getAvailableViews(24, 24)).toEqual(['agenda', 'list', 'day', 'week', 'multiWeek2', 'multiWeek4', 'month']);
   });
 });
