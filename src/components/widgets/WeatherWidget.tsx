@@ -142,6 +142,8 @@ export type WeatherOutlookDay = {
   short: string;
   /** First sentence of the provider's detailed narrative. */
   detail: string;
+  /** Full provider narrative, used as input for the optional LLM rewrite. */
+  detailedForecast?: string;
 };
 
 export interface ForecastDay {
@@ -518,6 +520,8 @@ export interface WeatherData {
   alerts?: WeatherAlert[];
   /** Next few days of human-written forecast text, when the provider offers it. */
   outlook?: WeatherOutlookDay[];
+  /** LLM-polished prose for the outlook, when OpenCode Go is configured. */
+  outlookProse?: string;
   /** Next 24 hours of hourly forecast data for the timeline. */
   hourly?: HourlyForecast[];
   periods?: ForecastPeriod[];
@@ -778,6 +782,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           sunset={weatherData.sunset}
           compact={compactHeader}
           outlook={weatherData.outlook}
+          outlookProse={weatherData.outlookProse}
         />
 
         {weatherData.alerts && weatherData.alerts.length > 0 && (
@@ -947,6 +952,7 @@ function CurrentConditions({
   sunset,
   compact = false,
   outlook,
+  outlookProse,
 }: {
   weather: CurrentWeather;
   units: WeatherUnits;
@@ -960,6 +966,8 @@ function CurrentConditions({
   /** Short tiles keep the header to icon + temperature + one condition line. */
   compact?: boolean;
   outlook?: WeatherOutlookDay[];
+  /** Server-generated prose from OpenCode Go, when configured. */
+  outlookProse?: string;
 }) {
   const t = useTranslations('weather');
   const locale = useLocale();
@@ -973,7 +981,7 @@ function CurrentConditions({
     locale.startsWith('en') && outlook?.length
       ? outlook
           .slice(0, 3)
-          .map((day) => `${day.day}: ${day.detail || day.short}`)
+          .map((day) => `${day.day}: ${day.detailedForecast || day.detail || day.short}`)
           .join('\n')
       : undefined;
   const weatherSummary = formatWeatherSummary(
@@ -1000,7 +1008,24 @@ function CurrentConditions({
     ? getAirQualityStatus(weather.airQuality.pm25)
     : null;
 
-  const outlookProse = outlookLines ? formatOutlookProse(outlookLines) : null;
+  const outlookProseText = outlookLines ? formatOutlookProse(outlookLines) : null;
+  const serverProse = locale.startsWith('en') ? outlookProse : undefined;
+  const summaryRef = React.useRef<HTMLDivElement>(null);
+  const [rejectedProse, setRejectedProse] = React.useState<string | null>(null);
+  const serverProseFits = !serverProse || rejectedProse !== serverProse;
+
+  React.useEffect(() => {
+    if (!serverProse || compact) return;
+    const element = summaryRef.current;
+    if (!element) return;
+    const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight);
+    if (Number.isFinite(lineHeight) && element.scrollHeight > lineHeight * 3 + 1) {
+      setRejectedProse(serverProse);
+    }
+  }, [serverProse, compact]);
+
+  const summaryText =
+    serverProse && serverProseFits ? serverProse : outlookProseText ?? daySummary;
 
   return (
     <div data-weather-current className="flex flex-col gap-2">
@@ -1116,6 +1141,7 @@ function CurrentConditions({
       {/* The condition line sits below the whole header, including air quality,
           so a long outlook is not squeezed into the left column. */}
       <div
+        ref={summaryRef}
         data-weather-condition
         data-testid="weather-day-summary"
         title={outlookTitle}
@@ -1126,7 +1152,7 @@ function CurrentConditions({
             : 'text-sm leading-5 @min-[22rem]:whitespace-normal @min-[22rem]:break-words @min-[22rem]:text-lg @min-[22rem]:leading-6',
         )}
       >
-        {outlookProse ?? daySummary}
+        {summaryText}
       </div>
     </div>
   );
