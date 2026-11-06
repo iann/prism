@@ -304,6 +304,17 @@ jobs:
             test-results/
           retention-days: 7
 
+  # The personal branch ruleset still requires the original single E2E check
+  # name. This aggregator reports that name and passes only when every matrix
+  # shard succeeds, so the required check keeps its meaning while the work
+  # runs in parallel.
+  e2e-required:
+    name: E2E modality suite (reverse-proxy)
+    needs: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "All E2E shards passed."
+
   visual-regression:
     # Quoted, for the same reason as the migration-replay job above: an
     # unquoted "#2" truncates this name at the "#".
