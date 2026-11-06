@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { optionalAuth } from '@/lib/auth';
 import { fetchWeatherData, type LocationParam } from '@/lib/integrations/weather';
 import { fetchActiveWeatherAlerts } from '@/lib/integrations/weatherAlerts';
+import { fetchWeatherOutlook } from '@/lib/integrations/nwsForecast';
 import { getCached } from '@/lib/cache/redis';
 import { db } from '@/lib/db/client';
 import { settings } from '@/lib/db/schema';
@@ -133,6 +134,27 @@ export async function GET(request: NextRequest) {
       }
     } else {
       weatherData = { ...weatherData, alerts: [] };
+    }
+
+    // NWS narrative text covers the US only. Keep it best-effort like alerts:
+    // an outage or an unsupported location leaves the widget with its
+    // generated summary rather than an error.
+    const { lat, lon } = weatherData;
+    if (lat !== undefined && lon !== undefined) {
+      const outlookCacheKey = `weather-outlook:${lat.toFixed(2)},${lon.toFixed(2)}`;
+      try {
+        const outlook = await getCached(
+          outlookCacheKey,
+          () => fetchWeatherOutlook({ lat, lon }),
+          WEATHER_CACHE_TTL,
+        );
+        weatherData = { ...weatherData, outlook };
+      } catch (error) {
+        logError('Weather outlook unavailable; continuing without narrative:', error);
+        weatherData = { ...weatherData, outlook: [] };
+      }
+    } else {
+      weatherData = { ...weatherData, outlook: [] };
     }
 
     let currentSource: WeatherCurrentSource = provider === 'pirate' ? 'pirate' : 'provider';

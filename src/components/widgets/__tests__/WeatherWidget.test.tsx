@@ -766,6 +766,114 @@ describe('current conditions', () => {
     }
   });
 
+  it('prefers the human-written outlook over the generated summary', () => {
+    // Anchor the outlook to today so the Today/Tomorrow labels do not depend on
+    // the date the suite happens to run.
+    const outlookDate = (offset: number) => {
+      const now = new Date();
+      const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+
+    const data = makeWeatherData({
+      current: {
+        ...makeWeatherData().current,
+        temperature: 68,
+        feelsLike: 68,
+        condition: 'rainy',
+      },
+      hourly: [],
+      periods: [],
+      outlook: [
+        {
+          day: 'Today',
+          start: `${outlookDate(0)}T06:00:00-05:00`,
+          short: 'Rain',
+          detail: 'Rain and a chance of thunderstorms.',
+        },
+        {
+          day: 'Saturday',
+          start: `${outlookDate(1)}T06:00:00-05:00`,
+          short: 'Light Rain Likely then Patchy Fog',
+          detail: 'Rain likely and patchy fog before 10am.',
+        },
+        {
+          day: 'Sunday',
+          start: `${outlookDate(2)}T06:00:00-05:00`,
+          short: 'Mostly Sunny',
+          detail: 'Mostly sunny, with a high near 57.',
+        },
+        {
+          day: 'Monday',
+          start: `${outlookDate(3)}T06:00:00-05:00`,
+          short: 'Sunny',
+          detail: 'Sunny, with a high near 57.',
+        },
+      ],
+    });
+    render(<WeatherWidget data={data} />);
+
+    const summary = screen.getByTestId('weather-day-summary');
+    const lines = within(summary).getAllByRole('listitem');
+    expect(lines.map((line) => line.getAttribute('aria-label'))).toEqual([
+      'Today: Rain',
+      'Sat: Light rain likely, then patchy fog',
+      'Sun: Mostly sunny',
+    ]);
+  });
+
+  it('softens official short forecasts into natural phrases', () => {
+    const outlookDate = (offset: number) => {
+      const now = new Date();
+      const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+    const day = (offset: number, label: string, short: string) => ({
+      day: label,
+      start: `${outlookDate(offset)}T06:00:00-05:00`,
+      short,
+      detail: '',
+    });
+
+    const data = makeWeatherData({
+      hourly: [],
+      periods: [],
+      outlook: [
+        day(0, 'Today', 'Partly Sunny then Slight Chance Rain Showers'),
+        day(1, 'Saturday', 'Rain And Chance Of Thunderstorms'),
+        day(2, 'Sunday', 'Periods Of Rain Showers'),
+      ],
+    });
+    render(<WeatherWidget data={data} />);
+
+    const lines = within(screen.getByTestId('weather-day-summary')).getAllByRole('listitem');
+    expect(lines.map((line) => line.getAttribute('aria-label'))).toEqual([
+      'Today: Partly sunny, then a slight chance of showers',
+      'Sat: Rain and a chance of thunderstorms',
+      'Sun: Showers at times',
+    ]);
+  });
+
+  it('adds an article to mass-noun short forecasts', () => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const data = makeWeatherData({
+      hourly: [],
+      periods: [],
+      outlook: [
+        { day: 'Today', start: `${today}T06:00:00-05:00`, short: 'Wintry Mix', detail: '' },
+      ],
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(
+      within(screen.getByTestId('weather-day-summary'))
+        .getByRole('listitem')
+        .getAttribute('aria-label'),
+    ).toBe('Today: A wintry mix');
+  });
+
   it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
     const data = makeWeatherData({
       sunrise: new Date(2026, 6, 17, 6, 27),

@@ -50,7 +50,7 @@ import { getUvIndexTrend, type UvIndexTrend } from '@/lib/weather/uvIndexTrend';
 import { WidgetContainer } from './WidgetContainer';
 import { COMPACT_SOLAR_MAP_ASPECT_RATIO, SolarWorldMap } from './SolarWorldMap';
 import { DayHeader } from './WeatherForecastBar';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 const MILLIMETERS_PER_INCH = 25.4;
 // Use the NWS heavy-rain boundary as the visual ceiling, then apply a
@@ -127,6 +127,22 @@ export interface WeatherAlert {
   end?: Date;
   url?: string;
 }
+
+/**
+ * One day of the human-written forecast outlook. Populated from the National
+ * Weather Service where it is available; otherwise the widget falls back to
+ * its generated summary.
+ */
+export type WeatherOutlookDay = {
+  /** Period label from the provider, such as "Today" or "Saturday". */
+  day: string;
+  /** Start of the period as an ISO 8601 timestamp. */
+  start: string;
+  /** Brief phrase, such as "Light Rain Likely then Patchy Fog". */
+  short: string;
+  /** First sentence of the provider's detailed narrative. */
+  detail: string;
+};
 
 export interface ForecastDay {
   /**
@@ -310,6 +326,116 @@ function isSunAboveHorizon(sunrise?: Date, sunset?: Date, nowMs = Date.now()): b
   return nowMs >= sunriseMs && nowMs <= sunsetMs;
 }
 
+const WEEKDAY_ABBREVIATIONS: Record<string, string> = {
+  Sunday: 'Sun',
+  Monday: 'Mon',
+  Tuesday: 'Tue',
+  Wednesday: 'Wed',
+  Thursday: 'Thu',
+  Friday: 'Fri',
+  Saturday: 'Sat',
+};
+
+type WeatherOutlookLine = { label: string; text: string };
+
+/**
+ * NWS writes short forecasts as Title Case fragments ("Light Rain Likely then
+ * Patchy Fog"). Soften them into sentence-style prose for the readout while
+ * keeping the provider's wording.
+ */
+function naturalizeClause(clause: string): string {
+  let text = clause.toLowerCase();
+
+  // NWS drops the article from chance phrasing: "Chance Rain Showers",
+  // "Slight Chance Of Thunderstorms", including after "and".
+  text = text
+    .replace(/^chance of /, 'a chance of ')
+    .replace(/^chance /, 'a chance of ')
+    .replace(/^slight chance of /, 'a slight chance of ')
+    .replace(/^slight chance /, 'a slight chance of ')
+    .replace(/\band chance of /g, 'and a chance of ')
+    .replace(/\band chance /g, 'and a chance of ')
+    .replace(/\band slight chance of /g, 'and a slight chance of ')
+    .replace(/\band slight chance /g, 'and a slight chance of ');
+
+  // "Rain showers" is redundant — showers already imply rain.
+  text = text
+    .replace(/\brain showers\b/g, 'showers')
+    .replace(/\brain shower\b/g, 'shower');
+
+  // Mass nouns read better with an article: "A wintry mix".
+  text = text
+    .replace(/\band wintry mix\b/g, 'and a wintry mix')
+    .replace(/^wintry mix\b/, 'a wintry mix');
+
+  // "Periods of rain" → "Rain at times".
+  const periods = text.match(/^periods of (.+)$/);
+  if (periods) text = `${periods[1]} at times`;
+
+  return text;
+}
+
+function naturalizeOutlookText(value: string): string {
+  const trimmed = value.replace(/\s+/g, ' ').trim();
+  if (!trimmed) return '';
+
+  // Naturalize each side of "then" independently so "then chance showers"
+  // gets its article too, then join with a comma pause.
+  const clauses = trimmed.split(/\s+then\s+/i).map(naturalizeClause);
+  const joined = clauses.join(', then ');
+
+  return joined.charAt(0).toUpperCase() + joined.slice(1);
+}
+
+/** YYYY-MM-DD for an instant in the weather location's zone. */
+function locationDateKey(date: Date, timeZone?: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const part = (type: string) => parts.find((value) => value.type === type)?.value ?? '';
+    return `${part('year')}-${part('month')}-${part('day')}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Turn the provider outlook into one line per day, labelled Today then the
+ * weekday abbreviations ("Sat", "Sun"). Returns null when there is no usable
+ * text so the caller can fall back to the generated summary.
+ */
+function formatOutlookLines(
+  outlook: WeatherOutlookDay[] | undefined,
+  timeZone?: string,
+  now: Date = new Date(),
+): WeatherOutlookLine[] | null {
+  if (!outlook?.length) return null;
+
+  const todayKey = locationDateKey(now, timeZone);
+  const first = outlook[0]!;
+  const firstIsToday =
+    first.day.trim().toLowerCase() === 'today' || first.start.slice(0, 10) === todayKey;
+
+  const lines = outlook
+    .slice(0, 3)
+    .map((day, index) => {
+      const text = day.short ? naturalizeOutlookText(day.short) : day.detail;
+      if (!text) return null;
+
+      const weekday = WEEKDAY_ABBREVIATIONS[day.day] ?? day.day;
+      const label = index === 0 && firstIsToday ? 'Today' : weekday;
+
+      return { label, text };
+    })
+    .filter((line): line is WeatherOutlookLine => line !== null);
+
+  return lines.length > 0 ? lines : null;
+}
+
 
 export interface WeatherData {
   location: string;
@@ -321,6 +447,8 @@ export interface WeatherData {
   forecast: ForecastDay[];
   /** Currently active watches, warnings, advisories, or similar alerts. */
   alerts?: WeatherAlert[];
+  /** Next few days of human-written forecast text, when the provider offers it. */
+  outlook?: WeatherOutlookDay[];
   /** Next 24 hours of hourly forecast data for the timeline. */
   hourly?: HourlyForecast[];
   periods?: ForecastPeriod[];
@@ -580,6 +708,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           sunrise={weatherData.sunrise}
           sunset={weatherData.sunset}
           compact={compactHeader}
+          outlook={weatherData.outlook}
         />
 
         {weatherData.alerts && weatherData.alerts.length > 0 && (
@@ -748,6 +877,7 @@ function CurrentConditions({
   sunrise,
   sunset,
   compact = false,
+  outlook,
 }: {
   weather: CurrentWeather;
   units: WeatherUnits;
@@ -760,11 +890,23 @@ function CurrentConditions({
   sunset?: Date;
   /** Short tiles keep the header to icon + temperature + one condition line. */
   compact?: boolean;
+  outlook?: WeatherOutlookDay[];
 }) {
   const t = useTranslations('weather');
+  const locale = useLocale();
   const temp  = formatTemp(weather.temperature, units);
   const feels = formatTemp(weather.feelsLike, units);
   const showFeelsLike = temp !== feels;
+  // The NWS narrative is English-only, so non-English locales keep the
+  // generated summary instead of mixing languages on the dashboard.
+  const outlookLines = locale.startsWith('en') ? formatOutlookLines(outlook, timezone) : null;
+  const outlookTitle =
+    locale.startsWith('en') && outlook?.length
+      ? outlook
+          .slice(0, 3)
+          .map((day) => `${day.day}: ${day.detail || day.short}`)
+          .join('\n')
+      : undefined;
   const weatherSummary = formatWeatherSummary(
     {
       currentCondition: weather.condition,
@@ -840,14 +982,36 @@ function CurrentConditions({
             <div
               data-weather-condition
               data-testid="weather-day-summary"
+              title={outlookTitle}
               className={cn(
                 'mt-1 text-muted-foreground',
                 compact
                   ? 'truncate whitespace-nowrap text-sm leading-5'
-                  : 'text-sm leading-5 @min-[22rem]:whitespace-normal @min-[22rem]:break-words @min-[22rem]:text-lg @min-[22rem]:leading-6',
+                  : outlookLines
+                    ? 'flex flex-col gap-0.5 text-sm leading-5 @min-[22rem]:text-lg @min-[22rem]:leading-6'
+                    : 'text-sm leading-5 @min-[22rem]:whitespace-normal @min-[22rem]:break-words @min-[22rem]:text-lg @min-[22rem]:leading-6',
               )}
+              role={!compact && outlookLines ? 'list' : undefined}
             >
-              {daySummary}
+              {outlookLines ? (
+                compact ? (
+                  <span>{`${outlookLines[0]!.label}: ${outlookLines[0]!.text}`}</span>
+                ) : (
+                  outlookLines.map((line, index) => (
+                    <div
+                      key={`${line.label}-${index}`}
+                      role="listitem"
+                      aria-label={`${line.label}: ${line.text}`}
+                      className="grid grid-cols-[4.5rem_1fr] gap-x-2 @min-[22rem]:grid-cols-[5.5rem_1fr]"
+                    >
+                      <span className="font-medium text-foreground/80">{line.label}</span>
+                      <span className="min-w-0">{line.text}</span>
+                    </div>
+                  ))
+                )
+              ) : (
+                daySummary
+              )}
             </div>
           </div>
         </div>
