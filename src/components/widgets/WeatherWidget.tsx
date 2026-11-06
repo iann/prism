@@ -437,6 +437,41 @@ function formatOutlookLines(
 }
 
 /** Join the per-day outlook into a short forecast narrative. */
+const OUTLOOK_CONNECTORS = [
+  { key: 'then', join: ', then ', afterFirst: false },
+  { key: 'followed by', join: ', followed by ', afterFirst: false },
+  { key: 'after that', join: ', and after that ', afterFirst: true },
+] as const;
+
+type OutlookConnector = (typeof OUTLOOK_CONNECTORS)[number];
+
+function stableHash(value: string): number {
+  let hash = 2_166_136_261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Pick a connector deterministically, avoiding the one just used. "After
+ * that" is held back for a later transition; "Rain today, and after that ..."
+ * reads worse than "then" or "followed by" as the first step.
+ */
+function pickOutlookConnector(
+  seed: string,
+  transitionIndex: number,
+  previous?: OutlookConnector,
+): OutlookConnector {
+  const options = OUTLOOK_CONNECTORS.filter(
+    (connector) =>
+      (!connector.afterFirst || transitionIndex > 1) &&
+      (!previous || connector.key !== previous.key),
+  );
+  return options[stableHash(seed) % options.length]!;
+}
+
 function formatOutlookProse(lines: WeatherOutlookLine[]): string {
   const [first, ...rest] = lines;
   if (!first) return '';
@@ -444,8 +479,8 @@ function formatOutlookProse(lines: WeatherOutlookLine[]): string {
   const lowerFirst = (value: string) =>
     value.charAt(0).toLocaleLowerCase() + value.slice(1);
   // The daily phrase can already contain "then" for its own two halves. Once
-  // a day-level "then" or "Next" is added, use "and" inside the day so the
-  // sentence does not stack connectives.
+  // a day-level connector is added, use "and" inside the day so the sentence
+  // does not stack connectives.
   const joinDayParts = (value: string) => value.replace(/,\s*then\s+/gi, ' and ');
 
   const firstText =
@@ -458,10 +493,16 @@ function formatOutlookProse(lines: WeatherOutlookLine[]): string {
     parts.push(`${joinDayParts(lowerFirst(line.text))} ${line.dayName || line.label}`);
   }
 
-  const [firstPart, ...laterParts] = parts;
-  return `${firstPart}${laterParts
-    .map((part, index) => `${index === 0 ? ', then ' : ', and then '}${part}`)
-    .join('')}.`;
+  const seed = lines.map((line) => `${line.dayName}:${line.text}`).join('|');
+  let prose = parts[0]!;
+  let previous: OutlookConnector | undefined;
+  for (let index = 1; index < parts.length; index += 1) {
+    const connector = pickOutlookConnector(`${seed}:${index}`, index, previous);
+    prose += `${connector.join}${parts[index]}`;
+    previous = connector;
+  }
+
+  return `${prose}.`;
 }
 
 

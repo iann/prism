@@ -816,9 +816,14 @@ describe('current conditions', () => {
     render(<WeatherWidget data={data} />);
 
     const summary = screen.getByTestId('weather-day-summary');
-    expect(summary.textContent).toBe(
-      'Rain today, then light rain likely and patchy fog Saturday, and then mostly sunny Sunday.',
+    const summaryText = summary.textContent ?? '';
+    expect(summaryText).toMatch(
+      /^Rain today, (then|followed by) light rain likely and patchy fog Saturday, (then|followed by|and after that) mostly sunny Sunday\.$/,
     );
+    const connectors = summaryText.match(
+      /^Rain today, (then|followed by) .*, (then|followed by|and after that) .*\.$/,
+    );
+    expect(connectors?.[1]).not.toBe(connectors?.[2]);
   });
 
   it('softens official short forecasts into natural phrases', () => {
@@ -845,8 +850,8 @@ describe('current conditions', () => {
     });
     render(<WeatherWidget data={data} />);
 
-    expect(screen.getByTestId('weather-day-summary').textContent).toBe(
-      'Partly sunny and a slight chance of showers today, then rain and a chance of thunderstorms Saturday, and then showers at times Sunday.',
+    expect(screen.getByTestId('weather-day-summary').textContent).toMatch(
+      /^Partly sunny and a slight chance of showers today, (then|followed by) rain and a chance of thunderstorms Saturday, (then|followed by|and after that) showers at times Sunday\.$/,
     );
   });
 
