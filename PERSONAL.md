@@ -1119,6 +1119,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 0048f05d
 
+134. **A more forgiving party mode button**
+
+    Enlarged the party mode trigger's touch target from the visible 56px
+    circle to an 88px box with 16px of transparent padding on every side.
+    The circle looks the same, but misses near its edges — including the
+    strip below it where the bottom navigation sits — now start the family
+    celebration instead of navigating away.
+
+    Commit: daf90863
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
