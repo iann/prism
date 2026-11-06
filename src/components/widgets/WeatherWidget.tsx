@@ -336,7 +336,7 @@ const WEEKDAY_ABBREVIATIONS: Record<string, string> = {
   Saturday: 'Sat',
 };
 
-type WeatherOutlookLine = { label: string; text: string };
+type WeatherOutlookLine = { label: string; text: string; dayName: string };
 
 /**
  * NWS writes short forecasts as Title Case fragments ("Light Rain Likely then
@@ -429,11 +429,26 @@ function formatOutlookLines(
       const weekday = WEEKDAY_ABBREVIATIONS[day.day] ?? day.day;
       const label = index === 0 && firstIsToday ? 'Today' : weekday;
 
-      return { label, text };
+      return { label, text, dayName: day.day };
     })
     .filter((line): line is WeatherOutlookLine => line !== null);
 
   return lines.length > 0 ? lines : null;
+}
+
+/** Join the per-day outlook into a short forecast narrative. */
+function formatOutlookProse(lines: WeatherOutlookLine[]): string {
+  return lines
+    .map((line, index) => {
+      if (index === 0 && line.label === 'Today') {
+        return `${line.text} today.`;
+      }
+
+      const dayName = line.dayName || line.label;
+      const text = line.text.charAt(0).toLocaleLowerCase() + line.text.slice(1);
+      return `On ${dayName}, ${text}.`;
+    })
+    .join(' ');
 }
 
 
@@ -931,19 +946,20 @@ function CurrentConditions({
     ? getAirQualityStatus(weather.airQuality.pm25)
     : null;
 
+  const outlookProse = outlookLines ? formatOutlookProse(outlookLines) : null;
+
   return (
-    <div
-      data-weather-current
-      data-testid="weather-current-header"
-      data-compact={compact || undefined}
-      className={cn(
-        'grid grid-cols-1 items-start gap-x-3',
-        !compact && '@min-[22rem]:grid-cols-[minmax(0,1fr)_auto]',
-      )}
-    >
-      {/* Keep both columns top-aligned, with compact, consistent line spacing
-          inside each stack so the header does not grow around the large temp. */}
-      <div className="min-w-0">
+    <div data-weather-current className="flex flex-col gap-2">
+      <div
+        data-testid="weather-current-header"
+        data-compact={compact || undefined}
+        className={cn(
+          'grid grid-cols-1 items-start gap-x-3',
+          !compact && '@min-[22rem]:grid-cols-[minmax(0,1fr)_auto]',
+        )}
+      >
+        {/* Keep the icon beside the temperature, not centred against the
+            forecast prose that sits below the whole header. */}
         <div className="flex min-w-0 items-center gap-3 in-data-[corner=right]:justify-end">
           <WeatherIcon
             condition={weather.condition}
@@ -976,105 +992,85 @@ function CurrentConditions({
                 </span>
               )}
             </div>
-            {/* The timed summary is the condition line. Rendering the provider's
-                current description here as well repeats copy such as
-                "Partly cloudy" / "Partly cloudy tonight." */}
-            <div
-              data-weather-condition
-              data-testid="weather-day-summary"
-              title={outlookTitle}
-              className={cn(
-                'mt-1 text-muted-foreground',
-                compact
-                  ? 'truncate whitespace-nowrap text-sm leading-5'
-                  : outlookLines
-                    ? 'flex flex-col gap-0.5 text-sm leading-5 @min-[22rem]:text-lg @min-[22rem]:leading-6'
-                    : 'text-sm leading-5 @min-[22rem]:whitespace-normal @min-[22rem]:break-words @min-[22rem]:text-lg @min-[22rem]:leading-6',
-              )}
-              role={!compact && outlookLines ? 'list' : undefined}
-            >
-              {outlookLines ? (
-                compact ? (
-                  <span>{`${outlookLines[0]!.label}: ${outlookLines[0]!.text}`}</span>
-                ) : (
-                  outlookLines.map((line, index) => (
-                    <div
-                      key={`${line.label}-${index}`}
-                      role="listitem"
-                      aria-label={`${line.label}: ${line.text}`}
-                      className="grid grid-cols-[4.5rem_1fr] gap-x-2 @min-[22rem]:grid-cols-[5.5rem_1fr]"
-                    >
-                      <span className="font-medium text-foreground/80">{line.label}</span>
-                      <span className="min-w-0">{line.text}</span>
-                    </div>
-                  ))
-                )
-              ) : (
-                daySummary
-              )}
-            </div>
           </div>
         </div>
-        {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
-          <div
-            className="mt-2 flex items-center gap-1.5 text-[13px] text-muted-foreground"
-            title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
-          >
-            <span
-              data-testid="air-quality-badge"
-              aria-label={`Air quality: ${airQualityStatus.label}`}
-              title={airQualityStatus.label}
-              className={cn(
-                'inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full border px-2 py-1 text-[13px] font-semibold leading-none',
-                airQualityStatus.badgeClassName,
-              )}
-            >
-              <span className={cn('h-2 w-2 rounded-full', airQualityStatus.dotClassName)} />
-              Air: {airQualityStatus.label}
-            </span>
-            <span className="text-[13px] tabular-nums">{weather.airQuality.pm25} µg/m³</span>
-          </div>
-        )}
-      </div>
 
-      {/* Right: current stats */}
-      <div
-        data-weather-details
-        data-testid="weather-current-stats"
-        className={cn(
-          'hidden flex-col items-end gap-1.5 pt-0.5 text-right text-[14px] leading-5 text-muted-foreground',
-          !compact && '@min-[22rem]:flex',
-        )}
-      >
-        <div data-testid="weather-humidity-dewpoint" className="flex items-center justify-end gap-2">
-          <div className="flex items-center gap-1">
-            <Droplets className="h-3 w-3" />
-            <span>{weather.humidity}%</span>
-          </div>
-          {weather.dewPoint !== undefined && (
+        {/* Right: current stats */}
+        <div
+          data-weather-details
+          data-testid="weather-current-stats"
+          className={cn(
+            'hidden flex-col items-end gap-1.5 pt-0.5 text-right text-[14px] leading-5 text-muted-foreground',
+            !compact && '@min-[22rem]:flex',
+          )}
+        >
+          <div data-testid="weather-humidity-dewpoint" className="flex items-center justify-end gap-2">
             <div className="flex items-center gap-1">
-              <Thermometer className="h-3 w-3" />
-              <span>Dew point {formatTemp(weather.dewPoint, units)}</span>
+              <Droplets className="h-3 w-3" />
+              <span>{weather.humidity}%</span>
+            </div>
+            {weather.dewPoint !== undefined && (
+              <div className="flex items-center gap-1">
+                <Thermometer className="h-3 w-3" />
+                <span>Dew point {formatTemp(weather.dewPoint, units)}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-1">
+            <Wind className="h-3 w-3" />
+            <span>
+              {weather.windSpeed} {units.windSpeed}
+              {weather.windGust !== undefined && ` · Gusts ${weather.windGust} ${units.windSpeed}`}
+            </span>
+          </div>
+          {weather.uvIndex !== undefined && sunIsAboveHorizon && (
+            <UvIndexLine uvIndex={weather.uvIndex} trend={uvIndexTrend} />
+          )}
+          {weather.visibility !== undefined && (
+            <div className="flex items-center justify-end gap-1">
+              <Eye className="h-3 w-3" />
+              <span>Visibility {formatVisibility(weather.visibility, units)}</span>
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end gap-1">
-          <Wind className="h-3 w-3" />
-          <span>
-            {weather.windSpeed} {units.windSpeed}
-            {weather.windGust !== undefined && ` · Gusts ${weather.windGust} ${units.windSpeed}`}
-          </span>
-        </div>
-        {weather.uvIndex !== undefined && sunIsAboveHorizon && (
-          <UvIndexLine uvIndex={weather.uvIndex} trend={uvIndexTrend} />
-        )}
-        {weather.visibility !== undefined && (
-          <div className="flex items-center justify-end gap-1">
-            <Eye className="h-3 w-3" />
-            <span>Visibility {formatVisibility(weather.visibility, units)}</span>
-          </div>
-        )}
       </div>
+
+      {/* The condition line sits below the two-column header so a long outlook
+          is not squeezed into the left column. */}
+      <div
+        data-weather-condition
+        data-testid="weather-day-summary"
+        title={outlookTitle}
+        className={cn(
+          'text-muted-foreground',
+          compact
+            ? 'truncate whitespace-nowrap text-sm leading-5'
+            : 'text-sm leading-5 @min-[22rem]:whitespace-normal @min-[22rem]:break-words @min-[22rem]:text-lg @min-[22rem]:leading-6',
+        )}
+      >
+        {outlookProse ?? daySummary}
+      </div>
+
+      {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
+        <div
+          className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
+          title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
+        >
+          <span
+            data-testid="air-quality-badge"
+            aria-label={`Air quality: ${airQualityStatus.label}`}
+            title={airQualityStatus.label}
+            className={cn(
+              'inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full border px-2 py-1 text-[13px] font-semibold leading-none',
+              airQualityStatus.badgeClassName,
+            )}
+          >
+            <span className={cn('h-2 w-2 rounded-full', airQualityStatus.dotClassName)} />
+            Air: {airQualityStatus.label}
+          </span>
+          <span className="text-[13px] tabular-nums">{weather.airQuality.pm25} µg/m³</span>
+        </div>
+      )}
     </div>
   );
 }

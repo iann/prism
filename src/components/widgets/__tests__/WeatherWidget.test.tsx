@@ -756,10 +756,12 @@ describe('current conditions', () => {
       });
       render(<WeatherWidget data={data} />);
 
+      const header = screen.getByTestId('weather-current-header');
       const temperature = screen.getByTestId('weather-current-temperature');
       const summary = screen.getByTestId('weather-day-summary');
       expect(summary.textContent).toBe('Crisp and bright with patchy clouds tonight.');
-      expect(summary.parentElement).toBe(temperature.parentElement);
+      expect(header.contains(temperature)).toBe(true);
+      expect(summary.parentElement).toBe(header.parentElement);
       expect(screen.queryByText('Partly cloudy', { exact: true })).toBeNull();
     } finally {
       nowSpy.mockRestore();
@@ -814,12 +816,9 @@ describe('current conditions', () => {
     render(<WeatherWidget data={data} />);
 
     const summary = screen.getByTestId('weather-day-summary');
-    const lines = within(summary).getAllByRole('listitem');
-    expect(lines.map((line) => line.getAttribute('aria-label'))).toEqual([
-      'Today: Rain',
-      'Sat: Light rain likely, then patchy fog',
-      'Sun: Mostly sunny',
-    ]);
+    expect(summary.textContent).toBe(
+      'Rain today. On Saturday, light rain likely, then patchy fog. On Sunday, mostly sunny.',
+    );
   });
 
   it('softens official short forecasts into natural phrases', () => {
@@ -846,12 +845,9 @@ describe('current conditions', () => {
     });
     render(<WeatherWidget data={data} />);
 
-    const lines = within(screen.getByTestId('weather-day-summary')).getAllByRole('listitem');
-    expect(lines.map((line) => line.getAttribute('aria-label'))).toEqual([
-      'Today: Partly sunny, then a slight chance of showers',
-      'Sat: Rain and a chance of thunderstorms',
-      'Sun: Showers at times',
-    ]);
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe(
+      'Partly sunny, then a slight chance of showers today. On Saturday, rain and a chance of thunderstorms. On Sunday, showers at times.',
+    );
   });
 
   it('adds an article to mass-noun short forecasts', () => {
@@ -867,11 +863,9 @@ describe('current conditions', () => {
     });
     render(<WeatherWidget data={data} />);
 
-    expect(
-      within(screen.getByTestId('weather-day-summary'))
-        .getByRole('listitem')
-        .getAttribute('aria-label'),
-    ).toBe('Today: A wintry mix');
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe(
+      'A wintry mix today.',
+    );
   });
 
   it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
