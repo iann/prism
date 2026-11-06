@@ -133,7 +133,7 @@ Both the calendar subpage and the dashboard widget expose the same set of seven 
 
 The view dropdown has ▲▼ triangles for one-click cycling. In 2W, next and previous move two weeks at a time.
 
-The 1W, 3W and 4W grids were removed. A screen that was showing one of them opens on Schedule (in place of 1W) or Month (in place of 3W and 4W).
+The calendar page no longer offers the 1W, 3W or 4W grids. The dashboard widget retains a 4W grid, available at the same sizes as 2W. A saved page choice opens on Schedule (in place of 1W) or Month (in place of 3W and 4W).
 
 On phones, calendar views collapse to Agenda only: no view switcher, no chevrons. Header reads "Upcoming Events."
 
