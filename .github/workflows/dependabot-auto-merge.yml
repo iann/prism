@@ -7,7 +7,7 @@ name: Dependabot auto-merge
 #
 # This hands the clicking to GitHub. Auto-merge only completes once the ruleset's
 # required checks pass, which is the same bar a manual merge waits for:
-# type-check and lint, unit tests, migration replay, the E2E modality suite,
+# type-check and lint, unit tests, migration replay, the E2E browser suites,
 # visual regression, and the PII/secret scan.
 #
 # Majors are never auto-merged. Neither are the packages below, where even a

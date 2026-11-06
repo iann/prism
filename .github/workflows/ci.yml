@@ -178,11 +178,39 @@ jobs:
           echo "tag=v${version}-jammy" >> "$GITHUB_OUTPUT"
           echo "Playwright image: mcr.microsoft.com/playwright:v${version}-jammy"
 
-  e2e-modality:
-    name: E2E modality suite (reverse-proxy)
+  e2e:
+    name: E2E (${{ matrix.label }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: playwright-image
+
+    # The Playwright suite is the CI critical path. Split it by spec file into
+    # independent jobs so each gets its own database and dev server and they
+    # run at the same time; one serial job took ~17 minutes.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: reverse-proxy-mobile
+            label: reverse-proxy + mobile
+            specs: e2e/reverse-proxy.spec.ts e2e/mobile-pwa-settings.spec.ts
+            tz: UTC
+          - name: upstream-regression
+            label: upstream regression
+            specs: e2e/upstream-regression.spec.ts
+            tz: UTC
+          - name: display-registry
+            label: display registry
+            specs: e2e/display-registry.spec.ts
+            tz: UTC
+          - name: calendar-geometry
+            label: calendar geometry
+            specs: e2e/calendar-geometry.spec.ts
+            tz: Asia/Tokyo
+          - name: screensaver-geometry
+            label: screensaver geometry
+            specs: e2e/screensaver-geometry.spec.ts
+            tz: UTC
 
     # Use the official Playwright container so Chromium is preinstalled.
     # Previously the job downloaded Chromium from cdn.playwright.dev at
@@ -258,34 +286,34 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Run e2e modality suite
-        run: npx playwright test e2e/reverse-proxy.spec.ts e2e/mobile-pwa-settings.spec.ts e2e/upstream-regression.spec.ts e2e/display-registry.spec.ts --reporter=list
-
-      # Geometry, separately: every calendar bug in the month grid has been a
-      # rendered box in the wrong place, which no unit test can see. The classes
-      # and props were correct each time.
-      - name: Run calendar geometry suite
-        # The dev server this starts runs in Tokyo, the chromium-chicago
-        # project's browser in Chicago, and the default project's browser
-        # follows TZ, so a date passed between them in the wrong form shows.
+      # The calendar job runs the dev server in Tokyo, the chromium-chicago
+      # project's browser in Chicago, and the default project's browser in
+      # UTC, so a date passed between them in the wrong form shows.
+      - name: Run ${{ matrix.label }}
         env:
-          TZ: Asia/Tokyo
-        run: npx playwright test e2e/calendar-geometry.spec.ts --reporter=list
-
-      # The screensaver editor against the live screensaver: the same widget
-      # measured in both, landscape and portrait (#689).
-      - name: Run screensaver geometry suite
-        run: npx playwright test e2e/screensaver-geometry.spec.ts --reporter=list
+          TZ: ${{ matrix.tz }}
+        run: npx playwright test ${{ matrix.specs }} --reporter=list
 
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.name }}
           path: |
             playwright-report/
             test-results/
           retention-days: 7
+
+  # The personal branch ruleset still requires the original single E2E check
+  # name. This aggregator reports that name and passes only when every matrix
+  # shard succeeds, so the required check keeps its meaning while the work
+  # runs in parallel.
+  e2e-required:
+    name: E2E modality suite (reverse-proxy)
+    needs: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "All E2E shards passed."
 
   visual-regression:
     # Quoted, for the same reason as the migration-replay job above: an
