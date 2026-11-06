@@ -1089,22 +1089,8 @@ function CurrentConditions({
         </div>
       </div>
 
-      {/* The condition line sits below the two-column header so a long outlook
-          is not squeezed into the left column. */}
-      <div
-        data-weather-condition
-        data-testid="weather-day-summary"
-        title={outlookTitle}
-        className={cn(
-          'text-muted-foreground',
-          compact
-            ? 'truncate whitespace-nowrap text-sm leading-5'
-            : 'text-sm leading-5 @min-[22rem]:whitespace-normal @min-[22rem]:break-words @min-[22rem]:text-lg @min-[22rem]:leading-6',
-        )}
-      >
-        {outlookProse ?? daySummary}
-      </div>
-
+      {/* Air quality sits directly below the temperature, so it still reads as
+          part of the current conditions rather than the forecast below. */}
       {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
         <div
           className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
@@ -1125,6 +1111,22 @@ function CurrentConditions({
           <span className="text-[13px] tabular-nums">{weather.airQuality.pm25} µg/m³</span>
         </div>
       )}
+
+      {/* The condition line sits below the header and air quality so a long
+          outlook is not squeezed into the left column. */}
+      <div
+        data-weather-condition
+        data-testid="weather-day-summary"
+        title={outlookTitle}
+        className={cn(
+          'text-muted-foreground',
+          compact
+            ? 'truncate whitespace-nowrap text-sm leading-5'
+            : 'text-sm leading-5 @min-[22rem]:whitespace-normal @min-[22rem]:break-words @min-[22rem]:text-lg @min-[22rem]:leading-6',
+        )}
+      >
+        {outlookProse ?? daySummary}
+      </div>
     </div>
   );
 }
