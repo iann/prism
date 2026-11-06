@@ -1128,9 +1128,14 @@ describe('current conditions', () => {
     expect(screen.queryByText('27 µg/m³')).not.toBeNull();
     expect(within(screen.getByTestId('weather-current-stats')).queryByTestId('air-quality-badge')).toBeNull();
 
-    // Air quality belongs with the current conditions: it sits below the
-    // temperature but above the forecast/condition text.
+    // Air quality belongs with the current conditions: it sits in the
+    // temperature column, right below the reading, and above the forecast text
+    // so the taller stats column does not push it down.
+    const header = screen.getByTestId('weather-current-header');
+    const temperature = screen.getByTestId('weather-current-temperature');
     const summary = screen.getByTestId('weather-day-summary');
+    expect(header.contains(badge)).toBe(true);
+    expect(temperature.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(badge.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
