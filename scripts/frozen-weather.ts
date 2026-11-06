@@ -79,6 +79,9 @@ export function freezeWeather(raw: Raw, nowIso: string): Raw {
     forecast,
     minutely: undefined,
     periods: undefined,
+    // The narrative outlook comes from a live NWS request; leave it out so a
+    // screenshot never mixes a November outlook into the fixed June moment.
+    outlook: undefined,
     // No sunrise or sunset at all near the poles in midsummer.
     sunrise: sun.sunrise?.toISOString(),
     sunset: sun.sunset?.toISOString(),
