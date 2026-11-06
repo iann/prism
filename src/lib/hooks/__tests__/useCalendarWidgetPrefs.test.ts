@@ -30,19 +30,20 @@ describe('useCalendarWidgetPrefs', () => {
 
     act(() => second.result.current.setViewType('day'));
 
-    expect(localStorage.getItem('prism-calendar-view:calendar')).toBe('month');
+    expect(localStorage.getItem('prism-calendar-view:calendar')).toBe('multiWeek4');
     expect(localStorage.getItem('prism-calendar-view:calendar-2')).toBe('day');
-    expect(first.result.current.viewType).toBe('month');
+    expect(first.result.current.viewType).toBe('multiWeek4');
     expect(second.result.current.viewType).toBe('day');
-    expect(first.result.current.resolvedView).toBe('month');
-    expect(first.result.current.resolvedWeekCount).toBe(2);
+    expect(first.result.current.resolvedView).toBe('multiWeek');
+    expect(first.result.current.resolvedWeekCount).toBe(4);
     expect(second.result.current.resolvedView).toBe('day');
   });
 
   it('retains the legacy key for the original calendar instance', () => {
     localStorage.setItem('prism-calendar-view', 'multiWeek4');
     const hook = renderHook(() => useCalendarWidgetPrefs(48, 48, 'calendar'), { wrapper });
-    expect(hook.result.current.viewType).toBe('month');
+    expect(hook.result.current.viewType).toBe('multiWeek4');
+    expect(hook.result.current.resolvedWeekCount).toBe(4);
   });
 
   it('uses the legacy namespace when no instance ID is supplied', () => {
