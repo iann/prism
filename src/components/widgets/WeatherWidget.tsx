@@ -1012,12 +1012,12 @@ function CurrentConditions({
           !compact && '@min-[22rem]:grid-cols-[minmax(0,1fr)_auto]',
         )}
       >
-        {/* Keep the icon beside the temperature, not centred against the
-            forecast prose that sits below the whole header. */}
-        <div className="flex min-w-0 items-center gap-3 in-data-[corner=right]:justify-end">
+        {/* Keep the icon aligned with the temperature line, not centred against
+            the air quality and forecast prose that sit below it. */}
+        <div className="flex min-w-0 items-start gap-3 in-data-[corner=right]:justify-end">
           <WeatherIcon
             condition={weather.condition}
-            className={`h-10 w-10 shrink-0 ${conditionIconClass(weather.condition)}`}
+            className={`mt-1 h-10 w-10 shrink-0 ${conditionIconClass(weather.condition)}`}
           />
           <div className="min-w-0">
             <div
@@ -1046,6 +1046,30 @@ function CurrentConditions({
                 </span>
               )}
             </div>
+
+            {/* Air quality stays in the temperature column so it sits right
+                under the reading instead of below the taller stats column.
+                The forecast text still follows below the whole header. */}
+            {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
+              <div
+                className="mt-2 flex items-center gap-1.5 text-[13px] text-muted-foreground"
+                title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
+              >
+                <span
+                  data-testid="air-quality-badge"
+                  aria-label={`Air quality: ${airQualityStatus.label}`}
+                  title={airQualityStatus.label}
+                  className={cn(
+                    'inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full border px-2 py-1 text-[13px] font-semibold leading-none',
+                    airQualityStatus.badgeClassName,
+                  )}
+                >
+                  <span className={cn('h-2 w-2 rounded-full', airQualityStatus.dotClassName)} />
+                  Air: {airQualityStatus.label}
+                </span>
+                <span className="text-[13px] tabular-nums">{weather.airQuality.pm25} µg/m³</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1089,31 +1113,8 @@ function CurrentConditions({
         </div>
       </div>
 
-      {/* Air quality sits directly below the temperature, so it still reads as
-          part of the current conditions rather than the forecast below. */}
-      {airQualityStatus && weather.airQuality?.pm25 !== undefined && (
-        <div
-          className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
-          title="PM2.5 category based on EPA AQI breakpoints; current reading, not a 24-hour average"
-        >
-          <span
-            data-testid="air-quality-badge"
-            aria-label={`Air quality: ${airQualityStatus.label}`}
-            title={airQualityStatus.label}
-            className={cn(
-              'inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full border px-2 py-1 text-[13px] font-semibold leading-none',
-              airQualityStatus.badgeClassName,
-            )}
-          >
-            <span className={cn('h-2 w-2 rounded-full', airQualityStatus.dotClassName)} />
-            Air: {airQualityStatus.label}
-          </span>
-          <span className="text-[13px] tabular-nums">{weather.airQuality.pm25} µg/m³</span>
-        </div>
-      )}
-
-      {/* The condition line sits below the header and air quality so a long
-          outlook is not squeezed into the left column. */}
+      {/* The condition line sits below the whole header, including air quality,
+          so a long outlook is not squeezed into the left column. */}
       <div
         data-weather-condition
         data-testid="weather-day-summary"
