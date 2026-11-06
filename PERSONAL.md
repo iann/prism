@@ -249,6 +249,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
     integration with Prism, Claude, Kitchen Calm, Herb Garden, Warm Clay,
     Soft Slate, and LCARS.
 
+27. **Four-week calendar widget view**
+
+    Restored the four-week grid as a dashboard calendar widget option and kept
+    previously saved four-week preferences working, with localized labels.
+
+    Commit: 7cd1f033
+
     Commit: bb689f6
 
 27. **Blue forecast variation for precipitation**
