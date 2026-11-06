@@ -1222,4 +1222,27 @@ test.describe('corner clock and weather', () => {
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
   });
+
+  test('a tall weather tile keeps the two-column header when the screen is portrait', async ({ page }) => {
+    // A portrait display fits the 48-column design by width, so a 23-column
+    // tile renders about 500px wide — under the old 32rem breakpoint — even
+    // though it is hundreds of pixels tall. The stats column belongs beside the
+    // temperature there, not hidden.
+    await page.setViewportSize({ width: 1080, height: 1920 });
+    const layout = await openLayout(page, [
+      { i: 'weather', x: 25, y: 0, w: 23, h: 39 },
+      { i: 'clock', x: 0, y: 0, w: 25, h: 8 },
+      { i: 'tasks', x: 0, y: 39, w: 48, h: 22 },
+    ]);
+    try {
+      await expect(page.locator('[data-weather-details]')).toBeVisible();
+      await expect(page.locator('[data-weather-current]')).not.toHaveAttribute('data-compact', 'true');
+      const current = await rect(page, '[data-weather-current]');
+      const details = await rect(page, '[data-weather-details]');
+      expect(details.left, 'stats sit to the right of the temperature').toBeGreaterThan(current.left + current.width * 0.4);
+      expect(details.top - current.top, 'stats share the top line').toBeLessThan(20);
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+    }
+  });
 });

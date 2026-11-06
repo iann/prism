@@ -1129,6 +1129,19 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: daf90863
 
+135. **Two-column weather header on tall tiles**
+
+    Restored the current-weather header's stats column (humidity and dew
+    point, wind and gusts, UV, visibility) on tall weather tiles. The
+    container query now sits on the widget content wrapper instead of the
+    grid it was styling — a container cannot match its own query, so the
+    two-column row had collapsed to a stack even when the old width
+    breakpoint matched. The compact single-line form now depends on the
+    tile's height, so a portrait screen's letterboxed grid no longer hides
+    the stats column, and the condition summary keeps its full text.
+
+    Commit: 6664e35c
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

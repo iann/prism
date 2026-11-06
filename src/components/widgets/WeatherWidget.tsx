@@ -538,6 +538,12 @@ export const WeatherWidget = React.memo(function WeatherWidget({
   const currentOnly =
     !(showHourly && weatherData.hourly && weatherData.hourly.length > 0) &&
     !(showForecast && shownForecast.length > 0);
+  // A short widget (the clock-and-weather corner tiles are five rows) has no
+  // room for the stats column, so the header collapses to icon + temperature +
+  // one-line condition. Height decides this, not width: the same tile can be
+  // rendered narrow by contain/letterbox scaling yet still be tall enough for
+  // the full two-column header (a portrait kitchen display, for example).
+  const compactHeader = gridH < 8;
 
   const hasDays = weatherData.forecast.length > 0;
 
@@ -560,7 +566,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
       error={error}
       className={className}
     >
-      <div className={cn('flex flex-col gap-3 h-full overflow-hidden', isVertical ? 'pb-2' : '', currentOnly && 'justify-center')}>
+      <div className={cn('@container flex flex-col gap-3 h-full overflow-hidden', isVertical ? 'pb-2' : '', currentOnly && 'justify-center')}>
 
         {/* CURRENT CONDITIONS */}
         <CurrentConditions
@@ -573,6 +579,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           currentSource={weatherData.currentSource}
           sunrise={weatherData.sunrise}
           sunset={weatherData.sunset}
+          compact={compactHeader}
         />
 
         {weatherData.alerts && weatherData.alerts.length > 0 && (
@@ -740,6 +747,7 @@ function CurrentConditions({
   currentSource,
   sunrise,
   sunset,
+  compact = false,
 }: {
   weather: CurrentWeather;
   units: WeatherUnits;
@@ -750,6 +758,8 @@ function CurrentConditions({
   currentSource?: WeatherCurrentSource;
   sunrise?: Date;
   sunset?: Date;
+  /** Short tiles keep the header to icon + temperature + one condition line. */
+  compact?: boolean;
 }) {
   const t = useTranslations('weather');
   const temp  = formatTemp(weather.temperature, units);
@@ -783,7 +793,11 @@ function CurrentConditions({
     <div
       data-weather-current
       data-testid="weather-current-header"
-      className="@container grid grid-cols-1 items-start gap-x-3 @min-[32rem]:grid-cols-[minmax(0,1fr)_auto]"
+      data-compact={compact || undefined}
+      className={cn(
+        'grid grid-cols-1 items-start gap-x-3',
+        !compact && '@min-[22rem]:grid-cols-[minmax(0,1fr)_auto]',
+      )}
     >
       {/* Keep both columns top-aligned, with compact, consistent line spacing
           inside each stack so the header does not grow around the large temp. */}
@@ -826,7 +840,12 @@ function CurrentConditions({
             <div
               data-weather-condition
               data-testid="weather-day-summary"
-              className="mt-1 truncate whitespace-nowrap text-sm leading-5 text-muted-foreground @min-[32rem]:whitespace-normal @min-[32rem]:text-lg @min-[32rem]:leading-6"
+              className={cn(
+                'mt-1 text-muted-foreground',
+                compact
+                  ? 'truncate whitespace-nowrap text-sm leading-5'
+                  : 'text-sm leading-5 @min-[22rem]:whitespace-normal @min-[22rem]:break-words @min-[22rem]:text-lg @min-[22rem]:leading-6',
+              )}
             >
               {daySummary}
             </div>
@@ -858,7 +877,10 @@ function CurrentConditions({
       <div
         data-weather-details
         data-testid="weather-current-stats"
-        className="hidden flex-col items-end gap-1.5 pt-0.5 text-right text-[14px] leading-5 text-muted-foreground @min-[32rem]:flex"
+        className={cn(
+          'hidden flex-col items-end gap-1.5 pt-0.5 text-right text-[14px] leading-5 text-muted-foreground',
+          !compact && '@min-[22rem]:flex',
+        )}
       >
         <div data-testid="weather-humidity-dewpoint" className="flex items-center justify-end gap-2">
           <div className="flex items-center gap-1">
