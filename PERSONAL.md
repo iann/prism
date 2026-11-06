@@ -1156,6 +1156,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: bfea986f
 
+137. **Prose three-day outlook and balanced weather header**
+
+    Turns the three-day outlook into a short narrative ("Rain today. On
+    Saturday, ...") and moves it below the current-conditions row so it spans
+    the full widget width. The weather icon now sits beside the temperature
+    instead of centring against the longer outlook, which fixes the tall,
+    narrow kitchen tile's two-column header.
+
+    Commit: fd646035
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
