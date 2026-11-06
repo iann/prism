@@ -1127,6 +1127,11 @@ describe('current conditions', () => {
     expect(badge.querySelector('span')?.className).toContain('dark:bg-yellow-300');
     expect(screen.queryByText('27 µg/m³')).not.toBeNull();
     expect(within(screen.getByTestId('weather-current-stats')).queryByTestId('air-quality-badge')).toBeNull();
+
+    // Air quality belongs with the current conditions: it sits below the
+    // temperature but above the forecast/condition text.
+    const summary = screen.getByTestId('weather-day-summary');
+    expect(badge.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('keeps the two-column header in a tall but narrow tile', () => {
