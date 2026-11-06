@@ -817,7 +817,7 @@ describe('current conditions', () => {
 
     const summary = screen.getByTestId('weather-day-summary');
     expect(summary.textContent).toBe(
-      'Rain today, then light rain likely and patchy fog Saturday. Next, mostly sunny Sunday.',
+      'Rain today, then light rain likely and patchy fog Saturday, and then mostly sunny Sunday.',
     );
   });
 
@@ -846,7 +846,7 @@ describe('current conditions', () => {
     render(<WeatherWidget data={data} />);
 
     expect(screen.getByTestId('weather-day-summary').textContent).toBe(
-      'Partly sunny and a slight chance of showers today, then rain and a chance of thunderstorms Saturday. Next, showers at times Sunday.',
+      'Partly sunny and a slight chance of showers today, then rain and a chance of thunderstorms Saturday, and then showers at times Sunday.',
     );
   });
 

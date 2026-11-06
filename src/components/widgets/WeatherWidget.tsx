@@ -453,19 +453,15 @@ function formatOutlookProse(lines: WeatherOutlookLine[]): string {
       ? `${first.text} today`
       : `On ${first.dayName || first.label}, ${lowerFirst(first.text)}`;
 
-  if (rest.length === 0) return `${firstText}.`;
+  const parts = [joinDayParts(firstText)];
+  for (const line of rest) {
+    parts.push(`${joinDayParts(lowerFirst(line.text))} ${line.dayName || line.label}`);
+  }
 
-  const firstClause = rest.length > 0 ? joinDayParts(firstText) : firstText;
-  const second = rest[0]!;
-  const secondText = `${joinDayParts(lowerFirst(second.text))} ${second.dayName || second.label}`;
-  const sentences = [`${firstClause}, then ${secondText}.`];
-
-  rest.slice(1).forEach((line, index) => {
-    const text = `${joinDayParts(lowerFirst(line.text))} ${line.dayName || line.label}`;
-    sentences.push(`${index === 0 ? 'Next,' : 'After that,'} ${text}.`);
-  });
-
-  return sentences.join(' ');
+  const [firstPart, ...laterParts] = parts;
+  return `${firstPart}${laterParts
+    .map((part, index) => `${index === 0 ? ', then ' : ', and then '}${part}`)
+    .join('')}.`;
 }
 
 
