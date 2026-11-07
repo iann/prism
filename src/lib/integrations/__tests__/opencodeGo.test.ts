@@ -45,6 +45,7 @@ const savedEnv = {
   key: process.env.OPENCODE_GO_API_KEY,
   base: process.env.OPENCODE_GO_BASE_URL,
   model: process.env.OPENCODE_GO_MODEL,
+  fallback: process.env.OPENCODE_GO_FALLBACK_MODEL,
   org: process.env.OPENCODE_GO_ORG_ID,
   session: process.env.OPENCODE_GO_SESSION,
 };
@@ -53,6 +54,7 @@ beforeEach(() => {
   process.env.OPENCODE_GO_API_KEY = 'test-key';
   process.env.OPENCODE_GO_BASE_URL = 'https://example.test/v1';
   process.env.OPENCODE_GO_MODEL = 'test-model';
+  process.env.OPENCODE_GO_FALLBACK_MODEL = 'test-fallback-model';
   delete process.env.OPENCODE_GO_ORG_ID;
   delete process.env.OPENCODE_GO_SESSION;
   jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -65,6 +67,7 @@ afterEach(() => {
     ['OPENCODE_GO_API_KEY', savedEnv.key],
     ['OPENCODE_GO_BASE_URL', savedEnv.base],
     ['OPENCODE_GO_MODEL', savedEnv.model],
+    ['OPENCODE_GO_FALLBACK_MODEL', savedEnv.fallback],
     ['OPENCODE_GO_ORG_ID', savedEnv.org],
     ['OPENCODE_GO_SESSION', savedEnv.session],
   ] as const) {
@@ -140,11 +143,42 @@ describe('generateOutlookProse', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('stays best-effort when the provider request fails', async () => {
-    jest.spyOn(global, 'fetch' as never).mockRejectedValue(new Error('network down') as never);
+  it('falls back to the configured fallback model', async () => {
+    const fetchSpy = jest
+      .spyOn(global, 'fetch' as never)
+      .mockRejectedValueOnce(new Error('primary down') as never)
+      .mockResolvedValueOnce(completion(GOOD_PROSE) as never);
+
+    const { generateOutlookProse } = await import('../opencodeGo');
+    await expect(generateOutlookProse(OUTLOOK)).resolves.toBe(GOOD_PROSE);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    const second = fetchSpy.mock.calls[1] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(second[1].body)) as { model: string };
+    expect(body.model).toBe('test-fallback-model');
+  });
+
+  it('cleans day-label prefixes from the fallback model', async () => {
+    const labelled =
+      'Today: Rain likely and patchy fog, mostly cloudy. Then Saturday: a chance of rain and patchy fog before 7am, mostly sunny, followed by Sunday: mostly sunny.';
+    jest
+      .spyOn(global, 'fetch' as never)
+      .mockResolvedValue(completion(labelled) as never);
+
+    const { generateOutlookProse } = await import('../opencodeGo');
+    await expect(generateOutlookProse(OUTLOOK)).resolves.toBe(
+      'Rain likely and patchy fog, mostly cloudy. Then Saturday, a chance of rain and patchy fog before 7am, mostly sunny, followed by Sunday, mostly sunny.',
+    );
+  });
+
+  it('stays best-effort when both provider requests fail', async () => {
+    const fetchSpy = jest
+      .spyOn(global, 'fetch' as never)
+      .mockRejectedValue(new Error('network down') as never);
 
     const { generateOutlookProse } = await import('../opencodeGo');
     await expect(generateOutlookProse(OUTLOOK)).resolves.toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });
 

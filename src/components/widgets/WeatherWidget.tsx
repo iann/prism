@@ -522,6 +522,8 @@ export interface WeatherData {
   outlook?: WeatherOutlookDay[];
   /** LLM-polished prose for the outlook, when OpenCode Go is configured. */
   outlookProse?: string;
+  /** True when a key is configured but no usable prose was produced. */
+  outlookProseFailed?: boolean;
   /** Next 24 hours of hourly forecast data for the timeline. */
   hourly?: HourlyForecast[];
   periods?: ForecastPeriod[];
@@ -783,6 +785,7 @@ export const WeatherWidget = React.memo(function WeatherWidget({
           compact={compactHeader}
           outlook={weatherData.outlook}
           outlookProse={weatherData.outlookProse}
+          outlookProseFailed={weatherData.outlookProseFailed}
         />
 
         {weatherData.alerts && weatherData.alerts.length > 0 && (
@@ -953,6 +956,7 @@ function CurrentConditions({
   compact = false,
   outlook,
   outlookProse,
+  outlookProseFailed = false,
 }: {
   weather: CurrentWeather;
   units: WeatherUnits;
@@ -968,6 +972,8 @@ function CurrentConditions({
   outlook?: WeatherOutlookDay[];
   /** Server-generated prose from OpenCode Go, when configured. */
   outlookProse?: string;
+  /** True when the LLM was configured but the rewrite failed. */
+  outlookProseFailed?: boolean;
 }) {
   const t = useTranslations('weather');
   const locale = useLocale();
@@ -1026,6 +1032,7 @@ function CurrentConditions({
 
   const summaryText =
     serverProse && serverProseFits ? serverProse : outlookProseText ?? daySummary;
+  const llmFailed = outlookProseFailed || (serverProse !== undefined && !serverProseFits);
 
   return (
     <div data-weather-current className="flex flex-col gap-2">
@@ -1153,6 +1160,15 @@ function CurrentConditions({
         )}
       >
         {summaryText}
+        {llmFailed && (
+          <span
+            data-testid="weather-outlook-fallback-indicator"
+            role="img"
+            aria-label="LLM outlook unavailable; using the built-in summary"
+            title="LLM outlook unavailable; using the built-in summary"
+            className="ml-1 inline-block h-2 w-2 rounded-full bg-red-500 align-middle"
+          />
+        )}
       </div>
     </div>
   );

@@ -166,8 +166,10 @@ export async function GET(request: NextRequest) {
     // fallback, and cache a short negative result so a bad key or an outage
     // does not retry on every one-minute widget poll.
     if (isOutlookLlmConfigured() && weatherData.outlook?.length) {
-      const model = process.env.OPENCODE_GO_MODEL?.trim() || 'deepseek-v4.1-flash';
-      const proseCacheKey = `weather-outlook-prose:${model}:${outlookProseCacheKey(weatherData.outlook)}`;
+      const model = process.env.OPENCODE_GO_MODEL?.trim() || 'glm-5.3-flash';
+      const fallbackModel =
+        process.env.OPENCODE_GO_FALLBACK_MODEL?.trim() || 'minimax-m3.1-flash';
+      const proseCacheKey = `weather-outlook-prose:${model}:${fallbackModel}:${outlookProseCacheKey(weatherData.outlook)}`;
       try {
         let prose = await getCache<string>(proseCacheKey);
         if (prose === null) {
@@ -175,7 +177,11 @@ export async function GET(request: NextRequest) {
           prose = generated ?? '';
           await setCache(proseCacheKey, prose, generated ? WEATHER_CACHE_TTL : 300);
         }
-        weatherData = { ...weatherData, outlookProse: prose || undefined };
+        weatherData = {
+          ...weatherData,
+          outlookProse: prose || undefined,
+          outlookProseFailed: !prose,
+        };
       } catch (error) {
         logError('Weather outlook prose unavailable; using heuristic:', error);
       }
