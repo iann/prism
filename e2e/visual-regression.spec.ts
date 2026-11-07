@@ -127,7 +127,7 @@ async function setClientFlags(
  * be compiling, and two baselines were once captured as blank white pages.
  */
 async function expectPainted(page: Page, marker?: Locator) {
-  await page.waitForFunction(() => (document.body?.innerText ?? '').trim().length > 40, null, { timeout: 30000 });
+  await page.waitForFunction(() => (document.body?.innerText ?? '').trim().length > 40, null, { timeout: 60000 });
   if (marker) await expect(marker).toBeVisible({ timeout: 30000 });
 }
 
@@ -139,10 +139,17 @@ async function expectPainted(page: Page, marker?: Locator) {
  * bars. The Tasks tile is the marker because the seeded dashboard always has
  * one; other tiles can be disabled or intentionally defer loading in perf mode.
  */
-async function waitForDashboardWidgets(page: Page) {
+async function waitForDashboardWidgets(page: Page, opts: { waitForData?: boolean } = {}) {
+  const { waitForData = true } = opts;
   // The grid itself renders after the layouts request, so the cell can still be
   // missing when network goes idle.
-  await page.locator('.widget-cell[data-widget="tasks"]').waitFor({ state: 'attached', timeout: 30_000 });
+  await page.locator('.widget-cell[data-widget="tasks"]').waitFor({ state: 'attached', timeout: 60_000 });
+  if (!waitForData) {
+    // Performance mode deliberately defers data work; its baseline is the
+    // arrangement, not the first paint's loaded rows.
+    await page.waitForTimeout(800);
+    return;
+  }
   await page.waitForFunction(
     () => {
       // Tasks and Shopping both show skeletons until their first request
@@ -157,7 +164,7 @@ async function waitForDashboardWidgets(page: Page) {
       return loaded('tasks') && loaded('shopping');
     },
     null,
-    { timeout: 30_000 },
+    { timeout: 60_000 },
   );
   await page.waitForTimeout(400);
 }
@@ -226,6 +233,10 @@ async function hideDevOverlay(page: Page) {
 const FIXED_NOW = process.env.PRISM_SEED_NOW;
 
 test.describe('Visual regression', () => {
+  // A cold CI dev-server compile plus the first data requests can take past the
+  // default 30s, especially on the perf-mode runs that defer data work.
+  test.setTimeout(90_000);
+
   let parentName: string;
 
   test.beforeEach(async ({ page }) => {
@@ -274,7 +285,7 @@ test.describe('Visual regression', () => {
       await page.waitForTimeout(800);
 
       await expectPainted(page, page.locator('.widget-cell').first());
-      await waitForDashboardWidgets(page);
+      await waitForDashboardWidgets(page, { waitForData: false });
       await expect(page).toHaveScreenshot(`dashboard-perf-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),

@@ -59,7 +59,7 @@ anonymized seed database (`E2E_HAS_TEST_DB=1`) if a screenshot actually changed.
 | `AppShell`, `SideNav`, `PortraitNav`, `MobileNav` | Upstream replaced them with `Dock`; the personal fork keeps its wall/portrait/LCARS navigation, portrait bottom-nav settings, and auto-hide behavior. Upstream deleted the three components; they are restored. |
 | `Dashboard`, `DashboardGrid` | Personal floating cards (radar, media player), LCARS frame, layout-editor tabs, weather/calendar revisions, and screen jobs are retained. Upstream `TodayScene`/`PhoneToday` rendering is not wired into the personal dashboard. |
 | Weather widget body and header | Personal outlook prose (4-attempt ladder, 165/180 budget), UV/visibility pairing, AirGradient/AQI, alerts, solar map, and current-conditions layout are retained. Upstream's one-line condition/display-face header is not adopted. |
-| Calendar views (`AgendaView`, `WeekView`, `DayViewSideBySide`, `SpanningEventRows`, `CalendarWidget`) | Personal lane allocation, no-school tinting, four-week view, event colors, and widget controls are retained. Upstream `SlidingTitle` long-title sliding is not adopted. |
+| Calendar views (`AgendaView`, `WeekView`, `DayViewSideBySide`, `SpanningEventRows`, `CalendarWidget`) | Personal lane allocation, no-school tinting, four-week view, event colors, and widget controls are retained. Upstream `SlidingTitle` long-title sliding is not adopted. The upstream event sheet and calendar hydration are adopted; the personal All/group filter buttons keep their filled-pill styling. |
 | `CreateDashboardDialog` / `LayoutEditorDashboardManager` | The fork keeps the grid front page; upstream's Simple **Today** / **Calendar** starts are not offered. The handler accepts those values only to satisfy the merged type and maps them to the default grid template. |
 | `styles/globals.css` | Personal idle-clear, glass, water, and view-transition rules are retained; upstream's duplicate new-look sheet/water block is not added. |
 | `FeaturesSection` | Personal portrait bottom-navigation settings are retained instead of the upstream dock picker. |
@@ -71,6 +71,8 @@ anonymized seed database (`E2E_HAS_TEST_DB=1`) if a screenshot actually changed.
 
 - Shared-event deduplication (`mergeSharedEvents`) for one event on two people's
   calendars.
+- The one event sheet opened from the calendar, plus calendar hydration and the
+  phone page Add button.
 - Per-calendar display rules (`displayRules`, migration `0045`).
 - Photo stage crossfade, focal framing, and photo place/date settings
   (migrations `0042`, `0043`).
@@ -108,6 +110,19 @@ Use this as the smoke checklist. Every item maps to the inventory in
 7. **Layouts** — multiple widget instances, per-widget styling, screensaver
    layouts, idle backgrounds, dashboard create/copy/rename/delete, per-dashboard
    floating-card settings.
+
+## Test suite adjustments
+
+- The personal `e2e/screensaver-geometry.spec.ts` and `e2e/visual-regression.spec.ts`
+  were kept instead of importing upstream's new-look expectations (display-face
+  clock, corner-tile alignment, water cards, dock login).
+- The upstream visual test for the redesigned Appearance controls was removed
+  with its two snapshots; the functional upstream display contract still runs.
+- `waitForDashboardWidgets` now waits for both Tasks and Shopping to finish
+  their skeleton state before a dashboard screenshot, so a slow seed cannot
+  produce a skeleton-vs-loaded flake.
+- Linux baselines were regenerated through the CI `update_visual_baselines`
+  path after the personal calendar filters and DisplaySection were restored.
 
 ## Known follow-ups
 
