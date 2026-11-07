@@ -108,6 +108,9 @@ describe('generateOutlookProse', () => {
     expect(body.messages[1]?.content).toContain('Mostly sunny.');
     expect(body.messages[1]?.content).not.toContain('high near');
     expect(body.messages[1]?.content).not.toContain('wind');
+    expect(body.messages[1]?.content).toContain(
+      'Never write a day name followed by a colon',
+    );
   });
 
   it('retries once when the first answer is too long', async () => {
@@ -158,17 +161,50 @@ describe('generateOutlookProse', () => {
     expect(body.model).toBe('test-fallback-model');
   });
 
-  it('cleans day-label prefixes from the fallback model', async () => {
+  it('uses the Responses API for the gpt-6-luna fallback', async () => {
+    process.env.OPENCODE_GO_FALLBACK_MODEL = 'gpt-6-luna';
+    const fetchSpy = jest
+      .spyOn(global, 'fetch' as never)
+      .mockRejectedValueOnce(new Error('primary down') as never)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          output: [
+            { type: 'reasoning' },
+            {
+              type: 'message',
+              content: [{ type: 'output_text', text: GOOD_PROSE }],
+            },
+          ],
+        }),
+      } as never);
+
+    const { generateOutlookProse } = await import('../opencodeGo');
+    await expect(generateOutlookProse(OUTLOOK)).resolves.toBe(GOOD_PROSE);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    const second = fetchSpy.mock.calls[1] as unknown as [string, RequestInit];
+    expect(String(second[0])).toBe('https://example.test/v1/responses');
+    const body = JSON.parse(String(second[1].body)) as {
+      model: string;
+      input: string;
+      messages?: unknown;
+    };
+    expect(body.model).toBe('gpt-6-luna');
+    expect(body.input).toContain('Mostly sunny.');
+    expect(body.messages).toBeUndefined();
+  });
+
+  it('rejects day-label prefixes instead of rewriting them', async () => {
     const labelled =
       'Today: Rain likely and patchy fog, mostly cloudy. Then Saturday: a chance of rain and patchy fog before 7am, mostly sunny, followed by Sunday: mostly sunny.';
-    jest
+    const fetchSpy = jest
       .spyOn(global, 'fetch' as never)
       .mockResolvedValue(completion(labelled) as never);
 
     const { generateOutlookProse } = await import('../opencodeGo');
-    await expect(generateOutlookProse(OUTLOOK)).resolves.toBe(
-      'Rain likely and patchy fog, mostly cloudy. Then Saturday, a chance of rain and patchy fog before 7am, mostly sunny, followed by Sunday, mostly sunny.',
-    );
+    await expect(generateOutlookProse(OUTLOOK)).resolves.toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
   });
 
   it('stays best-effort when both provider requests fail', async () => {
