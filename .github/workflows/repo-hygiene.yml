@@ -12,8 +12,9 @@ name: Repo hygiene
 # Pull requests into master only. A stacked one is checked after it is
 # retargeted there, on its next push or reopen (see regression-test.yml).
 on:
+  # The personal branch ruleset requires this check, so every pull request
+  # into the fork's integration branch must run it too.
   pull_request:
-    branches: [master]
   push:
     branches: [master]
 
