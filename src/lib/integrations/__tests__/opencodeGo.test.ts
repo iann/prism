@@ -197,7 +197,7 @@ describe('generateOutlookProse', () => {
 
   it('rejects day-label prefixes instead of rewriting them', async () => {
     const labelled =
-      'Today: Rain likely and patchy fog, mostly cloudy. Then Saturday: a chance of rain and patchy fog before 7am, mostly sunny, followed by Sunday: mostly sunny.';
+      'Tonight: Rain likely and patchy fog, mostly cloudy. Then Saturday: a chance of rain and patchy fog before 7am, mostly sunny, followed by Sunday: mostly sunny.';
     const fetchSpy = jest
       .spyOn(global, 'fetch' as never)
       .mockResolvedValue(completion(labelled) as never);

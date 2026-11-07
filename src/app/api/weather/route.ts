@@ -14,7 +14,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { optionalAuth } from '@/lib/auth';
 import { fetchWeatherData, type LocationParam } from '@/lib/integrations/weather';
 import { fetchActiveWeatherAlerts } from '@/lib/integrations/weatherAlerts';
-import { fetchWeatherOutlook } from '@/lib/integrations/nwsForecast';
+import { fetchWeatherOutlook, isEveningOutlookWindow } from '@/lib/integrations/nwsForecast';
+import { getHouseholdTimezone } from '@/lib/householdTimezone';
 import {
   generateOutlookProse,
   isOutlookLlmConfigured,
@@ -146,11 +147,19 @@ export async function GET(request: NextRequest) {
     // generated summary rather than an error.
     const { lat, lon } = weatherData;
     if (lat !== undefined && lon !== undefined) {
-      const outlookCacheKey = `weather-outlook:${lat.toFixed(2)},${lon.toFixed(2)}`;
+      const timeZone = await getHouseholdTimezone();
+      // The outlook's leading day changes at 22:00 local: before then the
+      // current "Tonight" period leads, after then the next daytime period
+      // does. Include that window in the key so a cached evening outlook is
+      // not served past the rollover.
+      const outlookWindow = isEveningOutlookWindow(new Date(), timeZone)
+        ? 'evening'
+        : 'day';
+      const outlookCacheKey = `weather-outlook:${outlookWindow}:${lat.toFixed(2)},${lon.toFixed(2)}`;
       try {
         const outlook = await getCached(
           outlookCacheKey,
-          () => fetchWeatherOutlook({ lat, lon }),
+          () => fetchWeatherOutlook({ lat, lon }, { timeZone }),
           WEATHER_CACHE_TTL,
         );
         weatherData = { ...weatherData, outlook };

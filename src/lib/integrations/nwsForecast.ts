@@ -13,12 +13,23 @@
  */
 
 import type { WeatherOutlookDay } from '@/components/widgets/WeatherWidget';
+import { wallTimeAt } from '@/lib/utils/zonedDate';
 
 const NWS_POINTS_URL = 'https://api.weather.gov/points';
 const NWS_USER_AGENT = 'Prism-Family-Dashboard/1.0 (https://github.com/sandydargoport/prism)';
 const OUTLOOK_DAY_LIMIT = 3;
 const POINT_CACHE_SECONDS = 24 * 60 * 60;
 const FORECAST_CACHE_SECONDS = 30 * 60;
+
+/**
+ * The evening outlook window, in the household's local time.
+ *
+ * During this window the current night period ("Tonight") leads the outlook;
+ * after 22:00 the readout rolls over to the next daytime period so a late-night
+ * glance shows tomorrow rather than the tail of today.
+ */
+const EVENING_WINDOW_START_HOUR = 16;
+const EVENING_WINDOW_END_HOUR = 22;
 
 type NwsPointProperties = {
   forecast?: string;
@@ -70,17 +81,37 @@ function firstSentence(value: string): string {
 }
 
 /**
- * Fetch the next three daytime forecasts for a coordinate.
+ * Whether the current evening forecast should lead the outlook.
  *
- * Periods alternate day and night, so only daytime entries are kept — the
- * widget readout is a daily outlook, not a day/night pair. NWS labels the
- * current day "Today" and later days by name, which is exactly the label the
- * readout wants.
+ * Expressed as an hour window in the household's zone so the rollover happens
+ * at a predictable wall-clock time rather than whenever NWS happens to refresh
+ * its periods.
  */
-export async function fetchWeatherOutlook(location?: {
-  lat: number;
-  lon: number;
-}): Promise<WeatherOutlookDay[]> {
+export function isEveningOutlookWindow(now: Date, timeZone: string): boolean {
+  const hour = Number(wallTimeAt(timeZone, now).slice(0, 2));
+  return (
+    Number.isFinite(hour) &&
+    hour >= EVENING_WINDOW_START_HOUR &&
+    hour < EVENING_WINDOW_END_HOUR
+  );
+}
+
+/**
+ * Fetch the next three forecasts for a coordinate.
+ *
+ * Periods alternate day and night. Normally only daytime entries are kept, so
+ * the widget shows a daily outlook. During the evening window the current
+ * night period ("Tonight") is more useful than tomorrow's daytime summary, so
+ * it is kept when NWS has already promoted it to the first period. At 22:00
+ * the evening window closes and the outlook rolls over to the next day.
+ */
+export async function fetchWeatherOutlook(
+  location?: {
+    lat: number;
+    lon: number;
+  },
+  options?: { now?: Date; timeZone?: string },
+): Promise<WeatherOutlookDay[]> {
   if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lon)) {
     return [];
   }
@@ -99,8 +130,20 @@ export async function fetchWeatherOutlook(location?: {
   const periods = forecast?.properties?.periods;
   if (!Array.isArray(periods)) return [];
 
+  const timeZone =
+    options?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+  const now = options?.now ?? new Date();
+  const leadWithTonight =
+    isEveningOutlookWindow(now, timeZone) &&
+    periods.length > 0 &&
+    periods[0]?.isDaytime === false &&
+    /^tonight$/i.test(cleanText(periods[0]?.name));
+
   return periods
-    .filter((period) => period.isDaytime !== false)
+    .filter(
+      (period, index) =>
+        period.isDaytime !== false || (index === 0 && leadWithTonight),
+    )
     .map((period) => {
       const detailedForecast = cleanText(period.detailedForecast);
       const short = cleanText(period.shortForecast);
