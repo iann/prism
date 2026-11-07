@@ -111,6 +111,8 @@ describe('generateOutlookProse', () => {
     expect(body.messages[1]?.content).toContain(
       'Never write a day name followed by a colon',
     );
+    expect(body.messages[1]?.content).toContain('This is a hard limit.');
+    expect(body.messages[1]?.content).toContain('Every label must appear.');
   });
 
   it('retries once when the first answer is too long', async () => {
