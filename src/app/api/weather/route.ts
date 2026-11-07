@@ -20,6 +20,7 @@ import {
   generateOutlookProse,
   isOutlookLlmConfigured,
   outlookProseCacheKey,
+  OUTLOOK_PROSE_PROMPT_VERSION,
 } from '@/lib/integrations/opencodeGo';
 import { getCached, getCache, setCache } from '@/lib/cache/redis';
 import { db } from '@/lib/db/client';
@@ -186,7 +187,7 @@ export async function GET(request: NextRequest) {
       const model = process.env.OPENCODE_GO_MODEL?.trim() || 'glm-5.3-flash';
       const fallbackModel =
         process.env.OPENCODE_GO_FALLBACK_MODEL?.trim() || 'gpt-6-luna';
-      const proseCacheKey = `weather-outlook-prose:${model}:${fallbackModel}:${outlookProseCacheKey(weatherData.outlook)}`;
+      const proseCacheKey = `weather-outlook-prose:${OUTLOOK_PROSE_PROMPT_VERSION}:${model}:${fallbackModel}:${outlookProseCacheKey(weatherData.outlook)}`;
       try {
         let prose = await getCache<string>(proseCacheKey);
         if (prose === null) {
