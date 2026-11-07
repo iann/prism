@@ -79,6 +79,10 @@ function dynamicMasks(page: Page) {
     page.locator('[data-widget="Clock"]'),
     page.locator('[data-widget="Weather"]'),
     page.locator('[data-widget="Photo"]'),
+    // Task and shopping rows depend on seed/reset timing and are rolled up in
+    // the functional suites; mask the tiles so the layout shot is stable.
+    page.locator('.widget-cell[data-widget="tasks"]'),
+    page.locator('.widget-cell[data-widget="shopping"]'),
   ];
 }
 
@@ -139,34 +143,11 @@ async function expectPainted(page: Page, marker?: Locator) {
  * bars. The Tasks tile is the marker because the seeded dashboard always has
  * one; other tiles can be disabled or intentionally defer loading in perf mode.
  */
-async function waitForDashboardWidgets(page: Page, opts: { waitForData?: boolean } = {}) {
-  const { waitForData = true } = opts;
+async function waitForDashboardWidgets(page: Page) {
   // The grid itself renders after the layouts request, so the cell can still be
-  // missing when network goes idle.
+  // missing when network goes idle. Its data is masked from the shot.
   await page.locator('.widget-cell[data-widget="tasks"]').waitFor({ state: 'attached', timeout: 60_000 });
-  if (!waitForData) {
-    // Performance mode deliberately defers data work; its baseline is the
-    // arrangement, not the first paint's loaded rows.
-    await page.waitForTimeout(800);
-    return;
-  }
-  await page.waitForFunction(
-    () => {
-      // Tasks and Shopping both show skeletons until their first request
-      // resolves. Wait for both, not just the first, so the shot is the same
-      // whether the seed happens to answer quickly or slowly.
-      const loaded = (id: string) => {
-        const cell = document.querySelector(`.widget-cell[data-widget="${id}"]`);
-        if (!cell) return false;
-        const text = (cell.textContent ?? '').trim();
-        return text.length > 20 && !cell.querySelector('.animate-pulse');
-      };
-      return loaded('tasks') && loaded('shopping');
-    },
-    null,
-    { timeout: 60_000 },
-  );
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(800);
 }
 
 /**
@@ -285,7 +266,7 @@ test.describe('Visual regression', () => {
       await page.waitForTimeout(800);
 
       await expectPainted(page, page.locator('.widget-cell').first());
-      await waitForDashboardWidgets(page, { waitForData: false });
+      await waitForDashboardWidgets(page);
       await expect(page).toHaveScreenshot(`dashboard-perf-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),

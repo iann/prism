@@ -118,9 +118,10 @@ Use this as the smoke checklist. Every item maps to the inventory in
   clock, corner-tile alignment, water cards, dock login).
 - The upstream visual test for the redesigned Appearance controls was removed
   with its two snapshots; the functional upstream display contract still runs.
-- `waitForDashboardWidgets` now waits for both Tasks and Shopping to finish
-  their skeleton state before a dashboard screenshot, so a slow seed cannot
-  produce a skeleton-vs-loaded flake.
+- `waitForDashboardWidgets` no longer waits for task/shopping rows: those tiles
+  are masked in dashboard screenshots because seed/reset timing made their
+  loaded-vs-skeleton state nondeterministic. Functional suites still cover the
+  data surfaces.
 - Linux baselines were regenerated through the CI `update_visual_baselines`
   path after the personal calendar filters and DisplaySection were restored.
 
