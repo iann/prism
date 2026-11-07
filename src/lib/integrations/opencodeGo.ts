@@ -23,14 +23,14 @@ import { logError } from '@/lib/utils/logError';
 const DEFAULT_BASE_URL = 'https://opencode.ai/inference/go/openai/v1';
 const DEFAULT_MODEL = 'glm-5.3-flash';
 const DEFAULT_FALLBACK_MODEL = 'gpt-6-luna';
-const TARGET_CHARS = 155;
-const MAX_CHARS = 170;
+const TARGET_CHARS = 165;
+const MAX_CHARS = 180;
 
 /**
  * Bump when the prompt or validation rules change, so cached prose and cached
  * failures written under the old prompt are not reused.
  */
-export const OUTLOOK_PROSE_PROMPT_VERSION = 'v2';
+export const OUTLOOK_PROSE_PROMPT_VERSION = 'v3';
 const REQUEST_TIMEOUT_MS = 12_000;
 // Reasoning models count their thinking tokens against the output budget.
 // 600 leaves enough room for a short answer plus the model's reasoning.
@@ -89,8 +89,8 @@ function dayLabels(outlook: WeatherOutlookDay[]): string[] {
 /**
  * Keep the human-written conditions and drop the numbers the widget already
  * shows elsewhere: temperatures, wind speeds, precipitation percentages, and
- * rainfall amounts. This keeps the prompt short and makes the 155-character
- * target much easier for the model to hit.
+ * rainfall amounts. This keeps the prompt focused and makes the 165-character
+ * target easier for the model to hit.
  */
 function conditionSummary(day: WeatherOutlookDay): string {
   const source = day.detailedForecast || day.detail || day.short;
@@ -112,24 +112,52 @@ function conditionSummary(day: WeatherOutlookDay): string {
   return summary || day.detail || day.short;
 }
 
-function buildPrompt(outlook: WeatherOutlookDay[], previous?: string): string {
+type ProseFeedback = {
+  /** How many valid-text answers have already been rejected (1-based tier). */
+  tier: number;
+  previous?: string;
+};
+
+/**
+ * Escalating length guidance for retries.
+ *
+ * Each rejected answer makes the next prompt more explicit about length: the
+ * first retry quotes the answer and the cap, the third attempt asks for a
+ * shorter target, and the final attempt gives a hard short budget. This is
+ * deliberately monotonic so the last attempt before the heuristic fallback is
+ * the most likely to fit.
+ */
+function lengthGuidance(feedback?: ProseFeedback): string {
+  if (!feedback || feedback.tier < 1) return '';
+
+  const previous = feedback.previous?.trim();
+  const quoted = previous
+    ? `Your previous answer was ${previous.length} characters:\n${previous}\n`
+    : '';
+
+  if (feedback.tier === 1) {
+    return `\n${quoted}It was rejected. Rewrite it under ${MAX_CHARS} characters, ideally near ${TARGET_CHARS}, keeping every day label.\n`;
+  }
+  if (feedback.tier === 2) {
+    return `\n${quoted}Earlier answers were rejected. Be more concise: aim for ${TARGET_CHARS - 20} characters or fewer while keeping all three day labels.\n`;
+  }
+  return `\n${quoted}This is the final attempt. Write at most ${TARGET_CHARS - 35} characters: one short clause per day, all three labels, no secondary details.\n`;
+}
+
+function buildPrompt(outlook: WeatherOutlookDay[], feedback?: ProseFeedback): string {
   const labels = dayLabels(outlook);
   const input = outlook
     .slice(0, 3)
     .map((day, index) => `${labels[index]}: ${conditionSummary(day)}`)
     .join('\n');
 
-  const retry = previous
-    ? `\nYour previous answer was:\n${previous}\nIt was too long or did not follow the rules. Rewrite it using only the facts in the Input below.\n`
-    : '';
-
-  return `Rewrite the 3-day weather outlook below for a wall dashboard.${retry}
+  return `Rewrite the 3-day weather outlook below for a wall dashboard.${lengthGuidance(feedback)}
 Rules:
 - Exactly two natural sentences.
-- The TOTAL must be ${TARGET_CHARS} characters or fewer. This is a hard limit.
+- Aim for ${TARGET_CHARS} characters total. Never exceed ${MAX_CHARS} characters. This is a hard limit.
 - Use only the facts in the input. Do not add temperatures or invent numbers.
 - Use these day labels: ${labels.join(', ')}. Every label must appear.
-- Be terse. Drop secondary details before dropping a day.
+- Keep each day to its main conditions; drop secondary details only if needed.
 - Prefer natural connectives such as "then", "followed by", or "after that".
 - Focus on conditions.
 
@@ -140,7 +168,7 @@ Output format:
 - Return only the final two sentences.
 
 Example shape:
-Rain and fog tonight, then rain likely Saturday. Sunday turns mostly sunny after morning fog.
+Patchy fog and a slight thunderstorm chance tonight, then rain likely Saturday with mostly cloudy skies. Sunday turns mostly sunny after morning rain and fog.
 
 Input:
 ${input}
@@ -194,7 +222,7 @@ async function requestProse(
   model: string,
   api: GenerateApi,
   outlook: WeatherOutlookDay[],
-  previous?: string,
+  feedback?: ProseFeedback,
 ): Promise<string | null> {
   const apiKey = process.env.OPENCODE_GO_API_KEY?.trim();
   if (!apiKey) return null;
@@ -206,7 +234,7 @@ async function requestProse(
   // conversation, not a coding session.
   const sessionId = process.env.OPENCODE_GO_SESSION?.trim() || 'prism-weather-outlook';
   const userAgent = 'Prism-Family-Dashboard/1.0 (+https://github.com/sandydargoport/prism)';
-  const prompt = buildPrompt(outlook, previous);
+  const prompt = buildPrompt(outlook, feedback);
   const endpoint = api === 'responses' ? `${baseUrl}/responses` : `${baseUrl}/chat/completions`;
   const body =
     api === 'responses'
@@ -280,6 +308,11 @@ async function requestProse(
 /**
  * Ask OpenCode Go for a two-sentence outlook. Returns null when the feature is
  * not configured, the provider fails, or the output cannot be validated.
+ *
+ * Each model gets two attempts. A rejected answer is retried with escalating
+ * length guidance; a provider failure moves straight to the next model. That
+ * caps the work at four calls (two primary, two fallback) before the caller
+ * falls back to the heuristic outlook and shows the red indicator.
  */
 export async function generateOutlookProse(
   outlook: WeatherOutlookDay[],
@@ -293,16 +326,21 @@ export async function generateOutlookProse(
     api: apiForModel(model),
   }));
 
-  for (const { model, api } of models) {
-    const first = await requestProse(model, api, outlook);
-    if (first && isValidProse(first, outlook)) return first;
+  let previous: string | undefined;
+  let rejections = 0;
 
-    // A non-null answer that failed validation is usually a length miss;
-    // retry that model once with the previous text in the prompt. If the call
-    // itself failed, move straight to the next model.
-    if (first) {
-      const retry = await requestProse(model, api, outlook, first);
-      if (retry && isValidProse(retry, outlook)) return retry;
+  for (const { model, api } of models) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const feedback = rejections > 0 ? { tier: rejections, previous } : undefined;
+      const prose = await requestProse(model, api, outlook, feedback);
+      if (prose && isValidProse(prose, outlook)) return prose;
+
+      // A provider failure is not a length problem: move to the next model
+      // instead of spending the fallback's attempts on the same outage.
+      if (!prose) break;
+
+      previous = prose;
+      rejections += 1;
     }
   }
 

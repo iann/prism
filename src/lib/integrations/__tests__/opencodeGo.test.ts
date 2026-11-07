@@ -125,6 +125,45 @@ describe('generateOutlookProse', () => {
     const { generateOutlookProse } = await import('../opencodeGo');
     await expect(generateOutlookProse(OUTLOOK)).resolves.toBe(GOOD_PROSE);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    const retry = fetchSpy.mock.calls[1] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(retry[1].body)) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(body.messages[1]?.content).toContain('Your previous answer was');
+    expect(body.messages[1]?.content).toContain('It was rejected.');
+  });
+
+  it('escalates length guidance across two attempts per model', async () => {
+    const tooLong = `${'Rain likely today, with patchy fog and a chance of thunderstorms, then more rain likely Saturday. '.repeat(2)}Sunday turns mostly sunny.`;
+    const fetchSpy = jest
+      .spyOn(global, 'fetch' as never)
+      .mockResolvedValue(completion(tooLong) as never);
+
+    const { generateOutlookProse } = await import('../opencodeGo');
+    await expect(generateOutlookProse(OUTLOOK)).resolves.toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+
+    const bodies = fetchSpy.mock.calls.map((call) => {
+      const init = call[1] as RequestInit;
+      return JSON.parse(String(init.body)) as {
+        model: string;
+        messages: Array<{ content: string }>;
+      };
+    });
+    expect(bodies.map((body) => body.model)).toEqual([
+      'test-model',
+      'test-model',
+      'test-fallback-model',
+      'test-fallback-model',
+    ]);
+    expect(bodies[0]?.messages[1]?.content).not.toContain('previous answer');
+    expect(bodies[1]?.messages[1]?.content).toContain('Your previous answer was');
+    expect(bodies[2]?.messages[1]?.content).toContain(
+      'aim for 145 characters or fewer',
+    );
+    expect(bodies[3]?.messages[1]?.content).toContain('final attempt');
+    expect(bodies[3]?.messages[1]?.content).toContain('at most 130 characters');
   });
 
   it('returns null when the model invents a number', async () => {
