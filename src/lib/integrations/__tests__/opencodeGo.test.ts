@@ -102,7 +102,9 @@ describe('generateOutlookProse', () => {
     expect(body.messages[1]?.content).toContain(
       'Rain likely and patchy fog and a slight chance of thunderstorms',
     );
-    expect(body.messages[1]?.content).toContain('Mostly sunny, with a high near 59');
+    expect(body.messages[1]?.content).toContain('Mostly sunny.');
+    expect(body.messages[1]?.content).not.toContain('high near');
+    expect(body.messages[1]?.content).not.toContain('wind');
   });
 
   it('retries once when the first answer is too long', async () => {

@@ -48,11 +48,37 @@ function dayLabels(outlook: WeatherOutlookDay[]): string[] {
   });
 }
 
+/**
+ * Keep the human-written conditions and drop the numbers the widget already
+ * shows elsewhere: temperatures, wind speeds, precipitation percentages, and
+ * rainfall amounts. This keeps the prompt short and makes the 160-character
+ * limit much easier for the model to hit.
+ */
+function conditionSummary(day: WeatherOutlookDay): string {
+  const source = day.detailedForecast || day.detail || day.short;
+  const summary = source
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) =>
+      sentence
+        .replace(/,\s*with a (?:high near|low around) \d+\.?/gi, '.')
+        .replace(/\b(?:north|south|east|west|northwest|northeast|southwest|southeast)?\s*wind\b[^.]*\.?/gi, '')
+        .replace(/chance of precipitation is \d+%\.?/gi, '')
+        .replace(/new rainfall amounts[^.]*\.?/gi, '')
+        .trim(),
+    )
+    .filter((sentence) => sentence.length > 0)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return summary || day.detail || day.short;
+}
+
 function buildPrompt(outlook: WeatherOutlookDay[], previous?: string): string {
   const labels = dayLabels(outlook);
   const input = outlook
     .slice(0, 3)
-    .map((day, index) => `${labels[index]}: ${day.detailedForecast || day.detail || day.short}`)
+    .map((day, index) => `${labels[index]}: ${conditionSummary(day)}`)
     .join('\n');
 
   const retry = previous
@@ -63,12 +89,11 @@ function buildPrompt(outlook: WeatherOutlookDay[], previous?: string): string {
 Rules:
 - Exactly two natural sentences.
 - Under ${TARGET_CHARS} characters total. Never exceed ${MAX_CHARS} characters.
-- Use only the facts in the input. Do not add temperatures, times, numbers, or conditions that are not present.
+- Use only the facts in the input. Do not add temperatures or numbers.
 - Use these day labels: ${labels.join(', ')}.
 - Prefer natural connectives such as "then", "followed by", or "after that".
 - Do not use bullet points, newlines, or label prefixes like "Today:".
-- Focus on conditions. Omit wind speeds, precipitation percentages, and rainfall amounts.
-- You may include a high temperature if it fits naturally.
+- Focus on conditions.
 
 Input:
 ${input}
@@ -101,7 +126,7 @@ function isValidProse(prose: string, outlook: WeatherOutlookDay[]): boolean {
 
   const source = outlook
     .slice(0, 3)
-    .map((day) => `${day.day} ${day.detailedForecast} ${day.detail} ${day.short}`)
+    .map((day) => `${day.day} ${conditionSummary(day)}`)
     .join(' ');
   const allowedDigits = new Set(digitTokens(source));
   if (digitTokens(prose).some((token) => !allowedDigits.has(token))) return false;
