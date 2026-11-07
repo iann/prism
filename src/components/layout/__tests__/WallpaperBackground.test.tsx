@@ -23,6 +23,11 @@ const mockUsePerformanceLevel = usePerformanceLevel as jest.MockedFunction<typeo
 describe('WallpaperBackground', () => {
   beforeEach(() => {
     localStorage.clear();
+    // The shared photo stage reads the photo settings once on mount.
+    (global as unknown as { fetch: jest.Mock }).fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({}),
+    });
     mockUsePhotos.mockReset();
     mockUsePhotos.mockReturnValue({
       photos: [],

@@ -11,6 +11,7 @@ import {
   createBirthdaySchema,
   createApiTokenSchema,
   createLayoutSchema,
+  updateLayoutSchema,
   hexColorSchema,
   uuidSchema,
   validateRequest,
@@ -385,6 +386,23 @@ describe('createLayoutSchema', () => {
     expect(result.error!.issues[0]!.code).toBe('too_big');
   });
 });
+// How a dashboard is drawn (#907).
+describe('layout view', () => {
+  const base = { name: 'Kitchen', widgets: [{ i: 'clock', x: 0, y: 0, w: 4, h: 4 }] };
+  it('accepts the grid, Today and the Calendar layout', () => {
+    expect(createLayoutSchema.parse({ ...base, view: 'today' }).view).toBe('today');
+    expect(createLayoutSchema.parse({ ...base, view: 'calendar' }).view).toBe('calendar');
+    expect(createLayoutSchema.parse({ ...base, view: 'grid' }).view).toBe('grid');
+  });
+  it('refuses any other view', () => {
+    expect(createLayoutSchema.safeParse({ ...base, view: 'freeform' }).success).toBe(false);
+  });
+  it('leaves the view unset when not given, so an update keeps it', () => {
+    expect(createLayoutSchema.parse(base).view).toBeUndefined();
+    expect(updateLayoutSchema.parse({ name: 'Kitchen' }).view).toBeUndefined();
+  });
+});
+
 
 /**
  * Every list in a request schema needs a maximum, for the reason above: only a
@@ -508,5 +526,22 @@ describe('update schemas leave out what the request left out', () => {
     };
     walk(api);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('bus route walk time (#900)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createBusRouteSchema, updateBusRouteSchema } = require('../index');
+  const base = { studentName: 'Robin', tripId: 't1', direction: 'AM', label: 'Morning bus', scheduledTime: '07:30' };
+
+  it('defaults to no walk on a new route, and takes whole minutes up to an hour', () => {
+    expect(createBusRouteSchema.parse(base).walkMinutes).toBe(0);
+    expect(createBusRouteSchema.parse({ ...base, walkMinutes: 8 }).walkMinutes).toBe(8);
+    expect(createBusRouteSchema.safeParse({ ...base, walkMinutes: 61 }).success).toBe(false);
+    expect(createBusRouteSchema.safeParse({ ...base, walkMinutes: 2.5 }).success).toBe(false);
+  });
+
+  it('leaves the walk time alone on an edit that does not mention it', () => {
+    expect(updateBusRouteSchema.parse({ label: 'School bus' })).not.toHaveProperty('walkMinutes');
   });
 });

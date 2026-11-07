@@ -21,7 +21,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useTranslations } from 'next-intl';
-import { Calendar, Loader2, AlertTriangle } from 'lucide-react';
+import { Calendar, Loader2, AlertTriangle, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { isLightColor } from '@/lib/utils/color';
@@ -86,6 +86,8 @@ export interface CalendarWidgetProps {
   refreshOverlayTasks?: () => Promise<void>;
   refreshEvents?: () => Promise<void>;
   onEventClick?: (event: CalendarEvent) => void;
+  /** "+": add an event on the day the widget shows (#836). */
+  onAddEvent?: (day: Date) => void;
   titleHref?: string;
   className?: string;
   gridW?: number;
@@ -107,6 +109,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   refreshOverlayTasks,
   refreshEvents: refreshExternalEvents,
   onEventClick,
+  onAddEvent,
   titleHref,
   className,
   gridW = 2,

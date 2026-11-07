@@ -285,13 +285,14 @@ describe('surface class contracts', () => {
 
     expect(alphaBoundaries).toEqual([
       // Event descriptions use a subtle content boundary.
-      'src/app/calendar/CalendarView.tsx:border-border/50',
       'src/app/goals/GoalsView.tsx:border-border/50',
       'src/app/settings/sections/BirthdaysCard.tsx:border-border/50',
       'src/app/settings/sections/DisplaySection.tsx:hover:border-primary/50',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
+      // Event descriptions use a subtle content boundary.
+      'src/components/calendar/EventSheet.tsx:border-border/50',
       // Month-view weekday divider is decorative.
       'src/components/calendar/MonthView.tsx:border-border/70',
       // Calendar planning-group divider is decorative.
@@ -310,6 +311,8 @@ describe('surface class contracts', () => {
       'src/components/layout/SubpageHeader.tsx:border-border/45',
       // Theme gallery card boundary is decorative.
       'src/components/settings/CommunityThemeGallery.tsx:border-border/70',
+      // Today's quiet-line divider is decorative.
+      'src/components/today/TodayList.tsx:border-border/60',
       'src/components/ui/dialog.tsx:border-border/55',
       'src/components/ui/select.tsx:border-border/60',
       'src/components/widgets/BirthdaysWidget.tsx:border-border/50',

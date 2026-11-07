@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS public.bus_routes (
     checkpoints jsonb DEFAULT '[]'::jsonb NOT NULL,
     stop_name character varying(255),
     school_name character varying(255),
+    walk_minutes integer DEFAULT 0 NOT NULL,
     enabled boolean DEFAULT true NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
@@ -226,6 +227,7 @@ CREATE TABLE IF NOT EXISTS public.calendar_sources (
     color character varying(7),
     enabled boolean DEFAULT true NOT NULL,
     show_in_event_modal boolean DEFAULT true NOT NULL,
+    display_rules jsonb,
     is_family boolean DEFAULT false NOT NULL,
     group_id uuid,
     access_token text,
@@ -418,7 +420,8 @@ CREATE TABLE IF NOT EXISTS public.layouts (
     font_scale integer,
     floating_card_settings jsonb,
     screensaver_mode character varying(20) DEFAULT 'calm'::character varying NOT NULL,
-    idle_background jsonb DEFAULT '{"source": "dashboard"}'::jsonb NOT NULL
+    idle_background jsonb DEFAULT '{"source": "dashboard"}'::jsonb NOT NULL,
+    view character varying(20) DEFAULT 'grid'::character varying NOT NULL
 );
 
 ALTER TABLE public.layouts ADD COLUMN IF NOT EXISTS floating_card_settings jsonb;
@@ -534,6 +537,10 @@ CREATE TABLE IF NOT EXISTS public.photos (
     thumbnail_path character varying(255),
     favorite boolean DEFAULT false NOT NULL,
     orientation character varying(20),
+    focal_x real,
+    focal_y real,
+    place_name character varying(120),
+    place_looked_up boolean DEFAULT false NOT NULL,
     usage character varying(100) DEFAULT 'wallpaper,gallery,screensaver'::character varying NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     latitude numeric(9,6),

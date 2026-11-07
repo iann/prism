@@ -59,7 +59,7 @@ interface UseChoresResult {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  completeChore: (choreId: string, data?: { completedBy?: string; notes?: string }) => Promise<ChoreCompletion>;
+  completeChore: (choreId: string, data?: { completedBy?: string; completedByIndex?: number; notes?: string }) => Promise<ChoreCompletion>;
   approveChore: (choreId: string, completionId?: string) => Promise<void>;
 }
 
@@ -178,7 +178,7 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
    * Mark a chore as completed
    */
   const completeChore = useCallback(
-    async (choreId: string, data?: { completedBy?: string; notes?: string }) => {
+    async (choreId: string, data?: { completedBy?: string; completedByIndex?: number; notes?: string }) => {
       try {
         const response = await fetch(`/api/chores/${choreId}/complete`, {
           method: 'POST',

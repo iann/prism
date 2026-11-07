@@ -93,6 +93,12 @@
   /* Digits on the clock (#800). The theme's face unless a theme names a
      numeral face of its own (--theme-font-numeral, set by applyTheme). */
   --font-numeral: var(--theme-font-numeral, var(--font-sans));
+  /* The display face (#800): the clock, the temperature and page and sheet
+     titles. Literata, unless a theme names a numeral face of its own
+     (--theme-font-display, set by applyTheme). Everything else stays sans. */
+  --font-display:
+    var(--theme-font-display, var(--font-serif, Literata)), Georgia,
+    Times New Roman, serif;
   --font-mono:
     JetBrains Mono, Menlo, Monaco, Consolas, Liberation Mono, Courier New,
     monospace;
@@ -111,6 +117,10 @@
   --text-display--line-height: 1.1;
   --text-clock: max(calc(var(--text-floor) * var(--zoom-inv, 1)), 5rem);
   --text-clock--line-height: 1;
+  /* Prose: sentences on the wall. The title's size, regular weight, looser
+     lines (PROSE in tokens.ts). */
+  --text-prose: var(--text-title);
+  --text-prose--line-height: 1.35;
 
   /* Floored (see the text floor above). Each line height is its old rem value
      or the same ratio in em, whichever is larger: identical while the size is
@@ -572,7 +582,6 @@ html.performance-mode [class*="backdrop-blur"] {
     animation-timing-function: ease;
   }
 }
-
 @layer base {
   :root {
     /* Shape tokens (docs/DESIGN.md). Not colours, so no theme
@@ -584,6 +593,8 @@ html.performance-mode [class*="backdrop-blur"] {
     --ds-glass-alpha: 0.65;
     --ds-glass-blur: 24px;
     --ds-glass-filter: blur(var(--ds-glass-blur)) saturate(1.2);
+    --ds-water-blur: 10px;
+    --ds-water-filter: blur(var(--ds-water-blur)) saturate(1.2);
     --ds-idle-text-shadow: 0 1px 2px rgb(0 0 0 / 0.6), 0 0 16px rgb(0 0 0 / 0.45);
     --ds-event-bar: 4px;
     --ds-event-tint: 16%;
@@ -3040,4 +3051,20 @@ html.perf-minimal .widget-cell {
 }
 .member-color-slider::-moz-range-track {
   background: transparent;
+}
+
+/* Setup wizard (#930): titles in the display face, and every button a 44px
+   target, the colour swatches included. The inline "See what's sent" link
+   and the switch keep their own size. */
+[data-setup-wizard] :is(h1, h3) {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+[data-setup-wizard] button:not([role="switch"]):not([data-inline-link]) {
+  min-height: 44px;
+}
+[data-setup-wizard] [role="group"][aria-label="Color"] > button {
+  width: 44px;
+  height: 44px;
 }

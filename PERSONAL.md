@@ -3,10 +3,11 @@
 This is the tracked changelog for behavior added on top of upstream/master.
 It belongs to the personal fork and is not intended for upstream Prism.
 
-Last audited: 2026-08-01
-Baseline: upstream/master at 0c12060
-Audited through: 81f74f3, the current origin/personal tip after PR #32
-(the feature/calendar-event-deletion-behavior branch is fast-forwarded to it)
+Last audited: 2026-11-07
+Baseline: upstream/master at bdacb4c
+Audited through: a3966414, the current origin/personal tip after PR #202
+(the upstream-sync branch is chore/upstream-master-sync-2026-11-07; see
+docs/upstream-sync-2026-11-07.md for the merge guardrails)
 
 Entries are grouped by user-facing outcome. The commit references are the
 contributing personal commits; merge commits, traffic-stat commits, and
@@ -1178,6 +1179,47 @@ upstream-sync-only commits are omitted unless they changed behavior.
     and over-length output all fall back without truncation.
 
     Commits: a5424876, 62d6dfdc, 8ca3c249, ce113fd5
+
+139. **Tonight-first three-day outlook**
+
+    Leads the three-day outlook with tonight's NWS period until 10pm, then
+    falls back to the daytime outlook, so the weather summary answers the
+    question the family asks in the evening.
+
+    Commit: bc825442
+
+140. **Cached outlook prose**
+
+    Caches the OpenCode Go outlook rewrite for six hours, keyed by the
+    three-day outlook content, so the LLM is not called on every dashboard
+    poll.
+
+    Commit: fc5a6255
+
+141. **Bounded outlook prose with escalating retries**
+
+    Sets the rewrite budget to aim for 165 characters and never exceed 180,
+    then retries up to four times across GLM-5.3-Flash and the GPT-6 Luna
+    fallback with progressively stronger length guidance. The widget still
+    keeps the deterministic outlook and shows a red dot when every attempt
+    fails or overflows.
+
+    Commits: dd532a12, f3e6bbde, 532911ad
+
+142. **Calendar resize hint only while resizing**
+
+    Shows the widget resize hint only when the layout editor is in resize
+    mode, so it no longer obscures the calendar in normal widget use.
+
+    Commit: b810b549
+
+143. **Paired UV and visibility with a hide-below-1 rule**
+
+    Places UV index and visibility on the same compact current-conditions
+    line, and hides the UV value entirely when it is below 1 so a night-time
+    zero does not take space from the weather header.
+
+    Commit: f590618e
 
 ## Superseded personal iterations
 

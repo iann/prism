@@ -34,6 +34,10 @@ export interface CommunityWidget {
   visible?: boolean;
   backgroundColor?: string;
   backgroundOpacity?: number;
+  /** Stays on screen while the wall is idle. */
+  showWhenIdle?: boolean;
+  /** Today's scene settings, on its calendar part (#927). Nothing else is carried. */
+  settings?: { daysAhead?: number; textSize?: 'normal' | 'large' | 'larger' };
 }
 
 export interface CommunityLayoutData {
@@ -46,6 +50,8 @@ export interface CommunityLayoutData {
   tags: string[];
   screenSizes: string[];
   orientation: 'landscape' | 'portrait';
+  /** How the layout is drawn (#907). Absent means the grid. */
+  view?: 'today' | 'calendar';
   widgets: CommunityWidget[];
 }
 
@@ -197,6 +203,13 @@ export function projectCommunityLayout(
     if (typeof w.visible === 'boolean') widget.visible = w.visible;
     if (typeof w.backgroundColor === 'string') widget.backgroundColor = w.backgroundColor;
     if (typeof w.backgroundOpacity === 'number') widget.backgroundOpacity = w.backgroundOpacity;
+    if (typeof w.showWhenIdle === 'boolean') widget.showWhenIdle = w.showWhenIdle;
+    // Only Today's two scene settings, each checked; any other setting stays home.
+    const settings = (w.settings && typeof w.settings === 'object' ? w.settings : {}) as Record<string, unknown>;
+    const kept: NonNullable<CommunityWidget['settings']> = {};
+    if (Number.isInteger(settings.daysAhead) && (settings.daysAhead as number) >= 1 && (settings.daysAhead as number) <= 7) kept.daysAhead = settings.daysAhead as number;
+    if (settings.textSize === 'normal' || settings.textSize === 'large' || settings.textSize === 'larger') kept.textSize = settings.textSize;
+    if (Object.keys(kept).length > 0) widget.settings = kept;
     return widget;
   });
 
@@ -215,6 +228,8 @@ export function projectCommunityLayout(
       ? obj.screenSizes.filter((t): t is string => typeof t === 'string')
       : [],
     orientation: obj.orientation as 'landscape' | 'portrait',
+    // Only the one other view is carried; anything else is the grid (#907).
+    ...(obj.view === 'today' || obj.view === 'calendar' ? { view: obj.view } : {}),
     widgets,
   };
 }

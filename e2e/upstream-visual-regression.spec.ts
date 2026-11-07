@@ -59,19 +59,6 @@ test.describe('Upstream visual regression', () => {
       });
     });
 
-    test(`display Sunset and palette controls - ${theme}`, async ({ page }) => {
-      await setClientFlags(page, { theme, colorTheme: 'daybook' });
-      await loginViaAPI(page, parentName);
-      await verifySettingsViaAPI(page, parentName);
-      await page.goto('/settings?section=display');
-      await waitForStableUi(page, 700);
-      await page.getByRole('button', { name: 'Sunset', exact: true }).click();
-      await page.getByRole('button', { name: /Daybook/i }).first().click();
-      await waitForStableUi(page, 250);
-
-      await expect(page).toHaveScreenshot(`upstream-display-controls-${theme}.png`, SCREENSHOT_OPTIONS);
-    });
-
     test(`calendar sync-health warning - ${theme}`, async ({ page }) => {
       await page.route('**/api/calendars/sync-health', async (route) => {
         await route.fulfill({

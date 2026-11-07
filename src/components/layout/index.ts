@@ -18,8 +18,6 @@ export type {
   DashboardHeaderProps,
 } from './DashboardGrid';
 
-export { SideNav } from './SideNav';
-export type { SideNavProps } from './SideNav';
 
 export { AppShell } from './AppShell';
 export type { AppShellProps } from './AppShell';
@@ -29,7 +27,6 @@ export { NetworkStatusIndicator } from './NetworkStatusIndicator';
 export { PageWrapper } from './PageWrapper';
 export type { PageWrapperProps } from './PageWrapper';
 
-export { MobileNav } from './MobileNav';
 
 export { SubpageHeader } from './SubpageHeader';
 export type { SubpageHeaderProps, OverflowItem } from './SubpageHeader';

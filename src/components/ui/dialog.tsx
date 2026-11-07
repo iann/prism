@@ -24,6 +24,18 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isVirtualKeyboardTarget } from '@/lib/input/keyboardTarget';
 
+/**
+ * Which side a sheet opens on, from where the wall was touched (#908).
+ * Left or right third opens on that side; the middle, or no touch, from the
+ * bottom.
+ */
+export function sheetSide(x: number | null, width: number): 'left' | 'right' | 'bottom' {
+  if (x === null || width <= 0) return 'bottom';
+  if (x < width / 3) return 'left';
+  if (x > (width * 2) / 3) return 'right';
+  return 'bottom';
+}
+
 const Dialog = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;

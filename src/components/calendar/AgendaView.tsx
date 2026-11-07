@@ -11,10 +11,10 @@ import {
 } from 'date-fns';
 import { useTranslations } from 'next-intl';
 import { Calendar, UtensilsCrossed } from 'lucide-react';
+import { Badge } from '@/components/ui';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui';
 import type { CalendarEvent } from '@/types/calendar';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { useDayDroppable, getMealTime, getChoreTime, getTaskTime, parseTimeOfDay, formatTimeOfDay, type OverlayItemRef } from './cells';
@@ -31,6 +31,19 @@ import {
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { useDateLabels, type DateLabels } from '@/lib/hooks/useDateLabels';
 import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
+
+function formatAgendaDayHeader(
+  date: Date,
+  displayTimezone: string,
+  t: (key: string, values?: Record<string, string | number | Date>) => string,
+  d: DateLabels,
+): string {
+  const displayNow = toDisplayDate(new Date(), displayTimezone);
+  const dayName = d.fullDate(date);
+  if (isSameDay(date, displayNow)) return t('dayHeader', { label: t('today'), date: dayName });
+  if (isSameDay(date, addDays(displayNow, 1))) return t('dayHeader', { label: t('tomorrow'), date: dayName });
+  return dayName;
+}
 
 const MEAL_FALLBACK_COLOR = '#10b981';
 const CHORE_FALLBACK_COLOR = '#f59e0b';
@@ -217,6 +230,7 @@ function AgendaDaySection({
     >
       <div className="flex items-center gap-2 mb-2">
         <span
+          data-agenda-day-word
           className={cn(
             'text-sm font-semibold',
             isCurrentDay && 'text-foreground'
@@ -442,15 +456,15 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
   );
 }
 
-function formatAgendaDayHeader(
+/** Today, Tomorrow, else the weekday; the date sits beside it as meta. */
+export function agendaDayWord(
   date: Date,
   displayTimezone: string,
   t: (key: string, values?: Record<string, string | number | Date>) => string,
   d: DateLabels,
 ): string {
   const displayNow = toDisplayDate(new Date(), displayTimezone);
-  const dayName = d.fullDate(date);
-  if (isSameDay(date, displayNow)) return t('dayHeader', { label: t('today'), date: dayName });
-  if (isSameDay(date, addDays(displayNow, 1))) return t('dayHeader', { label: t('tomorrow'), date: dayName });
-  return dayName;
+  if (isSameDay(date, displayNow)) return t('today');
+  if (isSameDay(date, addDays(displayNow, 1))) return t('tomorrow');
+  return d.weekdayLong(date);
 }

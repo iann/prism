@@ -1,5 +1,6 @@
 'use client';
 
+import { resetPinFreeCache } from '@/components/dashboard/useEveryday';
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -11,6 +12,7 @@ import { useAuth, useFamily } from '@/components/providers';
 import { parentCanResetPin } from '@/lib/auth/pinReset';
 import { DEFAULT_PIN_LENGTH } from '@/lib/constants';
 import { PinEditModal } from '../components/PinEditModal';
+import { SignedInDevices } from '../components/SignedInDevices';
 import type { FamilyMember } from '../components/PinEditModal';
 import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
 
@@ -55,6 +57,9 @@ export function SecuritySection() {
   const [wallSaving, setWallSaving] = useState(false);
   const [trusted, setTrusted] = useState(false);
   const [trustSaving, setTrustSaving] = useState(false);
+  // "Require the PIN for every change" (#835): absent means on.
+  const [pinEveryChange, setPinEveryChange] = useState(true);
+  const [pinSaving, setPinSaving] = useState(false);
 
   const loadWall = useCallback(async () => {
     try {
@@ -63,6 +68,7 @@ export function SecuritySection() {
       const data = await res.json();
       const security = data?.security ?? data?.settings?.security;
       setAuthWall(security?.authWall?.enabled === true);
+      setPinEveryChange(security?.requirePinForEveryChange !== false);
       setTrusted(document.cookie.includes('prism_trusted_display=1'));
     } catch {
       // Leave the toggle showing off rather than guessing.
@@ -85,6 +91,23 @@ export function SecuritySection() {
       if (save.ok) setAuthWall(next);
     } finally {
       setWallSaving(false);
+    }
+  }, []);
+
+  const savePinEveryChange = useCallback(async (next: boolean) => {
+    setPinSaving(true);
+    try {
+      const res = await fetch('/api/settings');
+      const data = res.ok ? await res.json() : {};
+      const current = data?.security ?? data?.settings?.security ?? {};
+      const save = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'security', value: { ...current, requirePinForEveryChange: next } }),
+      });
+      if (save.ok) { setPinEveryChange(next); resetPinFreeCache(); }
+    } finally {
+      setPinSaving(false);
     }
   }, []);
 
@@ -215,6 +238,24 @@ export function SecuritySection() {
 
           <div className="flex items-center justify-between gap-4 border-t pt-4">
             <div>
+              <p className="font-medium">Require the PIN for every change</p>
+              <p className="text-sm text-muted-foreground">
+                {pinEveryChange
+                  ? 'On: ticking a chore, a task or a shopping item asks for a PIN, like everything else.'
+                  : 'Off: anyone at the wall can tick chores, tasks and shopping items and add to the list, with an Undo. Approving, points, editing, deleting and settings still need a parent.'}
+              </p>
+            </div>
+            <Switch
+              checked={pinEveryChange}
+              disabled={pinSaving}
+              onCheckedChange={savePinEveryChange}
+              aria-label="Require the PIN for every change"
+              data-pin-every-change
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 border-t pt-4">
+            <div>
               <p className="font-medium">This display</p>
               <p className="text-sm text-muted-foreground">
                 {trusted
@@ -232,6 +273,8 @@ export function SecuritySection() {
           </div>
         </CardContent>
       </Card>
+
+      <SignedInDevices />
 
       <Card>
         <CardHeader>

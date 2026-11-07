@@ -246,7 +246,7 @@ export function SettingsView() {
   return (
     <PageWrapper>
       <div className="h-page flex flex-col">
-        <header className="shrink-0 border-b border-border bg-card dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm px-4">
+        <header className="shrink-0 border-b border-border bg-card dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm px-4 safe-area-top">
           <div className="flex items-center gap-4 h-16">
             {backName ? (
               <Button variant="ghost" size="sm" asChild>
@@ -274,7 +274,7 @@ export function SettingsView() {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <nav className="hidden md:landscape:block w-64 shrink-0 border-r border-border bg-card dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm p-4">
+          <nav className="hidden md:landscape:block w-64 shrink-0 overflow-y-auto border-r border-border bg-card dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm p-4">
             <div className="space-y-1">
               {sections.map((section) => {
                 const Icon = section.icon;

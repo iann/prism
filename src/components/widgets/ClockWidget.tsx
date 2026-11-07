@@ -164,9 +164,10 @@ export const ClockWidget = React.memo(function ClockWidget({
       <div
         className={cn(
           'flex flex-col items-center justify-center flex-1 min-h-0 w-full text-center',
-          // In a corner tile the face lines up with the screen edge it touches
+          // Lined up by where the tile sits, or its Align setting (#988)
           'in-data-[corner=left]:items-start in-data-[corner=left]:text-left',
           'in-data-[corner=right]:items-end in-data-[corner=right]:text-right',
+          'in-data-[align-y=top]:justify-start in-data-[align-y=bottom]:justify-end',
         )}
         style={{ containerType: 'size' }}
         data-clock-face
@@ -195,7 +196,7 @@ export const ClockWidget = React.memo(function ClockWidget({
             // One line, always: it shrinks to fit rather than wrapping
             'whitespace-nowrap leading-none'
           )}
-          style={{ fontSize: fit.time, fontFamily: 'var(--font-numeral)' }}
+          style={{ fontSize: fit.time, fontFamily: 'var(--font-display)' }}
           data-clock-time
         >
           {dayHalfFirst && dayHalfSpan}
