@@ -1,8 +1,7 @@
 'use client';
 
-import { PHOTO_DATE_SETTING, PHOTO_ON_THIS_DAY_SETTING, PHOTO_PLACE_SETTING } from '@/lib/photos/caption';
 import { useState, useEffect, useCallback } from 'react';
-import { Sun, Moon, Monitor, Share2, Store, Sunset, ChevronDown } from 'lucide-react';
+import { Sun, Moon, Monitor, Share2, Store, Sunset } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +39,6 @@ import {
 } from '@/lib/themes/sunsetTheme';
 import type { PerfLevel, PerfMode } from '@/lib/perfLevel';
 import { AURORA_SETTING } from '@/lib/integrations/aurora';
-import { useNewLook } from '@/components/dashboard/useNewLook';
 
 function getCurrentMonthNum(): number {
   return new Date().getMonth() + 1;
@@ -54,92 +52,6 @@ function SectionDivider({ label }: { label: string }) {
       </span>
       <div className="h-px flex-1 bg-border" />
     </div>
-  );
-}
-
-/**
- * A rarely changed setting, folded to one line with its current value (#1017);
- * a tap opens it. Native <details>, so it works with the keyboard and reader.
- */
-function FoldCard({ id, title, value, children }: { id: string; title: string; value: string; children: React.ReactNode }) {
-  return (
-    <details className="group rounded-xl border bg-card text-card-foreground" data-fold={id}>
-      <summary className="flex min-h-[56px] cursor-pointer list-none items-center gap-3 px-6 [&::-webkit-details-marker]:hidden">
-        <span className="font-semibold">{title}</span>
-        <span className="ml-auto text-sm text-muted-foreground" data-fold-value>{value}</span>
-        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
-      </summary>
-      <div className="border-t [&>*]:rounded-none [&>*]:border-0 [&>*]:shadow-none">{children}</div>
-    </details>
-  );
-}
-
-/** A small picture of each kind, for the picker. */
-function KindPicture({ kind }: { kind: 'simple' | 'custom' }) {
-  return kind === 'simple' ? (
-    <svg viewBox="0 0 320 180" className="block aspect-video w-36 shrink-0 rounded-md" aria-hidden>
-      <defs><linearGradient id="kind-simple" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stopColor="#5f8fa8" /><stop offset="1" stopColor="#d8c9a3" /></linearGradient></defs>
-      <rect width="320" height="180" rx="8" fill="url(#kind-simple)" />
-      <text x="14" y="32" fill="#fff" fontSize="20">4:00</text>
-      <text x="306" y="28" fill="#fff" fontSize="12" textAnchor="end">62°</text>
-      <path d="M24 112 C90 70 160 70 226 112" stroke="#fff" strokeWidth="1.6" fill="none" />
-      <path d="M226 112 C260 132 290 132 316 120" stroke="#fff" strokeWidth="1" strokeDasharray="2 4" fill="none" opacity=".6" />
-      <circle cx="170" cy="82" r="5" fill="#fff6d8" />
-    </svg>
-  ) : (
-    <svg viewBox="0 0 320 180" className="block aspect-video w-36 shrink-0 rounded-md" aria-hidden>
-      <rect width="320" height="180" rx="8" fill="#3b4a5c" />
-      {[[10, 10, 140, 90], [158, 10, 152, 50], [158, 66, 72, 34], [238, 66, 72, 34], [10, 108, 92, 62], [110, 108, 200, 62]].map(([x, y, w, h]) => (
-        <rect key={`${x}-${y}`} x={x} y={y} width={w} height={h} rx="6" fill="#fff" opacity=".18" />
-      ))}
-    </svg>
-  );
-}
-
-/**
- * The front page (#808, #991): Simple (the Today and Calendar layouts) or
- * Custom (a grid of widgets). Choosing one never changes or removes a layout.
- */
-function FrontPageCard() {
-  const { mode, chooseSimple, chooseCustom, layouts } = useNewLook();
-  const hasCustom = layouts.some((l) => l.view !== 'today' && l.view !== 'calendar');
-  const choices = [
-    { kind: 'simple' as const, name: 'Simple', line: "Clock and weather in the corners, today's list of what's next. Few settings.", pick: chooseSimple, can: true },
-    { kind: 'custom' as const, name: 'Custom', line: 'Your grid of widgets, arranged however you like.', pick: chooseCustom, can: hasCustom },
-  ];
-  return (
-    <Card data-front-page-card>
-      <CardHeader>
-        <CardTitle>Front page</CardTitle>
-        <CardDescription>Choosing one keeps every layout you have; you can switch at any time.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2">
-        {choices.map((c) => {
-          const on = mode === c.kind;
-          return (
-            <button
-              key={c.kind}
-              type="button"
-              disabled={!c.can || on}
-              onClick={() => void c.pick()}
-              aria-pressed={on}
-              className={`flex min-w-0 items-center gap-3 rounded-xl border-2 p-2.5 text-left transition-colors disabled:cursor-default ${on ? 'border-primary' : 'border-border hover:border-foreground/40'} ${!c.can ? 'opacity-50' : ''}`}
-              data-front-page-choice={c.kind}
-            >
-              {/* A small picture beside the words, so the card is no taller than its neighbours. */}
-              <KindPicture kind={c.kind} />
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="flex items-center gap-2 font-medium">
-                  {c.name}
-                  {on && <span className="text-xs uppercase tracking-wide text-primary">In use</span>}
-                </span>
-                <span className="text-sm text-muted-foreground">{c.line}</span>
-              </span>
-            </button>
-          );
-        })}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -162,8 +74,6 @@ export function DisplaySection() {
   const [sunsetOffsetInput, setSunsetOffsetInput] = useLocalCopy(String(sunsetOffsetMinutes));
   const [sharing, setSharing] = useState(false);
   const [browsing, setBrowsing] = useState(false);
-  // The palette in use as one row; the full set only when changing it (#1017).
-  const [choosing, setChoosing] = useState(false);
   const [importErrors, setImportErrors] = useState<string[]>([]);
 
   const mode: 'auto' | 'manual' | 'off' =
@@ -182,11 +92,10 @@ export function DisplaySection() {
         <p className="text-muted-foreground">Customize how the dashboard looks and behaves</p>
       </div>
 
-      <SectionDivider label="Look" />
-      <div data-appearance-group="look" className="flex flex-col gap-4">
-      <FrontPageCard />
-
-      {/* Seasonal Theme sits beside Color Scheme rather than below it. */}
+      <SectionDivider label="Theme" />
+      {/* A section spreads across the width rather than running down it:
+          Seasonal Theme sits beside Color Scheme instead of below it. The
+          divider stays full width so the grouping still reads as one thing. */}
       <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
 
       <Card>
@@ -376,23 +285,7 @@ export function DisplaySection() {
                 ))}
               </div>
             )}
-            {(() => {
-              const preview = resolvedTheme === 'dark' ? activePalette.dark : activePalette.light;
-              return (
-                <div className="flex min-h-[56px] items-center gap-3 rounded-lg border border-border px-3" data-palette-current>
-                  <div className="flex gap-1.5">
-                    {(['background', 'card', 'primary', 'accent', 'destructive'] as const).map((tok) => (
-                      <span key={tok} className="h-6 w-6 rounded border border-black/10" style={{ backgroundColor: `hsl(${preview[tok]})` }} />
-                    ))}
-                  </div>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{activePalette.name}</span>
-                  <Button variant="outline" size="sm" onClick={() => setChoosing(!choosing)} aria-expanded={choosing} data-palette-change>
-                    {choosing ? 'Done' : 'Change'}
-                  </Button>
-                </div>
-              );
-            })()}
-            {choosing && <div className="grid grid-cols-2 gap-3" data-palette-grid>
+            <div className="grid grid-cols-2 gap-3">
               {palettes.map((p) => {
                 const preview = resolvedTheme === 'dark' ? p.dark : p.light;
                 return (
@@ -432,7 +325,7 @@ export function DisplaySection() {
                   </button>
                 );
               })}
-            </div>}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -518,25 +411,32 @@ export function DisplaySection() {
       </Card>
 
       </div>
-      </div>
+      <SectionDivider label="Wallpaper & Display" />
+      {/* A section spreads across the width rather than running down it:
+          Seasonal Theme sits beside Color Scheme instead of below it. The
+          divider stays full width so the grouping still reads as one thing. */}
+      <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
 
-      {/* Grouped by what a person is doing (#1017). */}
-      <SectionDivider label="Background and idle" />
-      <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start" data-appearance-group="background">
-        <WallpaperSettingsCard />
-        <ScreensaverCard />
-        <TimersCard />
-      </div>
+      <PerformanceModeCard />
 
-      <SectionDivider label="This screen" />
-      <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start" data-appearance-group="screen">
-        <OrientationCard />
-        {/* Rarely changed: folded to one line with the current value. */}
-        <div className="flex flex-col gap-3">
-          <PerformanceModeCard />
-          <WeatherUnitsCard />
-          <LanguageCard />
-        </div>
+      <OrientationCard />
+
+      <WallpaperSettingsCard />
+
+      </div>
+      <SectionDivider label="Behavior" />
+      {/* A section spreads across the width rather than running down it:
+          Seasonal Theme sits beside Color Scheme instead of below it. The
+          divider stays full width so the grouping still reads as one thing. */}
+      <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
+
+      <ScreensaverCard />
+      <TimersCard />
+
+      <WeatherUnitsCard />
+
+      <LanguageCard />
+
       </div>
     </div>
   );
@@ -560,9 +460,9 @@ function LanguageCard() {
   );
 
   return (
-    <FoldCard id="language" title="Language" value={APP_LOCALES.find((l) => l.value === locale)?.label ?? locale}>
     <Card>
       <CardHeader>
+        <CardTitle>Language <span className="text-xs font-normal text-muted-foreground">(early preview)</span></CardTitle>
         <CardDescription>
           The dashboard&apos;s display language. English is the default; other languages fall back to English
           for anything not yet translated. Only part of the UI is translated so far — this is an early preview.
@@ -589,7 +489,6 @@ function LanguageCard() {
         </div>
       </CardContent>
     </Card>
-    </FoldCard>
   );
 }
 
@@ -625,9 +524,9 @@ function WeatherUnitsCard() {
   if (units === null) return null;
 
   return (
-    <FoldCard id="units" title="Units" value={units === 'metric' ? 'Metric' : 'Imperial'}>
     <Card>
       <CardHeader>
+        <CardTitle>Units</CardTitle>
         <CardDescription>
           Imperial shows °F, mph, and inches. Metric shows °C, km/h, and mm. Applies to every place
           weather is rendered (widget, mobile cards, away mode, babysitter mode) and to the live bus speed.
@@ -664,7 +563,6 @@ function WeatherUnitsCard() {
         </div>
       </CardContent>
     </Card>
-    </FoldCard>
   );
 }
 
@@ -1060,9 +958,9 @@ const LEVEL_LABEL: Record<PerfLevel, string> = { full: 'Full', reduced: 'Reduced
 function PerformanceModeCard() {
   const { mode, level, setMode } = usePerformanceMode();
   return (
-    <FoldCard id="performance" title="Performance" value={PERF_CHOICES.find((c) => c.mode === mode)?.label ?? mode}>
     <Card>
       <CardHeader>
+        <CardTitle>Performance</CardTitle>
         <CardDescription>
           How much visual work this screen does. Lighter levels suit thin clients and older mini PCs.
         </CardDescription>
@@ -1091,7 +989,6 @@ function PerformanceModeCard() {
         ))}
       </CardContent>
     </Card>
-    </FoldCard>
   );
 }
 
@@ -1137,7 +1034,6 @@ function WallpaperSettingsCard() {
               </div>
               <Switch checked={autoOrientation} onCheckedChange={setAutoOrientation} />
             </div>
-            <PhotoCaptionSettings />
           </>
         )}
       </CardContent>
@@ -1187,56 +1083,5 @@ function OrientationCard() {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-/**
- * When and where photos were taken, on the wall and the screensaver (#958).
- * Household settings: the date shows unless turned off; the place only when
- * turned on, because finding it sends a photo's rough location to
- * OpenStreetMap's geocoder.
- */
-function PhotoCaptionSettings() {
-  const [values, setValues] = useState<{ date: boolean; place: boolean; onThisDay: boolean } | null>(null);
-  useEffect(() => {
-    fetch('/api/settings').then((r) => (r.ok ? r.json() : null)).then((d) => setValues({
-      date: d?.settings?.[PHOTO_DATE_SETTING] !== false,
-      place: d?.settings?.[PHOTO_PLACE_SETTING] === true,
-      onThisDay: d?.settings?.[PHOTO_ON_THIS_DAY_SETTING] === true,
-    })).catch(() => setValues({ date: true, place: false, onThisDay: false }));
-  }, []);
-  const save = async (key: string, field: 'date' | 'place' | 'onThisDay', value: boolean) => {
-    const before = values;
-    setValues((v) => (v ? { ...v, [field]: value } : v));
-    const res = await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) }).catch(() => null);
-    if (!res?.ok) setValues(before);
-  };
-  if (!values) return null;
-  return (
-    <>
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="text-sm font-medium">Show when photos were taken</span>
-          <p className="text-xs text-muted-foreground">A short line in a free corner, like &ldquo;March 2019&rdquo;</p>
-        </div>
-        <Switch checked={values.date} onCheckedChange={(v) => void save(PHOTO_DATE_SETTING, 'date', v)} aria-label="Show when photos were taken" />
-      </div>
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <span className="text-sm font-medium">Show where photos were taken</span>
-          <p className="text-xs text-muted-foreground">
-            Names the town for photos that have a location. To find it, Prism sends the photo&rsquo;s rough location (to about a kilometre) to OpenStreetMap, once per photo.
-          </p>
-        </div>
-        <Switch checked={values.place} onCheckedChange={(v) => void save(PHOTO_PLACE_SETTING, 'place', v)} aria-label="Show where photos were taken" />
-      </div>
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="text-sm font-medium">On this day</span>
-          <p className="text-xs text-muted-foreground">On a date with photos from earlier years, show those more often</p>
-        </div>
-        <Switch checked={values.onThisDay} onCheckedChange={(v) => void save(PHOTO_ON_THIS_DAY_SETTING, 'onThisDay', v)} aria-label="On this day" />
-      </div>
-    </>
   );
 }

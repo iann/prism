@@ -79,10 +79,6 @@ function dynamicMasks(page: Page) {
     page.locator('[data-widget="Clock"]'),
     page.locator('[data-widget="Weather"]'),
     page.locator('[data-widget="Photo"]'),
-    // The wall's Menu tab shrinks to a nub after 8 quiet seconds (#989), so a
-    // shot catches either state. The dock spec measures its place, size and
-    // contrast instead.
-    page.locator('[data-dock-menu]'),
   ];
 }
 
@@ -119,8 +115,6 @@ async function setClientFlags(
       };
       document.addEventListener('DOMContentLoaded', hideRadar, { once: true });
       hideRadar();
-      // The one-time new-look offer (#808) is a toast; keep it out of the shots.
-      localStorage.setItem('prism-new-look-offer-dismissed', '1');
     },
     [theme, perfMode],
   );
@@ -151,10 +145,16 @@ async function waitForDashboardWidgets(page: Page) {
   await page.locator('.widget-cell[data-widget="tasks"]').waitFor({ state: 'attached', timeout: 30_000 });
   await page.waitForFunction(
     () => {
-      const cell = document.querySelector('.widget-cell[data-widget="tasks"]');
-      if (!cell) return false;
-      const text = (cell.textContent ?? '').trim();
-      return text.length > 20 && !cell.querySelector('.animate-pulse');
+      // Tasks and Shopping both show skeletons until their first request
+      // resolves. Wait for both, not just the first, so the shot is the same
+      // whether the seed happens to answer quickly or slowly.
+      const loaded = (id: string) => {
+        const cell = document.querySelector(`.widget-cell[data-widget="${id}"]`);
+        if (!cell) return false;
+        const text = (cell.textContent ?? '').trim();
+        return text.length > 20 && !cell.querySelector('.animate-pulse');
+      };
+      return loaded('tasks') && loaded('shopping');
     },
     null,
     { timeout: 30_000 },
@@ -480,11 +480,7 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await page.goto('/');
       await page.waitForLoadState('networkidle');
-      // Sign in lives on the dock (#922). On the wall the dock rests as a
-      // Menu word, so open it first when it is folded away.
-      const signIn = page.getByRole('button', { name: 'Sign in', exact: true });
-      if (!(await signIn.isVisible())) await page.locator('[data-dock-menu]').click();
-      await signIn.click();
+      await page.click('button[aria-label="Log in"]');
       await page.waitForSelector('[data-testid="pin-modal"]', { timeout: 5000 });
       await page.waitForTimeout(400);
 

@@ -511,19 +511,21 @@ function CalendarViewHydrated() {
                 calendar is its dot and name at full strength, a hidden one
                 fades to a ring. */}
             <span className="text-caption text-muted-foreground shrink-0">{t('toolbar.show')}</span>
-            <button
-              type="button"
+            <Button
+              variant={selectedCalendarIds.has('all') ? 'default' : 'outline'}
+              size="sm"
               onClick={() => toggleCalendar('all')}
               className="h-7 text-sm"
             >
               {t('toolbar.all')}
-            </button>
+            </Button>
             {calendarGroups.map((group) => {
               const isSelected = selectedCalendarIds.has(group.id) || selectedCalendarIds.has('all');
               return (
-                <button
+                <Button
                   key={group.id}
-                  type="button"
+                  variant={isSelected ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => toggleCalendar(group.id)}
                   className={cn('h-7 text-sm gap-1.5', isSelected && 'border-transparent')}
                   style={isSelected ? { backgroundColor: group.color, color: contrastText(group.color) } : undefined}
@@ -533,7 +535,7 @@ function CalendarViewHydrated() {
                     style={isSelected ? { backgroundColor: 'currentColor', opacity: 0.55 } : { backgroundColor: group.color }}
                   />
                   {group.name}
-                </button>
+                </Button>
               );
             })}
             {(viewType === 'weekVertical' || viewType === 'day') && calendarGroups.length > 1 && (
