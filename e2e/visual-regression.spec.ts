@@ -79,10 +79,11 @@ function dynamicMasks(page: Page) {
     page.locator('[data-widget="Clock"]'),
     page.locator('[data-widget="Weather"]'),
     page.locator('[data-widget="Photo"]'),
-    // Task and shopping rows depend on seed/reset timing and are rolled up in
-    // the functional suites; mask the tiles so the layout shot is stable.
+    // Task, shopping and chore rows depend on seed/reset timing and are rolled
+    // up in the functional suites; mask the tiles so the layout shot is stable.
     page.locator('.widget-cell[data-widget="tasks"]'),
     page.locator('.widget-cell[data-widget="shopping"]'),
+    page.locator('.widget-cell[data-widget="chores"]'),
   ];
 }
 
