@@ -83,6 +83,7 @@ import { useCalendarEvents, useCalendarFilter, useCalendarNotes } from '@/lib/ho
 import { useCalendarWidgetPrefs } from '@/lib/hooks/useCalendarWidgetPrefs';
 import { useDayBucketsForRange } from '@/lib/hooks/useDayBucketsForRange';
 import { useWeekMutations } from '@/lib/hooks/useWeekMutations';
+import { WidgetResizeModeProvider } from '@/components/layout/grid/widgetEditModeContext';
 import { CalendarWidget } from '../CalendarWidget';
 
 const calendarPrefs = {
@@ -149,9 +150,9 @@ beforeEach(() => {
   });
 });
 
-async function renderCalendarWidget() {
+async function renderCalendarWidget(ui?: React.ReactElement) {
   await act(async () => {
-    render(<CalendarWidget />);
+    render(ui ?? <CalendarWidget />);
     await Promise.resolve();
   });
 }
@@ -174,5 +175,45 @@ describe('CalendarWidget idle chrome', () => {
     expect(screen.queryByTestId('calendar-controls')).toBeNull();
     expect(screen.queryByRole('button', { name: 'All' })).toBeNull();
     expect(screen.queryByTestId('agenda-view')).not.toBeNull();
+  });
+});
+
+describe('CalendarWidget resize hint', () => {
+  const unavailableView = {
+    ...calendarPrefs,
+    viewType: 'multiWeek4' as const,
+    viewUnavailable: true,
+  };
+
+  beforeEach(() => {
+    jest.mocked(useCalendarWidgetPrefs).mockReturnValue(unavailableView);
+  });
+
+  it('stays hidden while the board is not being resized', async () => {
+    await renderCalendarWidget();
+
+    expect(screen.queryByText(/resize widget/i)).toBeNull();
+  });
+
+  it('appears when the widget is in resize mode', async () => {
+    await renderCalendarWidget(
+      <WidgetResizeModeProvider value>
+        <CalendarWidget />
+      </WidgetResizeModeProvider>
+    );
+
+    expect(screen.queryByText(/resize widget/i)).not.toBeNull();
+  });
+
+  it('stays hidden when the nav and chrome have auto-hidden', async () => {
+    mockUseAutoHideUI.mockReturnValue({ uiHidden: true });
+
+    await renderCalendarWidget(
+      <WidgetResizeModeProvider value>
+        <CalendarWidget />
+      </WidgetResizeModeProvider>
+    );
+
+    expect(screen.queryByText(/resize widget/i)).toBeNull();
   });
 });

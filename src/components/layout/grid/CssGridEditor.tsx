@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { EyeOff, Moon, Trash2 } from 'lucide-react';
 import { WidgetBgOverrideProvider, WidgetEmptyReportContext } from '@/components/widgets/WidgetContainer';
+import { WidgetResizeModeProvider } from './widgetEditModeContext';
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { useLatestRef } from '@/lib/hooks/useLatestRef';
 import { shownWhenIdle } from '@/components/screensaver/calmMode';
@@ -514,14 +515,16 @@ function DraggableWidget({
           cellBackgroundOpacity: widget.cellBackgroundOpacity,
         }}
       >
-        <WidgetEmptyReportContext.Provider value={reportEmpty}>
-          <div
-            className={`h-full w-full overflow-hidden ${textClass} ${outlineClass} ${emptyHidden ? 'opacity-50' : ''}`}
-            style={{ pointerEvents: 'none', ...contentStyle }}
-          >
-            {renderWidget(widget)}
-          </div>
-        </WidgetEmptyReportContext.Provider>
+        <WidgetResizeModeProvider value={inResizeMode}>
+          <WidgetEmptyReportContext.Provider value={reportEmpty}>
+            <div
+              className={`h-full w-full overflow-hidden ${textClass} ${outlineClass} ${emptyHidden ? 'opacity-50' : ''}`}
+              style={{ pointerEvents: 'none', ...contentStyle }}
+            >
+              {renderWidget(widget)}
+            </div>
+          </WidgetEmptyReportContext.Provider>
+        </WidgetResizeModeProvider>
       </WidgetBgOverrideProvider>
 
       {/* Mode label, with Remove beside it — visible when selected. Remove is

@@ -43,6 +43,7 @@ import {
   CalendarPrefsScopeContext,
 } from '@/lib/hooks/useCalendarWidgetPrefs';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
+import { useWidgetResizeMode } from '@/components/layout/grid/widgetEditModeContext';
 import { useCalendarSyncHealth } from '@/lib/hooks/useCalendarSyncHealth';
 import { CalendarWidgetControls } from './CalendarWidgetControls';
 import { DayPagingContext } from '@/lib/hooks/useDayPaging';
@@ -114,6 +115,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
 }: CalendarWidgetProps) {
   const { activeUser } = useAuth();
   const { uiHidden } = useAutoHideUI();
+  const inResizeMode = useWidgetResizeMode();
   const t = useTranslations('calendar');
   const formatDayHeader = useDayHeaderFormatter();
   const { weekStartsOn } = useWeekStartsOn();
@@ -437,7 +439,9 @@ export const CalendarWidget = React.memo(function CalendarWidget({
         </Link>
       )}
 
-      {viewUnavailable && (
+      {/* Only an editor hint: nobody can act on it while the board is being
+          watched, and it must not survive the nav/chrome auto-hiding. */}
+      {viewUnavailable && inResizeMode && !uiHidden && (
         <div className="mb-1 rounded bg-muted/50 py-1 text-center text-[12px] text-muted-foreground">
           {t('toolbar.resizeForView', {
             view: t(`views.${VIEW_OPTIONS.find((v) => v.value === viewType)?.labelKey ?? 'agenda'}`),
