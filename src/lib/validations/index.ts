@@ -152,9 +152,16 @@ export const updateChoreSchema = updateOf(createChoreSchema).extend({
 });
 
 export const completeChoreSchema = z.object({
-  completedBy: uuidSchema,
+  completedBy: uuidSchema.optional(),
+  /**
+   * Who did it, as the member's place in the family list (#835): a signed-out
+   * wall knows people only by that ordinal, as the PIN pad does.
+   */
+  completedByIndex: z.number().int().min(0).max(99).optional(),
   photoUrl: z.string().url().optional(),
   notes: z.string().max(1000).optional(),
+}).refine((v) => v.completedBy !== undefined || v.completedByIndex !== undefined, {
+  message: 'completedBy or completedByIndex is required',
 });
 
 // SHOPPING SCHEMAS
@@ -356,6 +363,8 @@ export const createBusRouteSchema = z.object({
     .default([]),
   stopName: z.string().max(255).optional(),
   schoolName: z.string().max(255).optional(),
+  // Minutes to walk to the stop, for the leave-by line (#900).
+  walkMinutes: z.number().int().min(0).max(60).optional().default(0),
   enabled: z.boolean().optional().default(true),
   sortOrder: z.number().int().min(0).optional().default(0),
   // Which live provider track is this route's (see bus-live-ingest.ts).
@@ -469,6 +478,10 @@ const requiredWidgetConfigsSchema = z
   .min(1, 'At least one widget is required')
   .superRefine(validateUniqueWidgetIds);
 
+/** How a dashboard is drawn (#907). */
+export const LAYOUT_VIEWS = ['grid', 'today', 'calendar'] as const;
+export type LayoutView = (typeof LAYOUT_VIEWS)[number];
+
 export const createLayoutSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   slug: z
@@ -488,6 +501,8 @@ export const createLayoutSchema = z.object({
     /** Legacy key retained for layouts saved before the media-player rename. */
     appleTvPlayback: z.object({ enabled: z.boolean() }).strict().optional(),
   }).strict().optional(),
+  // No default here either: a new dashboard gets the column's, an update leaves it (#907).
+  view: z.enum(LAYOUT_VIEWS).optional(),
   createdBy: uuidSchema.optional(),
 });
 

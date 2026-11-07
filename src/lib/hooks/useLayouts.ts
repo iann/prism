@@ -51,6 +51,8 @@ export interface Layout {
     /** Legacy key retained for layouts saved before the media-player rename. */
     appleTvPlayback?: { enabled: boolean };
   };
+  /** How it is drawn (#907): the widget grid, or Today, one scene over the photo. */
+  view?: 'grid' | 'today' | 'calendar';
   createdBy?: string;
   createdAt: string;
   updatedAt: string;

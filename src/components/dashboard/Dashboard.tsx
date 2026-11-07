@@ -300,12 +300,14 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   }, [router, pickDashboard]);
 
   const handleCreateDashboard = useCallback(
-    async (name: string, startFrom: 'blank' | 'template' | 'copy') => {
+    async (name: string, startFrom: 'blank' | 'template' | 'copy' | 'today' | 'calendar') => {
       const { DEFAULT_TEMPLATE } = await import('@/lib/constants/layoutTemplates');
       let widgets: WidgetConfig[];
       if (startFrom === 'copy' && layout.activeLayout) {
         widgets = layout.activeLayout.widgets;
-      } else if (startFrom === 'template') {
+      } else if (startFrom === 'template' || startFrom === 'today' || startFrom === 'calendar') {
+        // The personal fork keeps the grid front page; Simple layouts fall back
+        // to the default grid template rather than the upstream Today scene.
         widgets = DEFAULT_TEMPLATE.widgets;
       } else {
         // Blank: single clock widget

@@ -425,7 +425,9 @@ export function WidgetContainer({
             {icon && <span className="text-seasonal-accent shrink-0">{icon}</span>}
             {/* Title - clickable link if titleHref provided */}
             {titleHref ? (
-              <Link href={titleHref} prefetch={false} className="min-w-0 hover:underline">
+              // A 44px target on a touch screen (#837); the negative margin
+              // keeps the header the same height, so the tap area grows, not the text.
+              <Link href={titleHref} prefetch={false} className="hover:underline min-w-0 pointer-coarse:inline-flex pointer-coarse:items-center pointer-coarse:min-h-[44px] pointer-coarse:-my-[5.5px]">
                 <CardTitle className="wall-widget-title truncate text-lg font-semibold tracking-[-0.01em]">{title}</CardTitle>
               </Link>
             ) : (

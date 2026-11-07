@@ -79,6 +79,10 @@ function dynamicMasks(page: Page) {
     page.locator('[data-widget="Clock"]'),
     page.locator('[data-widget="Weather"]'),
     page.locator('[data-widget="Photo"]'),
+    // The wall's Menu tab shrinks to a nub after 8 quiet seconds (#989), so a
+    // shot catches either state. The dock spec measures its place, size and
+    // contrast instead.
+    page.locator('[data-dock-menu]'),
   ];
 }
 
@@ -115,6 +119,8 @@ async function setClientFlags(
       };
       document.addEventListener('DOMContentLoaded', hideRadar, { once: true });
       hideRadar();
+      // The one-time new-look offer (#808) is a toast; keep it out of the shots.
+      localStorage.setItem('prism-new-look-offer-dismissed', '1');
     },
     [theme, perfMode],
   );
@@ -474,7 +480,11 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await page.goto('/');
       await page.waitForLoadState('networkidle');
-      await page.click('button[aria-label="Log in"]');
+      // Sign in lives on the dock (#922). On the wall the dock rests as a
+      // Menu word, so open it first when it is folded away.
+      const signIn = page.getByRole('button', { name: 'Sign in', exact: true });
+      if (!(await signIn.isVisible())) await page.locator('[data-dock-menu]').click();
+      await signIn.click();
       await page.waitForSelector('[data-testid="pin-modal"]', { timeout: 5000 });
       await page.waitForTimeout(400);
 

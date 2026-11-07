@@ -21,6 +21,25 @@ import { FIRST_SCREEN_TEMPLATE } from '../src/lib/constants/layoutTemplates';
  * Editing needs a parent login, so this runs only against the seeded test
  * database (see calendar-geometry.spec.ts for why the PIN is gated).
  */
+
+/**
+ * Open the layout editor the way a person does: on the wall that is the
+ * dock's Menu, then More, then Edit layout (#922).
+ */
+async function openEditor(page: Page) {
+  // Landscape walls have the dock; portrait keeps its bar until #924.
+  const menu = page.locator('[data-dock-menu]');
+  const bar = page.getByLabel('Edit layout');
+  await expect(menu.or(bar).first()).toBeVisible({ timeout: 60000 });
+  if (await menu.isVisible()) {
+    await menu.click();
+    await page.locator('[data-dock-more]').click();
+    await page.locator('[data-dock-more-panel] [data-screen-job="edit"]').click();
+  } else {
+    await bar.click();
+  }
+}
+
 const HAS_TEST_DB = process.env.E2E_HAS_TEST_DB === '1';
 const PIN = process.env.E2E_PIN || '1234';
 
@@ -60,7 +79,7 @@ async function openScreensaverEditor(page: Page, orientation: 'landscape' | 'por
     sessionStorage.setItem('ss-geometry-seeded', '1');
   }, LAYOUT);
   await page.goto('/');
-  await page.getByLabel('Edit layout').click({ timeout: 60000 });
+  await openEditor(page);
   // The seeded dashboard shows the screensaver over photos, so the Idle
   // screen tab arranges its layout.
   await page.getByRole('tab', { name: /Idle screen/ }).click();
@@ -159,6 +178,7 @@ const DEEP = '2026-08-15T06:00:00Z';
 
 const BACKGROUNDS = {
   sky: { source: 'sky' },
+  photos: { source: 'photos' },
   dayNight: { day: 'photos', night: 'sky', switch: { by: 'sun', duskOffset: 0, dawnOffset: 0 } },
 } satisfies Record<string, IdleBackground>;
 
@@ -215,6 +235,26 @@ test.describe('screensaver night sky', () => {
       return { x: b.x, y: b.y, w: b.width, h: b.height, alpha: px[3] };
     });
   }
+
+  // #929: the screensaver wears Today's materials.
+  test('over photos the clock is in the display face, white by day and warm after dusk', async ({ page, context }) => {
+    const ink = async () => page.locator('.fixed.inset-0.z-9999 [data-clock-time]').first().evaluate((el) => ({
+      color: getComputedStyle(el).color,
+      face: getComputedStyle(el).fontFamily,
+    }));
+    await openScreensaver(page, 'photos', NOON);
+    await expect(page.locator('[data-screensaver-shade]')).toHaveCount(1);
+    const day = await ink();
+    expect(day.face, 'display face').toMatch(/Literata/i);
+    expect(day.color).toBe('rgb(255, 255, 255)');
+
+    const night = await context.newPage();
+    await openScreensaver(night, 'photos', NIGHT);
+    await expect(night.locator('[data-screensaver-night]')).toHaveCount(1);
+    const warm = await night.locator('.fixed.inset-0.z-9999 [data-clock-time]').first().evaluate((el) => getComputedStyle(el).color);
+    expect(warm).toBe('rgb(255, 226, 190)');
+    await night.close();
+  });
 
   test('Night sky fills the screen instead of the photos', async ({ page }) => {
     await openScreensaver(page, 'sky', NIGHT);
@@ -639,6 +679,8 @@ test.describe('calm mode idle screen', () => {
       // Chosen the way a person would, in Settings, past its PIN gate.
       await verifySettingsPinViaAPI(page, (await getFirstParent(page)).name, PIN);
       await page.goto('/settings?section=display');
+      // Performance is folded under This screen (#1017); open it first.
+      await page.locator('[data-fold="performance"] summary').click();
       await page.getByRole('radio', { name: /^Minimal/ }).check();
       await expect(page.locator('html')).toHaveClass(/perf-minimal/);
 
@@ -671,7 +713,7 @@ test.describe('calm mode idle screen', () => {
     await page.addInitScript(() => localStorage.setItem('prism-screensaver-drift', 'off'));
     try {
       await page.goto(`/d/${layout.slug}`);
-      await page.getByLabel('Edit layout').click({ timeout: 60000 });
+      await openEditor(page);
       const toggle = (i: string) => page.locator(`[data-editor-widget="${i}"] [data-idle-toggle]`);
       const tab = (name: RegExp) => page.getByRole('tab', { name });
       // The Dashboard tab arranges the dashboard; what stays when idle is the Idle screen tab's.
@@ -763,7 +805,7 @@ test.describe('idle background picker', () => {
       return route.fulfill({ response, json: { ...(await response.json()), ...place } });
     });
     await page.goto(`/d/${layout.slug}`);
-    await page.getByLabel('Edit layout').click({ timeout: 60000 });
+    await openEditor(page);
     await page.getByRole('tab', { name: /Idle screen/ }).click();
     await page.getByRole('radio', { name: 'Changes with the time of day' }).click();
     return layout as { id: string };
@@ -1129,13 +1171,13 @@ test.describe('corner clock and weather', () => {
     lastUpdated: day.toISOString(),
   };
 
-  async function openLayout(page: Page, widgets: unknown[]) {
+  async function openLayout(page: Page, widgets: unknown[], weather: object = WEATHER) {
     const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
     expect(login.ok(), 'precondition: login must succeed').toBe(true);
     const created = await page.request.post('/api/layouts', { data: { name: `Corners e2e ${Date.now()}`, widgets } });
     expect(created.status()).toBe(201);
     const layout = await created.json();
-    await page.route('**/api/weather*', (route) => route.fulfill({ json: WEATHER }));
+    await page.route('**/api/weather*', (route) => route.fulfill({ json: weather }));
     await page.goto(`/d/${layout.slug}`);
     await page.locator('[data-weather-current]').waitFor({ timeout: 60000 });
     await page.locator('[data-clock-time]').waitFor();
@@ -1172,7 +1214,7 @@ test.describe('corner clock and weather', () => {
       expect(time.left - clock.left, 'time hugs the left edge').toBeLessThan(40);
 
       // The weather shows icon, temperature and condition, nothing else, lined
-      // up with the right edge and centred top to bottom like the clock.
+      // up with the right edge and the top, like the clock (#988).
       await expect(page.locator('[data-weather-details]')).toBeHidden();
       const current = await rect(page, '[data-weather-current]');
       const condition = page.locator('[data-weather-condition]');
@@ -1185,8 +1227,101 @@ test.describe('corner clock and weather', () => {
       expect(cond.cut, 'condition not cut off').toBe(false);
       const temp = await rect(page, '[data-testid="weather-current-temperature"]');
       expect(weather.right - temp.right, 'weather hugs the right edge').toBeLessThan(40);
-      const mid = (r: Rect) => (r.top + r.bottom) / 2;
-      expect(Math.abs(mid(current) - mid(weather)), 'weather centred in its tile').toBeLessThan(8);
+      expect(current.top - weather.top, 'weather hugs the top of its tile').toBeLessThan(24);
+      expect(time.top - clock.top, 'the clock hugs the top of its tile too').toBeLessThan(40);
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+    }
+  });
+
+  // #800: the clock and the temperature in the display face, the weather as
+  // one line with the day's high, at the wall size and the small tablet's.
+  for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 800 }]) {
+    test(`the corners use the display face and read as one line at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const today = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}T00:00:00.000Z`;
+      const layout = await openLayout(page, FIRST_SCREEN_TEMPLATE.widgets, {
+        ...WEATHER,
+        forecast: [{ date: today, dayName: 'Today', high: 79, low: 61, condition: 'partly-cloudy' }],
+      });
+      try {
+        const faces = await page.evaluate(() => {
+          const look = (sel: string) => {
+            const el = document.querySelector(sel) as HTMLElement;
+            const cs = getComputedStyle(el);
+            return { family: cs.fontFamily, size: parseFloat(cs.fontSize) };
+          };
+          // The page's own floor: 14px on a touch wall, 12px with a mouse.
+          const probe = document.createElement('div');
+          probe.style.fontSize = 'var(--text-floor)';
+          document.body.appendChild(probe);
+          const floor = parseFloat(getComputedStyle(probe).fontSize);
+          probe.remove();
+          return {
+            floor,
+            time: look('.widget-cell[data-widget="clock"] [data-clock-time]'),
+            date: look('.widget-cell[data-widget="clock"] [data-clock-date]'),
+            temp: look('[data-weather-temp]'),
+            condition: look('[data-weather-condition]'),
+          };
+        });
+        // The display face is a next/font family; its generated name contains
+        // the face's name, and the text face's does not.
+        expect(faces.time.family, 'clock in the display face').toMatch(/Literata/i);
+        expect(faces.temp.family, 'temperature in the display face').toMatch(/Literata/i);
+        expect(faces.condition.family, 'condition in the text face').not.toMatch(/Literata/i);
+        const { floor, ...text } = faces;
+        expect(floor).toBeGreaterThanOrEqual(12);
+        for (const [name, f] of Object.entries(text)) {
+          expect(f.size, `${name} at or above the text floor`).toBeGreaterThanOrEqual(floor - 0.01);
+        }
+        const condition = page.locator('[data-weather-condition]');
+        await expect(condition).toHaveText('Partly Cloudy, high 79°F');
+        const cut = await condition.evaluate((el) => el.scrollWidth > el.clientWidth);
+        expect(cut, 'the weather line is not cut off').toBe(false);
+      } finally {
+        await page.request.delete(`/api/layouts/${layout.id}`);
+      }
+    });
+  }
+
+  // #799: on a wallpaper the corner tiles sit straight on the photo in the
+  // light ink, and other glass cards are water, thin and only lightly blurred.
+  test('on a photo the corners have no card and the other cards are water', async ({ page }) => {
+    await page.route('**/api/photos?*', (route) => route.fulfill({ json: { photos: [], total: 0 } }));
+    await page.route('**/api/settings', async (route) => {
+      const res = await route.fetch();
+      const json = await res.json();
+      json.settings = { ...(json.settings ?? {}), wallpaperScenery: true };
+      await route.fulfill({ response: res, json });
+    });
+    const layout = await openLayout(page, FIRST_SCREEN_TEMPLATE.widgets);
+    try {
+      await expect(page.locator('html')).toHaveAttribute('data-wallpaper', 'scenery');
+      // The photo has been read, so the water values are this photo's, not the fallback.
+      await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--ds-water-alpha'))).not.toBe('');
+      const look = await page.evaluate(() => {
+        const cell = (id: string) => getComputedStyle(document.querySelector(`.widget-cell[data-widget="${id}"]`)!);
+        const alpha = (c: string) => { const m = /rgba?\(([^)]+)\)/.exec(c); const p = m ? m[1]!.split(/[ ,/]+/).filter(Boolean) : []; return p.length > 3 ? Number(p[3]) : 1; };
+        const time = getComputedStyle(document.querySelector('.widget-cell[data-widget="clock"] [data-clock-time]')!);
+        return {
+          clockBg: alpha(cell('clock').backgroundColor),
+          clockBlur: cell('clock').backdropFilter,
+          weatherBg: alpha(cell('weather').backgroundColor),
+          timeColor: time.color,
+          calendarBg: alpha(cell('calendar').backgroundColor),
+          calendarBlur: cell('calendar').backdropFilter,
+          shade: !!document.querySelector('[data-wallpaper-shade]'),
+        };
+      });
+      expect(look.clockBg, 'clock has no card').toBe(0);
+      expect(look.weatherBg, 'weather has no card').toBe(0);
+      expect(look.clockBlur).toBe('none');
+      expect(look.timeColor, 'clock in the light ink').toBe('rgb(255, 255, 255)');
+      expect(look.calendarBg, 'water is thinner than the old glass').toBeLessThanOrEqual(0.6);
+      expect(look.calendarBg).toBeGreaterThanOrEqual(0.18);
+      expect(look.calendarBlur, 'a little blur, not the old 24px').toContain('blur(10px)');
+      expect(look.shade, 'shade under the text').toBe(true);
     } finally {
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
@@ -1244,5 +1379,55 @@ test.describe('corner clock and weather', () => {
     } finally {
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
+  });
+});
+
+test.describe('editor keys (#987)', () => {
+  test.skip(!HAS_TEST_DB, 'needs the seeded test database to log in and edit');
+  test.use({ viewport: { width: 1280, height: 720 } });
+  test.setTimeout(90_000);
+
+  test('Delete removes the selected widget with Undo; arrows move it, and resize it in resize mode', async ({ page }) => {
+    await openScreensaverEditor(page, 'landscape');
+    const clock = page.locator('[data-editor-widget="clock"]');
+    const box = async () => (await boxes(page, '[data-editor-widget]')).clock!;
+    const near = (a: number, b: number) => Math.abs(a - b) <= 2;
+
+    // Select (move mode): an arrow moves it one cell, keeping its size.
+    await clock.click();
+    const start = await box();
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(async () => (await box()).x).toBeGreaterThan(start.x + 4);
+    const moved = await box();
+    expect(near(moved.w, start.w) && near(moved.h, start.h), 'a move keeps the size').toBe(true);
+    const cell = moved.x - start.x;
+    await page.keyboard.press('ArrowLeft');
+    await expect.poll(async () => (await box()).x).toBeLessThan(moved.x - 4);
+
+    // Second tap: resize mode. Down grows it a cell, left shrinks it a cell.
+    await clock.click();
+    const before = await box();
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(async () => (await box()).h).toBeGreaterThan(before.h + 4);
+    await page.keyboard.press('ArrowLeft');
+    await expect.poll(async () => (await box()).w).toBeLessThan(before.w - 4);
+    const resized = await box();
+    expect(near(resized.x, before.x) && near(resized.y, before.y), 'a resize keeps the top-left corner').toBe(true);
+    expect(Math.abs((before.w - resized.w) - cell) <= 2, 'one cell narrower').toBe(true);
+
+    // Typing in a field does nothing to the layout.
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'typing-probe'; document.body.appendChild(i); });
+    await page.locator('#typing-probe').focus();
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('ArrowRight');
+    await expect(clock).toBeVisible();
+    expect(near((await box()).x, resized.x), 'arrows in a field leave the widget').toBe(true);
+    await page.evaluate(() => document.getElementById('typing-probe')?.remove());
+
+    // Still selected: Delete removes it; Undo brings it back.
+    await page.keyboard.press('Delete');
+    await expect(clock).toHaveCount(0);
+    await page.getByRole('listitem').filter({ hasText: 'Widget removed.' }).getByRole('button', { name: 'Undo' }).click();
+    await expect(clock).toBeVisible();
   });
 });

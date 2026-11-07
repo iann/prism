@@ -46,6 +46,10 @@ interface ViewOptionsMenuProps {
   /** Reset every option back to default. */
   onReset: () => void;
 
+  /** Page-level items at the foot of the menu (the Calendar page puts
+      Manage calendars here, #879). */
+  footer?: React.ReactNode;
+
   /** Override the trigger button height for a specific toolbar context. */
   triggerClassName?: string;
 }
@@ -119,6 +123,7 @@ export function ViewOptionsMenu({
   onOverlaysChange,
   showOverlayRows,
   onReset,
+  footer,
   triggerClassName,
 }: ViewOptionsMenuProps) {
   const t = useTranslations('calendar.options');
@@ -275,6 +280,12 @@ export function ViewOptionsMenu({
               >
                 {t('reset')}
               </button>
+            </>
+          )}
+          {footer && (
+            <>
+              <div className="border-t border-border" />
+              {footer}
             </>
           )}
         </div>

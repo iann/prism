@@ -1,9 +1,12 @@
 'use client';
 
+import { usePageAdd } from '@/lib/hooks/usePageAdd';
+import { ShoppingCalmList } from './ShoppingCalmList';
 import { useState, useEffect } from 'react';
 import { Emoji } from '@/components/ui/Emoji';
 import { toast } from '@/components/ui/use-toast';
-import { ShoppingCart, Plus, Settings, Maximize2, Minimize2, Tags, Send, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Plus, Settings, Maximize2, Minimize2, Tags, Send, ChevronLeft, ChevronRight, ScanLine } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -129,13 +132,24 @@ export function ShoppingView() {
 
   const orientation = useOrientation();
   const isMobile = useIsMobile();
+  // On a phone the round button adds an item (#1028): it brings up the list's add field.
+  usePageAdd('Add item', () => {
+    const field = document.querySelector<HTMLInputElement>('[data-shopping-add]');
+    field?.scrollIntoView({ block: 'center' });
+    field?.focus();
+  });
   const isPortrait = orientation === 'portrait';
   const [shoppingMode, setShoppingMode] = useState(false);
+  // The page opens on one calm list (#881); the category cards are behind Manage.
+  const [manage, setManage] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
 
   // Mobile-only: swipe to switch lists. The pill bar collapses into a
   // compact prev/dots/next indicator when there's more than one list.
   // Single-list households skip the affordance entirely (UX recommendation).
-  const currentListIdx = lists.findIndex((l) => l.id === activeListId);
+  // The list on screen, not the id chosen at mount: that is empty when the
+  // lists load after the first render, which left the arrows and swipe dead.
+  const currentListIdx = lists.findIndex((l) => l.id === activeList?.id);
   const goPrevList = () => {
     if (currentListIdx > 0) setActiveListId(lists[currentListIdx - 1]!.id);
   };
@@ -182,10 +196,15 @@ export function ShoppingView() {
               badge={activeList ? <Badge variant="secondary">{checkedItems}/{totalItems}</Badge> : undefined}
               actions={<>
                 <UndoButton />
-                {activeList && activeList.items.some((i) => !i.checked) && (
+                <Button variant={manage ? 'secondary' : 'outline'} size="sm" onClick={() => setManage(!manage)} data-shopping-manage>
+                  {manage ? 'Done' : 'Manage'}
+                </Button>
+                {/* On a phone the header keeps Manage and the menu; the rest is in
+                    the menu, so the title has room and the one "+" adds an item (#1020). */}
+                {!isMobile && activeList && activeList.items.some((i) => !i.checked) && (
                   <Button
                     variant="outline"
-                    size={isMobile ? 'icon' : 'sm'}
+                    size="sm"
                     onClick={async () => {
                       const user = await requireAuth('Send to Kroger');
                       if (!user) return;
@@ -194,19 +213,36 @@ export function ShoppingView() {
                     title="Send unchecked items to Kroger / Mariano's cart"
                     aria-label="Send to Kroger"
                   >
-                    <Send className={cn('h-4 w-4', !isMobile && 'mr-1')} />
-                    {!isMobile && 'Send to Kroger'}
+                    <Send className="h-4 w-4 mr-1" />
+                    Send to Kroger
                   </Button>
                 )}
-                <Button variant="ghost" size="icon" onClick={() => setShoppingMode(true)} title="Enter shopping mode">
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
-                <Button onClick={handleNewList} size={isMobile ? 'icon' : 'sm'} aria-label="Add List" title="Add List">
-                  <Plus className={cn('h-4 w-4', !isMobile && 'mr-1')} />
-                  {!isMobile && 'Add List'}
-                </Button>
+                {!isMobile && (
+                  <>
+                    <Button variant="ghost" size="icon" onClick={() => setShoppingMode(true)} title="Enter shopping mode">
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                    <Button onClick={handleNewList} size="sm" aria-label="Add List" title="Add List">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add List
+                    </Button>
+                  </>
+                )}
               </>}
               overflow={[
+                ...(isMobile ? [
+                  { label: 'Scan Barcode', icon: ScanLine, onClick: () => window.dispatchEvent(new CustomEvent('prism:open-barcode-scanner')) },
+                  ...(activeList && activeList.items.some((i) => !i.checked) ? [{
+                    label: 'Send to Kroger',
+                    icon: Send,
+                    onClick: async () => {
+                      const user = await requireAuth('Send to Kroger');
+                      if (user) setShowKrogerModal(true);
+                    },
+                  }] : []),
+                  { label: 'Shopping mode', icon: Maximize2, onClick: () => setShoppingMode(true) },
+                  { label: 'New list', icon: Plus, onClick: handleNewList },
+                ] : []),
                 ...(activeList ? [{
                   label: 'Edit List',
                   icon: Settings,
@@ -252,8 +288,9 @@ export function ShoppingView() {
                     {lists.map((list) => {
                       const assignedMember = list.assignedTo ? familyMembers.find(m => m.id === list.assignedTo) : null;
                       return (
-                        <Button key={list.id} variant={activeListId === list.id ? 'secondary' : 'ghost'} size="sm"
-                          onClick={() => setActiveListId(list.id)} className="relative">
+                        <Button key={list.id} variant={activeList?.id === list.id ? 'secondary' : 'ghost'} size="sm"
+                          onClick={() => setActiveListId(list.id)} className="relative"
+                          aria-pressed={activeList?.id === list.id} data-shopping-list-pill>
                           {list.name}
                           {assignedMember && (
                             <span className="ml-1.5 w-3 h-3 rounded-full inline-block"
@@ -318,6 +355,29 @@ export function ShoppingView() {
                 action={<Button variant="outline" size="sm" onClick={handleNewList}>Create your first list</Button>}
               />
             </div>
+          ) : activeList && !manage && !shoppingMode ? (
+            <div className="pb-24 pt-2">
+              <ShoppingCalmList
+                // A new list starts fresh: a question left open belongs to the list it was asked on.
+                key={activeList.id}
+                items={activeList.items as ShoppingItem[]}
+                order={effectiveCategoryOrder}
+                allCategories={categoryOrder}
+                onToggle={(id) => toggleItem(id)}
+                onEdit={handleEditItem}
+                onAdd={(name) => apiAddItem(activeList.id, { name, category: 'other' })}
+                onFile={async (itemId, category) => {
+                  const res = await fetch(`/api/shopping-items/${itemId}`, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ category }),
+                  });
+                  if (!res.ok) { toast({ title: 'Could not move the item. Try again from its pencil.', variant: 'destructive' }); return; }
+                  await refreshLists();
+                }}
+                label={(id) => dynamicCategories.find((c) => c.id === id)?.name ?? (id === 'other' ? 'Other' : id.charAt(0).toUpperCase() + id.slice(1))}
+                color={getDynCategoryColor}
+              />
+            </div>
           ) : activeList ? (
             // pb-24 lives here (not on the scroll container above) so it only
             // reserves clearance for the mobile FAB below actual list content —
@@ -337,6 +397,7 @@ export function ShoppingView() {
                     <ShoppingCategoryCard
                       key={category}
                       category={category}
+                      categoryName={dynamicCategories.find((c) => c.id === category)?.name}
                       items={items}
                       categoryColor={getDynCategoryColor(category)}
                       categoryEmoji={getDynCategoryEmoji(category)}
@@ -364,6 +425,43 @@ export function ShoppingView() {
                   );
                 })}
               </div>
+
+              {/* Add a category where the categories are (#1053): it was only in
+                  the menu's Manage Categories, and a list that shows chosen
+                  categories also needed it ticked in Edit List. */}
+              <form
+                className="mt-3 flex max-w-md items-center gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const name = newCategory.trim();
+                  if (!name) return;
+                  const user = await requireAuth('Add a category');
+                  if (!user) return;
+                  const added = await addCategory(name);
+                  if (!added) { toast({ title: `There is already a ${name} category.`, variant: 'warning' }); return; }
+                  if (activeList.visibleCategories) {
+                    await fetch(`/api/shopping-lists/${activeList.id}`, {
+                      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ visibleCategories: [...activeList.visibleCategories, added.id] }),
+                    });
+                    refreshLists();
+                  }
+                  setNewCategory('');
+                  toast({ title: `Added ${name} to ${activeList.name}.` });
+                }}
+              >
+                <Input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="New category"
+                  className="min-h-[44px] rounded-full px-4"
+                  aria-label="New category"
+                  data-shopping-new-category
+                />
+                <Button type="submit" variant="outline" disabled={!newCategory.trim()} data-shopping-add-category>
+                  <Plus className="h-4 w-4 mr-1" />Add category
+                </Button>
+              </form>
 
               {otherItems.length > 0 && (
                 <div className="mt-6 space-y-4">
@@ -397,7 +495,8 @@ export function ShoppingView() {
 
         {editingItem && (
           <ItemModal listId={editingItem.listId} item={editingItem}
-            onClose={() => setEditingItem(null)} onSave={handleUpdateItem} />
+            onClose={() => setEditingItem(null)} onSave={handleUpdateItem}
+            onDelete={(id) => { setEditingItem(null); void handleDeleteItem(id); }} />
         )}
 
         {showListModal && (

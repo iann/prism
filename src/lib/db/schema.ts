@@ -101,6 +101,9 @@ export const calendarSources = pgTable('calendar_sources', {
   // Subscription/read-only calendars should have this set to false
   showInEventModal: boolean('show_in_event_modal').default(true).notNull(),
 
+  // Display rules (#877): busy only, hide after a time, birthdays as name and age.
+  displayRules: jsonb('display_rules').$type<import('@/lib/calendar/displayRules').DisplayRules>(),
+
   // Whether this is a family-shared calendar (vs personal or unassigned)
   isFamily: boolean('is_family').default(false).notNull(),
 
@@ -954,6 +957,10 @@ export const layouts = pgTable('layouts', {
 
   // Per-dashboard overlay settings. Secrets remain in api_credentials.
   floatingCardSettings: jsonb('floating_card_settings'),
+  // How the dashboard is drawn (#907): 'grid' (widgets on the grid) or
+  // 'today' (one scene over the photo; the widgets are its parts, shown or
+  // hidden, and their positions are not used).
+  view: varchar('view', { length: 20 }).default('grid').notNull(),
 
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -1374,6 +1381,16 @@ export const photos = pgTable('photos', {
   orientation: varchar('orientation', { length: 20 })
     .$type<'landscape' | 'portrait' | 'square'>(),
 
+  // Where the photo's subject is, as fractions of its width and height
+  // (#956). Found once in the browser; null until then, read as the centre.
+  focalX: real('focal_x'),
+  focalY: real('focal_y'),
+
+  // Where it was taken, as a short name (#958): looked up once, only while
+  // the household shows places; placeLookedUp stops a second lookup.
+  placeName: varchar('place_name', { length: 120 }),
+  placeLookedUp: boolean('place_looked_up').default(false).notNull(),
+
   // Comma-separated display contexts (e.g., "wallpaper,screensaver")
   usage: varchar('usage', { length: 100 }).default('wallpaper,gallery,screensaver').notNull(),
 
@@ -1643,6 +1660,9 @@ export const busRoutes = pgTable('bus_routes', {
 
   enabled: boolean('enabled').default(true).notNull(),
   sortOrder: integer('sort_order').default(0).notNull(),
+
+  // Minutes to walk to the stop (#900): Now & Next shows when to leave. 0 = none.
+  walkMinutes: integer('walk_minutes').default(0).notNull(),
 
   // Which live provider track belongs to this route. Tracks arrive daily with
   // opaque keys, so the binding is by provider + label + direction instead.

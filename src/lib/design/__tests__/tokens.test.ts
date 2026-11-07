@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  CARD, EVENT, PAPER, PAPER_CONTRAST_MIN, PHOTO_DIM, REFERENCE_ROOT_PX, SPACE_PX,
+  CARD, EVENT, PAPER, PAPER_CONTRAST_MIN, PHOTO_DIM, PROSE, REFERENCE_ROOT_PX, SPACE_PX,
   TARGET_MIN_PX, TEXT_FLOOR_PX, TYPE_SCALE, TYPE_STEP_MIN, type TypeRole,
 } from '../tokens';
 import { checkThemeContrast, EDGE_MIN } from '@/lib/themes/contrast';

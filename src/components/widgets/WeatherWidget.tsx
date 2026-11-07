@@ -621,7 +621,53 @@ function tempToColor(fahrenheit: number): string {
 }
 
 
-function formatTemp(value: number, units: WeatherUnits): string {
+/**
+ * MOON PHASE GLYPH GEOMETRY (shared)
+ *
+ * Returns an SVG path string for the illuminated portion of the moon at the
+ * given phase: a half-circle on the lit side plus an elliptical arc whose
+ * x-radius shrinks toward zero at the quarter phases. At new moon (phase=0)
+ * the two arcs overlap and the closed path has zero area — caller should
+ * combine with an outlined disc so new moon reads as an empty circle.
+ */
+function moonPhasePath(cx: number, cy: number, r: number, phase: number): string {
+  const ph = ((phase % 1) + 1) % 1;
+  const rxAbs = Math.abs(Math.cos(2 * Math.PI * ph)) * r;
+  const outerSweep = ph < 0.5 ? 1 : 0;
+  const innerSweep = Math.floor(ph * 4) % 2 === 1 ? 1 : 0;
+  return `M ${cx},${cy - r} A ${r},${r} 0 0 ${outerSweep} ${cx},${cy + r} A ${rxAbs},${r} 0 0 ${innerSweep} ${cx},${cy - r} Z`;
+}
+
+/**
+ * Small standalone moon glyph — outlined disc + lit fraction. Used by Today's
+ * night arc and forecast day rows to show the moon phase at a glance.
+ */
+export function MoonGlyph({
+  phase,
+  size = 14,
+  color = '#60A5FA',
+}: {
+  phase: number;
+  size?: number;
+  color?: string;
+}) {
+  const r = size / 2 - 0.5;
+  const c = size / 2;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+      <circle cx={c} cy={c} r={r} fill="none" stroke={color}
+        strokeOpacity={0.5} strokeWidth={0.8} />
+      <path d={moonPhasePath(c, c, r, phase)} fill={color} opacity={0.9} />
+    </svg>
+  );
+}
+
+/** "Sunny" + "high 79°" -> "Sunny, high 79°". Either part may be missing. */
+export function weatherSentence(condition: string | undefined, high: string | undefined): string {
+  return [condition?.trim(), high].filter(Boolean).join(', ');
+}
+
+export function formatTemp(value: number, units: WeatherUnits): string {
   return units.temperature === 'C'
     ? `${Math.round(value)}°C`
     : `${Math.round(value)}°`;

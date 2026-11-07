@@ -32,9 +32,22 @@ function readCachedPortraitNavPages(): string[] {
   }
 }
 
+const DOCK_CACHE_KEY = 'prism-dock-pages';
+
+function readCachedDockPages(): string[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem(DOCK_CACHE_KEY);
+    const v = cached ? JSON.parse(cached) : null;
+    return Array.isArray(v) ? v : null;
+  } catch { return null; }
+}
+
 export function useHiddenPages() {
   const [hiddenPages, setHiddenPagesState] = useState<string[]>(readCachedHiddenPages);
   const [portraitNavPages, setPortraitNavPagesState] = useState<string[]>(readCachedPortraitNavPages);
+  // The pages on the dock, in order (#925); null is the default six.
+  const [dockPages, setDockPagesState] = useState<string[] | null>(readCachedDockPages);
   const [loaded, setLoaded] = useState(false);
 
   const fetchHiddenPages = useCallback(async () => {
@@ -52,6 +65,11 @@ export function useHiddenPages() {
           const normalized = normalizePortraitNavHrefs(portraitNavValue);
           setPortraitNavPagesState(normalized);
           localStorage.setItem(PORTRAIT_NAV_CACHE_KEY, JSON.stringify(normalized));
+        }
+        const dock = data.settings?.dockPages;
+        if (Array.isArray(dock)) {
+          setDockPagesState(dock);
+          localStorage.setItem(DOCK_CACHE_KEY, JSON.stringify(dock));
         }
       }
     } catch { /* ignore */ }
@@ -85,6 +103,18 @@ export function useHiddenPages() {
     } catch { /* ignore */ }
   }, []);
 
+  const setDockPages = useCallback(async (pages: string[]) => {
+    setDockPagesState(pages);
+    localStorage.setItem(DOCK_CACHE_KEY, JSON.stringify(pages));
+    try {
+      await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'dockPages', value: pages }),
+      });
+    } catch { /* ignore */ }
+  }, []);
+
   const hiddenSet = useMemo(() => new Set(hiddenPages), [hiddenPages]);
   const portraitNavSet = useMemo(() => new Set(portraitNavPages), [portraitNavPages]);
 
@@ -111,6 +141,8 @@ export function useHiddenPages() {
   return {
     hiddenPages,
     portraitNavPages,
+    dockPages,
+    setDockPages,
     loaded,
     setHiddenPages,
     setPortraitNavPages,
