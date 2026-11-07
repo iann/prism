@@ -15,7 +15,12 @@ import { optionalAuth } from '@/lib/auth';
 import { fetchWeatherData, type LocationParam } from '@/lib/integrations/weather';
 import { fetchActiveWeatherAlerts } from '@/lib/integrations/weatherAlerts';
 import { fetchWeatherOutlook } from '@/lib/integrations/nwsForecast';
-import { getCached } from '@/lib/cache/redis';
+import {
+  generateOutlookProse,
+  isOutlookLlmConfigured,
+  outlookProseCacheKey,
+} from '@/lib/integrations/opencodeGo';
+import { getCached, getCache, setCache } from '@/lib/cache/redis';
 import { db } from '@/lib/db/client';
 import { settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -155,6 +160,31 @@ export async function GET(request: NextRequest) {
       }
     } else {
       weatherData = { ...weatherData, outlook: [] };
+    }
+
+    // Optional natural-language polish. Keep the deterministic outlook as the
+    // fallback, and cache a short negative result so a bad key or an outage
+    // does not retry on every one-minute widget poll.
+    if (isOutlookLlmConfigured() && weatherData.outlook?.length) {
+      const model = process.env.OPENCODE_GO_MODEL?.trim() || 'glm-5.3-flash';
+      const fallbackModel =
+        process.env.OPENCODE_GO_FALLBACK_MODEL?.trim() || 'minimax-m3.1-flash';
+      const proseCacheKey = `weather-outlook-prose:${model}:${fallbackModel}:${outlookProseCacheKey(weatherData.outlook)}`;
+      try {
+        let prose = await getCache<string>(proseCacheKey);
+        if (prose === null) {
+          const generated = await generateOutlookProse(weatherData.outlook);
+          prose = generated ?? '';
+          await setCache(proseCacheKey, prose, generated ? WEATHER_CACHE_TTL : 300);
+        }
+        weatherData = {
+          ...weatherData,
+          outlookProse: prose || undefined,
+          outlookProseFailed: !prose,
+        };
+      } catch (error) {
+        logError('Weather outlook prose unavailable; using heuristic:', error);
+      }
     }
 
     let currentSource: WeatherCurrentSource = provider === 'pirate' ? 'pirate' : 'provider';

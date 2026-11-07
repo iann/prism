@@ -873,6 +873,26 @@ describe('current conditions', () => {
     );
   });
 
+  it('prefers the OpenCode Go prose when it is available', () => {
+    const data = makeWeatherData({
+      outlookProse:
+        'Rain today, then more rain likely Saturday. Sunday starts with fog before turning mostly sunny.',
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-day-summary').textContent).toBe(
+      'Rain today, then more rain likely Saturday. Sunday starts with fog before turning mostly sunny.',
+    );
+    expect(screen.queryByTestId('weather-outlook-fallback-indicator')).toBeNull();
+  });
+
+  it('marks the summary when a configured LLM outlook fails', () => {
+    const data = makeWeatherData({ outlookProseFailed: true });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.getByTestId('weather-outlook-fallback-indicator')).toBeTruthy();
+  });
+
   it('keeps sunrise, sunset, and moon phase out of the current-condition stats', () => {
     const data = makeWeatherData({
       sunrise: new Date(2026, 6, 17, 6, 27),

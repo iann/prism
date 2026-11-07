@@ -94,18 +94,22 @@ describe('fetchWeatherOutlook', () => {
         start: '2026-11-06T06:00:00-05:00',
         short: 'Rain',
         detail: 'Rain and a chance of thunderstorms.',
+        detailedForecast:
+          'Rain and a chance of thunderstorms. Cloudy, with a high near 69. South wind around 7 mph.',
       },
       {
         day: 'Saturday',
         start: '2026-11-07T06:00:00-05:00',
         short: 'Light Rain Likely then Patchy Fog',
         detail: 'Rain likely and patchy fog before 10am.',
+        detailedForecast: 'Rain likely and patchy fog before 10am. Partly sunny.',
       },
       {
         day: 'Sunday',
         start: '2026-11-08T06:00:00-05:00',
         short: 'Mostly Sunny',
         detail: 'Mostly sunny, with a high near 57.',
+        detailedForecast: 'Mostly sunny, with a high near 57.',
       },
     ]);
   });
@@ -163,6 +167,7 @@ describe('fetchWeatherOutlook', () => {
         start: '',
         short: 'Rain likely',
         detail: '',
+        detailedForecast: '',
       },
     ]);
   });

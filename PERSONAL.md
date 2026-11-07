@@ -1166,6 +1166,19 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: fd646035
 
+138. **Optional OpenCode Go rewrite of the three-day outlook**
+
+    When `OPENCODE_GO_API_KEY` is configured, the weather route sends the
+    three NWS detailed forecast conditions to OpenCode Go's OpenAI-compatible
+    endpoint and caches a two-sentence rewrite under 170 characters. The
+    primary model is GLM-5.3-Flash with GPT-6 Luna as a fallback through the
+    Responses API. The widget shows the rewrite only when it still fits three
+    lines; otherwise it keeps the deterministic outlook and marks the summary
+    with a red dot. Missing keys, timeouts, provider errors, invented numbers,
+    and over-length output all fall back without truncation.
+
+    Commits: a5424876, 62d6dfdc, 8ca3c249, ce113fd5
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

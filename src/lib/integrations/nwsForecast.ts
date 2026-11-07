@@ -102,13 +102,15 @@ export async function fetchWeatherOutlook(location?: {
   return periods
     .filter((period) => period.isDaytime !== false)
     .map((period) => {
+      const detailedForecast = cleanText(period.detailedForecast);
       const short = cleanText(period.shortForecast);
-      const detail = firstSentence(cleanText(period.detailedForecast));
+      const detail = firstSentence(detailedForecast);
       return {
         day: cleanText(period.name),
         start: period.startTime ?? '',
         short,
         detail,
+        detailedForecast,
       };
     })
     .filter((period) => period.short.length > 0 || period.detail.length > 0)
