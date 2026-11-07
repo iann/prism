@@ -1171,13 +1171,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
     When `OPENCODE_GO_API_KEY` is configured, the weather route sends the
     three NWS detailed forecast conditions to OpenCode Go's OpenAI-compatible
     endpoint and caches a two-sentence rewrite under 170 characters. The
-    primary model is GLM-5.3-Flash with MiniMax M3.1 Flash as a fallback. The
-    widget shows the rewrite only when it still fits three lines; otherwise it
-    keeps the deterministic outlook and marks the summary with a red dot.
-    Missing keys, timeouts, provider errors, invented numbers, and over-length
-    output all fall back without truncation.
+    primary model is GLM-5.3-Flash with GPT-6 Luna as a fallback through the
+    Responses API. The widget shows the rewrite only when it still fits three
+    lines; otherwise it keeps the deterministic outlook and marks the summary
+    with a red dot. Missing keys, timeouts, provider errors, invented numbers,
+    and over-length output all fall back without truncation.
 
-    Commits: a5424876, 62d6dfdc, 8ca3c249
+    Commits: a5424876, 62d6dfdc, 8ca3c249, ce113fd5
 
 ## Superseded personal iterations
 
