@@ -1010,6 +1010,10 @@ function CurrentConditions({
     ? null
     : getUvIndexTrend(weather.uvIndex, hourly);
   const sunIsAboveHorizon = isSunAboveHorizon(sunrise, sunset);
+  // Below 1 the WHO band is still "Low", but the reading is effectively nil,
+  // so keep the stat row quiet instead of spending a slot on it.
+  const showUvIndex =
+    weather.uvIndex !== undefined && weather.uvIndex >= 1 && sunIsAboveHorizon;
   const airQualityStatus = weather.airQuality?.pm25 !== undefined
     ? getAirQualityStatus(weather.airQuality.pm25)
     : null;
@@ -1133,13 +1137,20 @@ function CurrentConditions({
               {weather.windGust !== undefined && ` · Gusts ${weather.windGust} ${units.windSpeed}`}
             </span>
           </div>
-          {weather.uvIndex !== undefined && sunIsAboveHorizon && (
-            <UvIndexLine uvIndex={weather.uvIndex} trend={uvIndexTrend} />
-          )}
-          {weather.visibility !== undefined && (
-            <div className="flex items-center justify-end gap-1">
-              <Eye className="h-3 w-3" />
-              <span>Visibility {formatVisibility(weather.visibility, units)}</span>
+          {(showUvIndex || weather.visibility !== undefined) && (
+            <div
+              data-testid="weather-uv-visibility"
+              className="flex items-center justify-end gap-2"
+            >
+              {showUvIndex && weather.uvIndex !== undefined && (
+                <UvIndexLine uvIndex={weather.uvIndex} trend={uvIndexTrend} />
+              )}
+              {weather.visibility !== undefined && (
+                <div className="flex items-center gap-1">
+                  <Eye className="h-3 w-3" />
+                  <span>Visibility {formatVisibility(weather.visibility, units)}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

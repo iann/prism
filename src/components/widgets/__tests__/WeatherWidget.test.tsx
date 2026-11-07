@@ -1097,6 +1097,43 @@ describe('current conditions', () => {
     expect(screen.queryByTestId('uv-index-line')).toBeNull();
   });
 
+  it('keeps UV and visibility in a single stats row', () => {
+    const data = makeWeatherData({
+      current: {
+        ...makeWeatherData().current,
+        uvIndex: 6.5,
+        visibility: 9.5,
+      },
+    });
+    render(<WeatherWidget data={data} />);
+
+    const row = screen.getByTestId('weather-uv-visibility');
+    const uvLine = screen.getByTestId('uv-index-line');
+    expect(row.contains(uvLine)).toBe(true);
+    expect(row.textContent).toContain('Visibility 9.5 mi');
+    expect(row.children).toHaveLength(2);
+  });
+
+  it('hides the UV line below 1 while keeping visibility', () => {
+    const data = makeWeatherData({
+      current: {
+        ...makeWeatherData().current,
+        uvIndex: 0.8,
+        visibility: 9.5,
+      },
+    });
+    render(<WeatherWidget data={data} />);
+
+    expect(screen.queryByTestId('uv-index-line')).toBeNull();
+    const row = screen.getByTestId('weather-uv-visibility');
+    expect(row.textContent).toBe('Visibility 9.5 mi');
+  });
+
+  it('hides the UV and visibility row when both are unavailable', () => {
+    render(<WeatherWidget data={makeWeatherData()} />);
+    expect(screen.queryByTestId('weather-uv-visibility')).toBeNull();
+  });
+
   it('maps UV index values to the visual risk bands', () => {
     expect(getUvIndexStatus(2)?.label).toBe('Low');
     expect(getUvIndexStatus(2.1)?.label).toBe('Moderate');
