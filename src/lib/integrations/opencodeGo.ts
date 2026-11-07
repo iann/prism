@@ -23,14 +23,14 @@ import { logError } from '@/lib/utils/logError';
 const DEFAULT_BASE_URL = 'https://opencode.ai/inference/go/openai/v1';
 const DEFAULT_MODEL = 'glm-5.3-flash';
 const DEFAULT_FALLBACK_MODEL = 'gpt-6-luna';
-const TARGET_CHARS = 155;
-const MAX_CHARS = 170;
+const TARGET_CHARS = 165;
+const MAX_CHARS = 180;
 
 /**
  * Bump when the prompt or validation rules change, so cached prose and cached
  * failures written under the old prompt are not reused.
  */
-export const OUTLOOK_PROSE_PROMPT_VERSION = 'v2';
+export const OUTLOOK_PROSE_PROMPT_VERSION = 'v3';
 const REQUEST_TIMEOUT_MS = 12_000;
 // Reasoning models count their thinking tokens against the output budget.
 // 600 leaves enough room for a short answer plus the model's reasoning.
@@ -89,8 +89,8 @@ function dayLabels(outlook: WeatherOutlookDay[]): string[] {
 /**
  * Keep the human-written conditions and drop the numbers the widget already
  * shows elsewhere: temperatures, wind speeds, precipitation percentages, and
- * rainfall amounts. This keeps the prompt short and makes the 155-character
- * target much easier for the model to hit.
+ * rainfall amounts. This keeps the prompt focused and makes the 165-character
+ * target easier for the model to hit.
  */
 function conditionSummary(day: WeatherOutlookDay): string {
   const source = day.detailedForecast || day.detail || day.short;
@@ -126,10 +126,10 @@ function buildPrompt(outlook: WeatherOutlookDay[], previous?: string): string {
   return `Rewrite the 3-day weather outlook below for a wall dashboard.${retry}
 Rules:
 - Exactly two natural sentences.
-- The TOTAL must be ${TARGET_CHARS} characters or fewer. This is a hard limit.
+- Aim for ${TARGET_CHARS} characters total. Never exceed ${MAX_CHARS} characters. This is a hard limit.
 - Use only the facts in the input. Do not add temperatures or invent numbers.
 - Use these day labels: ${labels.join(', ')}. Every label must appear.
-- Be terse. Drop secondary details before dropping a day.
+- Keep each day to its main conditions; drop secondary details only if needed.
 - Prefer natural connectives such as "then", "followed by", or "after that".
 - Focus on conditions.
 
@@ -140,7 +140,7 @@ Output format:
 - Return only the final two sentences.
 
 Example shape:
-Rain and fog tonight, then rain likely Saturday. Sunday turns mostly sunny after morning fog.
+Patchy fog and a slight thunderstorm chance tonight, then rain likely Saturday with mostly cloudy skies. Sunday turns mostly sunny after morning rain and fog.
 
 Input:
 ${input}
