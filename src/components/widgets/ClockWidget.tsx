@@ -196,7 +196,7 @@ export const ClockWidget = React.memo(function ClockWidget({
             // One line, always: it shrinks to fit rather than wrapping
             'whitespace-nowrap leading-none'
           )}
-          style={{ fontSize: fit.time, fontFamily: 'var(--font-display)' }}
+          style={{ fontSize: fit.time, fontFamily: 'var(--font-numeral)' }}
           data-clock-time
         >
           {dayHalfFirst && dayHalfSpan}
