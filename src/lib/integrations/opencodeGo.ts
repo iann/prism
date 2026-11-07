@@ -128,7 +128,7 @@ Rules:
 
 Output format:
 - Plain prose only. No bullets, labels, or line breaks.
-- Never write a day name followed by a colon, such as "Saturday:" or "Then Sunday:".
+- Never write a day name followed by a colon, such as "Tonight:" or "Saturday:".
 - Use day names only as ordinary words inside the sentence.
 - Return only the final two sentences.
 
@@ -165,7 +165,7 @@ function isValidProse(prose: string, outlook: WeatherOutlookDay[]): boolean {
   // The model is told to write plain prose. A day label followed by a colon is
   // a format failure; reject it and let the retry/fallback handle it rather
   // than silently rewriting the model's sentence.
-  if (/\b(?:Today|Tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s*:/i.test(prose)) {
+  if (/\b(?:Today|Tonight|Overnight|Tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s*:/i.test(prose)) {
     return false;
   }
 

@@ -75,7 +75,10 @@ describe('fetchWeatherOutlook', () => {
       );
 
     const { fetchWeatherOutlook } = await import('../nwsForecast');
-    const outlook = await fetchWeatherOutlook({ lat: 42.46, lon: -71.06 });
+    const outlook = await fetchWeatherOutlook(
+      { lat: 42.46, lon: -71.06 },
+      { now: new Date('2026-11-06T23:30:00-05:00'), timeZone: 'America/New_York' },
+    );
 
     expect(String(fetchSpy.mock.calls[0]?.[0])).toBe(
       'https://api.weather.gov/points/42.4600,-71.0600',
@@ -170,5 +173,92 @@ describe('fetchWeatherOutlook', () => {
         detailedForecast: '',
       },
     ]);
+  });
+
+  function mockEveningPeriods() {
+    return jest
+      .spyOn(global, 'fetch' as never)
+      .mockResolvedValueOnce(mockJson({ properties: { forecast: FORECAST_URL } }) as never)
+      .mockResolvedValueOnce(
+        mockJson({
+          properties: {
+            periods: [
+              {
+                name: 'Tonight',
+                startTime: '2026-11-06T18:00:00-05:00',
+                isDaytime: false,
+                shortForecast: 'Heavy Rain',
+                detailedForecast: 'Rain. Cloudy, with a low around 55.',
+              },
+              {
+                name: 'Saturday',
+                startTime: '2026-11-07T06:00:00-05:00',
+                isDaytime: true,
+                shortForecast: 'Light Rain Likely',
+                detailedForecast: 'Rain likely and patchy fog before 10am. Partly sunny.',
+              },
+              {
+                name: 'Saturday Night',
+                startTime: '2026-11-07T18:00:00-05:00',
+                isDaytime: false,
+                shortForecast: 'Partly Cloudy',
+                detailedForecast: 'Partly cloudy, with a low around 42.',
+              },
+              {
+                name: 'Sunday',
+                startTime: '2026-11-08T06:00:00-05:00',
+                isDaytime: true,
+                shortForecast: 'Mostly Sunny',
+                detailedForecast: 'Mostly sunny, with a high near 57.',
+              },
+              {
+                name: 'Monday',
+                startTime: '2026-11-09T06:00:00-05:00',
+                isDaytime: true,
+                shortForecast: 'Sunny',
+                detailedForecast: 'Sunny, with a high near 57.',
+              },
+            ],
+          },
+        }) as never,
+      );
+  }
+
+  it('leads with Tonight during the evening window', async () => {
+    mockEveningPeriods();
+
+    const { fetchWeatherOutlook } = await import('../nwsForecast');
+    const outlook = await fetchWeatherOutlook(
+      { lat: 42.46, lon: -71.06 },
+      { now: new Date('2026-11-06T20:30:00-05:00'), timeZone: 'America/New_York' },
+    );
+
+    expect(outlook.map((day) => day.day)).toEqual(['Tonight', 'Saturday', 'Sunday']);
+    expect(outlook[0]?.detail).toBe('Rain.');
+  });
+
+  it('rolls over to the next day at 22:00', async () => {
+    mockEveningPeriods();
+
+    const { fetchWeatherOutlook } = await import('../nwsForecast');
+    const outlook = await fetchWeatherOutlook(
+      { lat: 42.46, lon: -71.06 },
+      { now: new Date('2026-11-06T22:00:00-05:00'), timeZone: 'America/New_York' },
+    );
+
+    expect(outlook.map((day) => day.day)).toEqual(['Saturday', 'Sunday', 'Monday']);
+  });
+});
+
+describe('isEveningOutlookWindow', () => {
+  it('opens at 16:00 and closes at 22:00 household time', async () => {
+    const { isEveningOutlookWindow } = await import('../nwsForecast');
+    const at = (iso: string) => isEveningOutlookWindow(new Date(iso), 'America/New_York');
+
+    expect(at('2026-11-06T15:59:00-05:00')).toBe(false);
+    expect(at('2026-11-06T16:00:00-05:00')).toBe(true);
+    expect(at('2026-11-06T21:59:00-05:00')).toBe(true);
+    expect(at('2026-11-06T22:00:00-05:00')).toBe(false);
+    expect(at('2026-11-07T02:00:00-05:00')).toBe(false);
   });
 });
