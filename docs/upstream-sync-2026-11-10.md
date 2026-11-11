@@ -62,7 +62,7 @@ this branch resolves the conflicts by hand.
 | `ThemeProvider` | Kept the personal palette loader and seasonal hook; upstream's duplicate palette-read effect is not added. |
 | `screensaver-geometry.spec.ts` | Kept the personal new-look expectations; upstream's editing-bar helpers do not apply. |
 | `docs/CHANGELOG.md`, `docs/HELP.md`, feature pages, `home-assistant.md` | Kept the personal content and voice. Upstream's new-look entries are not imported because those features are not user-visible here. |
-| 47 Linux snapshot PNGs | Kept the personal UI baselines. |
+| Linux snapshot PNGs | Kept the personal UI baselines; the two Family settings baselines were recaptured from CI for the new Pets section. |
 | `docs/demos/*` | Removed the upstream new-look screenshots (README no longer points at them); deletions are allowed by repo hygiene and keep `docs/demos` at the personal baseline. |
 
 ### Upstream work that was adopted and should now be exercised
