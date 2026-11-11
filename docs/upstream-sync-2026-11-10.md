@@ -41,8 +41,7 @@ this branch resolves the conflicts by hand.
 | `src/components/ui/dialog.tsx` | Kept the personal dialog surface and close target, and adopted upstream `sheetSide()`, pointer-side tracking and the remote portal root. |
 | `src/components/screensaver/Screensaver.tsx` | Kept the personal performance thumbnails and sky handling, and adopted upstream `noPhotos` plus the one night rule. |
 | `src/components/layout/useLayoutEditorState.ts` | Kept the personal editor state and adopted upstream's copy-or-download export (#1147), so Export still works over plain HTTP. |
-| `src/components/screensaver/idleDim.tsx`, `DisplaySection` | Kept the personal calendar-hours dimming (and `describeDimHours`); upstream's night-rule dim and its test are not adopted. |
-| `SettingsView`, `DisplaysSection` | Kept the personal **Displays** name rather than upstream's **Screens**, so the settings snapshots stay valid. |
+| `SettingsView`, `DisplaySection`, `DisplaysSection`, `idleDim`, `ScreenSettingsPanel` | Kept the personal settings sections and the calendar-hours dimming wholesale; upstream's **Screens** page, remote-editing rows and night-rule dim are not adopted. |
 | `e2e/display-registry.spec.ts` | Restored the personal expectations; upstream's editing-bar "Attention notices" journey and **Screens** heading do not apply. |
 | `README.md`, `src/lib/__tests__/readme.test.ts` | Removed the picture blocks pointing at demo images the fork does not carry, and dropped the matching hero assertion. |
 | `src/styles/globals.css` | Kept the personal calm-idle/water wallpaper rules, and adopted upstream's fuller idle-clear block in place of the older duplicate. |

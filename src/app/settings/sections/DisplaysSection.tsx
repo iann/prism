@@ -12,12 +12,12 @@ import { cn } from '@/lib/utils';
 import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
 import { useLayouts } from '@/lib/hooks/useLayouts';
 import { reloadForRemoteChange, resetSyncBase, syncScreenSettings } from '@/lib/displays/displaySettingsSync';
-import type { ScreenSettings } from '@/lib/displays/screenSettings';
-import { screenSummary } from '@/lib/displays/screenSummary';
-import { useUrlParam } from '@/lib/hooks/useUrlParam';
-import { useTimeFormat } from '@/components/providers/TimeFormatProvider';
-import { formatTimeOfDay } from '@/components/calendar/cells/itemTime';
-import { editLink } from '@/components/dashboard/useDashboardLayout';
+import type { ScreenSettingChanges, ScreenSettings } from '@/lib/displays/screenSettings';
+import { SCREEN_SCHEDULE_KEY } from '@/lib/displays/screenSchedule';
+import { SCREEN_ATTENTION_KEY } from '@/lib/displays/screenAttention';
+import { ScreenSettingsPanel } from './ScreenSettingsPanel';
+import { ScreenSchedulePanel } from './ScreenSchedulePanel';
+import { ScreenAttentionPanel } from './ScreenAttentionPanel';
 
 /**
  * Settings > Displays (#690): name each screen in the house, see which are on,
@@ -34,7 +34,6 @@ type DisplayEntry = {
   online: boolean;
   dashboardId: string | null;
   settings: ScreenSettings;
-  editing?: boolean;
 };
 
 const NAME_MAX = 60;
@@ -65,8 +64,9 @@ export function DisplaysSection() {
   const [takeOverId, setTakeOverId] = useState('');
   const [alsoTrust, setAlsoTrust] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const editedId = useUrlParam('edited');
-  const { timeFormat } = useTimeFormat();
+  const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [scheduleId, setScheduleId] = useState<string | null>(null);
+  const [noticesId, setNoticesId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,15 +164,26 @@ export function DisplaysSection() {
     if (applied.length > 0) reloadForRemoteChange();
   };
 
-  /** Where Edit goes: this screen's own dashboard, or the phone editor for another. */
-  const editHref = (d: DisplayEntry): string => {
-    if (d.id !== currentId) return `/screens/${d.id}`;
-    const home = layouts.find((l) => l.id === d.dashboardId);
-    return editLink(home && !home.isDefault && home.slug ? `/d/${home.slug}` : '/');
-  };
+  const setDashboard = (id: string, dashboardId: string | null) =>
+    run(() => fetch(`/api/displays/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dashboardId }),
+    }));
 
-  const shows = (d: DisplayEntry) =>
-    layouts.find((l) => l.id === d.dashboardId) ?? layouts.find((l) => l.isDefault) ?? null;
+  const saveSettings = (id: string, settings: ScreenSettingChanges) =>
+    run(() => fetch(`/api/displays/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings }),
+    }));
+
+  // This screen takes its new schedule or notices at once rather than on its next heartbeat.
+  const saveOwnEditor = async (id: string, key: typeof SCREEN_SCHEDULE_KEY | typeof SCREEN_ATTENTION_KEY, raw: string | null) => {
+    const ok = await saveSettings(id, { [key]: raw });
+    if (ok && id === currentId) await syncScreenSettings();
+    return ok;
+  };
 
   const rename = async (id: string) => {
     const ok = await run(() => fetch(`/api/displays/${id}`, {
@@ -268,27 +279,19 @@ export function DisplaysSection() {
   };
 
   const current = displays.find((d) => d.id === currentId) ?? null;
-  const edited = editedId ? displays.find((d) => d.id === editedId) ?? null : null;
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Displays</h2>
         <p className="text-muted-foreground">
-          Name each screen in the house to see which ones are on and change any of them from
-          here. Edit opens a screen&apos;s editing bar over a live picture of it. A browser
-          nobody named works just as it always has.
+          Name each screen in the house, so you can see which ones are on and
+          change a screen&apos;s settings from your phone. A browser nobody named works
+          just as it always has.
         </p>
       </div>
 
       {error && (
         <p role="alert" className="text-sm text-destructive">{error}</p>
-      )}
-      {edited && (
-        <p role="status" className="text-sm" data-screen-saved>
-          {edited.online
-            ? `Saved. ${edited.name} shows the change in a few seconds.`
-            : `Saved. ${edited.name} shows the change when it is next switched on.`}
-        </p>
       )}
 
       <Card>
@@ -352,9 +355,11 @@ export function DisplaysSection() {
         <CardHeader>
           <CardTitle>All screens</CardTitle>
           <CardDescription>
-            A screen shows as online while it is switched on. Edit changes what it shows,
-            when it rests and its Interludes and notices; a screen that is on shows the change
-            in a few seconds.
+            A screen shows as online while it is switched on. Pick the dashboard each one
+            opens on; a screen showing its home page switches within a minute. Schedule
+            shows other dashboards at set times, such as a morning one on school days. Notices
+            puts a small card at the side when the bus is close, an event is about to start or
+            a message comes in.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -394,15 +399,46 @@ export function DisplaysSection() {
                           aria-hidden
                         />
                         {statusText(d, fetchedAt)}
-                        {d.editing && ' · being edited'}
-                      </div>
-                      <div className="text-sm text-muted-foreground" data-screen-summary>
-                        {shows(d) && <>Shows {shows(d)!.name}. </>}
-                        {screenSummary(d.settings ?? {}, shows(d)?.idleBackground ?? null, (t) => formatTimeOfDay(t, timeFormat))}.
                       </div>
                     </div>
-                    <Button size="sm" asChild data-screen-edit>
-                      <Link href={editHref(d)}>Edit</Link>
+                    <select
+                      aria-label={`Dashboard for ${d.name}`}
+                      className="rounded-md border border-input bg-background px-2 py-1.5 text-sm max-w-[18rem]"
+                      disabled={busy}
+                      value={d.dashboardId ?? ''}
+                      onChange={(e) => void setDashboard(d.id, e.target.value || null)}
+                    >
+                      <option value="">Default dashboard</option>
+                      {layouts.filter((l) => !l.isDefault).map((l) => (
+                        <option key={l.id} value={l.id}>{l.name}</option>
+                      ))}
+                    </select>
+                    {/* This screen's own settings are on its Appearance and Input pages. */}
+                    {d.id !== currentId && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-expanded={settingsId === d.id}
+                        onClick={() => setSettingsId(settingsId === d.id ? null : d.id)}
+                      >
+                        Settings
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-expanded={scheduleId === d.id}
+                      onClick={() => setScheduleId(scheduleId === d.id ? null : d.id)}
+                    >
+                      Schedule
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-expanded={noticesId === d.id}
+                      onClick={() => setNoticesId(noticesId === d.id ? null : d.id)}
+                    >
+                      Notices
                     </Button>
                     <Button
                       size="sm"
@@ -415,6 +451,32 @@ export function DisplaysSection() {
                     <Button size="sm" variant="ghost" disabled={busy} onClick={() => void remove(d)}>
                       Remove
                     </Button>
+                    {settingsId === d.id && (
+                      <ScreenSettingsPanel
+                        name={d.name}
+                        settings={d.settings ?? {}}
+                        online={d.online}
+                        save={(changes) => saveSettings(d.id, changes)}
+                      />
+                    )}
+                    {scheduleId === d.id && (
+                      <ScreenSchedulePanel
+                        name={d.name}
+                        stored={d.settings?.[SCREEN_SCHEDULE_KEY]}
+                        dashboards={layouts.map((l) => ({ id: l.id, name: l.name }))}
+                        homeId={d.dashboardId ?? layouts.find((l) => l.isDefault)?.id ?? ''}
+                        online={d.online}
+                        save={(raw) => saveOwnEditor(d.id, SCREEN_SCHEDULE_KEY, raw)}
+                      />
+                    )}
+                    {noticesId === d.id && (
+                      <ScreenAttentionPanel
+                        name={d.name}
+                        stored={d.settings?.[SCREEN_ATTENTION_KEY]}
+                        online={d.online}
+                        save={(raw) => saveOwnEditor(d.id, SCREEN_ATTENTION_KEY, raw)}
+                      />
+                    )}
                   </>
                 )}
               </li>
