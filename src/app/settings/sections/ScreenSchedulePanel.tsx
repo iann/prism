@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/button';
 import { MAX_SCHEDULE_RULES, parseSchedule, serializeSchedule, type ScheduleRule } from '@/lib/displays/screenSchedule';
 
 /**
- * A screen's Interludes (#692, #1152), edited from any device or from the
- * editor's Through the day sheet: in these hours on these days, show this
- * dashboard. Saved as a whole with the Save button,
+ * A screen's time-of-day rules (#692), edited from any device: in these hours
+ * on these days, show this dashboard. Saved as a whole with the Save button,
  * so a time half typed in is never sent.
  */
 
@@ -80,7 +79,7 @@ export function ScreenSchedulePanel({
   return (
     <div className="basis-full space-y-3 rounded-md border border-border p-3" data-testid="screen-schedule">
       <p className="text-sm text-muted-foreground">
-        Outside its Interludes {name} shows {home}. When two overlap, the higher one wins. A change
+        Outside these times {name} shows {home}. When two overlap, the higher one wins. A change
         waits until nobody has touched the screen for a minute.
       </p>
       <ol className="space-y-3">
@@ -146,14 +145,14 @@ export function ScreenSchedulePanel({
       </ol>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" onClick={add} disabled={rules.length >= MAX_SCHEDULE_RULES || dashboards.length === 0}>
-          Add an Interlude
+          Add a time
         </Button>
         <Button size="sm" onClick={() => void submit()} disabled={saving || noDays}>
-          Save Interludes
+          Save schedule
         </Button>
         <span className="text-xs text-muted-foreground" aria-live="polite">
           {noDays
-            ? 'Pick at least one day for each Interlude.'
+            ? 'Pick at least one day for each time.'
             : saved
               ? savedText ?? (online ? `Saved. ${name} follows it within a minute.` : `Saved. ${name} follows it when it is next switched on.`)
               : 'Times are in the household time zone.'}

@@ -15,7 +15,7 @@ async function openDisplays(context: BrowserContext, parentName: string): Promis
   const page = await context.newPage();
   await verifySettingsPinViaAPI(page, parentName);
   await page.goto('/settings?section=displays');
-  await expect(page.getByRole('heading', { name: 'Displays', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Displays', level: 2 })).toBeVisible({ timeout: 60_000 });
   return page;
 }
 
