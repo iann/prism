@@ -31,7 +31,7 @@ const clockOf = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(
  * One edge's offset: a number of minutes or hours, before or after dusk or
  * dawn. Stored as signed minutes, positive being later.
  */
-function OffsetInput({ label, edge, minutes, order, onChange }: {
+export function OffsetInput({ label, edge, minutes, order, onChange }: {
   label: string;
   edge: 'dusk' | 'dawn';
   minutes: number;

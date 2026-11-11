@@ -365,6 +365,21 @@ export const tasks = pgTable('tasks', {
 }));
 
 
+/**
+ * Pets (#996): a name, a kind and a colour. Not household members, which are
+ * accounts with a role, PIN and sign-in; a chore or reminder can be for one.
+ */
+export const pets = pgTable('pets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  kind: varchar('kind', { length: 20 }).default('other').notNull().$type<'cat' | 'dog' | 'other'>(),
+  color: varchar('color', { length: 7 }).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export type Pet = typeof pets.$inferSelect;
+
 export const chores = pgTable('chores', {
   id: uuid('id').defaultRandom().primaryKey(),
 
@@ -394,6 +409,13 @@ export const chores = pgTable('chores', {
   // Optional time-of-day for the chore (HH:mm). Null = "top of day" / floats.
   // Used by time-grid calendar views to place the chore at a specific hour.
   nextDueTime: varchar('next_due_time', { length: 5 }),
+  // A daily chore done more than once a day (#1107): due today until ticked
+  // this many times today.
+  timesPerDay: integer('times_per_day').default(1).notNull(),
+  // A reminder (#1109): a chore with a time, no points and no approval.
+  kind: varchar('kind', { length: 20 }).default('chore').notNull().$type<'chore' | 'reminder'>(),
+  // Who it is for, when that is a pet (#996). Removing the pet clears it.
+  petId: uuid('pet_id').references(() => pets.id, { onDelete: 'set null' }),
 
   pointValue: integer('point_value').default(0).notNull(),
 
@@ -1007,6 +1029,12 @@ export const displays = pgTable('displays', {
   settingsUpdatedAt: timestamp('settings_updated_at'),
   // The dashboard this screen opens on; null is the household default.
   dashboardId: uuid('dashboard_id').references(() => layouts.id, { onDelete: 'set null' }),
+  // The size the screen last reported, in CSS pixels, so a phone editing it
+  // shows its dashboard at the same size and shape (#1153).
+  screenWidth: integer('screen_width'),
+  screenHeight: integer('screen_height'),
+  // Set and kept fresh while another device edits this screen (#1153).
+  editingAt: timestamp('editing_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

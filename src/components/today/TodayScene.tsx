@@ -12,13 +12,13 @@
  * The clock and weather share their formatting with the widgets (the same
  * time format, date and weather sentence), so the two cannot drift apart.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { setCellDrift } from '@/components/layout/grid/CssGridDisplay';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
 import { splitDayHalf } from '@/components/widgets/ClockWidget';
 import { formatTemp, weatherSentence, type WeatherData } from '@/components/widgets/WeatherWidget';
-import { isTodayNight } from '@/lib/today/night';
 import { shownWhenIdle } from '@/components/screensaver/calmMode';
 import { TODAY_TEXT_SIZES, type TodayTextSize } from './TodayPartsPanel';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
@@ -67,6 +67,8 @@ export function TodayScene({
   idle = false,
   kind = 'today',
   topOffset = 0,
+  drift = false,
+  night = false,
 }: {
   parts: WidgetConfig[];
   weather: WeatherData | null;
@@ -92,8 +94,24 @@ export function TodayScene({
   kind?: 'today' | 'calendar';
   /** Height of the bar above the scene, when it shows. */
   topOffset?: number;
+  /**
+   * Burn-in drift while idle: the same slow 4px figure eight the grid's
+   * widgets make, on everything the scene draws, so the clock, weather and
+   * Next never sit on the same pixels for hours.
+   */
+  drift?: boolean;
+  /**
+   * Night by the dashboard's rule (#1152): warm ink, a veil over the photo
+   * and the moon (#926). The caller decides, so the veil, the dim and the
+   * night backdrop all go by the one rule.
+   */
+  night?: boolean;
 }) {
   const now = useMinute();
+  const driftRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (driftRef.current) setCellDrift(driftRef.current, drift);
+  }, [drift]);
   const locale = useLocale();
   const t = useTranslations('weather');
   const { timeFormat, displayTimezone } = useTimeFormat();
@@ -111,8 +129,6 @@ export function TodayScene({
       : current.description)
     : undefined;
   const high = weather?.forecast?.[0]?.high;
-  // After dusk: warm ink, a veil over the photo and the moon (#926).
-  const night = isTodayNight(now, weather?.sunrise, weather?.sunset);
   const fades = `transition-opacity duration-1000 motion-reduce:duration-0 ${idle ? 'opacity-0' : 'opacity-100'}`;
   // A part set to stay when idle (#927) keeps its place; the rest fade.
   // The arc is an option on the Today scene (#1030), off unless switched on.
@@ -131,9 +147,12 @@ export function TodayScene({
         color: night ? 'rgb(255 226 190)' : 'white',
       }}
       data-today-idle={idle || undefined}
+      data-today-kind={kind}
       data-today-night={night || undefined}
     >
       {night && <div className="absolute inset-0 bg-black/60" aria-hidden data-today-veil />}
+      {/* Everything drawn on the photo, in one layer that drifts while idle. */}
+      <div ref={driftRef} className="absolute inset-0 duration-1000" data-today-drift>
       {isPartShown(parts, 'clock') && (
         <div data-today-corner="left" className={`absolute left-[3rem] top-[2.5rem] flex flex-col items-start ${fadeUnless('clock')}`}>
           <time className="text-body font-medium opacity-95" data-today-date>{date}</time>
@@ -238,6 +257,7 @@ export function TodayScene({
           />
         </div>
       )}
+      </div>
     </div>
   );
 }

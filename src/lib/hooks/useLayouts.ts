@@ -5,6 +5,7 @@ import { normalizeWidgetInstances } from '@/lib/utils/widgetInstances';
 import { useVisibilityPolling } from './useVisibilityPolling';
 import { useFetchOnMount } from './useFetchOnMount';
 import type { IdleBackground } from '@/lib/idleBackground';
+import { sharedGet } from '@/lib/utils/sharedGet';
 
 export interface WidgetConfig {
   /** Unique instance key used by the grid, React, and drag/drop. */
@@ -33,6 +34,8 @@ export interface WidgetConfig {
    *  where it is drawn: on for the screensaver and a calm dashboard's idle
    *  screen, off for a dashboard in use. See hideWhenEmpty.ts. */
   hideWhenEmpty?: boolean;
+  /** Left out on a small screen so the rest have room (#803). See smallScreen.ts. */
+  hideOnSmallScreen?: boolean;
   settings?: Record<string, unknown>;
 }
 
@@ -80,7 +83,7 @@ export function useLayouts(): UseLayoutsResult {
   const fetchLayouts = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch('/api/layouts');
+      const response = await sharedGet('/api/layouts');
       if (!response.ok) throw new Error('Failed to fetch layouts');
       const data = await response.json();
       // Normalize widget format: DB may store {type, position:{x,y,w,h}}

@@ -18,11 +18,30 @@
 
 'use client';
 
+import { remotePortalRoot } from '@/lib/displays/remoteEdit';
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isVirtualKeyboardTarget } from '@/lib/input/keyboardTarget';
+import { lastPointerX, trackLastPointer } from '@/lib/input/lastPointer';
+
+/**
+ * Where the last touch landed, so a sheet on the wall can open on that side
+ * (#908): the left third opens it on the left, the right third on the right,
+ * the middle from the bottom. Read once, when the sheet opens.
+ */
+trackLastPointer();
+
+/** Where the sheet was opened from: the last tap, or the control that has focus. */
+function openedAtX(): number | null {
+  const x = lastPointerX();
+  if (x !== null) return x;
+  const el = typeof document === 'undefined' ? null : document.activeElement;
+  if (!el || el === document.body) return null;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 ? r.left + r.width / 2 : null;
+}
 
 /**
  * Which side a sheet opens on, from where the wall was touched (#908).
@@ -64,11 +83,20 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, onInteractOutside, ...props }, ref) => (
-  <DialogPortal>
+>(({ className, children, onInteractOutside, ...props }, ref) => {
+  // This wrapper renders while the sheet is closed too, so the side is set
+  // when the sheet's element appears (before it is painted), and kept for
+  // the life of that sheet: it does not jump if the next tap is elsewhere.
+  const setSide = React.useCallback((el: HTMLDivElement | null) => {
+    if (el && !el.dataset.sheetSide) el.dataset.sheetSide = sheetSide(openedAtX(), window.innerWidth);
+    if (typeof ref === 'function') ref(el);
+    else if (ref) ref.current = el;
+  }, [ref]);
+  return (
+  <DialogPortal container={remotePortalRoot()}>
     <DialogOverlay />
     <DialogPrimitive.Content
-      ref={ref}
+      ref={setSide}
       // Lifted above the on-screen keyboard while it is open (globals.css).
       data-keyboard-aware-dialog=""
       // The on-screen virtual keyboard portals to <body>, outside this dialog.
@@ -114,7 +142,8 @@ const DialogContent = React.forwardRef<
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({

@@ -267,6 +267,10 @@ describe('surface class contracts', () => {
     );
 
     expect(alphaCards).toEqual([
+      // Shopping's Manage view keeps the list surface readable over a busy page.
+      'src/app/shopping/ShoppingManage.tsx:bg-card/85',
+      // A screen's own status strip is a transient overlay.
+      'src/components/displays/DisplayHeartbeat.tsx:bg-card/90',
       // The shared subpage header uses the theme surface with a restrained translucent veil.
       'src/components/layout/SubpageHeader.tsx:bg-card/85',
       // Goal celebration is a transient overlay over a deliberately dark scrim.
@@ -288,9 +292,6 @@ describe('surface class contracts', () => {
       'src/app/goals/GoalsView.tsx:border-border/50',
       'src/app/settings/sections/BirthdaysCard.tsx:border-border/50',
       'src/app/settings/sections/DisplaySection.tsx:hover:border-primary/50',
-      'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
-      'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
-      'src/app/shopping/ShoppingCategoryCard.tsx:border-muted-foreground/30',
       // Event descriptions use a subtle content boundary.
       'src/components/calendar/EventSheet.tsx:border-border/50',
       // Month-view weekday divider is decorative.

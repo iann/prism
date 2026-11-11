@@ -1,5 +1,6 @@
 'use client';
 
+import { remoteEditHost } from '@/lib/displays/remoteEdit';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DEFAULT_TEMPLATE } from '@/lib/constants/layoutTemplates';
 import {
@@ -49,7 +50,7 @@ export function shownIdleSource(bg: IdleBackground, half: IdleHalf): IdleSource 
  * or the sky on either half has one to edit.
  */
 export function editsIdleLayout(bg: IdleBackground): boolean {
-  return idleSources(bg).some(s => s !== 'dashboard');
+  return idleSources(bg).some(s => s !== 'dashboard' && s !== 'off');
 }
 
 /** Whether a widget stays or fades when idle: the part of a widget the Idle screen tab owns. */
@@ -112,7 +113,9 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
   // Switching dashboards from the editor opens the next one with ?edit=1, and
   // it opens in edit mode once its layout has loaded. Only for a parent, so a
   // link kept past a logout or session expiry does not re-engage edit mode.
-  const resumeEditing = useUrlParam(EDIT_PARAM) === '1';
+  // The frame of a phone editing a screen is always in edit mode (#1153), a
+  // reload included.
+  const resumeEditing = useUrlParam(EDIT_PARAM) === '1' || remoteEditHost() !== null;
   const resumeKey = resumeEditing && activeLayout && activeUser?.role === 'parent'
     ? activeLayout.id
     : null;
@@ -312,7 +315,7 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
     idleHalf, setIdleHalf,
     // The Idle screen tab showing a screensaver layout to edit, rather than
     // the dashboard's own Stays / Fades.
-    editingScreensaver: isEditing && editTab === 'idle' && shownIdleSource(editingBackground, idleHalf) !== 'dashboard',
+    editingScreensaver: isEditing && editTab === 'idle' && !['dashboard', 'off'].includes(shownIdleSource(editingBackground, idleHalf)),
     editingBackground, setEditingBackground: setEditedBackground,
     dashboardDirty, idleDirty,
     ssLayout, ssPresets,

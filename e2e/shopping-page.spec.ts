@@ -87,7 +87,7 @@ test.describe('the Shopping page', () => {
   // #1070: on a phone (and the wall), adding asks for the category in the
   // field's own place; a tap files it, Skip leaves it in Other, and the field
   // comes back for the next item. A list that shows a few categories offers
-  // those first and the rest behind More; moving to another list closes it.
+  // those first, then every other one; moving to another list closes it.
   test('adding an item asks where it goes, in the field\'s place', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     expect((await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } })).ok()).toBe(true);
@@ -117,11 +117,11 @@ test.describe('the Shopping page', () => {
       await expect(ask).toBeVisible({ timeout: 15_000 });
       await expect(ask).toContainText(filed);
       expect(Math.abs((await ask.boundingBox())!.y - fieldTop), 'asked where the field was').toBeLessThanOrEqual(4);
-      await expect(ask.locator('[data-shopping-file-choice]'), "this list's one category first").toHaveCount(1);
-      await expect(ask.locator('[data-shopping-file-choice="produce"]')).toBeVisible();
-      await ask.locator('[data-shopping-file-more]').click();
+      // #1076: every category at once, this list's own first.
+      await expect(ask.locator('[data-shopping-file-choice]').first(), "this list's category first").toHaveAttribute('data-shopping-file-choice', 'produce');
+      expect(await ask.locator('[data-shopping-file-choice]').count(), 'every category offered').toBeGreaterThan(5);
       const dairy = ask.locator('[data-shopping-file-choice="dairy"]');
-      await expect(dairy, 'the rest behind More').toBeVisible();
+      await expect(dairy, 'no More to open first').toBeVisible();
       const db = (await dairy.boundingBox())!;
       expect(db.height, 'a finger-sized choice').toBeGreaterThanOrEqual(44);
       await dairy.click();
@@ -153,6 +153,52 @@ test.describe('the Shopping page', () => {
     }
   });
 
+  // #1055: Manage is the categories in quiet rows, not cards with ruled lines.
+  // A row's switch shows or hides it on this list, and its name changes in place.
+  test('Manage lists the categories as rows: show on this list, rename', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expect((await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } })).ok()).toBe(true);
+    const lists = await (await page.request.get('/api/shopping-lists')).json();
+    const list = (lists.lists ?? lists)[0];
+    const before = list.visibleCategories ?? null;
+    const savedCats = (await (await page.request.get('/api/settings')).json()).settings?.shoppingCategories ?? null;
+    try {
+      expect((await page.request.patch(`/api/shopping-lists/${list.id}`, { data: { visibleCategories: null } })).ok()).toBe(true);
+      await page.goto('/shopping');
+      await page.locator('[data-shopping-manage]').click();
+      const row = page.locator('[data-shopping-manage-row="produce"]');
+      await expect(row).toBeVisible({ timeout: 30_000 });
+      // Quiet rows: no ruled lines to type on, no blank-line buttons, no cards.
+      await expect(page.getByRole('button', { name: '+5' })).toHaveCount(0);
+      await expect(page.locator('[data-shopping-manage-view] input:not([data-shopping-new-category])')).toHaveCount(0);
+      const rowBox = await row.boundingBox();
+      expect(rowBox!.height, 'a row, not a card').toBeLessThan(90);
+
+      // Hide Produce on this list.
+      await row.getByRole('switch').click();
+      await expect(row.getByRole('switch')).toHaveAttribute('data-shopping-shown', 'off', { timeout: 15_000 });
+      const hidden = (await (await page.request.get(`/api/shopping-lists/${list.id}`)).json());
+      const visible: string[] = (hidden.list ?? hidden).visibleCategories;
+      expect(visible, 'the list no longer shows produce').not.toContain('produce');
+      expect(visible.length, 'and still shows the rest').toBeGreaterThan(3);
+
+      // Rename it in place.
+      await row.getByRole('button', { name: /^Rename/ }).click();
+      await row.locator('[data-shopping-rename-input]').fill('Fruit and veg');
+      await row.locator('[data-shopping-rename-input]').press('Enter');
+      await expect(row.getByRole('button', { name: 'Rename Fruit and veg' })).toBeVisible({ timeout: 15_000 });
+      const cats = (await (await page.request.get('/api/settings')).json()).settings?.shoppingCategories as Array<{ id: string; name: string }>;
+      expect(cats.find((c) => c.id === 'produce')?.name).toBe('Fruit and veg');
+    } finally {
+      await page.request.patch(`/api/shopping-lists/${list.id}`, { data: { visibleCategories: before } });
+      if (savedCats) await page.request.patch('/api/settings', { data: { key: 'shoppingCategories', value: savedCats } });
+      else {
+        const now = (await (await page.request.get('/api/settings')).json()).settings?.shoppingCategories ?? [];
+        await page.request.patch('/api/settings', { data: { key: 'shoppingCategories', value: (now as Array<{ id: string; name: string }>).map((c) => c.id === 'produce' ? { ...c, name: 'Produce' } : c) } });
+      }
+    }
+  });
+
   // #1053: a category is added where the categories are, under Manage, and a
   // list that shows chosen categories gets it too, so it shows at once.
   test('Manage adds a category to this list', async ({ page }) => {
@@ -173,7 +219,7 @@ test.describe('the Shopping page', () => {
       await expect(page.getByText(`Added ${catName} to ${list.name}.`).first()).toBeVisible({ timeout: 15_000 });
       const after = await (await page.request.get(`/api/shopping-lists/${list.id}`)).json();
       expect((after.list ?? after).visibleCategories, 'the list shows the new category').toContain(catId);
-      await expect(page.getByText(catName, { exact: true }).first(), 'its card is on the page').toBeVisible({ timeout: 15_000 });
+      await expect(page.locator(`[data-shopping-manage-row="${catId}"]`), 'its row is in Manage').toBeVisible({ timeout: 15_000 });
     } finally {
       await page.request.patch(`/api/shopping-lists/${list.id}`, { data: { visibleCategories: before } });
       // Take the added category out again, whatever was saved before.

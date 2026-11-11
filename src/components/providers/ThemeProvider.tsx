@@ -42,6 +42,7 @@ import {
 import { isInstallableTheme, MAX_INSTALLED_THEMES, type Theme } from '@/lib/themes/tokens';
 import { BUILTIN_THEMES, getBuiltinTheme, DEFAULT_THEME_ID } from '@/lib/themes/appThemes';
 import { applyThemeVars, applyThemeChrome, themeTokens } from '@/lib/themes/applyTheme';
+import { sharedGet } from '@/lib/utils/sharedGet';
 
 /** Theme modes supported by the display brightness control. */
 export type ThemeMode = 'light' | 'dark' | 'system' | 'sunset';

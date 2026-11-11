@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { memo, useEffect, useMemo, useRef, ViewTransition } from 'react';
+import { memo, startTransition, useEffect, useMemo, useRef, useState, ViewTransition } from 'react';
+import { tileAlign, type AlignSetting } from '@/lib/layout/tileAlign';
 import { SCHEDULE_TRANSITION } from '@/lib/displays/screenSchedule';
 import { WidgetBgOverrideProvider, WidgetEmptyReportContext } from '@/components/widgets/WidgetContainer';
 import {
@@ -16,6 +17,7 @@ import {
 import { useSquareCells } from './useSquareCells';
 import { useEmptyWidgets } from './useEmptyWidgets';
 import { hidesWhenEmpty } from './hideWhenEmpty';
+import { isSmallScreen, layoutForSmallScreen } from '@/lib/layout/smallScreen';
 import { useViewportSize } from '@/lib/hooks/useViewportSize';
 import { GRID_COLS } from '@/lib/constants/grid';
 import { resolveFitMode, containGeometry } from './fitMode';
@@ -26,11 +28,15 @@ import { getWidgetType } from '@/lib/utils/widgetInstances';
 interface WidgetCellProps {
   widget: WidgetConfig;
   corner?: 'left' | 'right';
+  alignX?: 'left' | 'center' | 'right';
+  alignY?: 'top' | 'middle' | 'bottom';
   idleClear?: boolean;
   renderWidget: CssGridDisplayProps['renderWidget'];
   revision: unknown;
   initiallyVisible: boolean;
   deferOffscreen: boolean;
+  /** False while the staged fill-in has not reached this widget yet (#1083). */
+  stagedVisible?: boolean;
   /** Calm mode's idle state: drawn at zero opacity, still holding its place. */
   faded?: boolean;
   /** Slow burn-in drift while the display is idle. */
@@ -45,6 +51,7 @@ function DeferredWidget({
   renderWidget,
   initiallyVisible,
   deferOffscreen,
+  stagedVisible = true,
   className,
   style,
 }: {
@@ -52,6 +59,7 @@ function DeferredWidget({
   renderWidget: CssGridDisplayProps['renderWidget'];
   initiallyVisible: boolean;
   deferOffscreen: boolean;
+  stagedVisible?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }) {
@@ -59,7 +67,7 @@ function DeferredWidget({
   const [seen, setSeen] = React.useState(false);
   // Nothing to defer for a widget that is already on screen. The rest wait for
   // the observer, which marks them as they come near.
-  const isVisible = !deferOffscreen || initiallyVisible || seen;
+  const isVisible = stagedVisible && (!deferOffscreen || initiallyVisible || seen);
 
   React.useEffect(() => {
     if (isVisible) return;
@@ -121,6 +129,26 @@ function driftPhase(): number {
   return -((Date.now() / 1000) % DRIFT_PERIOD_S);
 }
 
+/** How many widgets' contents fill in at first, and per step after (#1083). */
+export const STAGE_FIRST = 2;
+export const STAGE_STEP = 2;
+
+/**
+ * How many widgets may render their contents. Staged, the first STAGE_FIRST
+ * at once and STAGE_STEP more per task until all are in; the server and the
+ * first client render agree, so hydration matches. Not staged, all of them.
+ */
+function useStagedCount(total: number, staged: boolean): number {
+  const [n, setN] = useState(STAGE_FIRST);
+  useEffect(() => {
+    if (!staged || n >= total) return;
+    // A new task per step: a tap waiting between them is handled first.
+    const id = setTimeout(() => startTransition(() => setN((c) => c + STAGE_STEP)), 0);
+    return () => clearTimeout(id);
+  }, [staged, n, total]);
+  return staged ? n : total;
+}
+
 /**
  * Start or stop one cell's drift.
  *
@@ -130,7 +158,7 @@ function driftPhase(): number {
  * wakes. So the cell is pinned where it is at that instant and eased home over
  * the same second the faded widgets take to come back.
  */
-function setCellDrift(el: HTMLElement, want: boolean) {
+export function setCellDrift(el: HTMLElement, want: boolean) {
   if ((el.dataset.drift !== undefined) === want) return;
   if (want) {
     el.style.transitionProperty = ''; // in case it was still easing home
@@ -159,9 +187,12 @@ function setCellDrift(el: HTMLElement, want: boolean) {
 const WidgetCell = memo(function WidgetCell({
   widget,
   corner,
+  alignX,
+  alignY,
   renderWidget,
   initiallyVisible,
   deferOffscreen,
+  stagedVisible = true,
   idleClear = false,
   faded = false,
   drift = false,
@@ -202,6 +233,9 @@ const WidgetCell = memo(function WidgetCell({
       data-widget={getWidgetType(widget)}
       data-widget-instance={widget.i}
       data-corner={corner}
+      data-align-x={alignX}
+      data-align-y={alignY}
+      data-fill={widget.backgroundColor === 'glass' ? 'glass' : widget.backgroundColor === 'transparent' ? 'none' : undefined}
       data-faded={faded || undefined}
       data-hidden-empty={emptyHidden || undefined}
       aria-hidden={gone || undefined}
@@ -227,6 +261,7 @@ const WidgetCell = memo(function WidgetCell({
             renderWidget={renderWidget}
             initiallyVisible={initiallyVisible}
             deferOffscreen={deferOffscreen}
+            stagedVisible={stagedVisible}
             className="h-full w-full overflow-hidden"
             style={contentStyle}
           />
@@ -267,6 +302,8 @@ export function CssGridDisplay({
   hideEmptyByDefault = false,
   onEmptyChange,
   className,
+  staged = false,
+  smallScreenDrop = false,
 }: CssGridDisplayProps) {
   const { containerRef, cellSize: widthCellSize, width, top, zoom, remeasure } = useSquareCells(cols, containerPadding, margin, fillHeight);
   const { width: viewportWidth, height: viewportHeight, visibleHeight } = useViewportSize();
@@ -275,12 +312,21 @@ export function CssGridDisplay({
     remeasure();
   }, [headerOffset, bottomOffset, remeasure]);
 
+  // On a small screen, "Hide first" widgets drop out and the rest close up (#803).
+  const small = smallScreenDrop && isSmallScreen(viewportWidth, viewportHeight);
   const visibleWidgets = useMemo(
-    () => layout.filter(w => w.visible !== false),
-    [layout],
+    () => (small ? layoutForSmallScreen(layout) : layout).filter(w => w.visible !== false),
+    [layout, small],
   );
 
   const { emptyIds, reporterFor } = useEmptyWidgets(onEmptyChange);
+
+  // Top-left first: the order a person reads the wall in.
+  const stageRank = useMemo(() => {
+    const order = [...visibleWidgets].sort((a, b) => a.y - b.y || a.x - b.x);
+    return new Map(order.map((w, i) => [w.i, i]));
+  }, [visibleWidgets]);
+  const shownCount = useStagedCount(visibleWidgets.length, staged);
 
   // A faded widget does not drift: there is nothing on screen to protect.
   // --- Fit-to-screen (targetRows set) --------------------------------------
@@ -453,27 +499,36 @@ export function CssGridDisplay({
         ).join('') + '@media (prefers-reduced-motion:reduce){::view-transition-group(*){animation-delay:0s}}'}</style>
       )}
       <div style={gridStyle}>
-        {visibleWidgets.map((widget) => (
-          <WidgetCell
-            key={widget.i}
-            widget={widget}
-            corner={widget.y === 0 && widget.w * 3 <= cols
-              ? (widget.x === 0 ? 'left' : widget.x + widget.w >= cols ? 'right' : undefined)
-              : undefined}
-            renderWidget={renderWidget}
-            revision={widgetRevisions?.[getWidgetType(widget)]}
-            initiallyVisible={
-              !deferOffscreen || (widget.y < visibleRows && widget.y + widget.h > 0)
-            }
-            deferOffscreen={deferOffscreen}
-            idleClear={idleClear}
-            faded={fadedIds?.has(widget.i) ?? false}
-            drift={drift}
-            emptyHidden={emptyIds.has(widget.i) && hidesWhenEmpty(widget, hideEmptyByDefault)}
-            reportEmpty={reporterFor(widget.i)}
-            morph={morph}
-          />
-        ))}
+        {visibleWidgets.map((widget) => {
+          // The clock and weather line up by where the tile sits (#988): in a
+          // screen corner they hug it, elsewhere they centre; Align overrides.
+          const align = widget.i === 'clock' || widget.i === 'weather'
+            ? tileAlign(widget, cols, fitRows, (widget.settings?.align as AlignSetting | undefined) ?? null)
+            : undefined;
+          const corner = align && align.x !== 'center' ? align.x : undefined;
+          return (
+            <WidgetCell
+              key={widget.i}
+              widget={widget}
+              corner={corner}
+              alignX={align?.x}
+              alignY={align?.y}
+              renderWidget={renderWidget}
+              revision={widgetRevisions?.[getWidgetType(widget)]}
+              initiallyVisible={
+                !deferOffscreen || (widget.y < visibleRows && widget.y + widget.h > 0)
+              }
+              deferOffscreen={deferOffscreen}
+              stagedVisible={(stageRank.get(widget.i) ?? 0) < shownCount}
+              idleClear={idleClear}
+              faded={fadedIds?.has(widget.i) ?? false}
+              drift={drift}
+              emptyHidden={emptyIds.has(widget.i) && hidesWhenEmpty(widget, hideEmptyByDefault)}
+              reportEmpty={reporterFor(widget.i)}
+              morph={morph}
+            />
+          );
+        })}
       </div>
     </div>
   );

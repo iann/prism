@@ -1,33 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { sharedGet } from '@/lib/utils/sharedGet';
 
 const STORAGE_KEY = 'prism:week-starts-on';
-
-// Calendar and meals are commonly mounted together. Share the in-flight
-// settings request so each hook instance does not create its own identical
-// network request during the dashboard's first render.
-let settingsRequest: Promise<0 | 1 | null> | null = null;
-
-function loadWeekStartsOn(): Promise<0 | 1 | null> {
-  if (settingsRequest) return settingsRequest;
-
-  settingsRequest = fetch('/api/settings')
-    .then(async (res) => {
-      if (!res.ok) return null;
-      const data = await res.json();
-      const value = data.settings?.weekStartsOn;
-      if (value === '1' || value === 1) return 1;
-      if (value === '0' || value === 0 || value !== undefined) return 0;
-      return null;
-    })
-    .catch(() => null)
-    .finally(() => {
-      settingsRequest = null;
-    });
-
-  return settingsRequest;
-}
 
 /**
  * Returns the user's preferred first day of the week.
@@ -50,19 +26,24 @@ export function useWeekStartsOn(): {
 
   // Fetch from settings API on mount
   useEffect(() => {
-    let cancelled = false;
-
-    loadWeekStartsOn().then((value) => {
-      if (!cancelled && value !== null) {
-        setValue(value);
-        localStorage.setItem(STORAGE_KEY, String(value));
-      }
-      if (!cancelled) setLoading(false);
-    });
-
-    return () => {
-      cancelled = true;
-    };
+    async function load() {
+      try {
+        const res = await sharedGet('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          const v = data.settings?.weekStartsOn;
+          if (v === '1' || v === 1) {
+            setValue(1);
+            localStorage.setItem(STORAGE_KEY, '1');
+          } else if (v === '0' || v === 0 || v !== undefined) {
+            setValue(0);
+            localStorage.setItem(STORAGE_KEY, '0');
+          }
+        }
+      } catch { /* use cached/default */ }
+      setLoading(false);
+    }
+    load();
   }, []);
 
   const setWeekStartsOn = useCallback(async (newValue: 0 | 1) => {

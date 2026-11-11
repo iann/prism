@@ -9,6 +9,7 @@ import {
 } from '@/lib/constants/navItems';
 import type { NavItem } from '@/lib/constants/navItems';
 import { useFetchOnMount } from './useFetchOnMount';
+import { sharedGet } from '@/lib/utils/sharedGet';
 
 const HIDDEN_PAGES_CACHE_KEY = 'prism:hidden-pages';
 const PORTRAIT_NAV_CACHE_KEY = 'prism:portrait-nav-pages';
@@ -52,7 +53,7 @@ export function useHiddenPages() {
 
   const fetchHiddenPages = useCallback(async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await sharedGet('/api/settings');
       if (res.ok) {
         const data = await res.json();
         const val = data.settings?.hiddenPages;

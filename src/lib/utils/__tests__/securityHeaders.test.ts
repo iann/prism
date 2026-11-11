@@ -41,6 +41,17 @@ describe('buildSecurityHeaders', () => {
       expect(csp!.value).toContain("frame-src 'self' https://embed.windy.com");
     });
 
+    it('lets Prism frame its own pages, and no other site (#1153: a phone edits a screen over a frame of it)', () => {
+      for (const raw of [undefined, '*', 'http://homeassistant.local:8123']) {
+        const { csp } = buildFramePolicy(raw);
+        expect(csp).toContain("frame-src 'self' https://embed.windy.com");
+        // Windy is the one external frame Prism allows; no wildcard or
+        // arbitrary origin may slip into frame-src.
+        expect(csp).not.toMatch(/frame-src[^;]*\*/);
+        expect(csp).not.toMatch(/frame-src[^;]*https:\/\/(?!embed\.windy\.com)/);
+      }
+    });
+
     it('always includes X-Content-Type-Options', () => {
       const headers = buildSecurityHeaders();
       const header = headers.find(

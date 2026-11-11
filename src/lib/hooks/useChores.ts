@@ -123,6 +123,10 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
           lastCompleted: string | null;
           nextDue: string | null;
           nextDueTime: string | null;
+          timesPerDay?: number;
+          doneToday?: number;
+          kind?: 'chore' | 'reminder';
+          pet?: { id: string; name: string; color: string } | null;
           enabled: boolean;
           requiresApproval: boolean;
           pointValue: number;
@@ -151,6 +155,10 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
           lastCompleted: chore.lastCompleted ? new Date(chore.lastCompleted) : undefined,
           nextDue: chore.nextDue || undefined,
           nextDueTime: chore.nextDueTime ?? null,
+          timesPerDay: chore.timesPerDay ?? 1,
+          doneToday: chore.doneToday ?? 0,
+          kind: chore.kind ?? 'chore',
+          pet: chore.pet ?? null,
           enabled: chore.enabled,
           requiresApproval: chore.requiresApproval,
           pointValue: chore.pointValue,

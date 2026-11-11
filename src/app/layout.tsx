@@ -59,6 +59,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { getServerTheme, getServerDefaultMode, firstPaintScript } from '@/lib/themes/serverTheme';
 import { themeCss } from '@/lib/themes/applyTheme';
 import { PERF_CLASS_SCRIPT } from '@/lib/perfLevel';
+import { SCREEN_HEIGHT_SCRIPT } from '@/lib/screenHeight';
 
 const THEME_FONT_PRELOADS = [
   '/fonts/13971731025ec697-s.p.woff2',
@@ -286,7 +287,7 @@ export default async function RootLayout({
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: firstPaintScript(defaultMode, PERF_CLASS_SCRIPT),
+            __html: `${firstPaintScript(defaultMode, PERF_CLASS_SCRIPT)};${SCREEN_HEIGHT_SCRIPT}`,
           }}
         />
       </head>
@@ -298,7 +299,7 @@ export default async function RootLayout({
         - antialiased: Smooth font rendering
         - bg-background: Background color from theme
         - text-foreground: Text color from theme
-        - min-h-screen: At least full viewport height
+        - min-h-fill: At least the screen's height, as the page measured it
         - overflow-hidden: Prevent scrolling (dashboard fills screen)
 
         NOTE: overflow-hidden is specific to our kiosk-style dashboard.

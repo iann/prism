@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { MAX_SCHEDULE_RULES, parseSchedule, serializeSchedule, type ScheduleRule } from '@/lib/displays/screenSchedule';
 
 /**
- * A screen's time-of-day rules (#692), edited from any device: in these hours
- * on these days, show this dashboard. Saved as a whole with the Save button,
+ * A screen's Interludes (#692, #1152), edited from any device or from the
+ * editor's Through the day sheet: in these hours on these days, show this
+ * dashboard. Saved as a whole with the Save button,
  * so a time half typed in is never sent.
  */
 
@@ -30,6 +31,7 @@ export function ScreenSchedulePanel({
   homeId,
   online,
   save,
+  savedText,
 }: {
   name: string;
   /** The stored value of the schedule setting. */
@@ -40,6 +42,8 @@ export function ScreenSchedulePanel({
   online: boolean;
   /** Stores the new value (null for no rules); false when that failed (the caller shows why). */
   save: (raw: string | null) => Promise<boolean>;
+  /** What to say once saved, in place of when the screen follows it. */
+  savedText?: string;
 }) {
   const [rules, setRules] = useState<ScheduleRule[]>(() => parseSchedule(stored));
   const [saving, setSaving] = useState(false);
@@ -76,7 +80,7 @@ export function ScreenSchedulePanel({
   return (
     <div className="basis-full space-y-3 rounded-md border border-border p-3" data-testid="screen-schedule">
       <p className="text-sm text-muted-foreground">
-        Outside these times {name} shows {home}. When two overlap, the higher one wins. A change
+        Outside its Interludes {name} shows {home}. When two overlap, the higher one wins. A change
         waits until nobody has touched the screen for a minute.
       </p>
       <ol className="space-y-3">
@@ -142,16 +146,16 @@ export function ScreenSchedulePanel({
       </ol>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" onClick={add} disabled={rules.length >= MAX_SCHEDULE_RULES || dashboards.length === 0}>
-          Add a time
+          Add an Interlude
         </Button>
         <Button size="sm" onClick={() => void submit()} disabled={saving || noDays}>
-          Save schedule
+          Save Interludes
         </Button>
         <span className="text-xs text-muted-foreground" aria-live="polite">
           {noDays
-            ? 'Pick at least one day for each time.'
+            ? 'Pick at least one day for each Interlude.'
             : saved
-              ? online ? `Saved. ${name} follows it within a minute.` : `Saved. ${name} follows it when it is next switched on.`
+              ? savedText ?? (online ? `Saved. ${name} follows it within a minute.` : `Saved. ${name} follows it when it is next switched on.`)
               : 'Times are in the household time zone.'}
         </span>
       </div>
