@@ -21,28 +21,13 @@ A self-hosted family display for calendars, chores, meals and shopping. No subsc
 
 <p align="center"><sub>Wall, tablet and phone · Raspberry Pi 4 or newer · English and German · PIN sign-in, no accounts · one anonymous update check, off with one switch</sub></p>
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/demos/hero-dark.png">
-    <img src="docs/demos/hero-light.png" width="900" alt="Prism on a wall display, a tablet and a phone">
-  </picture>
-</p>
-
 ## On the wall, and in every pocket
 
 <table>
   <tr>
     <td width="70%" valign="top">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/demos/hero-wall-dark.png">
-        <img src="docs/demos/hero-wall-light.png" alt="The wall display: today's events, the weather and upcoming birthdays">
-      </picture>
     </td>
     <td width="30%" valign="top">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/demos/hero-phone-dark.png">
-        <img src="docs/demos/hero-phone-light.png" alt="The phone: calendar, bus, chores, tasks and shopping as cards">
-      </picture>
     </td>
   </tr>
   <tr>

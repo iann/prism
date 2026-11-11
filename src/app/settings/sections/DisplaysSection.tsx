@@ -272,7 +272,7 @@ export function DisplaysSection() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Screens</h2>
+        <h2 className="text-2xl font-bold">Displays</h2>
         <p className="text-muted-foreground">
           Name each screen in the house to see which ones are on and change any of them from
           here. Edit opens a screen&apos;s editing bar over a live picture of it. A browser

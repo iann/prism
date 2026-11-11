@@ -22,11 +22,6 @@ describe('README', () => {
     expect(missing).toEqual([]);
   });
 
-  it('shows the hero in light and dark', () => {
-    expect(readme).toMatch(/<source media="\(prefers-color-scheme: dark\)" srcset="docs\/demos\/hero-dark\.png">/);
-    expect(readme).toContain('src="docs/demos/hero-light.png"');
-  });
-
   it('opens with a pitch of 8 words or fewer, before the install steps', () => {
     const pitch = readme.match(/<b>([^<]+)<\/b>/)![1]!;
     expect(pitch.trim().split(/\s+/).length).toBeLessThanOrEqual(8);

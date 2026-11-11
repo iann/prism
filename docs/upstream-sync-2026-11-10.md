@@ -25,7 +25,7 @@ this branch resolves the conflicts by hand.
 
 - `npm run type-check` — passed
 - `npm run lint` — 0 errors (946 pre-existing warnings)
-- `npm test` — 421 suites passed, 1 skipped; 4340 tests passed, 12 skipped
+- `npm test` — 420 suites passed, 1 skipped; 4335 tests passed, 12 skipped
 - `npm run build` — passed
 
 ## How conflicts were resolved
@@ -41,6 +41,10 @@ this branch resolves the conflicts by hand.
 | `src/components/ui/dialog.tsx` | Kept the personal dialog surface and close target, and adopted upstream `sheetSide()`, pointer-side tracking and the remote portal root. |
 | `src/components/screensaver/Screensaver.tsx` | Kept the personal performance thumbnails and sky handling, and adopted upstream `noPhotos` plus the one night rule. |
 | `src/components/layout/useLayoutEditorState.ts` | Kept the personal editor state and adopted upstream's copy-or-download export (#1147), so Export still works over plain HTTP. |
+| `src/components/screensaver/idleDim.tsx`, `DisplaySection` | Kept the personal calendar-hours dimming (and `describeDimHours`); upstream's night-rule dim and its test are not adopted. |
+| `SettingsView`, `DisplaysSection` | Kept the personal **Displays** name rather than upstream's **Screens**, so the settings snapshots stay valid. |
+| `e2e/display-registry.spec.ts` | Restored the personal expectations; upstream's editing-bar "Attention notices" journey and **Screens** heading do not apply. |
+| `README.md`, `src/lib/__tests__/readme.test.ts` | Removed the picture blocks pointing at demo images the fork does not carry, and dropped the matching hero assertion. |
 | `src/styles/globals.css` | Kept the personal calm-idle/water wallpaper rules, and adopted upstream's fuller idle-clear block in place of the older duplicate. |
 | `src/app/page.tsx` | Kept the personal font-scale wrapper and adopted the `?screen=` phone-editing entry point. |
 | `e2e/calendar-geometry.spec.ts` | Kept the personal deterministic fixtures and adopted the quiet-day helper, the rate-limit-aware `postEvent()` and `networkidle` waits. |
@@ -58,7 +62,8 @@ this branch resolves the conflicts by hand.
 | `ThemeProvider` | Kept the personal palette loader and seasonal hook; upstream's duplicate palette-read effect is not added. |
 | `screensaver-geometry.spec.ts` | Kept the personal new-look expectations; upstream's editing-bar helpers do not apply. |
 | `docs/CHANGELOG.md`, `docs/HELP.md`, feature pages, `home-assistant.md` | Kept the personal content and voice. Upstream's new-look entries are not imported because those features are not user-visible here. |
-| 47 Linux snapshot PNGs and demo screenshots | Kept the personal UI baselines; only the six README hero images were restored from upstream because the test asserts that every referenced file exists. |
+| 47 Linux snapshot PNGs | Kept the personal UI baselines. |
+| `docs/demos/*` | Removed the upstream new-look screenshots (README no longer points at them); deletions are allowed by repo hygiene and keep `docs/demos` at the personal baseline. |
 
 ### Upstream work that was adopted and should now be exercised
 

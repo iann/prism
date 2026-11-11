@@ -189,7 +189,7 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
   // Over both idle screens, so it is outside the overlay below and stays
   // mounted while a calm dashboard is idle. Same place in both returns, so it
   // keeps its state and eases out on waking.
-  const dim = <IdleDim idle={idle} night={night} />;
+  const dim = <IdleDim idle={idle} />;
   if (!isIdle) return <>{dim}{null}</>;
 
   // Night look "off" (#1152): nothing but black until a touch.
