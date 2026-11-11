@@ -3,8 +3,6 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 
-jest.mock('@/components/dashboard/useDashboardLayout', () => ({ editLink: (p: string) => p }));
-
 import { CreateDashboardDialog } from '../LayoutEditorDashboardManager';
 
 describe('CreateDashboardDialog: Start from', () => {
@@ -19,7 +17,7 @@ describe('CreateDashboardDialog: Start from', () => {
     expect(screen.queryByText('Calendar')).toBeNull();
   });
 
-  it('still creates from the chosen start', () => {
+  it('creates from the chosen start', () => {
     const onCreate = jest.fn();
     render(<CreateDashboardDialog open onClose={() => {}} onCreate={onCreate} />);
     fireEvent.change(screen.getByPlaceholderText('e.g. Kitchen Display'), { target: { value: 'Hall' } });

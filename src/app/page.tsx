@@ -16,7 +16,10 @@ async function screenDashboardSlug(): Promise<string | null> {
     const screen = await currentDisplay();
     if (!screen) return null;
     const all = await db.query.layouts.findMany({ columns: { id: true, slug: true, isDefault: true } });
-    const id = screenDashboardAt(screen, Date.now(), await getHouseholdTimezone(), (d) => all.some((l) => l.id === d));
+    const id = screenDashboardAt(
+      screen, Date.now(), await getHouseholdTimezone(),
+      (d) => all.some((l) => l.id === d),
+    );
     const layout = all.find((l) => l.id === id);
     return layout && !layout.isDefault ? layout.slug : null;
   } catch {
@@ -35,8 +38,12 @@ export const dynamic = 'force-dynamic';
 // Both the default and named dashboards wrap their content in a zoom
 // container driven by `layouts.fontScale`. The default route reads the
 // selected layout here; named dashboards do the equivalent in their layout.
-export default async function HomePage() {
-  const slug = await screenDashboardSlug();
+export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // A phone editing another screen opens that screen's dashboard here with
+  // ?screen= (#1153); it chose the dashboard already, so this browser's own
+  // screen must not redirect it.
+  const { screen } = await searchParams;
+  const slug = screen ? null : await screenDashboardSlug();
   if (slug) redirect(`/d/${slug}`);
 
   let fontScale = 100;
@@ -51,7 +58,7 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-fill bg-background">
       <div id="ssr-placeholder" className="h-screen flex items-center justify-center" aria-hidden="true">
         <h1 className="text-4xl font-bold text-muted-foreground/20">Prism</h1>
       </div>

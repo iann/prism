@@ -21,6 +21,7 @@ import { useDistinctState } from './useDistinctState';
 import { useLatestRef } from './useLatestRef';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 import { useFetchOnMount } from './useFetchOnMount';
+import { sharedGet } from '@/lib/utils/sharedGet';
 
 interface UseCalendarEventsOptions {
   /** Number of days to fetch events for (used only when rangeStart/rangeEnd are omitted). */
@@ -71,25 +72,9 @@ export type CalendarSource = {
   user: { id: string; name: string; color: string } | null;
 };
 
-// Several calendar widgets can mount together. Share the in-flight source
-// lookup so each instance does not issue the same request during hydration.
-let calendarSourcesRequest: Promise<CalendarSource[]> | null = null;
-
-function requestCalendarSources(): Promise<CalendarSource[]> {
-  if (calendarSourcesRequest) return calendarSourcesRequest;
-
-  calendarSourcesRequest = fetch('/api/calendars')
-    .then(async (response) => {
-      if (!response.ok) throw new Error('Failed to fetch calendars');
-      const data = await response.json();
-      return (data.calendars || []) as CalendarSource[];
-    })
-    .finally(() => {
-      calendarSourcesRequest = null;
-    });
-
-  return calendarSourcesRequest;
-}
+// Several calendar widgets can mount together. sharedGet joins the in-flight
+// source lookup so each instance does not issue the same request during
+// hydration.
 
 /**
  * Hook for fetching calendar events from the API
@@ -292,7 +277,7 @@ export function useCalendarEvents(
   const checkAndSync = useCallback(async () => {
     if (!enabled || autoSyncMinutes <= 0) return;
     try {
-      const response = await fetch('/api/calendars');
+      const response = await sharedGet('/api/calendars');
       if (!response.ok) return;
 
       const data = await response.json();
@@ -376,7 +361,14 @@ export function useCalendarSources() {
   const fetchCalendars = useCallback(async () => {
     try {
       setError(null);
-      setCalendars(await requestCalendarSources());
+      const response = await sharedGet('/api/calendars');
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch calendars');
+      }
+
+      const data = await response.json();
+      setCalendars(data.calendars);
     } catch (err) {
       console.error('Error fetching calendars:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch calendars');

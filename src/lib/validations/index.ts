@@ -145,6 +145,12 @@ export const createChoreSchema = z.object({
     .regex(/^\d{2}:\d{2}$/, 'Invalid time format (HH:mm)')
     .nullable()
     .optional(),
+  // Daily chores only (#1107); 1 is once a day.
+  timesPerDay: z.number().int().min(1).max(4).optional(),
+  // A reminder (#1109): saved with no points or approval, and needs a time.
+  kind: z.enum(['chore', 'reminder']).optional(),
+  // Who it is for, when that is a pet (#996); null clears it.
+  petId: uuidSchema.nullable().optional(),
 });
 
 export const updateChoreSchema = updateOf(createChoreSchema).extend({
@@ -451,6 +457,7 @@ const widgetConfigSchema = z.object({
   cellBackgroundOpacity: z.number().min(0).max(1).optional(),
   showWhenIdle: z.boolean().optional(),
   hideWhenEmpty: z.boolean().optional(),
+  hideOnSmallScreen: z.boolean().optional(),
   settings: z.record(z.string(), z.unknown()).optional(),
 });
 

@@ -60,9 +60,10 @@ function buildFramePolicy(allowedAncestorsRaw) {
     "media-src 'self' blob:",
     // PWA service worker
     "worker-src 'self' blob:",
-    // Windy is used for the conditional dashboard precipitation map.
-    // The radar may be served by the local Windy proxy as well as directly
-    // from Windy while older cached dashboard markup is still in use.
+    // Prism frames itself (editing a screen from a phone shows that screen's
+    // dashboard in a frame, #1153) and the Windy precipitation map. The radar
+    // may be served by the local Windy proxy as well as directly from Windy
+    // while older cached dashboard markup is still in use. Never another site.
     "frame-src 'self' https://embed.windy.com",
     // Block all plugin content (Flash, etc.)
     "object-src 'none'",

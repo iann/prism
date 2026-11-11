@@ -4,6 +4,10 @@ import * as React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { DisplaysSection } from '../DisplaysSection';
 
+jest.mock('@/components/providers/TimeFormatProvider', () => ({
+  useTimeFormat: () => ({ timeFormat: '12h' }),
+}));
+
 jest.mock('@/lib/hooks/useLayouts', () => ({
   useLayouts: (() => {
     const layouts = [

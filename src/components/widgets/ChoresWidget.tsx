@@ -40,6 +40,7 @@ import { Button, Badge, UserAvatar } from '@/components/ui';
  */
 // Chore type imported from shared types
 import type { Chore } from '@/types';
+import { isLate, formatReminderTime } from '@/lib/utils/reminders';
 import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
 export type { Chore };
 
@@ -320,10 +321,25 @@ function ChoreItem({
             </div>
           )}
 
+          {/* Who it is for, in the pet's colour (#996). */}
+          {chore.pet && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" data-chore-pet={chore.pet.name}>
+              <span aria-hidden className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: chore.pet.color }} />
+              {chore.pet.name}
+            </span>
+          )}
+
           {/* Frequency */}
           <span className="text-xs text-muted-foreground">
             {formatFrequency(chore.frequency, chore.customIntervalDays)}
           </span>
+
+          {/* Its time, and Late once that has passed (#1109). */}
+          {!isPendingApproval && chore.nextDueTime && (
+            isLate(chore, format(new Date(), 'yyyy-MM-dd'), format(new Date(), 'HH:mm'))
+              ? <span data-chore-late><StatusPill tone="danger">Late · {formatReminderTime(chore.nextDueTime)}</StatusPill></span>
+              : <span className="text-xs text-muted-foreground">{formatReminderTime(chore.nextDueTime)}</span>
+          )}
 
           {/* Due date - only show if not pending */}
           {!isPendingApproval && dueDateDisplay && (

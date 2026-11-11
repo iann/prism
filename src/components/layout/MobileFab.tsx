@@ -39,6 +39,8 @@ export interface MobileFabProps {
   } | null;
   onLogin?: () => void;
   onLogout?: () => void;
+  /** Cards and Reorder act on the phone's cards; a page without them hides both. */
+  cardTools?: boolean;
   uiHidden?: boolean;
 }
 
@@ -59,7 +61,7 @@ const ALL_CARDS: { id: string; label: string }[] = [
   { id: 'photos', label: 'Photos' },
 ];
 
-export function MobileFab({ user, onLogin, onLogout, uiHidden }: MobileFabProps) {
+export function MobileFab({ user, onLogin, onLogout, uiHidden, cardTools = true }: MobileFabProps) {
   const pathname = usePathname();
   // A subpage's own Add (#1028); the dashboard has none and keeps its options.
   const pageAdd = useCurrentPageAdd();
@@ -114,7 +116,7 @@ export function MobileFab({ user, onLogin, onLogout, uiHidden }: MobileFabProps)
       onClick: () => setIsOpen(false),
       href: '/settings',
     },
-    ...(isDashboard ? [
+    ...(isDashboard && cardTools ? [
       {
         key: 'reorder',
         icon: <ArrowUpDown className="h-5 w-5" />,
