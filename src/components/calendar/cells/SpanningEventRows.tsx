@@ -240,13 +240,6 @@ export function SpanningEventRows({
     ) days += 1;
     return days;
   };
-  const hasExtendedLabel = byLane.some((laneEvent) => {
-    if (!laneEvent) return false;
-    const continuesFromPrevious = occurs(laneEvent, addDays(date, -1));
-    const showsLabel = !continuesFromPrevious || column === 0;
-    return showsLabel && spanDaysFromColumn(laneEvent, column) > 1;
-  });
-
   // A multi-day event is a single-day all-day event that happens to run on.
   // These are the metrics its neighbours use, read from the same custom
   // properties, so a bar and a chip are the same height with their text
@@ -263,11 +256,14 @@ export function SpanningEventRows({
       // padX matches the day's own event list, so a bar's cap lines up with the
       // left and right edge of the chips under it. A bar that continues is
       // widened past this padding below, so the slices still meet.
+      //
+      // No integer z-index here: creating an isolating stacking context per day
+      // cell prevented later slices from painting over earlier cell borders and
+      // caused conflicting z-index wars between start cells and continuation
+      // cells across Today and adjacent days. Extended title pseudo-elements
+      // carry z-30 directly to float above all slices.
       className={cn(
         'relative flex shrink-0 flex-col',
-        // Paint the starting slice above its later-day siblings so its label
-        // remains visible across the continuation bars.
-        hasExtendedLabel ? 'z-30' : 'z-20',
         padX,
         // Same row gap as the day's own event list, and the same gap again
         // below the block, so a bar and the chip under it are spaced like two
@@ -346,7 +342,8 @@ export function SpanningEventRows({
                 }
               : { 'aria-hidden': true })}
             className={cn(
-              'relative z-20 block w-full text-left font-medium leading-tight',
+              'relative block w-full text-left font-medium leading-tight',
+              'focus-visible:z-40',
               extendsLabel ? 'overflow-visible whitespace-nowrap' : 'truncate',
               cards ? 'hover:bg-card transition-colors' : 'hover:brightness-95',
               'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-seasonal-accent',
