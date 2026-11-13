@@ -22,6 +22,14 @@ import { FIRST_SCREEN_TEMPLATE } from '../src/lib/constants/layoutTemplates';
  * database (see calendar-geometry.spec.ts for why the PIN is gated).
  */
 const HAS_TEST_DB = process.env.E2E_HAS_TEST_DB === '1';
+
+// These tests seed a screensaver arrangement in the browser. A browser that
+// has not run since v1.30.1 would carry it onto the dashboard it shows
+// (#1154), which would then stay on the shared seeded dashboard for every
+// later test. Each browser here has already run, except in the upgrade test.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('prism-screensaver-carried', '1'));
+});
 const PIN = process.env.E2E_PIN || '1234';
 
 /** Inside both default frames (48x27 landscape, 36x64 portrait) and short of
@@ -952,7 +960,14 @@ test.describe('screensaver widget outlines', () => {
     });
     await page.goto('/');
     await page.waitForLoadState('networkidle');
-    await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+    await page.evaluate(() => {
+      localStorage.setItem('prism-screensaver-layout', JSON.stringify([
+        { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true, outlineColor: 'transparent' },
+        { i: 'weather', x: 20, y: 2, w: 16, h: 10, visible: true },
+        { i: 'messages', x: 2, y: 14, w: 16, h: 10, visible: false },
+      ]));
+      window.dispatchEvent(new Event('prism:screensaver'));
+    });
     await page.locator('.fixed.inset-0.z-9999 .widget-cell[data-widget="clock"]').waitFor();
     await page.waitForTimeout(1000);
 
@@ -992,7 +1007,14 @@ test.describe('screensaver widget outlines', () => {
       }, messages);
       await page.goto('/');
       await page.waitForLoadState('networkidle');
-      await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+      await page.evaluate((m) => {
+        localStorage.setItem('prism-screensaver-layout', JSON.stringify([
+          { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true },
+          { i: 'messages', x: 20, y: 2, w: 16, h: 10, visible: true, ...m },
+          { i: 'weather', x: 2, y: 14, w: 16, h: 10, visible: false },
+        ]));
+        window.dispatchEvent(new Event('prism:screensaver'));
+      }, messages);
       await page.locator('.fixed.inset-0.z-9999 .widget-cell[data-widget="messages"]').waitFor();
       await page.waitForTimeout(1500);
       return page.evaluate(() => {

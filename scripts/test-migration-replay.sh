@@ -394,7 +394,9 @@ log "=== Scenario H: v1.30.1 install upgrades to what it showed ==="
 
 OLD_TAG="v1.30.1"
 if ! git rev-parse -q --verify "refs/tags/$OLD_TAG" >/dev/null; then
-  git fetch -q --depth 1 origin "refs/tags/$OLD_TAG:refs/tags/$OLD_TAG"
+  git fetch -q --depth 1 origin "refs/tags/$OLD_TAG:refs/tags/$OLD_TAG" 2>/dev/null || \
+  git fetch -q --depth 1 upstream "refs/tags/$OLD_TAG:refs/tags/$OLD_TAG" 2>/dev/null || \
+  git fetch -q --depth 1 https://github.com/sandydargoport/prism.git "refs/tags/$OLD_TAG:refs/tags/$OLD_TAG"
 fi
 OLD_DIR="$(mktemp -d)"
 git archive "$OLD_TAG" src/lib/db/init drizzle scripts/migrate.js | tar -x -C "$OLD_DIR"

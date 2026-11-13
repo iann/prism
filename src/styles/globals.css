@@ -2928,6 +2928,7 @@ body:has(.wall-display) [role='dialog'] select {
  */
 @layer utilities {
   .prism-outline-none.border-border,
+  .prism-outline-none .border-border,
   .prism-outline-none [class*="bg-card"].border-border {
     border-color: transparent !important;
     box-shadow: none !important;
