@@ -353,6 +353,194 @@ expect_bg 'F night' '{"day": "photos", "night": "sky", "switch": {"by": "sun", "
 log "Scenario F: PASS"
 
 # ----------------------------------------------------------------------------
+# Scenario G: 0050 retires the Calendar view.
+# A dashboard saved as the Calendar ready-made layout becomes a regular grid
+# dashboard with the same widgets. Today and grid dashboards are left alone.
+# ----------------------------------------------------------------------------
+log "=== Scenario G: 0050 Calendar view becomes a grid dashboard ==="
+
+layout_view() {
+  docker exec "$CONTAINER_NAME" psql -U prism -d prism -t -A -c \
+    "SELECT view || '|' || widgets::text FROM layouts WHERE name = '$1'"
+}
+
+psql_exec "
+INSERT INTO layouts (name, widgets, view) VALUES
+  ('G calendar', '[{\"i\": \"calendar\", \"x\": 0, \"y\": 5, \"w\": 32, \"h\": 22}]'::jsonb, 'calendar'),
+  ('G today', '[{\"i\": \"clock\", \"x\": 0, \"y\": 0, \"w\": 12, \"h\": 5}]'::jsonb, 'today');
+DELETE FROM public.__prism_migrations;
+"
+run_migrate
+GOT=$(layout_view 'G calendar')
+if [ "$GOT" != 'grid|[{"h": 22, "i": "calendar", "w": 32, "x": 0, "y": 5}]' ]; then
+  echo "ERROR: 0050 gave the Calendar dashboard '$GOT' (want grid, same widgets)" >&2
+  exit 1
+fi
+GOT=$(layout_view 'G today')
+case "$GOT" in today\|*) ;; *) echo "ERROR: 0050 changed Today ('$GOT')" >&2; exit 1 ;; esac
+
+log "Scenario G: PASS"
+
+# ----------------------------------------------------------------------------
+# Scenario H: a v1.30.1 install upgrades to what it showed (#1154).
+# The database is built by v1.30.1 itself: its init schema and its own
+# migrate.js, from the release tag. Its dashboards, as v1.30.1 saved them,
+# then go through every migration since. Each must come out on the grid,
+# resting over photos with the screensaver arrangement it had, the default
+# still the default, and nothing added (no Today, no other dashboard).
+# ----------------------------------------------------------------------------
+reset_pg
+log "=== Scenario H: v1.30.1 install upgrades to what it showed ==="
+
+OLD_TAG="v1.30.1"
+if ! git rev-parse -q --verify "refs/tags/$OLD_TAG" >/dev/null; then
+  git fetch -q --depth 1 origin "refs/tags/$OLD_TAG:refs/tags/$OLD_TAG" 2>/dev/null || \
+  git fetch -q --depth 1 upstream "refs/tags/$OLD_TAG:refs/tags/$OLD_TAG" 2>/dev/null || \
+  git fetch -q --depth 1 https://github.com/sandydargoport/prism.git "refs/tags/$OLD_TAG:refs/tags/$OLD_TAG"
+fi
+OLD_DIR="$(mktemp -d)"
+git archive "$OLD_TAG" src/lib/db/init drizzle scripts/migrate.js | tar -x -C "$OLD_DIR"
+
+INIT_DIR_SAVED="$INIT_DIR"
+INIT_DIR="$OLD_DIR/src/lib/db/init"
+start_pg
+INIT_DIR="$INIT_DIR_SAVED"
+
+log "Bring it up to v1.30.1 with v1.30.1's own migrate.js..."
+DATABASE_URL="postgresql://prism:${DB_PASS}@localhost:${TEST_PORT}/prism" \
+  NODE_PATH="${REPO_ROOT}/node_modules" node "$OLD_DIR/scripts/migrate.js"
+
+log "Two dashboards as v1.30.1 saved them: the default, edited (its screensaver saved), and one by link, never edited..."
+psql_exec "
+INSERT INTO layouts (name, slug, is_default, widgets, screensaver_widgets) VALUES
+  ('H kitchen', 'kitchen', true,
+   '[{\"i\": \"calendar\", \"x\": 0, \"y\": 0, \"w\": 32, \"h\": 27}, {\"i\": \"clock\", \"x\": 32, \"y\": 0, \"w\": 16, \"h\": 8}]'::jsonb,
+   '[{\"i\": \"clock\", \"x\": 2, \"y\": 2, \"w\": 16, \"h\": 10, \"visible\": true}]'::jsonb),
+  ('H hall', 'hall', false,
+   '[{\"i\": \"weather\", \"x\": 0, \"y\": 0, \"w\": 24, \"h\": 24}]'::jsonb,
+   NULL);
+"
+snapshot() {
+  docker exec "$CONTAINER_NAME" psql -U prism -d prism -t -A -c \
+    "SELECT string_agg(name || '|' || COALESCE(slug, '') || '|' || is_default || '|' || widgets::text || '|' || COALESCE(screensaver_widgets::text, 'null'), E'\n' ORDER BY name) FROM layouts"
+}
+BEFORE=$(snapshot)
+
+log "Upgrade with this checkout's migrate.js..."
+run_migrate
+
+AFTER=$(snapshot)
+if [ "$BEFORE" != "$AFTER" ]; then
+  echo "ERROR: the upgrade changed a v1.30.1 dashboard or added one" >&2
+  echo "  BEFORE: $BEFORE" >&2
+  echo "  AFTER:  $AFTER" >&2
+  exit 1
+fi
+SHAPE=$(docker exec "$CONTAINER_NAME" psql -U prism -d prism -t -A -c \
+  "SELECT string_agg(name || '|' || view || '|' || idle_background::text, E'\n' ORDER BY name) FROM layouts")
+WANT=$'H hall|grid|{"source": "photos"}\nH kitchen|grid|{"source": "photos"}'
+if [ "$SHAPE" != "$WANT" ]; then
+  echo "ERROR: upgraded dashboards are not grids resting over photos:" >&2
+  echo "$SHAPE" >&2
+  exit 1
+fi
+SCREENS=$(docker exec "$CONTAINER_NAME" psql -U prism -d prism -t -A -c "SELECT count(*) FROM displays")
+if [ "$SCREENS" != "0" ]; then
+  echo "ERROR: the upgrade named a screen ($SCREENS)" >&2
+  exit 1
+fi
+
+log "And a replay is a no-op on it..."
+psql_exec "DELETE FROM public.__prism_migrations WHERE name <> '0000_upgrade';"
+run_migrate
+if [ "$(snapshot)" != "$BEFORE" ]; then
+  echo "ERROR: replaying the migrations changed an upgraded dashboard" >&2
+  exit 1
+fi
+rm -rf "$OLD_DIR"
+
+log "Scenario H: PASS"
+
+# ----------------------------------------------------------------------------
+# Scenario I: 0051 names the built-in dashboard Glance (#1187).
+# The built-in (view today) still called Today becomes Glance, with its slug
+# kept. One the household renamed, and a grid dashboard someone called Today,
+# keep their names. A replay changes nothing more.
+# ----------------------------------------------------------------------------
+log "=== Scenario I: 0051 Today becomes Glance ==="
+
+psql_exec "
+INSERT INTO layouts (name, slug, widgets, view) VALUES
+  ('Today', 'today', '[]'::jsonb, 'today'),
+  ('I mornings', 'i-mornings', '[]'::jsonb, 'today'),
+  ('Today', 'i-grid-today', '[]'::jsonb, 'grid');
+DELETE FROM public.__prism_migrations WHERE name <> '0000_upgrade';
+"
+run_migrate
+names() {
+  docker exec "$CONTAINER_NAME" psql -U prism -d prism -t -A -c \
+    "SELECT string_agg(slug || '|' || view || '|' || name, E'\n' ORDER BY slug) FROM layouts WHERE slug IN ('today', 'i-mornings', 'i-grid-today')"
+}
+WANT=$'i-grid-today|grid|Today\ni-mornings|today|I mornings\ntoday|today|Glance'
+GOT=$(names)
+if [ "$GOT" != "$WANT" ]; then
+  echo "ERROR: 0051 named the dashboards:" >&2
+  echo "$GOT" >&2
+  exit 1
+fi
+psql_exec "DELETE FROM public.__prism_migrations WHERE name <> '0000_upgrade';"
+run_migrate
+if [ "$(names)" != "$WANT" ]; then
+  echo "ERROR: replaying 0051 changed the names again" >&2
+  exit 1
+fi
+
+log "Scenario I: PASS"
+
+# ----------------------------------------------------------------------------
+# Scenario J: 0052 adds what a member signs in with (#1197).
+# Every member already there has a PIN ('digits'); a replay changes nothing.
+# ----------------------------------------------------------------------------
+log "=== Scenario J: 0052 members keep their PINs ==="
+
+KINDS=$(docker exec "$CONTAINER_NAME" psql -U prism -d prism -t -A -c \
+  "SELECT count(*) || '|' || count(*) FILTER (WHERE pin_kind = 'digits') FROM users")
+TOTAL=${KINDS%%|*}
+if [ "$KINDS" != "$TOTAL|$TOTAL" ]; then
+  echo "ERROR: 0052 left members without a PIN kind: $KINDS (all|digits)" >&2
+  exit 1
+fi
+psql_exec "DELETE FROM public.__prism_migrations WHERE name <> '0000_upgrade';"
+run_migrate
+if [ "$(docker exec "$CONTAINER_NAME" psql -U prism -d prism -t -A -c "SELECT count(*) FILTER (WHERE pin_kind <> 'digits') FROM users")" != "0" ]; then
+  echo "ERROR: replaying 0052 changed a member's PIN kind" >&2
+  exit 1
+fi
+
+log "Scenario J: PASS"
+# ----------------------------------------------------------------------------
+# Scenario K: 0053 lets a task have subtasks (#1200).
+# A subtask points at its parent; deleting the parent deletes the subtasks,
+# and leaves every other task alone. A replay changes nothing.
+# ----------------------------------------------------------------------------
+log "=== Scenario K: 0053 subtasks go with their parent ==="
+
+psql_exec "
+INSERT INTO tasks (id, title) VALUES ('00000000-0000-0000-0000-00000000a001', 'K parent'), ('00000000-0000-0000-0000-00000000a009', 'K other');
+INSERT INTO tasks (title, parent_id) VALUES ('K sub 1', '00000000-0000-0000-0000-00000000a001'), ('K sub 2', '00000000-0000-0000-0000-00000000a001');
+DELETE FROM public.__prism_migrations WHERE name <> '0000_upgrade';
+"
+run_migrate
+psql_exec "DELETE FROM tasks WHERE id = '00000000-0000-0000-0000-00000000a001';"
+LEFT=$(docker exec "$CONTAINER_NAME" psql -U prism -d prism -t -A -c "SELECT string_agg(title, ',' ORDER BY title) FROM tasks WHERE title LIKE 'K %'")
+if [ "$LEFT" != "K other" ]; then
+  echo "ERROR: deleting a parent left '$LEFT' (want only K other)" >&2
+  exit 1
+fi
+
+log "Scenario K: PASS"
+
+# ----------------------------------------------------------------------------
 echo
 echo "=========================================="
 echo "  All migration-replay scenarios passed"

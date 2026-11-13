@@ -127,6 +127,7 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
           doneToday?: number;
           kind?: 'chore' | 'reminder';
           pet?: { id: string; name: string; color: string } | null;
+          todayTicks?: Array<{ at: string; by: { name: string; color: string } }>;
           enabled: boolean;
           requiresApproval: boolean;
           pointValue: number;
@@ -159,6 +160,7 @@ export function useChores(options: UseChoresOptions = {}): UseChoresResult {
           doneToday: chore.doneToday ?? 0,
           kind: chore.kind ?? 'chore',
           pet: chore.pet ?? null,
+          ...(chore.todayTicks ? { todayTicks: chore.todayTicks } : {}),
           enabled: chore.enabled,
           requiresApproval: chore.requiresApproval,
           pointValue: chore.pointValue,
