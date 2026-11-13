@@ -386,6 +386,7 @@ html.performance-mode {
   white-space: nowrap;
   visibility: visible;
   pointer-events: none;
+  z-index: 30;
 }
 
 @utility full-screen {

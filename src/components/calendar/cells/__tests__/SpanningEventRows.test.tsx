@@ -534,6 +534,42 @@ describe('SpanningEventRows', () => {
     expect(button.className).toContain('h-5');
     expect(button.className).toContain('items-center');
   });
+
+  it('avoids isolating stacking contexts on container so multi-day events stack seamlessly across days', () => {
+    const rowDates = [new Date(2026, 7, 10), new Date(2026, 7, 11), new Date(2026, 7, 12)];
+    const { container } = render(
+      <div>
+        {rowDates.map((date) => (
+          <SpanningEventRows
+            key={date.toISOString()}
+            date={date}
+            rowDates={rowDates}
+            events={[event]}
+            onEventClick={() => {}}
+            cards
+          />
+        ))}
+      </div>
+    );
+
+    const wrappers = container.querySelectorAll('[data-spanning-events]');
+    wrappers.forEach((wrapper) => {
+      // Container must not carry z-20 or z-30 which isolates stacking contexts per day
+      expect(wrapper.className).not.toContain('z-20');
+      expect(wrapper.className).not.toContain('z-30');
+    });
+
+    const buttons = container.querySelectorAll('button');
+    buttons.forEach((button) => {
+      // Individual slices must not isolate stacking contexts with integer z-index either
+      expect(button.className).not.toContain('z-20');
+      expect(button.className).not.toContain('z-30');
+      expect(button.className).toContain('focus-visible:z-40');
+    });
+
+    const startLabel = container.querySelector('.spanning-event-title-extended');
+    expect(startLabel).not.toBeNull();
+  });
 });
 
 describe('InlineCalendarEvent', () => {
