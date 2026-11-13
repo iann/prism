@@ -277,8 +277,8 @@ function DayCell({
         // 2/3/4W modes the cell stretches to fill the equal-height row so
         // the capacity probe has a real target height.
         cards && (showAll ? 'min-h-0' : 'min-h-0 h-full'),
+        isPast && !cellBgStyle && 'opacity-50',
         !cellBgStyle && 'bg-calendar-surface',
-        isPast && !cellBgStyle && !today && 'bg-muted/65 text-muted-foreground',
         today && !cellBgStyle && 'bg-calendar-today',
         // Cards always retain their boundary. In inline mode the grid-lines
         // setting alone controls whether day-cell boundaries are drawn.
