@@ -25,6 +25,15 @@ The upstream range includes two-way recipe and meal plan sync with Tandoor and M
 - `npm test` — 436 test suites passed, 1 skipped; 4499 tests passed, 12 skipped
 - `npm run build` — passed (178 static and dynamic routes compiled successfully)
 
+## Post-merge CI fixes
+
+- **Migration replay Scenario H tag requirement (`scripts/test-migration-replay.sh`)**: Scenario H tests upgrading from v1.30.1 and checks out `refs/tags/v1.30.1`. Added fallback fetch to upstream and the canonical repository if the tag is not already present in `origin`, and pushed `v1.30.1` to `origin`.
+- **Screensaver geometry E2E tests (`e2e/screensaver-geometry.spec.ts`)**:
+  - Restored upstream `test.beforeEach` setting `prism-screensaver-carried: '1'` so seeded tests do not inadvertently trigger legacy migration logic on the default dashboard.
+  - Re-applied test-specific `prism-screensaver-layout` inside `page.evaluate()` prior to dispatching `prism:screensaver`, preventing `useDashboardLayout` mount logic from clobbering the test layout.
+- **Outline None utilities (`src/styles/globals.css`)**: Expanded `.prism-outline-none` utility selectors to include `.prism-outline-none .border-border` alongside `.prism-outline-none.border-border` and `.prism-outline-none [class*="bg-card"].border-border`.
+- **SSRF safeFetch DNS resolution in Jest tests (`src/lib/utils/safeFetch.ts`)**: In unit tests (such as `immich.test.ts`) that force `NODE_ENV='production'`, live DNS lookups via `node:dns/promises` attempted to resolve fake domains (e.g. `immich.example.com`), causing network timeouts under multi-worker timezone matrix runs. Added `!process.env.JEST_WORKER_ID` check so live DNS resolution is only enabled in real production processes unless a resolver is explicitly passed.
+
 ## How conflicts were resolved
 
 ### Kept personal, integrated the upstream part

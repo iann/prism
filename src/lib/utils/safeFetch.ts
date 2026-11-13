@@ -267,7 +267,9 @@ const dnsResolver: HostResolver = async (host) => {
 async function assertResolvesPublic(url: URL, options: SafeFetchOptions): Promise<void> {
   const isProd = options.isProduction ?? process.env.NODE_ENV === 'production';
   // Live DNS only in a real production process; tests pass a resolver.
-  const resolve = options.resolveHost ?? (process.env.NODE_ENV === 'production' ? dnsResolver : null);
+  const resolve =
+    options.resolveHost ??
+    (process.env.NODE_ENV === 'production' && !process.env.JEST_WORKER_ID ? dnsResolver : null);
   if (!resolve) return;
   const host = unbracket(url.hostname);
   const allowlist = options.allowedInternalHosts ?? parseAllowedInternalHosts(process.env.PRISM_ALLOWED_INTERNAL_HOSTS);
