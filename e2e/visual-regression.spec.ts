@@ -84,6 +84,10 @@ function dynamicMasks(page: Page) {
     page.locator('.widget-cell[data-widget="tasks"]'),
     page.locator('.widget-cell[data-widget="shopping"]'),
     page.locator('.widget-cell[data-widget="chores"]'),
+    // The wall's Menu tab shrinks to a nub after 8 quiet seconds (#989), so a
+    // shot catches either state; expectPainted() pins its width so this mask
+    // is one size. The dock spec measures its place, size and contrast instead.
+    page.locator('[data-dock-menu]'),
   ];
 }
 
@@ -134,6 +138,11 @@ async function setClientFlags(
 async function expectPainted(page: Page, marker?: Locator) {
   await page.waitForFunction(() => (document.body?.innerText ?? '').trim().length > 40, null, { timeout: 60000 });
   if (marker) await expect(marker).toBeVisible({ timeout: 30000 });
+  // The Menu tab's button is 96px wide while the tab is a nub and 140px while
+  // it is full, and it shrinks after 8 quiet seconds, so how long the page took
+  // to load decided the size of its mask. Pinned on the page, not through the
+  // screenshot's `style` option: masks are placed before that style applies.
+  await page.addStyleTag({ content: '[data-dock-menu] { width: 140px !important; }' });
 }
 
 /**

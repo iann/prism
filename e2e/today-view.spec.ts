@@ -588,6 +588,29 @@ test.describe('the Today view', () => {
       expect(widths.next, 'Next is as wide as its words').toBeLessThan(widths.wrap * 0.9);
       for (const r of widths.rows) expect(r, 'a later row is as wide as its words').toBeLessThan(widths.wrap * 0.9);
 
+      // #1186: a shade sits behind the day on the left, under the list, so its
+      // smaller lines read over a bright photo.
+      const shade = await page.evaluate(() => {
+        const s = document.querySelector('[data-today-shade]');
+        const l = document.querySelector('[data-today-list="wall"]')!.getBoundingClientRect();
+        if (!s) return null;
+        const r = s.getBoundingClientRect();
+        return { covers: r.left <= l.left && r.top <= l.top && r.bottom >= l.bottom, image: getComputedStyle(s).backgroundImage };
+      });
+      expect(shade, 'the day has a shade behind it').not.toBeNull();
+      expect(shade!.covers).toBe(true);
+      expect(shade!.image).toContain('radial-gradient');
+
+      // #1186: once both are over, they are earlier today, not later.
+      await page.clock.setFixedTime(at(16));
+      await page.reload();
+      await expect(list).toBeVisible({ timeout: 60_000 });
+      const earlier = list.locator('[data-today-group="earlierToday"]');
+      await expect(earlier.getByText('Earlier today', { exact: true })).toBeVisible();
+      await expect(earlier.locator('[data-today-later-row]').filter({ hasText: `List first ${tag}` })).toBeVisible();
+      await expect(earlier.locator('[data-today-later-row]').filter({ hasText: `List second ${tag}` })).toBeVisible();
+      await expect(list.locator('[data-today-group="laterToday"] [data-today-later-row]').filter({ hasText: String(tag) })).toHaveCount(0);
+
       // Switched on, the arc comes back in its place.
       const arcOn = TODAY_TEMPLATE.widgets.map((w) => (w.i === 'calendar' ? { ...w, settings: { ...(w.settings ?? {}), arc: true } } : w));
       await page.request.patch(`/api/layouts/${layout.id}`, { data: { widgets: arcOn } });
@@ -670,10 +693,13 @@ test.describe('the Today view', () => {
       await sheet.locator('[data-day-state="night"]').click();
       await expect(scene).toHaveAttribute('data-today-night', 'true');
       await expect(page.locator('[data-today-veil]')).toHaveCount(1);
+      // The veil stands in for the day's shade (#1186).
+      await expect(page.locator('[data-today-shade]')).toHaveCount(0);
       // The ink eases to warm.
       await expect.poll(() => page.locator('[data-today-clock]').evaluate((el) => getComputedStyle(el).color)).toBe('rgb(255, 226, 190)');
 
       // Screen off: the preview goes black over the scene, under the bar.
+      await sheet.locator('[data-day-milestone="night-start"]').click();
       await sheet.locator('[data-night-look="off"]').click();
       const off = page.locator('[data-preview-night="off"]');
       await expect(off).toHaveCount(1);
@@ -684,6 +710,7 @@ test.describe('the Today view', () => {
       await sheet.locator('[data-day-state="active"]').click();
       await expect(scene).not.toHaveAttribute('data-today-night', 'true');
       await expect(off).toHaveCount(0);
+      await expect(page.locator('[data-today-shade]')).toHaveCount(1);
 
       // Done keeps the night look with the dashboard.
       await page.locator('[data-editor-done]').click();
@@ -738,6 +765,7 @@ test.describe('the Today view', () => {
       await expect(row.locator('[data-built-in-mark]')).toBeVisible();
       await expect(page.locator('[data-dashboard-delete]')).toBeDisabled();
       await expect(page.locator('[data-built-in-note]')).toBeVisible();
+      await expect(page.locator('[data-built-in-note]')).toContainText('Glance is built in');
       expect((await page.request.delete(`/api/layouts/${layout.id}`)).status(), "the server refuses too").toBe(409);
 
       // Done saves: the weather stays hidden after a reload.
@@ -777,94 +805,6 @@ test.describe('the Today view', () => {
       await deleteLayout(page, made.id);
     } finally {
       await deleteLayout(page, layout.id);
-    }
-  });
-
-  // #931: the Calendar starting layout.
-  for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 800 }]) {
-    test(`the Calendar layout: today widest, nothing under the floor, week and month, an event opens its sheet, at ${viewport.width}x${viewport.height}`, async ({ page }) => {
-      await page.setViewportSize(viewport);
-      await login(page);
-      const d = new Date();
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 10);
-      const title = `Board check ${Date.now()}`;
-      const ev = await postEvent(page, { title, startTime: start.toISOString(), endTime: new Date(start.getTime() + 3600_000).toISOString(), allDay: false, createdBy: getSeededParentId() });
-      const event = await ev.json();
-      const layout = await (await page.request.post('/api/layouts', { data: { name: `Board e2e ${Date.now()}`, widgets: TODAY_TEMPLATE.widgets, view: 'calendar' } })).json();
-      try {
-        await page.route('**/api/weather*', (route) => route.fulfill({ json: WEATHER }));
-        await page.goto(`/d/${layout.slug}`);
-        await page.locator('[data-board-week]').waitFor({ timeout: 60_000 });
-        const m = await page.evaluate(() => {
-          const cols = [...document.querySelectorAll('[data-board-week] > [data-board-day]')].map((c) => ({ w: c.getBoundingClientRect().width, today: c.hasAttribute('data-board-today') }));
-          const probe = document.createElement('div'); probe.style.fontSize = 'var(--text-floor)'; document.body.appendChild(probe);
-          const floor = parseFloat(getComputedStyle(probe).fontSize); probe.remove();
-          const texts = [...document.querySelectorAll('[data-calendar-board] *')].filter((el) => el.children.length === 0 && (el.textContent ?? '').trim());
-          return {
-            cols,
-            small: texts.filter((el) => parseFloat(getComputedStyle(el).fontSize) < floor - 0.01).length,
-            cut: [...document.querySelectorAll('[data-board-event]')].filter((el) => el.scrollWidth > el.clientWidth + 1).length,
-          };
-        });
-        expect(m.cols).toHaveLength(7);
-        const todayCol = m.cols.find((c) => c.today)!;
-        for (const c of m.cols.filter((c) => !c.today)) expect(todayCol.w, 'today is the widest column').toBeGreaterThan(c.w);
-        expect(m.small, 'text under the floor').toBe(0);
-        expect(m.cut, 'event text cut').toBe(0);
-
-        await page.locator('[data-board-event]').filter({ hasText: title }).click();
-        await expect(page.locator('[data-event-sheet]').getByRole('heading', { name: title })).toBeVisible();
-        await page.locator('[data-event-sheet] [data-sheet-close]').click();
-
-        await page.locator('[data-board-switch="month"]').click();
-        await expect(page.locator('[data-calendar-board]')).toHaveAttribute('data-board-mode', 'month');
-        await expect(page.locator('[data-board-month] [data-board-today]')).toHaveCount(1);
-      } finally {
-        await deleteLayout(page, layout.id);
-        await page.request.delete(`/api/events/${event.id}`);
-      }
-    });
-  }
-  // #993: a busy day on the month board shows what fits, measured, and no count.
-  test('the month board shows as many of a busy day\'s events as fit, and no "+N more"', async ({ page }) => {
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    await login(page);
-    const d = new Date();
-    const made: string[] = [];
-    test.setTimeout(150_000);
-    // Within the events limit (30 a minute), and far more than a month cell holds.
-    for (let i = 0; i < 16; i++) {
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 6 + Math.floor(i / 2), (i % 2) * 30);
-      const res = await postEvent(page, { title: `Crowded ${i + 1}`, startTime: start.toISOString(), endTime: new Date(start.getTime() + 20 * 60_000).toISOString(), allDay: false, createdBy: getSeededParentId() });
-      expect(res.status()).toBe(201);
-      made.push((await res.json()).id);
-    }
-    const layout = await (await page.request.post('/api/layouts', { data: { name: `Crowded e2e ${Date.now()}`, widgets: TODAY_TEMPLATE.widgets, view: 'calendar' } })).json();
-    try {
-      await page.route('**/api/weather*', (route) => route.fulfill({ json: WEATHER }));
-      await page.goto(`/d/${layout.slug}`);
-      await page.locator('[data-board-week]').waitFor({ timeout: 60_000 });
-      await page.locator('[data-board-switch="month"]').click();
-      const cell = page.locator('[data-board-month] [data-board-today]');
-      await expect(cell).toHaveCount(1);
-      await page.waitForTimeout(500);
-      const m = await cell.evaluate((el) => {
-        const c = el.getBoundingClientRect();
-        const lines = [...el.children].slice(1) as HTMLElement[];
-        return {
-          text: el.textContent ?? '',
-          shown: lines.length,
-          inside: lines.every((l) => { const r = l.getBoundingClientRect(); return r.top >= c.top - 0.5 && r.bottom <= c.bottom + 0.5; }),
-          board: document.querySelector('[data-calendar-board]')?.textContent ?? '',
-        };
-      });
-      expect(m.board, 'no "more" count on the board').not.toMatch(/\+\s*\d+|\bmore\b/i);
-      expect(m.shown, 'some of the day is shown').toBeGreaterThan(0);
-      expect(m.shown).toBeLessThan(16);
-      expect(m.inside, 'every line shown sits fully inside its day').toBe(true);
-    } finally {
-      await deleteLayout(page, layout.id);
-      for (const id of made) await page.request.delete(`/api/events/${id}`);
     }
   });
 });

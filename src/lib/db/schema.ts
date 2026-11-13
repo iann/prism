@@ -13,6 +13,7 @@ import {
   date,
   index,
   uniqueIndex,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import type { IdleBackground } from '../idleBackground';
@@ -36,6 +37,8 @@ export const users = pgTable('users', {
   // this many digits. Defaults to 4; new installs' family-wide "PIN length"
   // setting seeds this value when a member is created.
   pinLength: integer('pin_length').default(4).notNull(),
+  /** 'digits' (a PIN) or 'passcode' (lowercase letters and numbers), #1197. */
+  pinKind: varchar('pin_kind', { length: 16 }).default('digits').notNull(),
 
   email: varchar('email', { length: 255 }),
 
@@ -312,6 +315,10 @@ export const tasks = pgTable('tasks', {
 
   // Which list this task belongs to (null = default/inbox)
   listId: uuid('list_id').references(() => taskLists.id, { onDelete: 'cascade' }),
+
+  // The task this one is a subtask of (#1200): a Google Tasks subtask or a
+  // To Do step. Deleting the parent deletes its subtasks, as Google does.
+  parentId: uuid('parent_id').references((): AnyPgColumn => tasks.id, { onDelete: 'cascade' }),
 
   assignedTo: uuid('assigned_to').references(() => users.id, { onDelete: 'set null' }),
 
