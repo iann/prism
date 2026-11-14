@@ -9,7 +9,7 @@ export { DroppableOverlayCell } from './DroppableOverlayCell';
 export { CardHeightProbe } from './CardHeightProbe';
 export { weatherIcon } from './weatherIcon';
 export { useDayDroppable } from './useDayDroppable';
-export { SpanningEventRows, spanningLaneInfo } from './SpanningEventRows';
+export { SpanningEventRows, spanningLaneInfo, getSeamReach } from './SpanningEventRows';
 export { InlineCalendarEvent } from './InlineCalendarEvent';
 export { getMealTime, getChoreTime, getTaskTime, parseTimeOfDay, formatTimeOfDay, MEAL_TIME_DEFAULTS } from './itemTime';
 export { DayEventList, ChipProbe, useChipMetrics } from './DayEventList';

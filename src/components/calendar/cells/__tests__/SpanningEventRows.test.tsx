@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import { cleanup, render } from '@testing-library/react';
-import { SpanningEventRows } from '../SpanningEventRows';
+import { SpanningEventRows, getSeamReach } from '../SpanningEventRows';
 import { InlineCalendarEvent } from '../InlineCalendarEvent';
 import type { CalendarEvent } from '@/types/calendar';
 
@@ -143,16 +143,14 @@ describe('SpanningEventRows', () => {
     // the earlier one reaching forward: a later cell paints on top of an
     // earlier one, so only the later slice's overflow is actually visible.
     expect(buttons[0]!.style.marginLeft).toBe('');
-    // One generous reach, not a per-view sum: the seam differs between views
-    // (8px in the month grid, 12.5px in the two-week view) and overshooting is
-    // invisible, because a slice only reaches back over its own event's slice.
-    expect(buttons[1]!.style.marginLeft).toBe('calc(-1.5rem)');
-    expect(buttons[2]!.style.marginLeft).toBe('calc(-1.5rem)');
-    // 1px grid gap plus a cell's padding on each side, kept in rem so it stays
-    // correct at this app's 14px root rather than assuming 16px.
+    // The continuation slice reaches back across the exact seam (2 * padding + columnGapPx + 2px borders),
+    // meeting the previous day's slice without overshooting into its content box and creating darker overlapping opacity.
+    const expectedReach = getSeamReach('px-1', 4);
+    expect(buttons[1]!.style.marginLeft).toBe(`calc(-1 * (${expectedReach}))`);
+    expect(buttons[2]!.style.marginLeft).toBe(`calc(-1 * (${expectedReach}))`);
     expect(buttons[0]!.style.width).toBe('100%');
-    expect(buttons[1]!.style.width).toBe('calc(100% + 1.5rem)');
-    expect(buttons[2]!.style.width).toBe('calc(100% + 1.5rem)');
+    expect(buttons[1]!.style.width).toBe(`calc(100% + (${expectedReach}))`);
+    expect(buttons[2]!.style.width).toBe(`calc(100% + (${expectedReach}))`);
   });
 
   it('sizes a bar from the same variables a day event uses', () => {
@@ -325,8 +323,9 @@ describe('SpanningEventRows', () => {
     expect(onDay(1).style.marginLeft).toBe('');
     // Continuation days join back over the seam and drop the left border, so
     // the run is one object rather than a line of separate cards.
+    const expectedReach = getSeamReach('px-1', 4);
     for (const index of [2, 3]) {
-      expect(onDay(index).style.marginLeft).toBe('calc(-1.5rem)');
+      expect(onDay(index).style.marginLeft).toBe(`calc(-1 * (${expectedReach}))`);
       expect(onDay(index).className).toContain('border-l-0');
     }
     // Outlined in the event's own colour rather than the generic border.
@@ -569,6 +568,57 @@ describe('SpanningEventRows', () => {
 
     const startLabel = container.querySelector('.spanning-event-title-extended');
     expect(startLabel).not.toBeNull();
+  });
+
+  it('does not overshoot adjacent day slices, preventing additive transparency darkening on multi-day events', () => {
+    const pastMultiDayEvent: CalendarEvent = {
+      ...event,
+      id: 'past-trip',
+      startTime: new Date('2026-08-01T00:00:00.000Z'),
+      endTime: new Date('2026-08-04T00:00:00.000Z'),
+    };
+    const rowDates = [
+      new Date('2026-08-01T12:00:00.000Z'),
+      new Date('2026-08-02T12:00:00.000Z'),
+      new Date('2026-08-03T12:00:00.000Z'),
+    ];
+
+    const { container } = render(
+      <div>
+        {rowDates.map((date) => (
+          <SpanningEventRows
+            key={date.toISOString()}
+            date={date}
+            rowDates={rowDates}
+            events={[pastMultiDayEvent]}
+            onEventClick={() => {}}
+            padX="px-1.5"
+            columnGapPx={4}
+          />
+        ))}
+      </div>
+    );
+
+    const buttons = container.querySelectorAll('button');
+    expect(buttons).toHaveLength(3);
+
+    // All slices of the past event carry semi-transparency (opacity-55)
+    buttons.forEach((btn) => {
+      expect(btn.className).toContain('opacity-55');
+    });
+
+    // Start slice does not reach back
+    expect(buttons[0]!.style.marginLeft).toBe('');
+    expect(buttons[0]!.style.width).toBe('100%');
+
+    // Continuation slices reach back across the exact seam (0.375rem + 0.375rem + 6px)
+    // rather than an oversized 1.5rem (which caused additive opacity darkening)
+    const exactReach = getSeamReach('px-1.5', 4);
+    expect(exactReach).toBe('0.375rem + 0.375rem + 6px');
+    expect(buttons[1]!.style.marginLeft).toBe(`calc(-1 * (${exactReach}))`);
+    expect(buttons[1]!.style.width).toBe(`calc(100% + (${exactReach}))`);
+    expect(buttons[2]!.style.marginLeft).toBe(`calc(-1 * (${exactReach}))`);
+    expect(buttons[2]!.style.width).toBe(`calc(100% + (${exactReach}))`);
   });
 });
 
