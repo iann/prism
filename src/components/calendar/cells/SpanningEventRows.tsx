@@ -17,30 +17,31 @@ import {
 import { STRIPE_SHAPE } from './WeekItemCard';
 
 /**
- * How far a continuation slice reaches back over the seam between two cells.
+ * Distance a continuation slice reaches back across the seam between two day cells.
  *
- * The seam is this cell's left padding, plus the gap between cells, plus the
- * previous cell's right padding — and it differs per view. Measured: 8px in the
- * month grid, 12.5px in the two-week view, whose cells carry a 1px border its
- * `gap-1` class does not account for. A per-view constant would have to be
- * re-derived every time a caller's chrome changed, and would fail silently as a
- * hairline when it drifted.
+ * The seam consists of:
+ * 1. The previous cell's right padding (matching padX: px-1 = 0.25rem, px-1.5 = 0.375rem).
+ * 2. The previous cell's right border (1px).
+ * 3. The grid gap between day cells (columnGapPx).
+ * 4. This cell's left border (1px).
+ * 5. This cell's left padding (matching padX).
  *
- * One generous value works instead, because **overshooting cannot show**. A
- * slice only reaches back when the same event holds the same lane on the
- * previous day, so the overshoot lands on that event's own slice: same colour,
- * same height, and square-edged, since a slice that continues is not capped on
- * that side. Undershooting leaves a visible gap; overshooting leaves nothing.
- *
- * Sized with real headroom, not to the measured seam. 1rem was set from a
- * 12.5px measurement and then fell 2px short the moment the band's padding
- * changed, because the seam grows with the caller's padding and borders. The
- * only cost of reaching further is more overlap onto the same event's own
- * slice, which shows nothing; the cost of reaching too little is a hairline
- * that lets whatever is underneath through. Measured seams so far: 8px in the
- * month grid, 16px in the two-week view.
+ * Reaching back by the exact seam width connects adjacent slices seamlessly without
+ * overlapping into the previous slice's content box. When slices were given an oversized
+ * reach (e.g. 1.5rem = 24px), they overshot the 11–18px seam and overlapped the previous
+ * day's slice by 6–13px. For semi-transparent slices (e.g. past events with opacity-55,
+ * wallpaper glass mode with --ds-event-ground: transparent, or dimmed past days),
+ * the two transparencies were additive in the overlap strip, causing a visibly darker
+ * vertical band at each day boundary.
  */
-const SEAM_REACH = '1.5rem';
+export function getSeamReach(padX: string = 'px-1', columnGapPx: number = 4): string {
+  const padLength = padX === 'px-1.5'
+    ? '0.375rem'
+    : padX === 'px-0.5'
+      ? '0.125rem'
+      : '0.25rem';
+  return `${padLength} + ${padLength} + ${columnGapPx + 2}px`;
+}
 
 export type SpanningEventRowsProps = {
   date: Date;
@@ -249,6 +250,7 @@ export function SpanningEventRows({
     : cards
       ? 'flex items-stretch gap-2 pr-1 text-xs'
       : 'px-(--event-padding-x,0.25rem) py-(--event-padding-y,0.125rem) text-(length:--event-font-size,0.75rem) font-(--event-font-weight)';
+  const seamReach = getSeamReach(padX, columnGapPx);
 
   return (
     <div
@@ -376,8 +378,8 @@ export function SpanningEventRows({
                     ...(continuesWithinRow ? { borderRightWidth: 0 } : {}),
                   }
                 : {}),
-              marginLeft: reachesBack ? `calc(-1 * ${SEAM_REACH})` : undefined,
-              width: reachesBack ? `calc(100% + ${SEAM_REACH})` : '100%',
+              marginLeft: reachesBack ? `calc(-1 * (${seamReach}))` : undefined,
+              width: reachesBack ? `calc(100% + (${seamReach}))` : '100%',
             } : undefined}
           >
             {cards && (
