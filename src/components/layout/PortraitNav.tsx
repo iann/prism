@@ -88,7 +88,7 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
           onClick={user ? onLogout : onLogin}
           className={cn(
             'wall-portrait-nav-item wall-portrait-nav-item-user',
-            'border-border/40 ml-auto shrink-0 border-l pl-2 sm:pl-3',
+            'border-border ml-auto shrink-0 border-l pl-2 sm:pl-3',
             'flex max-w-[7.5rem] min-w-[78px] flex-col items-center gap-1 px-2 py-2 transition-colors',
             'text-muted-foreground hover:text-foreground'
           )}
