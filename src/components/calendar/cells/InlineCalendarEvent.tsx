@@ -6,7 +6,16 @@ import { eventTintStyle } from '@/lib/design/eventStyle';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/calendar';
 import { useTimeFormat } from '@/components/providers';
-import { formatDisplayTime, isCalendarEventPast } from '@/lib/utils/timeFormat';
+import { formatCompactTime, isCalendarEventPast } from '@/lib/utils/timeFormat';
+
+function getMemberInitial(name?: string): string | null {
+  if (!name) return null;
+  const trimmed = name.trim();
+  if (/^(family|holidays|us holidays|patriots|e&i|ideas|bills|work|workout)/i.test(trimmed)) {
+    return null;
+  }
+  return trimmed.charAt(0).toUpperCase();
+}
 
 export type InlineCalendarEventProps = {
   event: CalendarEvent;
@@ -45,8 +54,9 @@ export function InlineCalendarEvent({
   );
   const time =
     showTime && !event.allDay
-      ? formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)
+      ? formatCompactTime(event.startTime, timeFormat, displayTimezone)
       : null;
+  const memberInitial = getMemberInitial(event.calendarName);
 
   return (
     <button
@@ -62,7 +72,7 @@ export function InlineCalendarEvent({
         'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-seasonal-accent',
         'leading-tight',
         compact ? 'px-0.5 py-px text-4xs' : 'px-(--event-padding-x,0.25rem) py-(--event-padding-y,0.125rem) text-event',
-        event.allDay ? 'block hover:brightness-95' : 'flex items-center gap-1 hover:bg-accent/60',
+        event.allDay ? 'flex items-center hover:brightness-95' : 'flex items-center gap-1.5 hover:bg-accent/60',
         past && 'opacity-55 saturate-[0.65]',
         className
       )}
@@ -76,13 +86,24 @@ export function InlineCalendarEvent({
         event.title
       ) : (
         <>
-          <span
-            aria-hidden
-            className={cn('shrink-0 rounded-full', compact ? 'h-1 w-1' : 'h-1.5 w-1.5')}
-            style={{ background: eventDotBackground(event) }}
-            data-event-mark
-          />
-          {time && <span className="shrink-0 tabular-nums text-muted-foreground">{time}</span>}
+          {memberInitial && !compact ? (
+            <span
+              aria-hidden
+              className="shrink-0 w-3.5 h-3.5 rounded-full text-white text-[9px] font-bold flex items-center justify-center leading-none"
+              style={{ backgroundColor: event.color }}
+              data-event-mark
+            >
+              {memberInitial}
+            </span>
+          ) : (
+            <span
+              aria-hidden
+              className={cn('shrink-0 rounded-full', compact ? 'h-1 w-1' : 'h-1.5 w-1.5')}
+              style={{ background: eventDotBackground(event) }}
+              data-event-mark
+            />
+          )}
+          {time && <span className="shrink-0 tabular-nums text-muted-foreground font-medium">{time}</span>}
           <SlidingTitle className="text-foreground">{event.title}</SlidingTitle>
         </>
       )}

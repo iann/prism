@@ -376,10 +376,12 @@ html.performance-mode {
 
 .spanning-event-title-extended::after {
   content: attr(data-label);
-  display: block;
+  display: flex;
+  align-items: center;
   position: absolute;
   inset-inline-start: 0;
-  top: var(--spanning-title-top, 0);
+  top: 50%;
+  transform: translateY(-50%);
   width: var(--spanning-title-width);
   overflow: hidden;
   text-overflow: ellipsis;

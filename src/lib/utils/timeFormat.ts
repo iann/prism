@@ -372,6 +372,21 @@ export function formatBareTime(
 }
 
 /**
+ * Compact time for calendar event chips: e.g. "10a", "4:25p", "12p".
+ * Saves ~30px horizontal space over "10:00 AM", preventing title truncation.
+ */
+export function formatCompactTime(
+  date: Date | number,
+  timeFormat: TimeFormat,
+  timeZone?: string,
+): string {
+  const { hour, minute } = wallClockTime(date, timeZone);
+  if (timeFormat === '24h') return `${pad2(hour)}:${pad2(minute)}`;
+  const digits = minute === 0 ? `${hour12(hour)}` : `${hour12(hour)}:${pad2(minute)}`;
+  return `${digits}${hour < 12 ? 'a' : 'p'}`;
+}
+
+/**
  * A date and time, e.g. "Sep 28, 2026, 8:30 PM", in `timeZone` and the
  * household's 12/24-hour format. For timestamps the server recorded (a sync,
  * a backup, a message), which toLocaleString would show in the device zone.

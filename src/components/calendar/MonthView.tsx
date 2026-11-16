@@ -281,6 +281,7 @@ function MonthDayCell({
         onEventClick={onEventClick}
         cards={cards}
         columnGapPx={4}
+        padX="px-1.5"
       />
 
       {cards ? (
@@ -299,7 +300,7 @@ function MonthDayCell({
           events={dayEvents}
           chip={chip}
           onEventClick={onEventClick}
-          className="px-1 pb-1"
+          className="px-1.5 pb-1.5"
         />
       )}
     </div>

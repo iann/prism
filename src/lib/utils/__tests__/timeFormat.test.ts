@@ -3,6 +3,7 @@ import {
   eventStartsOnDisplayDay,
   eventSpansMultipleDisplayDays,
   formatBareTime,
+  formatCompactTime,
   formatDisplayDateTime,
   formatDisplayHour,
   formatDisplayTime,
@@ -254,5 +255,23 @@ describe('formatBareTime', () => {
   it('leaves the 24-hour format as it is', () => {
     expect(formatBareTime(at(17), '24h')).toBe('17:00');
     expect(formatBareTime(at(9, 5), '24h')).toBe('09:05');
+  });
+});
+
+describe('formatCompactTime', () => {
+  const at = (h: number, m = 0) => new Date(2026, 0, 15, h, m);
+
+  it('formats compact 12-hour times with a/p suffix and drops :00 on the hour', () => {
+    expect(formatCompactTime(at(9), '12h')).toBe('9a');
+    expect(formatCompactTime(at(10), '12h')).toBe('10a');
+    expect(formatCompactTime(at(12), '12h')).toBe('12p');
+    expect(formatCompactTime(at(15), '12h')).toBe('3p');
+    expect(formatCompactTime(at(16, 25), '12h')).toBe('4:25p');
+    expect(formatCompactTime(at(0), '12h')).toBe('12a');
+  });
+
+  it('formats 24-hour times with standard HH:mm', () => {
+    expect(formatCompactTime(at(9), '24h')).toBe('09:00');
+    expect(formatCompactTime(at(16, 25), '24h')).toBe('16:25');
   });
 });
