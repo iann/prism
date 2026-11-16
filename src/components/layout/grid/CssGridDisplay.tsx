@@ -4,7 +4,10 @@ import * as React from 'react';
 import { memo, startTransition, useEffect, useMemo, useRef, useState, ViewTransition } from 'react';
 import { tileAlign, type AlignSetting } from '@/lib/layout/tileAlign';
 import { SCHEDULE_TRANSITION } from '@/lib/displays/screenSchedule';
-import { WidgetBgOverrideProvider, WidgetEmptyReportContext } from '@/components/widgets/WidgetContainer';
+import {
+  WidgetBgOverrideProvider,
+  WidgetEmptyReportContext,
+} from '@/components/widgets/WidgetContainer';
 import {
   CUSTOM_WIDGET_SHELL_CLASS,
   getEffectiveWidgetTextColor,
@@ -235,7 +238,13 @@ const WidgetCell = memo(function WidgetCell({
       data-corner={corner}
       data-align-x={alignX}
       data-align-y={alignY}
-      data-fill={widget.backgroundColor === 'glass' ? 'glass' : widget.backgroundColor === 'transparent' ? 'none' : undefined}
+      data-fill={
+        widget.backgroundColor === 'glass'
+          ? 'glass'
+          : widget.backgroundColor === 'transparent'
+            ? 'none'
+            : undefined
+      }
       data-faded={faded || undefined}
       data-hidden-empty={emptyHidden || undefined}
       aria-hidden={gone || undefined}
@@ -270,8 +279,20 @@ const WidgetCell = memo(function WidgetCell({
     </div>
   );
   return morph ? (
-    <ViewTransition key={widget.i} name={morphName(widget.i)} default="none" update={MORPH} share={MORPH} enter={FADE_IN} exit={FADE_OUT}>{cell}</ViewTransition>
-  ) : cell;
+    <ViewTransition
+      key={widget.i}
+      name={morphName(widget.i)}
+      default="none"
+      update={MORPH}
+      share={MORPH}
+      enter={FADE_IN}
+      exit={FADE_OUT}
+    >
+      {cell}
+    </ViewTransition>
+  ) : (
+    cell
+  );
 });
 
 /**
@@ -305,7 +326,14 @@ export function CssGridDisplay({
   staged = false,
   smallScreenDrop = false,
 }: CssGridDisplayProps) {
-  const { containerRef, cellSize: widthCellSize, width, top, zoom, remeasure } = useSquareCells(cols, containerPadding, margin, fillHeight);
+  const {
+    containerRef,
+    cellSize: widthCellSize,
+    width,
+    top,
+    zoom,
+    remeasure,
+  } = useSquareCells(cols, containerPadding, margin, fillHeight);
   const { width: viewportWidth, height: viewportHeight, visibleHeight } = useViewportSize();
 
   useEffect(() => {
@@ -315,8 +343,8 @@ export function CssGridDisplay({
   // On a small screen, "Hide first" widgets drop out and the rest close up (#803).
   const small = smallScreenDrop && isSmallScreen(viewportWidth, viewportHeight);
   const visibleWidgets = useMemo(
-    () => (small ? layoutForSmallScreen(layout) : layout).filter(w => w.visible !== false),
-    [layout, small],
+    () => (small ? layoutForSmallScreen(layout) : layout).filter((w) => w.visible !== false),
+    [layout, small]
   );
 
   const { emptyIds, reporterFor } = useEmptyWidgets(onEmptyChange);
@@ -347,7 +375,8 @@ export function CssGridDisplay({
   // become an awkward gap. Top/left margins the design left ARE preserved
   // (anchored at origin) and scale proportionally.
   const { fitCols, fitRows } = useMemo(() => {
-    let maxCol = 1, maxRow = 1;
+    let maxCol = 1,
+      maxRow = 1;
     for (const w of visibleWidgets) {
       if (w.x + w.w > maxCol) maxCol = w.x + w.w;
       if (w.y + w.h > maxRow) maxRow = w.y + w.h;
@@ -361,7 +390,13 @@ export function CssGridDisplay({
 
   const screenWide = viewportWidth >= viewportHeight;
   const mode = resolveFitMode({
-    fitCols, fitRows, targetRows, designOrientation, screenWide, containMode, fillHeight,
+    fitCols,
+    fitRows,
+    targetRows,
+    designOrientation,
+    screenWide,
+    containMode,
+    fillHeight,
   });
   const stretch = mode === 'stretch';
   const contain = mode === 'contain';
@@ -411,7 +446,14 @@ export function CssGridDisplay({
         gridHeight: fitRows * widthCellSize + (fitRows - 1) * margin + 2 * containerPadding,
       };
     }
-    return containGeometry({ width, height: availH, cols: fitCols, rows: fitRows, margin, padding: containerPadding });
+    return containGeometry({
+      width,
+      height: availH,
+      cols: fitCols,
+      rows: fitRows,
+      margin,
+      padding: containerPadding,
+    });
   }, [contain, width, availH, widthCellSize, fitCols, fitRows, containerPadding, margin]);
 
   // Legacy (no targetRows): fill width, adapt row count to the viewport.
@@ -489,22 +531,43 @@ export function CssGridDisplay({
       style={{
         height: containerHeight,
         ...(centerContain
-          ? { display: 'flex', alignItems: 'center', justifyContent: 'center' }
+          ? screenWide
+            ? { display: 'flex', alignItems: 'center', justifyContent: 'center' }
+            : {
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                paddingTop: `${containerPadding}px`,
+              }
           : {}),
       }}
     >
       {morph && (
-        <style>{visibleWidgets.slice(0, STAGGER_STEPS).map((w, i) =>
-          `::view-transition-group(${morphName(w.i)}){animation-delay:${i * STAGGER_MS}ms}`,
-        ).join('') + '@media (prefers-reduced-motion:reduce){::view-transition-group(*){animation-delay:0s}}'}</style>
+        <style>
+          {visibleWidgets
+            .slice(0, STAGGER_STEPS)
+            .map(
+              (w, i) =>
+                `::view-transition-group(${morphName(w.i)}){animation-delay:${i * STAGGER_MS}ms}`
+            )
+            .join('') +
+            '@media (prefers-reduced-motion:reduce){::view-transition-group(*){animation-delay:0s}}'}
+        </style>
       )}
       <div style={gridStyle}>
         {visibleWidgets.map((widget) => {
           // The clock and weather line up by where the tile sits (#988): in a
           // screen corner they hug it, elsewhere they centre; Align overrides.
-          const align = widget.i === 'clock' || widget.i === 'weather'
-            ? tileAlign(widget, cols, fitRows, (widget.settings?.align as AlignSetting | undefined) ?? null)
-            : undefined;
+          const align =
+            widget.i === 'clock' || widget.i === 'weather'
+              ? tileAlign(
+                  widget,
+                  cols,
+                  fitRows,
+                  (widget.settings?.align as AlignSetting | undefined) ?? null
+                )
+              : undefined;
           const corner = align && align.x !== 'center' ? align.x : undefined;
           return (
             <WidgetCell

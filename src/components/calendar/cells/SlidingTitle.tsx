@@ -47,7 +47,7 @@ export function SlidingTitle({ children, className }: { children: React.ReactNod
   return (
     <span
       ref={outer}
-      className={cn('block min-w-0 overflow-hidden whitespace-nowrap', sliding ? 'text-clip' : 'text-ellipsis', className)}
+      className={cn('block min-w-0 overflow-hidden whitespace-nowrap pr-1.5', sliding ? 'text-clip' : 'text-ellipsis', className)}
       data-sliding-title={distance >= 2 ? (sliding ? 'sliding' : 'waiting') : undefined}
     >
       {/* Inline at rest so the ellipsis shows; a box while it moves. */}

@@ -190,14 +190,14 @@ export function AppShell({
           !isLCARS && portraitNavShown && 'pb-(--nav-bottom)',
           className
         )}
-        // Height of the fixed bottom nav (PortraitNav: h-20, a 1px top border and
+        // Height of the fixed bottom nav (PortraitNav: 5.5rem = 88px and
         // the safe area). Full-height pages size themselves with `h-page`, which
         // subtracts it, so nothing sits under the nav.
         style={
           portraitNavShown
             ? ({
                 ...lcarsMainStyle,
-                '--nav-bottom': 'calc(5rem + 1px + env(safe-area-inset-bottom, 0px))',
+                '--nav-bottom': 'calc(5.5rem + env(safe-area-inset-bottom, 0px))',
               } as React.CSSProperties)
             : lcarsMainStyle
         }

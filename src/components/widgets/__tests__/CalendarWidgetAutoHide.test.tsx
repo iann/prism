@@ -79,6 +79,12 @@ jest.mock('@/components/calendar/AgendaView', () => ({
   AgendaView: () => <div data-testid="agenda-view" />,
 }));
 
+jest.mock('@/components/calendar/MonthView', () => ({
+  MonthView: ({ showMonthHeader }: { showMonthHeader?: boolean }) => (
+    <div data-testid="month-view" data-show-month-header={String(showMonthHeader)} />
+  ),
+}));
+
 import { useCalendarEvents, useCalendarFilter, useCalendarNotes } from '@/lib/hooks';
 import { useCalendarWidgetPrefs } from '@/lib/hooks/useCalendarWidgetPrefs';
 import { useDayBucketsForRange } from '@/lib/hooks/useDayBucketsForRange';
@@ -175,6 +181,36 @@ describe('CalendarWidget idle chrome', () => {
     expect(screen.queryByTestId('calendar-controls')).toBeNull();
     expect(screen.queryByRole('button', { name: 'All' })).toBeNull();
     expect(screen.queryByTestId('agenda-view')).not.toBeNull();
+  });
+
+  it('passes showMonthHeader=true to MonthView when UI is visible', async () => {
+    mockUseAutoHideUI.mockReturnValue({ uiHidden: false });
+    jest.mocked(useCalendarWidgetPrefs).mockReturnValue({
+      ...calendarPrefs,
+      viewType: 'month',
+      effectiveView: 'month',
+      resolvedView: 'month',
+    });
+
+    await renderCalendarWidget();
+
+    const monthView = screen.getByTestId('month-view');
+    expect(monthView.getAttribute('data-show-month-header')).toBe('true');
+  });
+
+  it('passes showMonthHeader=false to MonthView when UI is idle (drops month banner when nav hidden)', async () => {
+    mockUseAutoHideUI.mockReturnValue({ uiHidden: true });
+    jest.mocked(useCalendarWidgetPrefs).mockReturnValue({
+      ...calendarPrefs,
+      viewType: 'month',
+      effectiveView: 'month',
+      resolvedView: 'month',
+    });
+
+    await renderCalendarWidget();
+
+    const monthView = screen.getByTestId('month-view');
+    expect(monthView.getAttribute('data-show-month-header')).toBe('false');
   });
 });
 

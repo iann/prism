@@ -17,6 +17,17 @@ describe('mergeSharedEvents (#1066)', () => {
     expect(mergeSharedEvents([ev('a', 'c1', '#f00', 'Parent night'), ev('b', 'c2', '#00f', ' parent NIGHT ')])).toHaveLength(1);
   });
 
+  it('merges overlapping events with platform boilerplate or prefix matching', () => {
+    const out = mergeSharedEvents([
+      ev('a', 'c1', '#f59e0b', 'Gretchen'),
+      ev('b', 'c2', '#3b82f6', "Gretchen Glass' Zoom Meeting")
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.title).toBe('Gretchen Glass');
+    expect(out[0]!.alsoIds).toEqual(['b']);
+    expect(out[0]!.alsoColors).toEqual(['#3b82f6']);
+  });
+
   it('leaves copies on one calendar, different times and different titles alone', () => {
     expect(mergeSharedEvents([ev('a', 'c1', '#f00'), ev('b', 'c1', '#f00')])).toHaveLength(2);
     expect(mergeSharedEvents([ev('a', 'c1', '#f00'), ev('b', 'c2', '#00f', 'Parent night', '2026-11-12T19:00:00Z')])).toHaveLength(2);

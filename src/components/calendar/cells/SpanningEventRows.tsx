@@ -249,7 +249,7 @@ export function SpanningEventRows({
     ? 'flex h-5 items-center px-1 text-xs'
     : cards
       ? 'flex items-stretch gap-2 pr-1 text-xs'
-      : 'px-(--event-padding-x,0.25rem) py-(--event-padding-y,0.125rem) text-(length:--event-font-size,0.75rem) font-(--event-font-weight)';
+      : 'flex items-center px-(--event-padding-x,0.25rem) py-(--event-padding-y,0.125rem) text-(length:--event-font-size,0.75rem) font-(--event-font-weight)';
   const seamReach = getSeamReach(padX, columnGapPx);
 
   return (
@@ -404,7 +404,7 @@ export function SpanningEventRows({
             <span
               data-label={extendsLabel ? label : undefined}
               className={cn(
-                cards && 'min-w-0 flex-1 truncate py-0.5',
+                cards ? 'min-w-0 flex-1 truncate py-0.5' : 'min-w-0 flex-1 truncate pr-1',
                 cards && titleClass,
                 extendsLabel && 'spanning-event-title-extended',
                 extendsLabel && !cards && 'block w-full',
