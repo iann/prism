@@ -10,7 +10,8 @@ import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { useTranslations } from 'next-intl';
 import { useTimeFormat } from '@/components/providers';
 import { useDateLabels, type DateLabels } from '@/lib/hooks/useDateLabels';
-import { formatDisplayTime, getDisplayDateKey, toDisplayDate, type TimeFormat } from '@/lib/utils/timeFormat';
+import { formatCompactTime, getDisplayDateKey, toDisplayDate, type TimeFormat } from '@/lib/utils/timeFormat';
+import { cleanEventTitle } from '@/lib/calendar/sharedEvents';
 
 const PRIORITY_COLORS = {
   high: '#ef4444',
@@ -63,9 +64,7 @@ function timeLabel(
   t: (key: string) => string,
 ): string | undefined {
   if (allDay) return t('allDay');
-  const startStr = formatDisplayTime(start, timeFormat, {}, displayTimezone);
-  if (!isSameDay(toDisplayDate(start, displayTimezone), toDisplayDate(end, displayTimezone))) return startStr;
-  return startStr;
+  return formatCompactTime(start, timeFormat, displayTimezone);
 }
 
 export function choreStripeColor(
@@ -230,7 +229,7 @@ export function DayColumn({
             size={profile.itemSize}
             layout={itemLayout}
             stripeColor={event.color}
-            title={event.title}
+            title={cleanEventTitle(event.title)}
             timeLabel={t('allDay')}
             subtitle={event.calendarName}
           />
@@ -244,7 +243,7 @@ export function DayColumn({
             size={profile.itemSize}
             layout={itemLayout}
             stripeColor={event.color}
-            title={event.title}
+            title={cleanEventTitle(event.title)}
             timeLabel={timeLabel(event.startTime, event.endTime, false, timeFormat, displayTimezone, t)}
             subtitle={event.location || event.calendarName}
           />

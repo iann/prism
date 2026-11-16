@@ -25,7 +25,14 @@ import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { CardHeightProbe, ChipProbe, DayEventList, DayOverflowPopover, DroppableOverlayCell, SpanningEventRows, useChipMetrics, useDayDroppable, type ChipMetrics, type OverlayItemRef } from './cells';
 import { splitDay, useDayPageTick, useDayPagingEnabled } from '@/lib/hooks/useDayPaging';
 import { useTimeFormat } from '@/components/providers';
-import { eventOccursOnDisplayDay, eventSpansMultipleDisplayDays, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
+import {
+  eventOccursOnDisplayDay,
+  eventSpansMultipleDisplayDays,
+  formatCompactTime,
+  isCalendarEventPast,
+  toDisplayDate,
+} from '@/lib/utils/timeFormat';
+import { cleanEventTitle } from '@/lib/calendar/sharedEvents';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
 
@@ -58,7 +65,7 @@ export function MonthView({
   onItemClick,
   showMonthHeader = true,
 }: MonthViewProps) {
-  const { displayTimezone } = useTimeFormat();
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const d = useDateLabels();
   const displayNow = toDisplayDate(new Date(), displayTimezone);
   const cards = displayMode === 'cards';
@@ -235,7 +242,7 @@ function MonthDayCell({
   onEventClick: (event: CalendarEvent) => void;
   onItemClick?: (ref: OverlayItemRef) => void;
 }) {
-  const { displayTimezone } = useTimeFormat();
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const today = isSameDay(date, toDisplayDate(new Date(), displayTimezone));
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
 
@@ -330,7 +337,7 @@ function DayCardsCell({
   onEventClick: (event: CalendarEvent) => void;
   onItemClick?: (ref: OverlayItemRef) => void;
 }) {
-  const { displayTimezone } = useTimeFormat();
+  const { timeFormat, displayTimezone } = useTimeFormat();
   const overlayItemCount = bucket ? bucket.meals.length + bucket.chores.length + bucket.tasks.length : 0;
   // Reserve ~22px for the popover trigger; each overlay row is ~24px (sm card)
   // plus the cell's 4px gap-1 separator. 20px under-reserved enough that event
@@ -359,29 +366,40 @@ function DayCardsCell({
       ref={cellRef}
       className="flex-1 min-h-0 flex flex-col gap-0.5 px-1 pb-1"
     >
-      {visible.map((event) => (
-        <button
-          // Keyed by page too, so a turned page fades in rather than swapping.
-          key={page ? `${event.id}:${page.index}` : event.id}
-          onClick={(e) => {
-            e.stopPropagation();
-            onEventClick(event);
-          }}
-          className={cn(
-            'wall-month-event-card flex w-full items-center text-left border-border bg-calendar-surface text-2xs px-2 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight',
-            isCalendarEventPast(
-              event.startTime,
-              event.endTime,
-              event.allDay,
-              new Date(),
-              displayTimezone,
-            ) && 'opacity-55 saturate-[0.65]',
-          )}
-          style={{ borderLeft: `3px solid ${event.color}`, '--wall-event-color': event.color } as React.CSSProperties}
-        >
-          <span className="font-medium text-foreground">{event.title}</span>
-        </button>
-      ))}
+      {visible.map((event) => {
+        const compactTime = !event.allDay
+          ? formatCompactTime(event.startTime, timeFormat, displayTimezone)
+          : null;
+        const cleanTitle = cleanEventTitle(event.title);
+        return (
+          <button
+            // Keyed by page too, so a turned page fades in rather than swapping.
+            key={page ? `${event.id}:${page.index}` : event.id}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEventClick(event);
+            }}
+            className={cn(
+              'wall-month-event-card flex w-full items-center text-left border-border bg-calendar-surface text-2xs px-1.5 py-0.5 rounded border shadow-sm truncate hover:bg-accent transition-colors leading-tight gap-1',
+              isCalendarEventPast(
+                event.startTime,
+                event.endTime,
+                event.allDay,
+                new Date(),
+                displayTimezone,
+              ) && 'opacity-55 saturate-[0.65]',
+            )}
+            style={{ borderLeft: `3px solid ${event.color}`, '--wall-event-color': event.color } as React.CSSProperties}
+          >
+            {compactTime && (
+              <span className="shrink-0 font-medium tabular-nums text-muted-foreground">
+                {compactTime}
+              </span>
+            )}
+            <span className="font-medium text-foreground truncate min-w-0 flex-1">{cleanTitle}</span>
+          </button>
+        );
+      })}
       {hidden.length > 0 && (
         <div onClick={(e) => e.stopPropagation()}>
           <DayOverflowPopover date={date} hiddenEvents={hidden} onEventClick={onEventClick} page={page} />

@@ -259,7 +259,7 @@ export function WeekItemCard({
       )}
       <span aria-hidden className={cn(STRIPE_SHAPE, styles.stripeWidth)} style={{ backgroundColor: stripeColor }} />
 
-      <div className={cn('flex min-w-0 flex-1 flex-col', styles.padding)}>
+      <div className={cn('flex min-w-0 flex-1 flex-col justify-center', styles.padding)}>
         {styles.showTime && timeLabel && (
           <span className={cn('truncate font-medium text-muted-foreground', styles.metaText)}>
             {timeLabel}

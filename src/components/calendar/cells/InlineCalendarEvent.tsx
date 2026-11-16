@@ -1,6 +1,6 @@
 'use client';
 
-import { eventDotBackground } from '@/lib/calendar/sharedEvents';
+import { cleanEventTitle, eventDotBackground } from '@/lib/calendar/sharedEvents';
 import { SlidingTitle } from '@/components/calendar/cells/SlidingTitle';
 import { eventTintStyle } from '@/lib/design/eventStyle';
 import { cn } from '@/lib/utils';
@@ -73,7 +73,7 @@ export function InlineCalendarEvent({
       }
     >
       {event.allDay ? (
-        event.title
+        cleanEventTitle(event.title)
       ) : (
         <>
           <span
@@ -83,7 +83,7 @@ export function InlineCalendarEvent({
             data-event-mark
           />
           {time && <span className="shrink-0 tabular-nums text-muted-foreground font-medium">{time}</span>}
-          <SlidingTitle className="text-foreground">{event.title}</SlidingTitle>
+          <SlidingTitle className="text-foreground">{cleanEventTitle(event.title)}</SlidingTitle>
         </>
       )}
     </button>
