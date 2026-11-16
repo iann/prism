@@ -11,9 +11,10 @@ import {
   eventOccursOnDisplayDay,
   eventSpansMultipleDisplayDays,
   eventStartsOnDisplayDay,
-  formatDisplayTime,
+  formatCompactTime,
   isCalendarEventPast,
 } from '@/lib/utils/timeFormat';
+import { cleanEventTitle } from '@/lib/calendar/sharedEvents';
 import { STRIPE_SHAPE } from './WeekItemCard';
 
 /**
@@ -245,10 +246,12 @@ export function SpanningEventRows({
   // These are the metrics its neighbours use, read from the same custom
   // properties, so a bar and a chip are the same height with their text
   // starting at the same offset under any theme.
-  const barMetrics = compact
-    ? 'flex h-5 items-center px-1 text-xs'
-    : cards
-      ? 'flex items-stretch gap-2 pr-1 text-xs'
+  const barMetrics = cards
+    ? compact
+      ? 'flex h-5 items-center gap-1.5 pr-1.5 text-xs'
+      : 'flex h-6 items-center gap-2 pr-2 text-xs'
+    : compact
+      ? 'flex h-5 items-center px-1.5 text-xs'
       : 'flex items-center px-(--event-padding-x,0.25rem) py-(--event-padding-y,0.125rem) text-(length:--event-font-size,0.75rem) font-(--event-font-weight)';
   const seamReach = getSeamReach(padX, columnGapPx);
 
@@ -303,11 +306,15 @@ export function SpanningEventRows({
         const startsToday = filled && eventStartsOnDisplayDay(
           laneEvent.startTime, laneEvent.allDay, date, displayTimezone,
         );
+        const cleanTitle = filled ? cleanEventTitle(laneEvent.title) : '';
+        const compactTime = filled && !laneEvent.allDay && startsToday
+          ? formatCompactTime(laneEvent.startTime, timeFormat, displayTimezone)
+          : null;
         const label = !filled
           ? ''
-          : !laneEvent.allDay && startsToday
-            ? `${formatDisplayTime(laneEvent.startTime, timeFormat, {}, displayTimezone)} ${laneEvent.title}`
-            : laneEvent.title;
+          : compactTime
+            ? `${compactTime} ${cleanTitle}`
+            : cleanTitle;
         // The title prints where a run starts and again after a week wrap, not
         // on every day it covers.
         const showsLabel = filled && (!continuesFromPrevious || column === 0);
@@ -344,7 +351,7 @@ export function SpanningEventRows({
                 }
               : { 'aria-hidden': true })}
             className={cn(
-              'relative block w-full text-left font-medium leading-tight',
+              'relative flex items-center w-full text-left font-medium leading-tight',
               'focus-visible:z-40',
               extendsLabel ? 'overflow-visible whitespace-nowrap' : 'truncate',
               cards ? 'hover:bg-card transition-colors' : 'hover:brightness-95',
@@ -404,7 +411,7 @@ export function SpanningEventRows({
             <span
               data-label={extendsLabel ? label : undefined}
               className={cn(
-                cards ? 'min-w-0 flex-1 truncate py-0.5' : 'min-w-0 flex-1 truncate pr-1',
+                'min-w-0 flex-1 truncate flex items-center leading-none',
                 cards && titleClass,
                 extendsLabel && 'spanning-event-title-extended',
                 extendsLabel && !cards && 'block w-full',

@@ -6,7 +6,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/calendar';
 import { useTimeFormat } from '@/components/providers';
-import { formatDisplayTime, isCalendarEventPast } from '@/lib/utils/timeFormat';
+import { formatCompactTime, isCalendarEventPast } from '@/lib/utils/timeFormat';
+import { cleanEventTitle } from '@/lib/calendar/sharedEvents';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
 
 interface DayOverflowPopoverProps {
@@ -105,11 +106,11 @@ export function DayOverflowPopover({
               >
                 {!event.allDay && (
                   <span className="text-2xs text-muted-foreground tabular-nums shrink-0">
-                    {formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)}
+                    {formatCompactTime(event.startTime, timeFormat, displayTimezone)}
                   </span>
                 )}
                 <span className="text-xs font-medium truncate flex-1 text-foreground">
-                  {event.title}
+                  {cleanEventTitle(event.title)}
                 </span>
               </button>
             </li>

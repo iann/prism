@@ -21,7 +21,13 @@ import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 import { SpanningEventRows } from './cells';
 import { useTimeFormat } from '@/components/providers';
-import { eventOccursOnDisplayDay, formatDisplayTime, isCalendarEventPast, toDisplayDate } from '@/lib/utils/timeFormat';
+import {
+  eventOccursOnDisplayDay,
+  formatCompactTime,
+  isCalendarEventPast,
+  toDisplayDate,
+} from '@/lib/utils/timeFormat';
+import { cleanEventTitle } from '@/lib/calendar/sharedEvents';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { canDragEvent } from '@/lib/utils/eventMove';
 import { useDateLabels } from '@/lib/hooks/useDateLabels';
@@ -371,8 +377,8 @@ function DayCell({
                   size={cardSize}
                   layout="column"
                   stripeColor={event.color}
-                  title={event.title}
-                  timeLabel={event.allDay ? t('allDay') : formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)}
+                  title={cleanEventTitle(event.title)}
+                  timeLabel={event.allDay ? t('allDay') : formatCompactTime(event.startTime, timeFormat, displayTimezone)}
                   // No third row at all. A location is worth knowing, but not at
                   // the cost of a card that is three lines in one cell and two
                   // in the next; the modal has it, and the grid is read from
@@ -404,7 +410,9 @@ function DayCell({
                   : inlineTimedEventStyle(event.color)
                 }
               >
-                {event.allDay ? event.title : `${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`}
+                {event.allDay
+                  ? cleanEventTitle(event.title)
+                  : `${formatCompactTime(event.startTime, timeFormat, displayTimezone)} ${cleanEventTitle(event.title)}`}
               </button>
             ))}
         {cards && hiddenEvents.length > 0 && (

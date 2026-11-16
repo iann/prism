@@ -20,9 +20,10 @@ import { useTimeFormat } from '@/components/providers';
 import {
   eventOccursOnDisplayDay,
   eventStartsOnDisplayDay,
-  formatDisplayTime,
+  formatCompactTime,
   toDisplayDate,
 } from '@/lib/utils/timeFormat';
+import { cleanEventTitle } from '@/lib/calendar/sharedEvents';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 
 export interface TwoWeekViewProps {
@@ -127,8 +128,8 @@ export function TwoWeekView({
                 date,
                 displayTimezone,
               )
-                ? event.title
-                : `• ${formatDisplayTime(event.startTime, timeFormat, {}, displayTimezone)} ${event.title}`}
+                ? cleanEventTitle(event.title)
+                : `• ${formatCompactTime(event.startTime, timeFormat, displayTimezone)} ${cleanEventTitle(event.title)}`}
             </button>
           ))}
         </div>
