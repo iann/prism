@@ -521,6 +521,7 @@ export const CalendarWidget = React.memo(function CalendarWidget({
                 displayMode={displayMode}
                 bucketsByDate={overlaysActive ? bucketsByDate : undefined}
                 enableDnd={enableDnd}
+                showMonthHeader={!uiHidden}
                 onDateClick={(date) => {
                   setCurrentDate(date);
                   setViewType('day');
