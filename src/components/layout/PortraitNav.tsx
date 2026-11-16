@@ -37,7 +37,9 @@ export interface PortraitNavProps {
 export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavProps) {
   const pathname = usePathname();
   const returnSlug = useReturnSlug();
-  const search = returnSlug ? { get: (k: string) => (k === RETURN_PARAM ? returnSlug : null) } : null;
+  const search = returnSlug
+    ? { get: (k: string) => (k === RETURN_PARAM ? returnSlug : null) }
+    : null;
   // The portrait bar keeps the fork's own item selection (a separate set from
   // the hidden-pages filter the other navs use); upstream's return-slug token
   // only changes where the links point.
@@ -48,40 +50,46 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
   const isActive = (href: string) => isNavActive(href, pathname, search);
 
   return (
-    <nav className={cn(
-      'wall-portrait-nav',
-      'fixed bottom-0 left-0 right-0 bg-card dark:bg-card/95 border-t border-border z-40 safe-area-bottom',
-      'transition-[transform,opacity] duration-300 ease-in-out',
-      uiHidden ? 'translate-y-full opacity-0 delay-100' : 'translate-y-0 opacity-100 delay-0'
-    )} aria-label="Portrait navigation">
-      <div className="wall-portrait-nav-items flex items-center justify-start h-20 min-w-0 max-w-full gap-1 overflow-x-auto overflow-y-hidden px-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={scopedHref(item.href, pathname, search)}
-              prefetch={false}
-              className={cn(
-                'wall-portrait-nav-item',
-                active && 'wall-portrait-nav-item-active',
-                'flex min-w-[78px] max-w-[7.5rem] flex-1 flex-col items-center gap-1 py-2 px-2 transition-colors',
-                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <Icon className={cn('h-7 w-7 shrink-0', active && 'stroke-[2.5]')} />
-              <span className="max-w-full truncate text-xs font-medium">{t(item.i18nKey)}</span>
-            </Link>
-          );
-        })}
+    <nav
+      className={cn(
+        'wall-portrait-nav',
+        'bg-card dark:bg-card/95 border-border safe-area-bottom fixed right-0 bottom-0 left-0 z-40 border-t',
+        'transition-[transform,opacity] duration-300 ease-in-out',
+        uiHidden ? 'translate-y-full opacity-0 delay-100' : 'translate-y-0 opacity-100 delay-0'
+      )}
+      aria-label="Portrait navigation"
+    >
+      <div className="wall-portrait-nav-items flex h-20 max-w-full min-w-0 items-center justify-between gap-2 px-3 sm:px-4">
+        <div className="flex min-w-0 flex-1 items-center justify-start gap-1 overflow-x-auto overflow-y-hidden sm:gap-2">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={scopedHref(item.href, pathname, search)}
+                prefetch={false}
+                className={cn(
+                  'wall-portrait-nav-item',
+                  active && 'wall-portrait-nav-item-active',
+                  'flex max-w-[7.5rem] min-w-[78px] flex-1 flex-col items-center gap-1 px-2 py-2 transition-colors',
+                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Icon className={cn('h-7 w-7 shrink-0', active && 'stroke-[2.5]')} />
+                <span className="max-w-full truncate text-xs font-medium">{t(item.i18nKey)}</span>
+              </Link>
+            );
+          })}
+        </div>
 
         {/* User/Login button */}
         <button
           onClick={user ? onLogout : onLogin}
           className={cn(
             'wall-portrait-nav-item wall-portrait-nav-item-user',
-            'flex min-w-[78px] max-w-[7.5rem] flex-1 flex-col items-center gap-1 py-2 px-2 transition-colors',
+            'border-border/40 ml-auto shrink-0 border-l pl-2 sm:pl-3',
+            'flex max-w-[7.5rem] min-w-[78px] flex-col items-center gap-1 px-2 py-2 transition-colors',
             'text-muted-foreground hover:text-foreground'
           )}
           aria-label={user ? 'Log out' : 'Log in'}
@@ -89,11 +97,16 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
           {user ? (
             <>
               <div
-                className="relative h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{ backgroundColor: user.color || '#6B7280', color: contrastText(user.color || '#6B7280') }}
+                className="relative flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+                style={{
+                  backgroundColor: user.color || '#6B7280',
+                  color: contrastText(user.color || '#6B7280'),
+                }}
               >
                 {user.avatarUrl?.startsWith('emoji:') ? (
-                  <span className="text-base"><Emoji e={user.avatarUrl.slice(6)} /></span>
+                  <span className="text-base">
+                    <Emoji e={user.avatarUrl.slice(6)} />
+                  </span>
                 ) : user.avatarUrl ? (
                   <Image
                     src={user.avatarUrl}
@@ -110,8 +123,8 @@ export function PortraitNav({ user, onLogin, onLogout, uiHidden }: PortraitNavPr
             </>
           ) : (
             <>
-              <User className="h-7 w-7 text-destructive" />
-              <span className="text-xs font-medium text-destructive">Login</span>
+              <User className="text-destructive h-7 w-7" />
+              <span className="text-destructive text-xs font-medium">Login</span>
             </>
           )}
         </button>

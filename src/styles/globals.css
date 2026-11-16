@@ -2161,11 +2161,11 @@ html[data-virtual-keyboard-open] [data-keyboard-aware-dialog] {
   }
 
   .wall-display .wall-widget-header {
-    padding: 1.05rem 1.3rem 0.65rem;
+    padding: 1rem 1.25rem 0.75rem;
   }
 
   .wall-display .wall-widget-content {
-    padding: 0.65rem 1.3rem 1.35rem;
+    padding: 0.75rem 1.25rem 1.25rem;
   }
 
   .wall-display .wall-widget-title {
@@ -2176,7 +2176,7 @@ html[data-virtual-keyboard-open] [data-keyboard-aware-dialog] {
   .wall-display .wall-dashboard-header {
     min-height: 56px;
     background: hsl(var(--wall-surface-raised) / 0.94);
-    padding: 0.45rem 1rem;
+    padding: 0.5rem 1.25rem;
     box-shadow: 0 1px 0 hsl(var(--wall-line) / 0.24);
   }
 
@@ -2283,10 +2283,10 @@ html[data-virtual-keyboard-open] [data-keyboard-aware-dialog] {
   .wall-display .wall-portrait-nav-items {
     min-height: 5.5rem;
     height: 5.5rem;
-    justify-content: flex-start;
+    justify-content: space-between;
     min-width: 0;
-    gap: 0.25rem;
-    padding: 0.45rem 0.75rem;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
     overflow-x: auto;
     overflow-y: hidden;
   }
@@ -2328,6 +2328,7 @@ html[data-virtual-keyboard-open] [data-keyboard-aware-dialog] {
   .wall-display .wall-portrait-nav-item-user {
     border: 0;
     background: transparent;
+    margin-left: auto;
   }
 
   /* Calendar controls share one baseline and one shape language. The
