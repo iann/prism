@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
     if (isOutlookLlmConfigured() && weatherData.outlook?.length) {
       const model = process.env.OPENCODE_GO_MODEL?.trim() || 'hy4-flash-free';
       const fallbackModel =
-        process.env.OPENCODE_GO_FALLBACK_MODEL?.trim() || 'gpt-6-luna';
+        process.env.OPENCODE_GO_FALLBACK_MODEL?.trim() || '';
       const proseCacheKey = `weather-outlook-prose:${OUTLOOK_PROSE_PROMPT_VERSION}:${model}:${fallbackModel}:${outlookProseCacheKey(weatherData.outlook)}`;
       try {
         let prose = await getCache<string>(proseCacheKey);

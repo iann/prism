@@ -22,7 +22,7 @@ import { logError } from '@/lib/utils/logError';
 
 const DEFAULT_BASE_URL = 'https://opencode.ai/inference/go/openai/v1';
 const DEFAULT_MODEL = 'hy4-flash-free';
-const DEFAULT_FALLBACK_MODEL = 'gpt-6-luna';
+const DEFAULT_FALLBACK_MODEL = '';
 const TARGET_CHARS = 165;
 const MAX_CHARS = 180;
 
@@ -30,11 +30,11 @@ const MAX_CHARS = 180;
  * Bump when the prompt or validation rules change, so cached prose and cached
  * failures written under the old prompt are not reused.
  */
-export const OUTLOOK_PROSE_PROMPT_VERSION = 'v3';
+export const OUTLOOK_PROSE_PROMPT_VERSION = 'v4';
 const REQUEST_TIMEOUT_MS = 30_000;
 // Reasoning models count their thinking tokens against the output budget.
-// 3000 leaves enough room for a short answer plus the model's reasoning.
-const MAX_COMPLETION_TOKENS = 3000;
+// 4000 leaves enough room for a short answer plus the model's reasoning.
+const MAX_COMPLETION_TOKENS = 4000;
 
 const SYSTEM_PROMPT =
   'You rewrite weather forecasts for a wall dashboard. Follow the length and format constraints exactly.';
@@ -154,7 +154,7 @@ function buildPrompt(outlook: WeatherOutlookDay[], feedback?: ProseFeedback): st
   return `Rewrite the 3-day weather outlook below for a wall dashboard.${lengthGuidance(feedback)}
 Rules:
 - Exactly two natural sentences.
-- Aim for ${TARGET_CHARS} characters total. Never exceed ${MAX_CHARS} characters. This is a hard limit.
+- Never exceed ${MAX_CHARS} characters total. This is a hard limit.
 - Use only the facts in the input. Do not add temperatures or invent numbers.
 - Use these day labels: ${labels.join(', ')}. Every label must appear.
 - Keep each day to its main conditions; drop secondary details only if needed.
