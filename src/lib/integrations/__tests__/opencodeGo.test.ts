@@ -115,6 +115,20 @@ describe('generateOutlookProse', () => {
     expect(body.messages[1]?.content).toContain('Every label must appear.');
   });
 
+  it('defaults to hy4-flash-free when no primary model is configured', async () => {
+    delete process.env.OPENCODE_GO_MODEL;
+    const fetchSpy = jest
+      .spyOn(global, 'fetch' as never)
+      .mockResolvedValueOnce(completion(GOOD_PROSE) as never);
+
+    const { generateOutlookProse } = await import('../opencodeGo');
+    await expect(generateOutlookProse(OUTLOOK)).resolves.toBe(GOOD_PROSE);
+
+    const call = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(call[1].body)) as { model: string };
+    expect(body.model).toBe('hy4-flash-free');
+  });
+
   it('retries once when the first answer is too long', async () => {
     const tooLong = `${'Rain likely today, with patchy fog and a chance of thunderstorms, then more rain likely Saturday. '.repeat(2)}Sunday turns mostly sunny.`;
     const fetchSpy = jest

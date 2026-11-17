@@ -10,7 +10,7 @@
  *
  * Configuration:
  *   OPENCODE_GO_API_KEY          required to enable the rewrite (oc_sk_...)
- *   OPENCODE_GO_MODEL            default glm-5.3-flash (Chat Completions)
+ *   OPENCODE_GO_MODEL            default hy4-flash-free (Chat Completions)
  *   OPENCODE_GO_FALLBACK_MODEL   default gpt-6-luna (Responses API)
  *   OPENCODE_GO_BASE_URL         default https://opencode.ai/inference/go/openai/v1
  *   OPENCODE_GO_ORG_ID           optional x-opencode-org-id header
@@ -21,7 +21,7 @@ import type { WeatherOutlookDay } from '@/components/widgets/WeatherWidget';
 import { logError } from '@/lib/utils/logError';
 
 const DEFAULT_BASE_URL = 'https://opencode.ai/inference/go/openai/v1';
-const DEFAULT_MODEL = 'glm-5.3-flash';
+const DEFAULT_MODEL = 'hy4-flash-free';
 const DEFAULT_FALLBACK_MODEL = 'gpt-6-luna';
 const TARGET_CHARS = 165;
 const MAX_CHARS = 180;
@@ -31,10 +31,10 @@ const MAX_CHARS = 180;
  * failures written under the old prompt are not reused.
  */
 export const OUTLOOK_PROSE_PROMPT_VERSION = 'v3';
-const REQUEST_TIMEOUT_MS = 12_000;
+const REQUEST_TIMEOUT_MS = 30_000;
 // Reasoning models count their thinking tokens against the output budget.
-// 600 leaves enough room for a short answer plus the model's reasoning.
-const MAX_COMPLETION_TOKENS = 600;
+// 3000 leaves enough room for a short answer plus the model's reasoning.
+const MAX_COMPLETION_TOKENS = 3000;
 
 const SYSTEM_PROMPT =
   'You rewrite weather forecasts for a wall dashboard. Follow the length and format constraints exactly.';

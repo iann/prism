@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
     // fallback, and cache a short negative result so a bad key or an outage
     // does not retry on every one-minute widget poll.
     if (isOutlookLlmConfigured() && weatherData.outlook?.length) {
-      const model = process.env.OPENCODE_GO_MODEL?.trim() || 'glm-5.3-flash';
+      const model = process.env.OPENCODE_GO_MODEL?.trim() || 'hy4-flash-free';
       const fallbackModel =
         process.env.OPENCODE_GO_FALLBACK_MODEL?.trim() || 'gpt-6-luna';
       const proseCacheKey = `weather-outlook-prose:${OUTLOOK_PROSE_PROMPT_VERSION}:${model}:${fallbackModel}:${outlookProseCacheKey(weatherData.outlook)}`;
