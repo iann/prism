@@ -1172,7 +1172,7 @@ upstream-sync-only commits are omitted unless they changed behavior.
     When `OPENCODE_GO_API_KEY` is configured, the weather route sends the
     three NWS detailed forecast conditions to OpenCode Go's OpenAI-compatible
     endpoint and caches a two-sentence rewrite under 170 characters. The
-    primary model is GLM-5.3-Flash with GPT-6 Luna as a fallback through the
+    primary model is hy4-flash-free with GPT-6 Luna as a fallback through the
     Responses API. The widget shows the rewrite only when it still fits three
     lines; otherwise it keeps the deterministic outlook and marks the summary
     with a red dot. Missing keys, timeouts, provider errors, invented numbers,
@@ -1199,7 +1199,7 @@ upstream-sync-only commits are omitted unless they changed behavior.
 141. **Bounded outlook prose with escalating retries**
 
     Sets the rewrite budget to aim for 165 characters and never exceed 180,
-    then retries up to four times across GLM-5.3-Flash and the GPT-6 Luna
+    then retries up to four times across hy4-flash-free and the GPT-6 Luna
     fallback with progressively stronger length guidance. The widget still
     keeps the deterministic outlook and shows a red dot when every attempt
     fails or overflows.
