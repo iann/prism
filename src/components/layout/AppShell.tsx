@@ -60,6 +60,16 @@ export interface AppShellProps {
   showWallpaper?: boolean;
   /** Additional CSS classes for main content area */
   className?: string;
+  /**
+   * The wall (#922): in landscape on a larger screen, the rail gives way to
+   * the dock, hidden at rest behind a Menu word. Portrait and phones keep
+   * their own navigation for now (#924).
+   */
+  dock?: 'wall';
+  /** This screen's jobs, for the dock's More panel; left out, the jobs every page can do (#1257). */
+  screenJobs?: React.ReactNode;
+  /** The phone menu's Cards and Reorder; off when the page has no cards (Simple's Today). */
+  cardTools?: boolean;
 }
 
 /**

@@ -49,6 +49,9 @@ type ResizePreview = {
   h: number;
 };
 
+/** On <html> while a widget is dragged or resized; globals.css drops the card blur. */
+export const EDITOR_MOVING_CLASS = 'editor-moving';
+
 export interface CssGridEditorProps {
   layout: WidgetConfig[];
   onLayoutChange: (layout: WidgetConfig[]) => void;
@@ -104,6 +107,15 @@ export function CssGridEditor({
 
   // Read by the drag and resize handlers, which outlive the render they start in.
   const layoutRef = useLatestRef(layout);
+
+  // No card blur while something moves (#1265, see .editor-moving in globals.css).
+  const moving = activeId !== null || resizePreview !== null;
+  useEffect(() => {
+    if (!moving) return;
+    const root = document.documentElement;
+    root.classList.add(EDITOR_MOVING_CLASS);
+    return () => root.classList.remove(EDITOR_MOVING_CLASS);
+  }, [moving]);
 
   const step = cellSize + margin;
 

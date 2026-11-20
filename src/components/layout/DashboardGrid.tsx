@@ -37,6 +37,7 @@ import { PerformanceModeBadge } from '@/components/layout/PerformanceModeBadge';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { Eraser, RefreshCw } from 'lucide-react';
 import { startScreenCleaning } from '@/lib/hooks/useScreenCleaning';
+import { MORE_TILE } from '@/lib/constants/dock';
 
 
 /**
@@ -278,10 +279,10 @@ export function ScreenJobs({ onEditClick, onScreensaverClick, labelled = false }
   onScreensaverClick?: () => void;
   labelled?: boolean;
 }) {
-  // Labelled, a job is a tile like the More panel's pages: the icon above its
-  // name (#1006). h-auto undoes the Button's fixed height on the mode toggles.
+  // Labelled, a job is a tile like every other in the More panel: the icon
+  // above its name (#1006, #1257).
   const job = labelled
-    ? 'flex h-auto min-h-[64px] min-w-[64px] flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2 text-caption font-medium text-foreground hover:bg-muted [&_svg]:size-5'
+    ? MORE_TILE
     : 'p-2 rounded-md hover:bg-accent transition-colors';
   return (
     <>

@@ -224,6 +224,7 @@ test.describe('screensaver night sky', () => {
     });
   }
 
+
   test('Night sky fills the screen instead of the photos', async ({ page }) => {
     await openScreensaver(page, 'sky', NIGHT);
     const s = await sky(page);
@@ -804,6 +805,7 @@ test.describe('idle background picker', () => {
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
   });
+
 
   test('offsets that cross near midsummer far north are refused', async ({ page }) => {
     const layout = await editIdle(page, { lat: 64, lon: -150 });

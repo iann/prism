@@ -615,8 +615,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
         <DashboardLayout className={cn(className, isLCARS && 'lcars-dashboard')}>
           <DashboardHeader
             onScreensaverClick={() => window.dispatchEvent(new Event('prism:screensaver'))}
-            onEditClick={activeUser && activeUser.role !== 'parent' ? undefined : layout.handleEditStart}
-
+            onEditClick={layout.isEditing || (activeUser && activeUser.role !== 'parent') ? undefined : layout.handleEditStart}
           />
 
 
