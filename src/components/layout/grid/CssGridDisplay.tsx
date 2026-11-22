@@ -1,9 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { memo, startTransition, useEffect, useMemo, useRef, useState, ViewTransition } from 'react';
+import { memo, startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState, ViewTransition } from 'react';
 import { tileAlign, type AlignSetting } from '@/lib/layout/tileAlign';
-import { SCHEDULE_TRANSITION } from '@/lib/displays/screenSchedule';
+import { SCHEDULE_TRANSITION } from '@/lib/screenSwitches';
 import {
   WidgetBgOverrideProvider,
   WidgetEmptyReportContext,

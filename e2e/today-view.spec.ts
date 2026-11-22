@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { editHere } from './helpers/editHere';
 import { getSeededParentId } from './helpers/auth';
 import { TODAY_TEMPLATE } from '../src/lib/constants/layoutTemplates';
 import { deleteLayout } from './helpers/cleanup';
@@ -670,7 +671,7 @@ test.describe('the Today view', () => {
   });
 
   // #1152: Through the day shows the screen in each state at once.
-  test('Through the day: tapping Nobody there at night shows the night look on Today, and In use brings the day back', async ({ page }) => {
+  test('Through the day: See it at night shows the night look on Today, and In use brings the day back', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     const d = new Date();
     await page.clock.setFixedTime(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 10));
@@ -684,13 +685,14 @@ test.describe('the Today view', () => {
       await expect(scene, '10 am is day').not.toHaveAttribute('data-today-night', 'true');
       await page.locator('[data-dock-menu]').click();
       await page.locator('[data-dock-more]').click();
+      await editHere(page);
       await page.locator('[data-dock-more-panel] [data-screen-job="edit"]').click();
       await page.locator('[data-editor-open="day"]').click();
       const sheet = page.locator('[data-editor-sheet="day"]');
       await expect(sheet).toBeVisible();
 
-      // Nobody there, tapped where night is: warm ink and the veil, at once (#1233).
-      await sheet.locator('[data-day-stretch="night"]').last().click();
+      // See it at night: warm ink and the veil, at once (#1233, #1281).
+      await sheet.locator('[data-see="night"]').click();
       await expect(scene).toHaveAttribute('data-today-night', 'true');
       await expect(page.locator('[data-today-veil]')).toHaveCount(1);
       // The veil stands in for the day's shade (#1186).
@@ -699,15 +701,14 @@ test.describe('the Today view', () => {
       await expect.poll(() => page.locator('[data-today-clock]').evaluate((el) => getComputedStyle(el).color)).toBe('rgb(255, 226, 190)');
 
       // Screen off: the preview goes black over the scene, under the bar.
-      await sheet.locator('[data-day-milestone="night-start"]').click();
-      await sheet.locator('[data-night-look="off"]').click();
+      await sheet.getByLabel('Night look').selectOption({ label: 'Screen off' });
       const off = page.locator('[data-preview-night="off"]');
       await expect(off).toHaveCount(1);
       expect(await off.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
       await expect(page.locator('[data-editor-bar] nav')).toBeVisible();
 
       // In use: the day again.
-      await sheet.locator('[data-day-lane="in-use"]').click();
+      await sheet.locator('[data-see="active"]').click();
       await expect(scene).not.toHaveAttribute('data-today-night', 'true');
       await expect(off).toHaveCount(0);
       await expect(page.locator('[data-today-shade]')).toHaveCount(1);
@@ -734,6 +735,7 @@ test.describe('the Today view', () => {
       await expect(page.locator('[data-today-scene]')).toBeVisible({ timeout: 60_000 });
       await page.locator('[data-dock-menu]').click();
       await page.locator('[data-dock-more]').click();
+      await editHere(page);
       await page.locator('[data-dock-more-panel] [data-screen-job="edit"]').click();
 
       // The bar takes the dock's place at the foot, and no control is in the top half.
@@ -790,6 +792,7 @@ test.describe('the Today view', () => {
       await expect(page.locator('[data-today-scene]')).toBeVisible({ timeout: 60_000 });
       await page.locator('[data-dock-menu]').click();
       await page.locator('[data-dock-more]').click();
+      await editHere(page);
       await page.locator('[data-dock-more-panel] [data-screen-job="edit"]').click();
       await page.locator('[data-editor-open="dashboard"]').click({ timeout: 60_000 });
       await page.locator('[data-dashboard-new]').click();

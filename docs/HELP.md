@@ -139,22 +139,22 @@ Each screen runs at one of three levels, set in *Settings → Appearance → Per
 
 This is a short tour of **Settings**. Where a section belongs to a feature, that feature's page above covers it in full.
 
-- **Account & Profile**: current session and default display user.
-- **Family Members**: add / edit / remove members. Names, colors, avatars, roles, sort order. Pick a color from the 18 presets, or tap the rainbow swatch to pick any color with the sliders or a color code, then Done. The panel shows the color beside every other member's. Colors another member already uses, preset or custom, show that member's initial; they can still be shared.
-- **General**: weather location (city or postal code), time zone, Week Starts On.
-- **Integrations**: one card per provider brand: Google (Calendar, Tasks), Microsoft (To Do, OneDrive), Gmail (bus tracking), Apple / CalDAV, Kroger (shopping cart push), plus Photo Sources. Per-list Task / Shopping / Wish List sync is mapped inside the Microsoft or Google provider card.
-- **Text Size**: how large everything reads on each dashboard.
-- **Appearance**: Color Scheme (Light / Dark / System), Theme Palette, Seasonal Theme, Performance, Screensaver (start delay, background: photos or night sky, photo rotation, widget transition effect and its options, drift), Auto-Hide Navigation / Away Mode / sign-out timers, Orientation Override.
-- **Displays**: name each screen from the screen itself (for example "Kitchen"), and see every named screen and whether it is on. A named screen keeps its screensaver, performance, keyboard and screen-shape settings with its name, so a reset browser can take them back with *Or this is an existing screen*. Each screen can open on its own dashboard. A browser nobody named works as before.
-- **Photos**: manage sources (Local, OneDrive, Immich); folder picker; display filters (orientation, resolution); GPS backfill; pinned wallpaper / screensaver.
-- **Bus Tracking**: Gmail connection, route configuration, route auto-discovery, Gmail label filter.
-- **Input**: on-screen keyboard and barcode-scanner toggles. The keyboard has a household switch and a per-device choice (Use household setting / Always / Never), so a tablet can use its own keyboard while a wall display keeps Prism's.
-- **Babysitter Info**: emergency contacts, house info (WiFi password stored AES-256-GCM encrypted), child info, house rules.
-- **Features**: show / hide individual nav pages and choose which routes appear in the portrait bottom navigation.
-- **Security**: PINs + API tokens (with Voice / Full scope picker).
-- **Backups & Data**: create, download, restore, or delete database backups. Includes dangerous operations (Truncate, Seed demo data) gated behind explicit confirmation. On an install that started with the demo family, a **Demo data** card purges it.
-- **Activity Log**: filterable log of every action taken in the app.
-- **About**: version, links, re-run the setup wizard.
+- **Account & Profile** shows the current session and the default display user.
+- **Family Members** is where you add, edit and remove members and set their names, colours, avatars, roles and order. Pick a colour from the 18 presets, or tap the rainbow swatch to choose any colour with the sliders or a colour code, then tap **Done**. The panel shows each colour next to every other member's. A colour another member already uses, preset or custom, shows that member's initial, and two members can still share it.
+- **General** sets the weather location (city or postal code), the time zone and **Week Starts On**.
+- **Integrations** has one card for each provider: Google (Calendar, Tasks), Microsoft (To Do, OneDrive), Gmail (bus tracking), Apple / CalDAV and Kroger (shopping cart push), plus **Photo Sources**. You choose which task, shopping and wish lists sync inside the Microsoft or Google card.
+- **Text Size** sets how large everything reads on each dashboard.
+- **Appearance** holds **Color Scheme** (Light, Dark or System), **Theme Palette**, **Seasonal Theme**, **Performance**, **Screensaver** (start delay, a background of photos or night sky, photo rotation, the widget transition effect and its options, and drift), the timers for **Auto-Hide Navigation**, **Away Mode** and sign-out, and **Orientation Override**.
+- **Screens** lists every named screen, whether it is on and the dashboard it shows (picked there too), with **Edit**, **Rename** and **Remove**. A screen is named from its own editor: on the screen, open the editor, then **Through the day** → **Name this device** (for example "Kitchen"). A named screen keeps its screensaver, performance, keyboard and screen-shape settings under its name, so after a browser is reset it can take them back there with **Or it is**. A browser nobody has named shows the default dashboard.
+- **Photos** manages sources (Local, OneDrive, Immich), with a folder picker, display filters for orientation and resolution, GPS backfill (adding locations to older photos) and the pinned wallpaper and screensaver photos.
+- **Bus Tracking** covers the Gmail connection, route setup, finding routes automatically and the Gmail label filter.
+- **Input** has switches for the on-screen keyboard and the barcode scanner. The keyboard has a household switch and a choice per device (**Use household setting**, **Always** or **Never**), so a tablet can use its own keyboard while a wall display keeps Prism's.
+- **Babysitter Info** holds emergency contacts, house info (the WiFi password is stored encrypted with AES-256-GCM), child info and house rules.
+- **Features** shows or hides each page in the navigation.
+- **Security** holds the PINs and API tokens, with a choice of Voice or Full scope for each token.
+- **Backups & Data** lets you create, download, restore or delete database backups. It also has destructive actions (**Truncate** and **Seed demo data**) that ask you to confirm first. On an install that started with the demo family, a **Demo data** card removes it.
+- **Activity Log** is a log of every action taken in the app, which you can filter.
+- **About** shows the version and links, and lets you run the setup wizard again.
 
 > Calendar management (turning synced calendars on, assigning and colouring them, iCal subscriptions and **Calendar Hours**) has moved out of Settings. You now find it behind the **Manage** button on the Calendar page.
 
@@ -181,7 +181,6 @@ The [Mobile & PWA guide](features/MOBILE.md) has the steps and tips for each ope
 | Ctrl+Shift+S | Calendar notes | Strikethrough |
 | Ctrl+Shift+L | Calendar notes | Bullet list |
 | Ctrl+Shift+M | Layout editor | Toggle measure mode |
-| Delete / Backspace | Layout editor | Remove the selected widget |
 
 ---
 

@@ -2,17 +2,17 @@
 
 import * as React from 'react';
 import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef } from 'react';
+
+const VISIBLE_WIDGETS_KEY = 'prism-visible-widgets';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
-import { DashboardLayout, DashboardHeader } from '@/components/layout/DashboardGrid';
+import { DashboardLayout, DashboardHeader, ScreenJobs } from '@/components/layout/DashboardGrid';
 import { LayoutGridEditor, SCREENSAVER_THEME } from '@/components/layout/LayoutGridEditor';
 import { useAuth, useFamily, useTheme } from '@/components/providers';
 import { LCARSFrame } from '@/components/lcars';
 import { GRID_COLS } from '@/lib/constants/grid';
 import { useScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
-import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
-import { useIsFullDesktop } from '@/lib/hooks/useIsFullDesktop';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useTaskLists } from '@/lib/hooks/useTaskLists';
 import { useRecipes } from '@/lib/hooks/useRecipes';
@@ -20,6 +20,10 @@ import { useChoreModals } from '@/app/chores/useChoreModals';
 import { toast } from '@/components/ui/use-toast';
 import type { Chore, Task, Meal } from '@/types';
 import { MobileDashboard } from './MobileDashboard';
+import { BirthdayCelebration, PartyModeButton } from '@/components/birthday';
+import { FloatingCardStack } from './FloatingCardStack';
+import { MediaPlayerPlaybackCard } from '@/components/widgets/MediaPlayerPlaybackCard';
+import { WeatherRadarWidget } from '@/components/widgets/WeatherRadarWidget';
 import dynamic from 'next/dynamic';
 
 const LayoutEditor = dynamic(() => import('@/components/layout/LayoutEditor').then(m => ({ default: m.LayoutEditor })), { ssr: false });
@@ -31,67 +35,43 @@ const AddChoreModal = dynamic(() => import('@/components/modals/AddChoreModal').
 const AddShoppingItemModal = dynamic(() => import('@/components/modals/AddShoppingItemModal').then(m => ({ default: m.AddShoppingItemModal })), { ssr: false });
 // Edit modals — same pattern as CalendarView's overlay click-to-edit. Lazy-
 // loaded so the dashboard initial bundle stays small.
-const ChoreModal = lazy(() =>
-  import('@/app/chores/ChoreModal').then((m) => ({ default: m.ChoreModal }))
-);
-const TaskModal = lazy(() =>
-  import('@/app/tasks/TaskModal').then((m) => ({ default: m.TaskModal }))
-);
-const MealModal = lazy(() =>
-  import('@/app/meals/MealsView').then((m) => ({ default: m.MealModal }))
-);
+const ChoreModal = lazy(() => import('@/app/chores/ChoreModal').then(m => ({ default: m.ChoreModal })));
+const TaskModal = lazy(() => import('@/app/tasks/TaskModal').then(m => ({ default: m.TaskModal })));
+const MealModal = lazy(() => import('@/app/meals/MealsView').then(m => ({ default: m.MealModal })));
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
-import { WeatherRadarWidget } from '@/components/widgets/WeatherRadarWidget';
-import { MediaPlayerPlaybackCard } from '@/components/widgets/MediaPlayerPlaybackCard';
-import { FloatingCardStack } from './FloatingCardStack';
 import { renderScreensaverPreview } from '@/components/screensaver/ScreensaverWidgetPreview';
 import { SCREENSAVER_WIDGET_CLASS } from '@/components/screensaver/Screensaver';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { parseIdleBackground, withoutDashboard, PHOTOS, type IdleBackground } from '@/lib/idleBackground';
+import type { ScreenPlan } from '@/lib/screenSwitches';
+import { loadBase } from '@/lib/displays/displaySettingsSync';
+import { screenEditLink } from '@/lib/displays/editPlace';
+import { TodayScene } from '@/components/today/TodayScene';
+import { PhoneToday } from '@/components/today/PhoneToday';
+import { isBuiltInView } from '@/lib/newLook';
+import { TODAY_TEMPLATE } from '@/lib/constants/layoutTemplates';
+import type { ChoreLike } from '@/lib/today/quietLines';
+import { useEventSheet } from '@/components/calendar/useEventSheet';
+import { usePinFreeEveryday, useWhoDidIt } from './useEveryday';
 import { WidgetErrorBoundary } from '@/components/dashboard/WidgetErrorBoundary';
 import { WidgetExpandProvider, useWidgetExpand } from '@/components/dashboard/WidgetExpandProvider';
 import { useDashboardData } from './useDashboardData';
 import { useDashboardLayout, editLink } from './useDashboardLayout';
-import { remoteEditHost } from '@/lib/displays/remoteEdit';
+import { remoteEditHost, setHostPlan } from '@/lib/displays/remoteEdit';
 import { useScreenSchedule } from './useScreenSchedule';
 import { useRemoveBirthday } from './useRemoveBirthday';
 import { useIdleSwitchCheck } from '@/components/layout/useIdleSwitchCheck';
 import { buildWidgetProps } from './useWidgetProps';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
-import { cn } from '@/lib/utils';
-import { getWidgetType } from '@/lib/utils/widgetInstances';
-import { BirthdayCelebration, PartyModeButton } from '@/components/birthday';
-import { useLatestRef } from '@/lib/hooks/useLatestRef';
 import { useLocalCopy } from '@/lib/hooks/useLocalCopy';
 import { setActiveIdleBackground, shownWhenIdle, useCalmIdle } from '@/components/screensaver/calmMode';
+import { useNightNow } from '@/components/screensaver/useIdleBackground';
+import { dimLevel, useIdleDimSetting } from '@/components/screensaver/idleDim';
+import { backdropFor, nightRule, type ScreenState } from '@/lib/throughTheDay';
 import { useScreensaverMotion } from '@/components/screensaver/useScreensaverMotion';
-
-const VISIBLE_WIDGETS_KEY = 'prism-visible-widgets';
-
-function readCachedVisibleWidgets() {
-  if (typeof window === 'undefined') return new Set<string>();
-
-  try {
-    const stored = localStorage.getItem(VISIBLE_WIDGETS_KEY);
-    const parsed: unknown = stored ? JSON.parse(stored) : [];
-    return Array.isArray(parsed) && parsed.every((id) => typeof id === 'string')
-      ? new Set(parsed)
-      : new Set<string>();
-  } catch {
-    return new Set<string>();
-  }
-}
-
-function visibleWidgetIds(widgets: Array<{ i: string; type?: string; visible?: boolean }>) {
-  return widgets
-    .filter((widget) => widget.visible !== false)
-    .map((widget) => getWidgetType(widget));
-}
-
-function setsMatch(left: Set<string>, right: Set<string>) {
-  return left.size === right.size && [...right].every((id) => left.has(id));
-}
+import { useIsFullDesktop } from '@/lib/hooks/useIsFullDesktop';
+import { cn } from '@/lib/utils';
 
 class WidgetBoundary extends React.Component<
   { name: string; children: React.ReactNode },
@@ -104,9 +84,7 @@ class WidgetBoundary extends React.Component<
   render() {
     if (this.state.error) {
       return (
-        <div
-          style={{ padding: 12, background: '#300', color: '#f88', fontSize: 12, overflow: 'auto' }}
-        >
+        <div style={{ padding: 12, background: '#300', color: '#f88', fontSize: 12, overflow: 'auto' }}>
           <strong>{this.props.name} crashed:</strong>
           <pre style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{this.state.error.message}</pre>
         </div>
@@ -122,27 +100,35 @@ export interface DashboardProps {
   slug?: string;
 }
 
-export function Dashboard({ weatherLocation, className, slug }: DashboardProps) {
+export function Dashboard({
+  weatherLocation,
+  className,
+  slug,
+}: DashboardProps) {
   const router = useRouter();
 
   const { activeUser, requireAuth, clearActiveUser } = useAuth();
   const { colorTheme } = useTheme();
-  const { confirm: confirmAction, dialogProps: confirmDialogProps } = useConfirmDialog();
   const isLCARS = colorTheme === 'lcars';
+  const { confirm: confirmAction, dialogProps: confirmDialogProps } = useConfirmDialog();
 
-  // What the last visit drew, so the data hooks for those widgets start on the
-  // first paint instead of waiting for the layout. Replaced by the live layout
-  // as soon as it arrives.
-  const [visibleWidgets, setVisibleWidgets] = useState(readCachedVisibleWidgets);
+  // Read cached visible widget IDs from localStorage for prioritized loading
+  const [initialVisibleWidgets] = useState<Set<string> | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(VISIBLE_WIDGETS_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return new Set(parsed);
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    return undefined; // No cache → enable all hooks immediately
+  });
 
-  // The conditional radar is not a saved layout widget, but it still needs
-  // the shared weather stream when a user has removed the normal Weather tile.
-  const dataWidgets = useMemo(() => {
-    const next = new Set(visibleWidgets);
-    next.add('weather');
-    return next;
-  }, [visibleWidgets]);
-  const data = useDashboardData(dataWidgets);
+  const data = useDashboardData(initialVisibleWidgets);
 
   const [showAddMessage, setShowAddMessage] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -155,8 +141,8 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
 
   const { members: familyMembers } = useFamily();
-  const { lists: taskLists } = useTaskLists({ enabled: editingTask !== null });
-  const { recipes } = useRecipes({ enabled: editingMeal !== null });
+  const { lists: taskLists } = useTaskLists();
+  const { recipes } = useRecipes();
 
   const { saveEditedChore } = useChoreModals({
     refreshChores: data.chores.refresh,
@@ -165,7 +151,7 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     deleteChore: () => {},
   });
 
-  // A named screen's time-of-day rules pick which dashboard this page shows (#692).
+  // A named screen's dashboard and switches pick which dashboard this page shows (#692, #1282).
   const editingRef = useRef(false);
   const schedule = useScreenSchedule({
     routeSlug: slug,
@@ -174,10 +160,28 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     editing: editingRef,
   });
   const layout = useDashboardLayout(data.layouts, schedule.slug);
+  // In a screen's editor (#1282): the dashboard it shows and its switches,
+  // held on the editor page, which sends them to the screen on Done.
+  const editHost = remoteEditHost();
+  const screenId = editHost?.displayId ?? null;
+  const [screenPlan, setScreenPlan] = useState<ScreenPlan | null>(
+    () => (editHost?.displayId ? { dashboardId: editHost.dashboardId, switches: editHost.switches } : null),
+  );
+  const changeScreenPlan = useCallback((plan: ScreenPlan) => {
+    setScreenPlan(plan);
+    setHostPlan(plan);
+  }, []);
+  // Whether the device in use has a name; one that has none can be named in
+  // Through the day, and then opens its own screen's editor.
+  const [deviceNamed] = useState(() => !!loadBase()?.displayId);
+  const activeLayoutId = layout.activeLayout?.id;
+  const openNamedScreen = useCallback((displayId: string) => {
+    (window.top ?? window).location.assign(screenEditLink(displayId, activeLayoutId));
+  }, [activeLayoutId]);
   useEffect(() => { editingRef.current = layout.isEditing; }, [layout.isEditing]);
   // In the frame of a phone editing this screen (#1153): say which dashboard
   // is on show, and when editing ends.
-  const remote = remoteEditHost();
+  const remote = editHost;
   const activeId = layout.activeLayout?.id;
   const activeIsDefault = layout.activeLayout?.isDefault ?? false;
   useEffect(() => {
@@ -196,47 +200,53 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     handleCancel();
     remote?.onFinish(false);
   }, [handleCancel, remote]);
+  // Today is the built-in dashboard (#1151): it is edited like any other,
+  // through its widgets list instead of a grid.
+  const todayPage = isBuiltInView(layout.activeLayout?.view);
+
+  // Persist visible widget IDs to localStorage for next load's prioritized fetching
   useEffect(() => {
-    const ids = visibleWidgetIds(layout.activeWidgets);
-    if (ids.length === 0) return;
-    localStorage.setItem(VISIBLE_WIDGETS_KEY, JSON.stringify(ids));
-    const next = new Set(ids);
-    // After the commit: a widget added to the dashboard starts its own data on
-    // the next task rather than cascading a render out of this effect.
-    queueMicrotask(() => {
-      setVisibleWidgets((current) => (setsMatch(current, next) ? current : next));
-    });
+    const ids = layout.activeWidgets
+      .filter(w => w.visible !== false)
+      .map(w => w.i);
+    if (ids.length > 0) {
+      localStorage.setItem(VISIBLE_WIDGETS_KEY, JSON.stringify(ids));
+    }
   }, [layout.activeWidgets]);
 
   // Redirect to / if slug doesn't resolve to a layout (after layouts have loaded)
   useEffect(() => {
-    if (
-      slug &&
-      !data.layouts.loading &&
-      data.layouts.allLayouts.length > 0 &&
-      !layout.activeLayout
-    ) {
+    if (slug && !data.layouts.loading && data.layouts.allLayouts.length > 0 && !layout.activeLayout) {
       router.replace('/');
     }
   }, [slug, data.layouts.loading, data.layouts.allLayouts.length, layout.activeLayout, router]);
 
-  // Detect portrait nav to offset grid height (nav covers bottom 80px + safe area)
-  const deviceOrientation = useOrientation();
   const isMobile = useIsMobile();
   const isFullDesktop = useIsFullDesktop();
+  // The wall's dock replaces the rail and top bar (#922, #924).
+  const wallDock = !isMobile && !layout.isEditing;
   const { uiHidden } = useAutoHideUI();
-  const hasPortraitNav = !isMobile && deviceOrientation === 'portrait';
-  // Only reserve bottom space when nav is actually visible (not auto-hidden)
-  const bottomOffset = (hasPortraitNav && !uiHidden ? 96 : 0) + (isLCARS && !uiHidden ? 28 : 0);
+  // Nothing is fixed at the foot of the wall any more: the portrait bar is
+  // gone and the dock is drawn over the page (#924).
+  const bottomOffset = 0;
+  const floatingCards = isFullDesktop && !layout.isEditing ? (
+    <FloatingCardStack bottomOffset={bottomOffset}>
+      <WeatherRadarWidget data={data.weather.data} />
+      <MediaPlayerPlaybackCard
+        enabled={layout.activeLayout?.floatingCardSettings?.mediaPlayerPlayback?.enabled ??
+          layout.activeLayout?.floatingCardSettings?.appleTvPlayback?.enabled ?? true}
+      />
+    </FloatingCardStack>
+  ) : null;
 
   // Grid control state shared between LayoutEditor toolbar and LayoutGridEditor
   const { allSizeNames } = useScreenSafeZones();
 
-  // Tell the Screensaver what this dashboard shows behind it when idle (#782),
-  // which may be the dashboard itself (calm mode, #691). When the dashboard
-  // goes, other pages keep its photos or sky but have no dashboard to show.
-  // The phone layout has no calm idle state. Keyed by its JSON so a fresh copy
-  // of the same value is not a change.
+  // Tell the Screensaver what this dashboard shows behind it when idle (#782,
+  // #1281), which may be the dashboard itself (calm mode, #691). When the
+  // dashboard goes, other pages keep its photos or sky but have no dashboard
+  // to show. The phone layout has no calm idle state. Keyed by its JSON so a
+  // fresh copy of the same value is not a change.
   const idleBackground = layout.activeLayout ? parseIdleBackground(layout.activeLayout.idleBackground) : PHOTOS;
   const idleKey = JSON.stringify(isMobile ? withoutDashboard(idleBackground) : idleBackground);
   useEffect(() => {
@@ -253,6 +263,20 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   // board all night does not hold every edge on the same pixels (part 2).
   const { drift } = useScreensaverMotion();
   const idleDrift = calmIdle && drift;
+  // Through the day (#1152): the state the editor is showing, if any. The
+  // Through the day sheet's strip sets it: Active is the dashboard in use,
+  // Resting and Night are the idle screen by day and by night.
+  const previewState: ScreenState | null = !layout.isEditing ? null
+    : layout.editTab !== 'idle' ? 'active'
+      : layout.idleHalf === 'night' ? 'night' : 'resting';
+  const shownBackground = layout.isEditing ? layout.editingBackground : idleBackground;
+  // One night for the veil, the dim and the backdrop: the dashboard's rule.
+  const nightNow = useNightNow(nightRule(shownBackground));
+  const sceneNight = previewState === 'night' || (previewState !== 'resting' && nightNow);
+  const previewBackdrop = previewState ? backdropFor(shownBackground, previewState) : null;
+  const { level: dimRaw } = useIdleDimSetting();
+  const previewDim = previewState === 'night' && previewBackdrop === 'dashboard' ? dimLevel(dimRaw) : 0;
+
   // Orientation from active layout (DB), fallback to landscape
   // A choice made here holds until the active layout's orientation changes.
   const fromLayout = layout.activeLayout?.orientation;
@@ -285,28 +309,18 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   const [gridTotalCols, setGridTotalCols] = useState(GRID_COLS);
   const scrollToGridRef = useRef<((row: number, col?: number) => void) | null>(null);
 
-  const handleScrollInfo = useCallback(
-    (info: {
-      scrollY: number;
-      visibleRows: number;
-      scrollX: number;
-      visibleCols: number;
-      totalRows: number;
-      totalCols: number;
-    }) => {
-      setGridScrollY(info.scrollY);
-      setGridVisibleRows(info.visibleRows);
-      setGridScrollX(info.scrollX);
-      setGridVisibleCols(info.visibleCols);
-      setGridTotalRows(info.totalRows);
-      setGridTotalCols(info.totalCols);
-    },
-    []
-  );
+  const handleScrollInfo = useCallback((info: { scrollY: number; visibleRows: number; scrollX: number; visibleCols: number; totalRows: number; totalCols: number }) => {
+    setGridScrollY(info.scrollY);
+    setGridVisibleRows(info.visibleRows);
+    setGridScrollX(info.scrollX);
+    setGridVisibleCols(info.visibleCols);
+    setGridTotalRows(info.totalRows);
+    setGridTotalCols(info.totalCols);
+  }, []);
 
   const handleToggleSize = useCallback((size: string) => {
-    setEnabledSizes((prev) =>
-      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
+    setEnabledSizes(prev =>
+      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
     );
   }, []);
 
@@ -319,48 +333,44 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
     router.push(editLink(`/d/${targetSlug}`));
   }, [router, pickDashboard]);
 
-  const handleCreateDashboard = useCallback(
-    async (name: string, startFrom: 'blank' | 'template' | 'copy' | 'today' | 'calendar') => {
-      const { DEFAULT_TEMPLATE } = await import('@/lib/constants/layoutTemplates');
-      let widgets: WidgetConfig[];
-      if (startFrom === 'copy' && layout.activeLayout) {
-        widgets = layout.activeLayout.widgets;
-      } else if (startFrom === 'template' || startFrom === 'today' || startFrom === 'calendar') {
-        // The personal fork keeps the grid front page; Simple layouts fall back
-        // to the default grid template rather than the upstream Today scene.
-        widgets = DEFAULT_TEMPLATE.widgets;
-      } else {
-        // Blank: single clock widget
-        widgets = [{ i: 'clock', x: 16, y: 16, w: 16, h: 16, visible: true }];
+  const handleCreateDashboard = useCallback(async (name: string, startFrom: 'blank' | 'template' | 'copy' | 'today') => {
+    const { DEFAULT_TEMPLATE } = await import('@/lib/constants/layoutTemplates');
+    let widgets: WidgetConfig[];
+    if (startFrom === 'today') {
+      widgets = TODAY_TEMPLATE.widgets;
+    } else if (startFrom === 'copy' && layout.activeLayout) {
+      widgets = layout.activeLayout.widgets;
+    } else if (startFrom === 'template') {
+      widgets = DEFAULT_TEMPLATE.widgets;
+    } else {
+      // Blank: single clock widget
+      widgets = [{ i: 'clock', x: 16, y: 16, w: 16, h: 16, visible: true }];
+    }
+    try {
+      const result = await data.layouts.saveLayout({
+        name, widgets, isDefault: false, ...(startFrom === 'today' ? { view: 'today' as const } : {}),
+      });
+      const saved = result as { slug?: string };
+      if (saved?.slug) {
+        router.push(`/d/${saved.slug}`);
       }
-      try {
-        const result = await data.layouts.saveLayout({ name, widgets, isDefault: false });
-        const saved = result as { slug?: string };
-        if (saved?.slug) {
-          router.push(`/d/${saved.slug}`);
-        }
-      } catch (err) {
-        console.error('Failed to create dashboard:', err);
-      }
-    },
-    [layout.activeLayout, data.layouts, router]
-  );
+    } catch (err) {
+      console.error('Failed to create dashboard:', err);
+    }
+  }, [layout.activeLayout, data.layouts, router]);
 
-  const handleRenameDashboard = useCallback(
-    async (newName: string) => {
-      if (!layout.activeLayout) return;
-      try {
-        await data.layouts.saveLayout({
-          id: layout.activeLayout.id,
-          name: newName,
-          widgets: layout.activeLayout.widgets,
-        });
-      } catch (err) {
-        console.error('Failed to rename dashboard:', err);
-      }
-    },
-    [layout.activeLayout, data.layouts]
-  );
+  const handleRenameDashboard = useCallback(async (newName: string) => {
+    if (!layout.activeLayout) return;
+    try {
+      await data.layouts.saveLayout({
+        id: layout.activeLayout.id,
+        name: newName,
+        widgets: layout.activeLayout.widgets,
+      });
+    } catch (err) {
+      console.error('Failed to rename dashboard:', err);
+    }
+  }, [layout.activeLayout, data.layouts]);
 
   const handleDeleteDashboard = useCallback(async () => {
     if (!layout.activeLayout) return;
@@ -373,76 +383,36 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   }, [layout.activeLayout, data.layouts, router]);
 
   const removeBirthday = useRemoveBirthday(confirmAction);
+  // Tonight's times and crossed offsets for a day and night pair being edited.
   const idleCheck = useIdleSwitchCheck(layout.isEditing ? layout.editingBackground : null);
-  const idleBarHeight = layout.isEditing && layout.editTab === 'idle'
-    ? ('switch' in layout.editingBackground ? 130 : 36)
-    : 0;
-
-  const widgetProps = useMemo(
-    () =>
-      buildWidgetProps(
-        data,
-        requireAuth,
-        {
-          setShowAddTask,
-          setShowAddMessage,
-          setShowAddChore,
-          setShowAddShopping,
-        },
-        weatherLocation,
-        confirmAction,
-        {
-          onEditTask: setEditingTask,
-          onEditChore: setEditingChore,
-          onEditMeal: setEditingMeal,
-          onRemoveBirthday: removeBirthday,
-        }
-      ),
-    [
-      data,
-      requireAuth,
-      weatherLocation,
-      confirmAction,
-      setShowAddTask,
-      setShowAddMessage,
-      setShowAddChore,
-      setShowAddShopping,
-      setEditingTask,
-      setEditingChore,
-      setEditingMeal,
-      removeBirthday,
-    ]
-  );
-  const widgetPropsRef = useLatestRef(widgetProps);
-  const weatherRevision = useMemo(
-    () => ({ data: data.weather, location: weatherLocation }),
-    [data.weather, weatherLocation]
-  );
-  const widgetRevisions = useMemo(
-    () => ({
-      weather: weatherRevision,
-      calendar: data.calendar,
-      tasks: data.tasks,
-      messages: data.messages,
-      chores: data.chores,
-      shopping: data.shopping,
-      meals: data.meals,
-      birthdays: data.birthdays,
-      points: data.points,
-    }),
-    [
-      weatherRevision,
-      data.calendar,
-      data.tasks,
-      data.messages,
-      data.chores,
-      data.shopping,
-      data.meals,
-      data.birthdays,
-      data.points,
-    ]
-  );
-
+  // The editing bar sits at the foot of the screen (#1151), so the grid keeps
+  // the top and leaves the bar its room at the bottom.
+  const editorBarRoom = layout.isEditing ? 104 : 0;
+  // One event sheet for the calendar widget and Today's arc (#836).
+  const eventSheet = useEventSheet(() => { void data.calendar.refresh(); });
+  // Everyday jobs without a PIN (#835).
+  const pinFree = usePinFreeEveryday();
+  const whoDidIt = useWhoDidIt();
+  const widgetProps = buildWidgetProps(data, requireAuth, {
+    setShowAddTask, setShowAddMessage, setShowAddChore, setShowAddShopping,
+  }, weatherLocation, confirmAction, {
+    onEditTask: setEditingTask,
+    onEditChore: setEditingChore,
+    onEditMeal: setEditingMeal,
+    onRemoveBirthday: removeBirthday,
+    onOpenEvent: eventSheet.open,
+    onAddEvent: eventSheet.add,
+    everyday: {
+      pinFree,
+      whoDidIt: async (chore) => {
+        const m = await whoDidIt.ask(chore);
+        if (!m) return null;
+        const index = familyMembers.findIndex((x) => (x.id && x.id === m.id) || x.name === m.name);
+        const member = familyMembers[index];
+        return { index: member?.loginIndex ?? index };
+      },
+    },
+  });
 
   const handleLogin = async () => {
     await requireAuth('Login', 'Select your profile');
@@ -460,164 +430,138 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
   // dashboard grid (sized to the widget's saved cells) and inside the
   // magnify overlay (sized to the larger overlay viewport so the widget
   // re-renders in its non-compact form).
-  const renderWidgetAt = useCallback((widget: WidgetConfig, gridW: number, gridH: number) => {
-    const widgetType = getWidgetType(widget);
-    const reg = WIDGET_REGISTRY[widgetType];
+  const renderWidgetAt = useCallback((widgetId: string, gridW: number, gridH: number) => {
+    const reg = WIDGET_REGISTRY[widgetId];
     if (!reg) {
-      return (
-        <div style={{ background: '#330', color: '#ff0', padding: 8 }}>
-          Unknown widget: {widgetType}
-        </div>
-      );
+      return <div style={{ background: '#330', color: '#ff0', padding: 8 }}>Unknown widget: {widgetId}</div>;
     }
     const Component = reg.component;
-    const props = {
-      ...(widgetPropsRef.current[widgetType] || {}),
-      instanceId: widget.i,
-      gridW,
-      gridH,
-    };
+    const props = { ...widgetProps[widgetId] || {}, gridW, gridH };
     return (
-      <WidgetBoundary name={`${widgetType}:${widget.i}`}>
-        <Suspense
-          fallback={
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Loading...
-            </div>
-          }
-        >
-          <div
-            className="h-full w-full"
-            data-theme-widget={widgetType}
-            data-widget-instance={widget.i}
-          >
-            <Component {...props} />
-          </div>
+      <WidgetBoundary name={widgetId}>
+        <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading...</div>}>
+          <Component {...props} />
         </Suspense>
       </WidgetBoundary>
     );
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   // Used by the magnify overlay — pass big enough gridW/gridH that any
   // widget with a compact-mode threshold re-renders in expanded form.
   const renderMagnifiedWidget = useCallback(
-    (instanceId: string) => {
-      const widget = layout.activeWidgets.find((w) => w.i === instanceId);
-      return widget ? renderWidgetAt(widget, 24, 20) : null;
-    },
-    [layout.activeWidgets, renderWidgetAt]
+    (widgetId: string) => renderWidgetAt(widgetId, 24, 20),
+    [renderWidgetAt],
   );
 
-  const renderDashboardWidget = useCallback(
-    (w: WidgetConfig) => {
-      const inner = renderWidgetAt(w, w.w, w.h);
-      // In edit mode, drag/select handlers own the widget chrome — don't
-      // also fire a magnify on double-tap. Outside edit mode, wrap with a
-      // double-click handler that pulls the magnify trigger from context.
-      if (layout.isEditing) return inner;
-      return <DashboardWidgetCell widgetId={w.i}>{inner}</DashboardWidgetCell>;
-    },
-    [layout.isEditing, renderWidgetAt]
-  );
+  const renderDashboardWidget = useCallback((w: WidgetConfig) => {
+    const inner = renderWidgetAt(w.i, w.w, w.h);
+    // In edit mode, drag/select handlers own the widget chrome — don't
+    // also fire a magnify on double-tap. Outside edit mode, wrap with a
+    // double-click handler that pulls the magnify trigger from context.
+    if (layout.isEditing) return inner;
+    return <DashboardWidgetCell widgetId={w.i}>{inner}</DashboardWidgetCell>;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout.isEditing, renderWidgetAt]);
 
   const renderSsWidget = useCallback((w: WidgetConfig) => {
     // Use actual widgets with real data in the screensaver designer
-    const widgetType = getWidgetType(w);
-    const reg = WIDGET_REGISTRY[widgetType];
+    const reg = WIDGET_REGISTRY[w.i];
     if (!reg) {
       return renderScreensaverPreview(w);
     }
     const Component = reg.component;
-    const props = {
-      ...(widgetPropsRef.current[widgetType] || {}),
-      instanceId: w.i,
-      gridW: w.w,
-      gridH: w.h,
-    };
+    const props = { ...widgetProps[w.i] || {}, gridW: w.w, gridH: w.h };
     return (
-      <WidgetBoundary name={`${widgetType}:${w.i}`}>
-        <Suspense
-          fallback={
-            <div className="flex h-full items-center justify-center text-sm text-white">
-              Loading...
-            </div>
-          }
-        >
+      <WidgetBoundary name={w.i}>
+        <Suspense fallback={<div className="flex items-center justify-center h-full text-white/50 text-sm">Loading...</div>}>
           <div className={SCREENSAVER_WIDGET_CLASS}>
             <Component {...props} />
           </div>
         </Suspense>
       </WidgetBoundary>
     );
-  }, []);
-
-  const floatingCards =
-    isFullDesktop && !layout.isEditing ? (
-      <FloatingCardStack bottomOffset={bottomOffset}>
-        {/* FloatingCardStack flows right-to-left, so radar stays at the right edge. */}
-        <WeatherRadarWidget data={data.weather.data} />
-        <MediaPlayerPlaybackCard
-          enabled={
-            layout.activeLayout?.floatingCardSettings?.mediaPlayerPlayback?.enabled ??
-            layout.activeLayout?.floatingCardSettings?.appleTvPlayback?.enabled ??
-            true
-          }
-        />
-      </FloatingCardStack>
-    ) : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   // Always this wrapper, styled or not, so a change of text size does not
   // remount the dashboard under it.
   if (isMobile) {
+    // Today reads as a phone Today (#928); a grid layout keeps its cards.
+    const phoneToday = todayPage;
     return (
       <div style={schedule.zoomStyle}>
-       <AppShell
-        user={
-          activeUser
-            ? {
-                id: activeUser.id,
-                name: activeUser.name,
-                avatarUrl: activeUser.avatarUrl,
-                color: activeUser.color,
-              }
-            : undefined
-        }
-        onLogout={activeUser ? clearActiveUser : undefined}
-        onLogin={handleLogin}
-      >
+        <AppShell
+          user={activeUser ? { id: activeUser.id, name: activeUser.name, avatarUrl: activeUser.avatarUrl, color: activeUser.color } : undefined}
+          onLogout={activeUser ? clearActiveUser : undefined}
+          onLogin={handleLogin}
+          showWallpaper={phoneToday}
+          cardTools={!phoneToday}
+        >
         <BirthdayCelebration celebrations={data.birthdays.birthdays} />
         <PartyModeButton celebrations={data.birthdays.birthdays} />
-        <LCARSFrame
-          enabled={isLCARS}
-          compact
-          chromeHidden={uiHidden}
-          label="Mobile operations"
-          code="M-47"
-        >
-          <MobileDashboard data={data} />
-        </LCARSFrame>
-       </AppShell>
+          {phoneToday ? (
+            <WidgetErrorBoundary>
+              <PhoneToday
+                parts={layout.activeWidgets}
+                events={data.calendar.events}
+                weather={data.weather.data ?? null}
+                onOpenEvent={eventSheet.open}
+                household={{
+                  chores: data.chores.chores as unknown as ChoreLike[],
+                  lists: data.shopping.lists as unknown as Array<{ id: string; name: string; items: Array<{ checked: boolean }> }>,
+                  birthdays: data.birthdays.birthdays,
+                  onTickChore: widgetProps.chores?.onChoreComplete as ((id: string) => void) | undefined,
+                  onAddShopping: widgetProps.shopping?.onAddClick as (() => void) | undefined,
+                }}
+              />
+              {eventSheet.element}
+              {whoDidIt.element}
+              {showAddShopping && (
+                <AddShoppingItemModal open={showAddShopping} onOpenChange={setShowAddShopping}
+                  onItemCreated={() => { data.shopping.refresh(); }} />
+              )}
+            </WidgetErrorBoundary>
+          ) : (
+            <MobileDashboard data={data} />
+          )}
+        </AppShell>
       </div>
     );
   }
 
   return (
-
     <div style={schedule.zoomStyle}>
       <AppShell
         user={activeUser ? { id: activeUser.id, name: activeUser.name, avatarUrl: activeUser.avatarUrl, color: activeUser.color } : undefined}
         onLogout={activeUser ? clearActiveUser : undefined}
         onLogin={handleLogin}
         showWallpaper
+        // The editor keeps its own controls and the rail (#922).
+        dock={layout.isEditing ? undefined : 'wall'}
+        // On a canvas (#1265) the controls are beside the picture, which shows
+        // the screen as it is when in use: no dock.
+        hideNav={layout.isEditing && remote !== null}
+        screenJobs={
+          <ScreenJobs
+            labelled
+            onScreensaverClick={() => window.dispatchEvent(new Event('prism:screensaver'))}
+            onEditClick={layout.isEditing || (activeUser && activeUser.role !== 'parent') ? undefined : layout.handleEditStart}
+          />
+        }
       >
         <BirthdayCelebration celebrations={data.birthdays.birthdays} />
         <PartyModeButton celebrations={data.birthdays.birthdays} />
         <DashboardLayout className={cn(className, isLCARS && 'lcars-dashboard')}>
-          <DashboardHeader
-            onScreensaverClick={() => window.dispatchEvent(new Event('prism:screensaver'))}
-            onEditClick={layout.isEditing || (activeUser && activeUser.role !== 'parent') ? undefined : layout.handleEditStart}
-          />
-
+          <LCARSFrame enabled={isLCARS} chromeHidden={uiHidden} label={`${layout.activeLayout?.name ?? 'Primary dashboard'} / Operations`} code="OPS-47">
+          {/* On the wall in landscape the dock's More has these (#922). */}
+          {/* While editing, the editing bar at the foot is the only control (#1151). */}
+          {!wallDock && !layout.isEditing && (
+            <DashboardHeader
+              onScreensaverClick={() => window.dispatchEvent(new Event('prism:screensaver'))}
+              onEditClick={activeUser && activeUser.role !== 'parent' ? undefined : layout.handleEditStart}
+            />
+          )}
 
           {layout.isEditing && (
             <LayoutEditor
@@ -648,6 +592,11 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
               idleHalf={layout.idleHalf}
               onIdleHalfChange={layout.setIdleHalf}
               idleCheck={idleCheck}
+              screenPlan={screenPlan}
+              onScreenPlanChange={changeScreenPlan}
+              screenId={screenId}
+              deviceNamed={deviceNamed}
+              onDeviceNamed={openNamedScreen}
               screenGuideOrientation={screenGuideOrientation}
               onScreenGuideOrientationChange={setScreenGuideOrientation}
               enabledSizes={enabledSizes}
@@ -665,33 +614,24 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
               onCreateDashboard={handleCreateDashboard}
               onRenameDashboard={handleRenameDashboard}
               onDeleteDashboard={handleDeleteDashboard}
+              view={layout.activeLayout?.view}
+              onResetBuiltIn={() => layout.setEditingWidgets(TODAY_TEMPLATE.widgets.map((w) => ({ ...w })))}
             />
           )}
 
-          <LCARSFrame
-            enabled={isLCARS}
-            chromeHidden={uiHidden}
-            label={`${layout.activeLayout?.name ?? 'Primary dashboard'} / Operations`}
-            code="OPS-47"
-          >
           {layout.editingScreensaver ? (
-
             <LayoutGridEditor
               layout={layout.ssLayout}
               onLayoutChange={layout.handleSsLayoutChange}
               isEditable
               renderWidget={renderSsWidget}
               margin={4}
-
-              headerOffset={isLCARS ? 200 : 100 + idleBarHeight}
-
-              bottomOffset={bottomOffset}
+              headerOffset={16}
+              bottomOffset={bottomOffset + editorBarRoom}
               minVisibleRows={8}
               theme={SCREENSAVER_THEME}
               previewFit="contain"
-
               hideEmptyByDefault
-
               gridHelperText="Drag widgets to reposition &bull; Scroll to see more"
               className="mx-4"
               screenGuideOrientation={screenGuideOrientation}
@@ -699,6 +639,29 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
               onScrollInfo={handleScrollInfo}
               scrollToRef={scrollToGridRef}
             />
+          ) : todayPage ? (
+            // Today (#907): one scene over the photo instead of the grid. While
+            // editing it stays the scene, so the Widgets sheet's changes show
+            // on it as they are made (#1151).
+            <WidgetErrorBoundary>
+              <TodayScene
+                parts={layout.activeWidgets}
+                weather={data.weather.data ?? null}
+                events={data.calendar.events}
+                onOpenEvent={eventSheet.open}
+                idle={calmIdle || previewState === 'resting' || previewState === 'night'}
+                night={sceneNight}
+                drift={idleDrift}
+                household={{
+                  chores: data.chores.chores as unknown as ChoreLike[],
+                  lists: data.shopping.lists as unknown as Array<{ id: string; name: string; items: Array<{ checked: boolean }> }>,
+                  birthdays: data.birthdays.birthdays,
+                  onTickChore: widgetProps.chores?.onChoreComplete as ((id: string) => void) | undefined,
+                  onAddShopping: widgetProps.shopping?.onAddClick as (() => void) | undefined,
+                }}
+                topOffset={uiHidden || wallDock || layout.isEditing ? 0 : 56}
+              />
+            </WidgetErrorBoundary>
           ) : (
             <WidgetErrorBoundary>
               <WidgetExpandProvider renderMagnified={renderMagnifiedWidget}>
@@ -709,18 +672,15 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
                   renderWidget={renderDashboardWidget}
                   fadedIds={fadedIds}
                   idleClear={calmIdle}
-
                   hideEmptyByDefault={calmIdle}
                   drift={idleDrift}
                   morph
                   // Stays / Fades belongs to the Idle screen tab, on a dashboard that is its own idle screen.
                   idleToggles={layout.isEditing && layout.editTab === 'idle' && !isMobile}
                   widgetConstraints={dashboardConstraints}
-                  widgetRevisions={widgetRevisions}
-                  margin={isLCARS ? 5 : 8}
-                  headerOffset={layout.isEditing ? (isLCARS ? 210 + idleBarHeight : 140 + idleBarHeight) : uiHidden ? 0 : isLCARS ? 150 : 56}
-
-                  bottomOffset={bottomOffset}
+                  margin={8}
+                  headerOffset={layout.isEditing ? 16 : uiHidden || wallDock ? 0 : 56}
+                  bottomOffset={bottomOffset + editorBarRoom}
                   screenGuideOrientation={screenGuideOrientation}
                   enabledSizes={enabledSizes}
                   onScrollInfo={handleScrollInfo}
@@ -729,150 +689,116 @@ export function Dashboard({ weatherLocation, className, slug }: DashboardProps) 
               </WidgetExpandProvider>
             </WidgetErrorBoundary>
           )}
-          </LCARSFrame>
 
-        {floatingCards}
+          {/* The editor's Night preview: the dim over this dashboard, or the
+              black of a screen set to go off (#1152). Under the editing bar. */}
+          {previewState === 'night' && (previewBackdrop === 'off' || previewDim > 0) && (
+            <div
+              aria-hidden
+              className="pointer-events-none fixed inset-0 z-150 bg-black"
+              style={{ opacity: previewBackdrop === 'off' ? 1 : previewDim }}
+              data-preview-night={previewBackdrop === 'off' ? 'off' : 'dim'}
+            />
+          )}
+          {eventSheet.element}
+          {whoDidIt.element}
+          {showAddTask && (
+            <AddTaskModal open={showAddTask} onOpenChange={setShowAddTask}
+              onTaskCreated={() => { data.tasks.refresh(); }} />
+          )}
+          {showAddMessage && (
+            <AddMessageModal open={showAddMessage} onOpenChange={setShowAddMessage}
+              currentUser={activeUser ? { id: activeUser.id, name: activeUser.name, color: activeUser.color, avatarUrl: activeUser.avatarUrl } : undefined}
+              onMessageCreated={() => { data.messages.refresh(); }} />
+          )}
+          {showAddChore && (
+            <AddChoreModal open={showAddChore} onOpenChange={setShowAddChore}
+              onChoreCreated={() => { data.chores.refresh(); }} />
+          )}
+          {showAddShopping && (
+            <AddShoppingItemModal open={showAddShopping} onOpenChange={setShowAddShopping}
+              onItemCreated={() => { data.shopping.refresh(); }} />
+          )}
 
-        {showAddTask && (
-          <AddTaskModal
-            open={showAddTask}
-            onOpenChange={setShowAddTask}
-            onTaskCreated={() => {
-              data.tasks.refresh();
-            }}
-          />
-        )}
-        {showAddMessage && (
-          <AddMessageModal
-            open={showAddMessage}
-            onOpenChange={setShowAddMessage}
-            currentUser={
-              activeUser
-                ? {
-                    id: activeUser.id,
-                    name: activeUser.name,
-                    color: activeUser.color,
-                    avatarUrl: activeUser.avatarUrl,
+          {editingChore && (
+            <Suspense fallback={null}>
+              <ChoreModal
+                chore={editingChore}
+                familyMembers={familyMembers}
+                onClose={() => setEditingChore(null)}
+                onSave={async (updated) => {
+                  await saveEditedChore(editingChore.id, updated);
+                }}
+              />
+            </Suspense>
+          )}
+
+          {editingTask && (
+            <Suspense fallback={null}>
+              <TaskModal
+                task={editingTask}
+                familyMembers={familyMembers}
+                taskLists={taskLists}
+                onClose={() => setEditingTask(null)}
+                onSave={async (updated) => {
+                  try {
+                    const res = await fetch(`/api/tasks/${editingTask.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        title: updated.title,
+                        priority: updated.priority,
+                        category: updated.category,
+                        assignedTo: updated.assignedTo?.id,
+                        dueDate: updated.dueDate,
+                        dueTime: updated.dueTime,
+                        completed: updated.completed,
+                        listId: updated.listId,
+                      }),
+                    });
+                    if (!res.ok) throw new Error('Failed to update task');
+                    data.tasks.refresh();
+                  } catch (err) {
+                    toast({ title: err instanceof Error ? err.message : 'Failed to update task', variant: 'destructive' });
+                  } finally {
+                    setEditingTask(null);
                   }
-                : undefined
-            }
-            onMessageCreated={() => {
-              data.messages.refresh();
-            }}
-          />
-        )}
-        {showAddChore && (
-          <AddChoreModal
-            open={showAddChore}
-            onOpenChange={setShowAddChore}
-            onChoreCreated={() => {
-              data.chores.refresh();
-            }}
-          />
-        )}
-        {showAddShopping && (
-          <AddShoppingItemModal
-            open={showAddShopping}
-            onOpenChange={setShowAddShopping}
-            onItemCreated={() => {
-              data.shopping.refresh();
-            }}
-          />
-        )}
+                }}
+              />
+            </Suspense>
+          )}
 
-        {editingChore && (
-          <Suspense fallback={null}>
-            <ChoreModal
-              chore={editingChore}
-              familyMembers={familyMembers}
-              onClose={() => setEditingChore(null)}
-              onSave={async (updated) => {
-                await saveEditedChore(editingChore.id, updated);
-              }}
-            />
-          </Suspense>
-        )}
-
-        {editingTask && (
-          <Suspense fallback={null}>
-            <TaskModal
-              task={editingTask}
-              familyMembers={familyMembers}
-              taskLists={taskLists}
-              onClose={() => setEditingTask(null)}
-              onSave={async (updated) => {
-                try {
-                  const res = await fetch(`/api/tasks/${editingTask.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      title: updated.title,
-                      priority: updated.priority,
-                      category: updated.category,
-                      assignedTo: updated.assignedTo?.id,
-                      dueDate: updated.dueDate,
-                      dueTime: updated.dueTime,
-                      completed: updated.completed,
-                      listId: updated.listId,
-                    }),
-                  });
-                  if (!res.ok) throw new Error('Failed to update task');
-                  data.tasks.refresh();
-                } catch (err) {
-                  toast({
-                    title: err instanceof Error ? err.message : 'Failed to update task',
-                    variant: 'destructive',
-                  });
-                } finally {
-                  setEditingTask(null);
-                }
-              }}
-            />
-          </Suspense>
-        )}
-
-        {editingMeal && (
-          <Suspense fallback={null}>
-            <MealModal
-              meal={editingMeal}
-              weekOf={editingMeal.weekOf}
-              dayOptions={
-                [
-                  'sunday',
-                  'monday',
-                  'tuesday',
-                  'wednesday',
-                  'thursday',
-                  'friday',
-                  'saturday',
-                ] as const
-              }
-              recipes={recipes}
-              onClose={() => setEditingMeal(null)}
-              onSave={async (updates) => {
-                try {
-                  const res = await fetch(`/api/meals/${editingMeal.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updates),
-                  });
-                  if (!res.ok) throw new Error('Failed to update meal');
-                  data.meals.refresh();
-                } catch (err) {
-                  toast({
-                    title: err instanceof Error ? err.message : 'Failed to update meal',
-                    variant: 'destructive',
-                  });
-                } finally {
-                  setEditingMeal(null);
-                }
-              }}
-            />
-          </Suspense>
-        )}
-      </DashboardLayout>
-      <ConfirmDialog {...confirmDialogProps} />
-    </AppShell>
+          {editingMeal && (
+            <Suspense fallback={null}>
+              <MealModal
+                meal={editingMeal}
+                weekOf={editingMeal.weekOf}
+                dayOptions={['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const}
+                recipes={recipes}
+                onClose={() => setEditingMeal(null)}
+                onSave={async (updates) => {
+                  try {
+                    const res = await fetch(`/api/meals/${editingMeal.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(updates),
+                    });
+                    if (!res.ok) throw new Error('Failed to update meal');
+                    data.meals.refresh();
+                  } catch (err) {
+                    toast({ title: err instanceof Error ? err.message : 'Failed to update meal', variant: 'destructive' });
+                  } finally {
+                    setEditingMeal(null);
+                  }
+                }}
+              />
+            </Suspense>
+          )}
+          </LCARSFrame>
+        </DashboardLayout>
+        {floatingCards}
+        <ConfirmDialog {...confirmDialogProps} />
+      </AppShell>
     </div>
   );
 }
@@ -897,7 +823,7 @@ function DashboardWidgetCell({
   const { triggerExpand, expandedId } = useWidgetExpand();
   const handleDoubleClick = React.useCallback(
     () => triggerExpand(widgetId),
-    [widgetId, triggerExpand]
+    [widgetId, triggerExpand],
   );
   // Hide the in-grid instance while its clone is the magnified modal —
   // avoids two copies of the same widget rendering simultaneously and

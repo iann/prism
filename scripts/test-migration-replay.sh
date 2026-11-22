@@ -575,6 +575,147 @@ fi
 log "Scenario L: PASS"
 
 # ----------------------------------------------------------------------------
+# Scenario M: 0054 gives the household its first timeline (#1266).
+# There is exactly one after the first run and still one after a replay. It
+# takes the default dashboard's idle background, so an upgraded install keeps
+# its screensaver. A screen loses the old schedule setting, and a screen on a
+# deleted timeline falls back to the first (its timeline_id goes null).
+# ----------------------------------------------------------------------------
+log "=== Scenario M: 0054 the first timeline ==="
+
+q() { docker exec "$CONTAINER_NAME" psql -U prism -d prism -t -A -c "$1"; }
+psql_exec "
+DELETE FROM timelines;
+UPDATE layouts SET is_default = false;
+INSERT INTO layouts (name, widgets, is_default, idle_background) VALUES ('M default', '[]'::jsonb, true, '{\"source\": \"photos\"}'::jsonb);
+INSERT INTO displays (name, settings) VALUES ('M wall', '{\"prism-screen-schedule\": \"[]\", \"prism-screensaver-timeout\": \"60\"}'::jsonb);
+DELETE FROM public.__prism_migrations WHERE name <> '0000_upgrade';
+"
+run_migrate
+GOT=$(q "SELECT count(*) || '|' || min(name) || '|' || min(idle_background->>'source') FROM timelines")
+if [ "$GOT" != "1|Main|photos" ]; then
+  echo "ERROR: 0054 made the first timeline as '$GOT' (want 1|Main|photos)" >&2
+  exit 1
+fi
+SETTINGS=$(q "SELECT settings::text FROM displays WHERE name = 'M wall'")
+if [ "$SETTINGS" != '{"prism-screensaver-timeout": "60"}' ]; then
+  echo "ERROR: 0054 left the screen's settings as $SETTINGS" >&2
+  exit 1
+fi
+
+log "A second timeline, a screen on it, then replay and delete it..."
+psql_exec "
+INSERT INTO timelines (id, name, position) VALUES ('00000000-0000-0000-0000-00000000b002', 'M other', 1);
+UPDATE displays SET timeline_id = '00000000-0000-0000-0000-00000000b002' WHERE name = 'M wall';
+DELETE FROM public.__prism_migrations WHERE name <> '0000_upgrade';
+"
+run_migrate
+if [ "$(q "SELECT count(*) FROM timelines")" != "2" ]; then
+  echo "ERROR: replaying 0054 added a timeline" >&2
+  exit 1
+fi
+psql_exec "DELETE FROM timelines WHERE id = '00000000-0000-0000-0000-00000000b002';"
+if [ "$(q "SELECT coalesce(timeline_id::text, 'first') FROM displays WHERE name = 'M wall'")" != "first" ]; then
+  echo "ERROR: a screen on a deleted timeline did not fall back to the first" >&2
+  exit 1
+fi
+
+log "Scenario M: PASS"
+
+# ----------------------------------------------------------------------------
+# Scenario N: 0055 each dashboard's own resting and night look (#1281). A
+# first timeline never changed since 0054 made it leaves each dashboard its
+# own look; one that was changed gives every dashboard its look, once. A
+# replay leaves a look changed since alone.
+# ----------------------------------------------------------------------------
+log "=== Scenario N: 0055 each dashboard's own day ==="
+
+FIRST="(SELECT id FROM timelines ORDER BY position, created_at LIMIT 1)"
+psql_exec "
+COMMENT ON COLUMN timelines.idle_background IS NULL;
+UPDATE timelines SET idle_background = '{\"day\": \"photos\", \"night\": \"sky\", \"switch\": {\"by\": \"sun\", \"duskOffset\": 30, \"dawnOffset\": -30}}'::jsonb,
+  updated_at = created_at WHERE id = $FIRST;
+INSERT INTO layouts (name, widgets, idle_background) VALUES ('N one', '[]'::jsonb, '{\"source\": \"dashboard\"}'::jsonb);
+INSERT INTO layouts (name, widgets, idle_background) VALUES ('N two', '[]'::jsonb, '{\"source\": \"off\"}'::jsonb);
+DELETE FROM public.__prism_migrations WHERE name = '0055_dashboard_own_day';
+"
+run_migrate
+GOT=$(q "SELECT string_agg(idle_background::text, ',' ORDER BY name) FROM layouts WHERE name IN ('N one', 'N two')")
+if [ "$GOT" != '{"source": "dashboard"},{"source": "off"}' ]; then
+  echo "ERROR: 0055 changed dashboards' own looks for a timeline nobody changed (got '$GOT')" >&2
+  exit 1
+fi
+
+log "The first timeline changed since it was made: every dashboard takes its look..."
+psql_exec "
+COMMENT ON COLUMN timelines.idle_background IS NULL;
+UPDATE timelines SET updated_at = created_at + interval '1 day' WHERE id = $FIRST;
+DELETE FROM public.__prism_migrations WHERE name = '0055_dashboard_own_day';
+"
+run_migrate
+GOT=$(q "SELECT string_agg(idle_background->>'night', ',' ORDER BY name) FROM layouts WHERE name IN ('N one', 'N two')")
+if [ "$GOT" != "sky,sky" ]; then
+  echo "ERROR: 0055 gave the dashboards the night looks '$GOT' (want sky,sky)" >&2
+  exit 1
+fi
+
+log "Change one dashboard's look, then replay 0055..."
+psql_exec "
+UPDATE layouts SET idle_background = '{\"source\": \"off\"}'::jsonb WHERE name = 'N two';
+DELETE FROM public.__prism_migrations WHERE name = '0055_dashboard_own_day';
+"
+run_migrate
+if [ "$(q "SELECT idle_background->>'source' FROM layouts WHERE name = 'N two'")" != "off" ]; then
+  echo "ERROR: replaying 0055 wrote over a dashboard's look changed since" >&2
+  exit 1
+fi
+
+log "Scenario N: PASS"
+
+# ----------------------------------------------------------------------------
+# Scenario O: 0056 a screen's dashboard and switches (#1282). Each screen
+# takes its timeline's dashboard and placements, as set-times switches; one on
+# no timeline takes the first's. Runs once: a replay leaves later changes.
+# ----------------------------------------------------------------------------
+log "=== Scenario O: 0056 a screen's dashboard and switches ==="
+
+psql_exec "
+ALTER TABLE displays DROP COLUMN IF EXISTS switches;
+DELETE FROM timelines;
+INSERT INTO layouts (id, name, widgets) VALUES
+  ('00000000-0000-0000-0000-00000000c0a1', 'O kitchen', '[]'::jsonb),
+  ('00000000-0000-0000-0000-00000000c0a2', 'O bus', '[]'::jsonb),
+  ('00000000-0000-0000-0000-00000000c0a3', 'O hall', '[]'::jsonb);
+INSERT INTO timelines (id, name, position, dashboard_id, placements) VALUES
+  ('00000000-0000-0000-0000-00000000c0b1', 'O main', 0, '00000000-0000-0000-0000-00000000c0a1',
+   '[{\"days\": [1, 2, 3, 4, 5], \"from\": \"07:15\", \"to\": \"08:00\", \"dashboardId\": \"00000000-0000-0000-0000-00000000c0a2\"}]'::jsonb),
+  ('00000000-0000-0000-0000-00000000c0b2', 'O quiet', 1, '00000000-0000-0000-0000-00000000c0a3', '[]'::jsonb);
+INSERT INTO displays (name, timeline_id) VALUES ('O one', NULL), ('O two', '00000000-0000-0000-0000-00000000c0b2');
+DELETE FROM public.__prism_migrations WHERE name = '0056_screen_switches';
+"
+run_migrate
+GOT=$(q "SELECT string_agg(name || '=' || coalesce(dashboard_id::text, 'default') || ':' || switches::text, ' | ' ORDER BY name) FROM displays WHERE name IN ('O one', 'O two')")
+WANT='O one=00000000-0000-0000-0000-00000000c0a1:[{"to": "08:00", "days": [1, 2, 3, 4, 5], "from": "07:15", "when": "times", "dashboardId": "00000000-0000-0000-0000-00000000c0a2"}] | O two=00000000-0000-0000-0000-00000000c0a3:[]'
+if [ "$GOT" != "$WANT" ]; then
+  echo "ERROR: 0056 gave the screens '$GOT'" >&2
+  echo "       want '$WANT'" >&2
+  exit 1
+fi
+
+log "Change a screen's switches, then replay 0056..."
+psql_exec "
+UPDATE displays SET switches = '[]'::jsonb, dashboard_id = NULL WHERE name = 'O one';
+DELETE FROM public.__prism_migrations WHERE name = '0056_screen_switches';
+"
+run_migrate
+if [ "$(q "SELECT coalesce(dashboard_id::text, 'default') || ':' || switches::text FROM displays WHERE name = 'O one'")" != "default:[]" ]; then
+  echo "ERROR: replaying 0056 wrote over a screen's dashboard or switches changed since" >&2
+  exit 1
+fi
+
+log "Scenario O: PASS"
+
+# ----------------------------------------------------------------------------
 echo
 echo "=========================================="
 echo "  All migration-replay scenarios passed"
