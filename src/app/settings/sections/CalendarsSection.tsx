@@ -15,6 +15,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { RemovedItemsManager } from '@/components/settings/RemovedItemsManager';
 import { HiddenEventsCard } from './HiddenEventsCard';
+import { PastEventsCard } from './PastEventsCard';
 import { BirthdaysCard } from './BirthdaysCard';
 import { Switch } from '@/components/ui/switch';
 import { useCalendarSources } from '@/lib/hooks';
@@ -746,6 +747,9 @@ export function CalendarsSection({ onSynced }: { onSynced?: () => void } = {}) {
       </div>
 
       <CalendarDeletionBehaviorCard />
+
+      <PastEventsCard />
+
       <CalendarHoursCard />
     </div>
   );

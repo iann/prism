@@ -13,14 +13,14 @@ type ConfirmFn = (
 
 /**
  * Remove a birthday from where it shows: a parent's PIN, a confirmation, then
- * the same removal as the Birthdays list in Settings > Calendars, which can
- * restore it. Every list
- * on this screen reloads as soon as it goes.
+ * the same removal as the Birthdays list in Manage calendars (Calendar >
+ * View), which can restore it. Every list on this screen reloads as soon as
+ * it goes.
  */
 export function useRemoveBirthday(confirm: ConfirmFn) {
   const { requireAuth } = useAuth();
   return useCallback(async (birthday: Birthday) => {
-    const user = await requireAuth('Remove a birthday', "Enter a parent's PIN to remove it.");
+    const user = await requireAuth('Remove a birthday', "Enter a parent's PIN to remove it.", { parentsOnly: true });
     if (!user) return;
     if (user.role !== 'parent') {
       toast({ title: 'Only a parent can remove a birthday', variant: 'warning' });
@@ -28,7 +28,7 @@ export function useRemoveBirthday(confirm: ConfirmFn) {
     }
     const ok = await confirm(
       `Remove ${birthday.name}?`,
-      'It disappears from Prism, and calendar or contact sync will not add it back. You can restore it in Settings > Calendars.',
+      'It disappears from Prism, and calendar or contact sync will not add it back. You can restore it in Calendar > View > Manage calendars.',
       { confirmLabel: 'Remove', variant: 'destructive' },
     );
     if (!ok) return;

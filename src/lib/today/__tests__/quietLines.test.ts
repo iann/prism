@@ -1,12 +1,12 @@
 /**
  * The quiet lines on Today (#911).
  */
-import { birthdayNudge, choresLeft, NUDGE, type BirthdayLike } from '../quietLines';
+import { birthdayNudge, choresLeft, encodePutOff, NUDGE, occasionOf, type BirthdayLike } from '../quietLines';
 
 const chore = (id: string, nextDue: string | null, extra: object = {}) => ({ id, title: id, enabled: true, nextDue, ...extra });
 
 describe('choresLeft', () => {
-  it('counts what is due today or overdue, and not what is done, waiting or switched off', () => {
+  it('counts what is due today or overdue, or has no due date, and not what is done, waiting or switched off', () => {
     const left = choresLeft([
       chore('due today', '2026-11-05'),
       chore('overdue', '2026-11-01'),
@@ -14,8 +14,10 @@ describe('choresLeft', () => {
       chore('waiting for a parent', '2026-11-05', { pendingApproval: { completionId: 'x' } }),
       chore('off', '2026-11-05', { enabled: false }),
       chore('no date', null),
+      chore('no date, off', null, { enabled: false }),
     ], '2026-11-05');
-    expect(left.map((c) => c.id)).toEqual(['due today', 'overdue']);
+    // A chore with no due date is due now (#1329), as the chores API treats it.
+    expect(left.map((c) => c.id)).toEqual(['due today', 'overdue', 'no date']);
   });
 });
 
@@ -45,5 +47,16 @@ describe('birthdayNudge', () => {
   });
   it('leaves anniversaries and milestones alone', () => {
     expect(birthdayNudge([bday('wedding', 4, { eventType: 'anniversary' })], { hour: 9, putOff: never })).toBeNull();
+  });
+});
+
+describe('encodePutOff', () => {
+  it('is the same for one occasion, differs between birthdays and years, and shows neither', () => {
+    const now = occasionOf({ id: 'grandpa', nextBirthday: '2026-11-27' });
+    const digest = encodePutOff(now);
+    expect(encodePutOff(now)).toBe(digest);
+    expect(digest).toMatch(/^[0-9a-f]{8}$/);
+    expect(encodePutOff(occasionOf({ id: 'grandpa', nextBirthday: '2027-11-27' }))).not.toBe(digest);
+    expect(encodePutOff(occasionOf({ id: 'grandma', nextBirthday: '2026-11-27' }))).not.toBe(digest);
   });
 });

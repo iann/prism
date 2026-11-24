@@ -38,6 +38,8 @@ export default defineConfig({
     },
   ],
   webServer: {
+    // The browser tests run on webpack, the bundler production builds use.
+    // The personal `npm run dev` already runs webpack on the fork's port.
     command: 'npm run dev',
     url: baseURL,
     reuseExistingServer: !process.env.CI,

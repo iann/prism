@@ -11,7 +11,16 @@ import { logError } from '@/lib/utils/logError';
 import { describePin, isPinKind, lengthAllowed, lengthBounds, pinMatches, pinNoun, type PinKind } from '@/lib/auth/pinKind';
 import { isSetupComplete } from '@/lib/setup';
 import { parentCanResetPin } from '@/lib/auth/pinReset';
+import { revokeApiTokensOf } from '@/lib/auth/apiTokens';
 import { isHexColor } from '@/lib/constants/memberColors';
+import { cookies } from 'next/headers';
+import {
+  invalidateAllUserSessions,
+  revokeOtherSessions,
+  reserveLoginAttempt,
+  recordFailedLogin,
+  clearLoginAttempts,
+} from '@/lib/auth/session';
 
 export async function GET(
   request: NextRequest,
@@ -248,14 +257,29 @@ export async function PATCH(
           );
         }
 
-        // Verify current PIN
-        const isPinValid = await bcrypt.compare(body.currentPin, currentMember.pin);
-        if (!isPinValid) {
+        // Verify current PIN. A wrong guess counts against the member's
+        // sign-in lockout, the same as at the login pad (#1221), so this is
+        // not a way around the attempt limit.
+        const reservation = await reserveLoginAttempt(currentMember.id);
+        if (!reservation.allowed) {
           return NextResponse.json(
-            { error: 'Current PIN is incorrect' },
+            { error: 'Too many failed attempts. Please try again later.', lockedOut: true, retryAfter: reservation.retryAfter },
+            { status: 403 }
+          );
+        }
+        // A passcode is stored lowercase (#1197), as the login pad sends it.
+        const currentPin = typeof body.currentPin === 'string'
+          ? (currentMember.pinKind === 'passcode' ? body.currentPin.toLowerCase() : body.currentPin)
+          : '';
+        const isPinValid = await bcrypt.compare(currentPin, currentMember.pin);
+        if (!isPinValid) {
+          const { remainingAttempts } = await recordFailedLogin(currentMember.id, reservation.count);
+          return NextResponse.json(
+            { error: 'Current PIN is incorrect', remainingAttempts },
             { status: 401 }
           );
         }
+        await clearLoginAttempts(currentMember.id);
       }
 
       // Validate and hash new PIN — must match this member's own configured
@@ -312,6 +336,25 @@ export async function PATCH(
           eq(calendarGroups.type, 'user')
         ));
     }
+
+    // A new PIN or passcode, or a new role, ends the member's sessions (#1221):
+    // a session carries the role it signed in with, and a device signed in on
+    // the old PIN should not stay in. A member changing their own PIN keeps
+    // the session making the change, so they are not signed out mid-edit.
+    // A new role also revokes the member's API tokens (#1246); a new PIN keeps
+    // them, as a token is not signed in with the PIN.
+    const credentialChanged = updates.pin !== undefined;
+    const roleChanged = updates.role !== undefined && updates.role !== currentMember.role;
+    if (credentialChanged || roleChanged) {
+      const ownSession = auth !== null && auth.userId === id && auth.scopes === undefined;
+      if (ownSession && !roleChanged) {
+        const current = (await cookies()).get('prism_session')?.value;
+        await revokeOtherSessions(id, current);
+      } else {
+        await invalidateAllUserSessions(id);
+      }
+    }
+    if (roleChanged) await revokeApiTokensOf(id);
 
     await invalidateEntity('family');
     await invalidateEntity('calendar-groups');
@@ -397,6 +440,9 @@ export async function DELETE(
 
       await tx.delete(users).where(eq(users.id, id));
     });
+
+    // A removed member's devices are signed out at once (#1221).
+    await invalidateAllUserSessions(id);
 
     await invalidateEntity('family');
 

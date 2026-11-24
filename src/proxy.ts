@@ -3,6 +3,7 @@ import { isAuthWallEnabled, verifyTrustedDeviceToken, TRUSTED_DEVICE_COOKIE } fr
 import { validateSession } from '@/lib/auth/session';
 import { validateApiToken } from '@/lib/auth/apiTokens';
 import { buildFramePolicy, buildWindyProxyHeaders } from '@/lib/utils/securityHeaders';
+import { applyApiCachePolicy } from '@/lib/api/cachePolicy';
 
 /**
  * Paths that stay reachable with the authentication wall on (#339). Without
@@ -167,6 +168,8 @@ export async function proxy(request: NextRequest) {
   });
   response.headers.set('x-request-id', requestId);
   applyRuntimeFramePolicy(response, pathname);
+
+  applyApiCachePolicy(pathname, response.headers);
 
   // The authentication wall (#339). Off by default, and the check short-circuits
   // on a cached boolean when it is off, so an instance that never turns it on

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import path from 'path';
 import { getSeededParentId } from './helpers/auth';
+import { onCanvas, openPanel } from './helpers/canvasEditor';
 
 /**
  * #803: on a small wall screen (under about 75% of 1920x1080) a widget set to
@@ -9,7 +10,8 @@ import { getSeededParentId } from './helpers/auth';
  * No text falls under the floor either way.
  *
  * Also #803: a widget whose fill is None draws its words straight on the
- * photo, in the light ink with a soft shadow, and the editor says so in words.
+ * photo, in the light ink with a soft shadow, and the editor says so in words,
+ * in the Widgets panel (#1323).
  */
 const HAS_TEST_DB = process.env.E2E_HAS_TEST_DB === '1';
 const PIN = process.env.E2E_PIN || '1234';
@@ -142,13 +144,22 @@ test.describe('a widget with no surface (#803)', () => {
       await menu.click();
       await page.locator('[data-dock-more]').click();
       await page.locator('[data-dock-more-panel] [data-screen-job="edit"]').click();
-      await page.locator('[data-editor-widget="shopping"]').click();
-      await page.getByRole('button', { name: /^Fill/ }).click();
-      await expect(page.locator('[data-fill-name]')).toHaveText(/^Default/);
-      await page.getByLabel('Transparent fill').click();
-      await expect(page.locator('[data-fill-name]')).toHaveText(/^None: the words sit straight on the photo/);
-      await page.getByLabel('Glass fill').click();
-      await expect(page.locator('[data-fill-name]')).toHaveText(/^Glass/);
+      // Edit opens the canvas (#1283): the widget is in the frame, and its
+      // settings are in the Widgets panel beside it (#1323), which comes
+      // forward when the widget is selected with another panel open.
+      const frame = await onCanvas(page, 'shopping');
+      await openPanel(page, 'look');
+      await frame.locator('[data-editor-widget="shopping"]').click();
+      const settings = page.locator('[data-editor-sheet="widgets"] [data-widget-settings="shopping"]');
+      await expect(settings).toBeVisible();
+      // The canvas shows only the screen: no strip of settings over it.
+      await expect(frame.getByRole('button', { name: /^Fill/ })).toHaveCount(0);
+      await expect(frame.locator('[data-fill-name]')).toHaveCount(0);
+      await expect(settings.locator('[data-fill-name]')).toHaveText(/^Default/);
+      await settings.getByLabel('Transparent fill').click();
+      await expect(settings.locator('[data-fill-name]')).toHaveText(/^None: the words sit straight on the photo/);
+      await settings.getByLabel('Glass fill').click();
+      await expect(settings.locator('[data-fill-name]')).toHaveText(/^Glass/);
     } finally { await cleanup(); }
   });
 });

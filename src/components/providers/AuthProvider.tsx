@@ -38,12 +38,20 @@ interface AuthContextType {
   activeUser: QuickPinMember | null;
   /** Set the active user directly (e.g., from session check) */
   setActiveUser: (user: QuickPinMember | null) => void;
-  /** Require authentication before proceeding - returns user or null if cancelled */
-  requireAuth: (title?: string, description?: string) => Promise<QuickPinMember | null>;
+  /**
+   * Require authentication before proceeding - returns user or null if cancelled.
+   * `parentsOnly` where only a parent can go on: the sign-in list shows parents alone (#1330).
+   */
+  requireAuth: (title?: string, description?: string, options?: RequireAuthOptions) => Promise<QuickPinMember | null>;
   /** Clear the active user (logout) */
   clearActiveUser: () => void;
   /** Whether auth modal is currently showing */
   isAuthenticating: boolean;
+}
+
+export interface RequireAuthOptions {
+  /** Only a parent can go on: the sign-in list offers the parents alone (#1330). */
+  parentsOnly?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -73,6 +81,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState("Who's there?");
   const [modalDescription, setModalDescription] = useState('Enter your PIN to continue');
+  const [modalParentsOnly, setModalParentsOnly] = useState(false);
 
   // Promise resolver for requireAuth
   const [authResolver, setAuthResolver] = useState<{
@@ -108,8 +117,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return null;
   }, []);
 
-  // Check for existing session on mount
+  // Check for existing session on mount. Once only: requireAuth can start it
+  // first, since a child's mount effect runs before this provider's.
   const checkInitialSession = useCallback(() => {
+    if (sessionCheckPromiseRef.current) return sessionCheckPromiseRef.current;
     const check = checkSession().finally(() => {
       setSessionChecked(true);
     });
@@ -178,6 +189,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // change is not replayed: a write that failed once could apply twice,
           // so it is tapped again after signing in.
           setModalTitle('Sign in to make changes');
+          setModalParentsOnly(false);
           setModalDescription('Enter your PIN, then try that again.');
           setShowModal(true);
         }
@@ -193,15 +205,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Returns the authenticated user or null if cancelled
    */
   const requireAuth = useCallback(
-    async (title?: string, description?: string): Promise<QuickPinMember | null> => {
+    async (title?: string, description?: string, options?: RequireAuthOptions): Promise<QuickPinMember | null> => {
       // If already authenticated, return current user
       if (activeUser) {
         return activeUser;
       }
 
-      // Wait for session check to complete if still loading
-      if (!sessionChecked && sessionCheckPromiseRef.current) {
-        const sessionUser = await sessionCheckPromiseRef.current;
+      // A session not yet checked is checked first, even when this runs
+      // before the provider's own check has started.
+      if (!sessionChecked) {
+        const sessionUser = await checkInitialSession();
         if (sessionUser) {
           return sessionUser;
         }
@@ -210,11 +223,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return new Promise((resolve) => {
         setModalTitle(title || "Who's there?");
         setModalDescription(description || 'Enter your PIN to continue');
+        setModalParentsOnly(!!options?.parentsOnly);
         setAuthResolver({ resolve });
         setShowModal(true);
       });
     },
-    [activeUser, sessionChecked]
+    [activeUser, sessionChecked, checkInitialSession]
   );
 
   /**
@@ -273,6 +287,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         onAuthenticated={handleAuthenticated}
         preSelectedMember={activeUser}
         lockToMember={!!activeUser}
+        parentsOnly={modalParentsOnly}
       />
     </AuthContext.Provider>
   );

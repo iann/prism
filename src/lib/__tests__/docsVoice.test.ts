@@ -102,7 +102,7 @@ describe('docs voice', () => {
     // Sign-in plumbing, provider registries and on-device sky maths: no service of their own.
     // Also include personal fork integrations not documented in upstream docs.
     const helpers = new Set([
-      'credentialStore.ts', 'eclipse.ts', 'googleCalendarStore.ts', 'googleManualConnect.ts',
+      'credentialStore.ts', 'eclipse.ts', 'envCredential.ts', 'googleCalendarStore.ts', 'googleManualConnect.ts',
       'googleManualScopes.ts', 'googleScopes.ts', 'kroger/redirect.ts', 'kroger/tokens.ts', 'moon.ts',
       'oauth-userinfo.ts', 'oauthSetupRedirect.ts', 'resolveRedirectUri.ts', 'weather.ts',
       'shopping/index.ts', 'shopping/types.ts', 'tasks/index.ts', 'tasks/providerAuth.ts', 'tasks/types.ts',
