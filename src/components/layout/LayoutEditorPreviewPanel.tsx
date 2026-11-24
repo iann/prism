@@ -89,6 +89,10 @@ export function LayoutEditorPreviewPanel({
           </span>
         </div>
       </div>
+
+      {/* No per-device thumbnails (#1324): the dashboard stretches to fill its
+          screen, so they all looked alike. Shown at, on the canvas, shows any
+          screen's size full size. */}
       {validation.errors.length > 0 && (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2">
           <p className="mb-0.5 text-xs font-medium text-destructive">

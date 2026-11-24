@@ -1,5 +1,6 @@
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import type { IdleBackground } from '@/lib/idleBackground';
+import type { ScreenPlan } from '@/lib/screenSwitches';
 import type { EditTab, IdleHalf } from '@/components/dashboard/useDashboardLayout';
 import type { IdleSwitchCheck } from './useIdleSwitchCheck';
 
@@ -54,6 +55,24 @@ export interface LayoutEditorProps {
   onIdleHalfChange?: (half: IdleHalf) => void;
   /** Tonight's times and whether the offsets cross, for a day and night pair. */
   idleCheck?: IdleSwitchCheck;
+  /**
+   * In a screen's editor, the dashboard the screen shows and its switches
+   * (#1282), and how to change them; sent to the screen on Done.
+   */
+  screenPlan?: ScreenPlan | null;
+  onScreenPlanChange?: (plan: ScreenPlan) => void;
+  /**
+   * Another dashboard the canvas shows as it is saved, while the Through the
+   * day slider stands in its switch (#1294); null shows the one being edited.
+   */
+  previewDashboardId?: string | null;
+  onPreviewDashboardChange?: (id: string | null) => void;
+  /** The named screen being edited, or null for a dashboard on its own. */
+  screenId?: string | null;
+  /** The device in use has a name: nothing to offer naming it. */
+  deviceNamed?: boolean;
+  /** The device in use was named here: open its screen's editor. */
+  onDeviceNamed?: (displayId: string) => void;
   screenGuideOrientation?: 'landscape' | 'portrait';
   onScreenGuideOrientationChange?: (o: 'landscape' | 'portrait') => void;
   enabledSizes?: string[];
@@ -76,6 +95,15 @@ export interface LayoutEditorProps {
   view?: string | null;
   /** Put the built-in dashboard's widgets back as they came. */
   onResetBuiltIn?: () => void;
+  /**
+   * The widget selected on the canvas (#1323): its own settings show in the
+   * Widgets panel, which comes forward when one is selected.
+   */
+  selectedWidgetId?: string | null;
+  onSelectedWidgetChange?: (id: string | null) => void;
+  /** How the grid being edited draws the selected widget: see LayoutGridEditorProps. */
+  hideEmptyByDefault?: boolean;
+  idleToggles?: boolean;
 }
 
 export interface ExportWidget {

@@ -100,6 +100,30 @@ function unbracket(host: string): string {
 }
 
 /**
+ * True if `host` is an IP literal in a range a home network uses: RFC1918
+ * (10/8, 172.16/12, 192.168/16), carrier-grade NAT 100.64.0.0/10 (what mesh
+ * VPNs hand out), or IPv6 unique local fc00::/7. Loopback,
+ * 0.0.0.0, link-local (and with it the cloud metadata address) and the other
+ * reserved ranges are not in this set, so they stay refused when a caller
+ * opts in with allowHomeNetwork.
+ */
+function isHomeNetworkAddress(host: string): boolean {
+  const lower = unbracket(host).toLowerCase();
+  const m = lower.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    return (
+      a === 10 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 100 && b >= 64 && b <= 127)
+    );
+  }
+  return /^f[cd][0-9a-f]{2}:/.test(lower);
+}
+
+/**
  * True if `host` (a hostname or IP literal, port already stripped) is not
  * publicly routable: a localhost name, RFC1918 / loopback / link-local / CGNAT
  * IPv4, or a private IPv6. Used to decide when a request-derived OAuth redirect
@@ -174,6 +198,14 @@ export interface ValidatePublicUrlOptions {
    * CIDR ranges; a matching host bypasses the private-range checks below.
    */
   allowedInternalHosts?: string[];
+  /**
+   * Also accept home-network addresses (RFC1918, 100.64.0.0/10, IPv6 unique
+   * local), as a literal, as what a hostname resolves to, and on every
+   * redirect hop. Loopback, 0.0.0.0, link-local and the other reserved ranges
+   * are still refused. For an integration whose server normally sits on the
+   * household network and that a parent adds by hand. Default false.
+   */
+  allowHomeNetwork?: boolean;
 }
 
 /**
@@ -185,7 +217,9 @@ export interface ValidatePublicUrlOptions {
  * link-local, cloud metadata IP, IPv6 loopback / ULA / link-local.
  * In non-production, localhost and 127.x are permitted to keep dev
  * flows working. Hosts on PRISM_ALLOWED_INTERNAL_HOSTS are always
- * permitted (how a LAN self-hosted integration is allowed).
+ * permitted (how a LAN self-hosted integration is allowed). With
+ * allowHomeNetwork, RFC1918, 100.64.0.0/10 and IPv6 unique-local
+ * addresses are permitted as well.
  */
 export function validatePublicUrl(
   rawUrl: string,
@@ -216,6 +250,10 @@ export function validatePublicUrl(
   // (protocol is still enforced above). This is how self-hosted integrations
   // on a LAN — Tandoor, Nextcloud/CalDAV, Immich — are permitted in production.
   if (hostAllowed(host, allowlist)) return parsed;
+
+  // A caller that opted in accepts a home-network address. Anything else
+  // private falls through to the checks below and is refused as before.
+  if (options.allowHomeNetwork && isHomeNetworkAddress(host)) return parsed;
 
   // IPv6 literals come bracketed in URL.hostname on some runtimes and
   // unbracketed on others, so isPrivateIPv6 handles both shapes.
@@ -267,9 +305,7 @@ const dnsResolver: HostResolver = async (host) => {
 async function assertResolvesPublic(url: URL, options: SafeFetchOptions): Promise<void> {
   const isProd = options.isProduction ?? process.env.NODE_ENV === 'production';
   // Live DNS only in a real production process; tests pass a resolver.
-  const resolve =
-    options.resolveHost ??
-    (process.env.NODE_ENV === 'production' && !process.env.JEST_WORKER_ID ? dnsResolver : null);
+  const resolve = options.resolveHost ?? (process.env.NODE_ENV === 'production' ? dnsResolver : null);
   if (!resolve) return;
   const host = unbracket(url.hostname);
   const allowlist = options.allowedInternalHosts ?? parseAllowedInternalHosts(process.env.PRISM_ALLOWED_INTERNAL_HOSTS);
@@ -286,6 +322,7 @@ async function assertResolvesPublic(url: URL, options: SafeFetchOptions): Promis
   }
   for (const addr of addresses) {
     if (hostAllowed(addr, allowlist)) continue;
+    if (options.allowHomeNetwork && isHomeNetworkAddress(addr)) continue;
     const loopbackInDev = !isProd && (/^127\./.test(addr) || addr === '::1');
     if (!loopbackInDev && (isPrivateIPv4(addr) || isPrivateIPv6(addr))) {
       throw new UnsafeUrlError(blockedMessage(host));
@@ -303,6 +340,21 @@ export async function assertPublicUrl(rawUrl: string, options: SafeFetchOptions 
   await assertResolvesPublic(validatePublicUrl(rawUrl, options), options);
 }
 
+/** Headers that carry credentials and must not cross to another origin. */
+const CREDENTIAL_HEADERS = new Set(['authorization', 'cookie']);
+
+/**
+ * A copy of `headers` without Authorization and Cookie. Takes every shape
+ * RequestInit accepts: a Headers object, a plain object, or [name, value]
+ * pairs.
+ */
+function withoutCredentials(headers: HeadersInit | undefined): HeadersInit | undefined {
+  if (!headers) return headers;
+  const out = new Headers(headers);
+  for (const name of CREDENTIAL_HEADERS) out.delete(name);
+  return out;
+}
+
 // 3xx statuses that carry a Location we would otherwise auto-follow.
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
@@ -315,7 +367,10 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
  * slips past the guard and the internal target is fetched. safeFetch closes
  * that: it validates the initial URL, fetches with `redirect: 'manual'`, and
  * re-runs validatePublicUrl() on the Location of every hop before following
- * it. Cross-host or private redirect targets throw UnsafeUrlError.
+ * it. A redirect to a private address throws UnsafeUrlError. A redirect to
+ * another public origin is followed, but without the Authorization and
+ * Cookie headers, as the platform does, so a token or password never goes
+ * to a host it was not meant for.
  *
  * Per-hop method handling mirrors the fetch spec: 303 (and 301/302 on a
  * non-GET/HEAD request) downgrade to GET and drop the body; 307/308 preserve
@@ -332,10 +387,11 @@ export async function safeFetch(
   let currentUrl = validatePublicUrl(rawUrl, options).toString();
   let method = init.method ?? 'GET';
   let body = init.body;
+  let headers = init.headers;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
     await assertResolvesPublic(new URL(currentUrl), options);
-    const res = await fetch(currentUrl, { ...init, method, body, redirect: 'manual' });
+    const res = await fetch(currentUrl, { ...init, method, body, headers, redirect: 'manual' });
 
     if (!REDIRECT_STATUSES.has(res.status)) return res;
 
@@ -347,6 +403,8 @@ export async function safeFetch(
     // the absolute target before the next hop touches the network.
     const next = new URL(location, currentUrl);
     validatePublicUrl(next.toString(), options);
+    // Credentials stay with the origin they were given for.
+    if (next.origin !== new URL(currentUrl).origin) headers = withoutCredentials(headers);
     currentUrl = next.toString();
 
     const downgradeToGet =

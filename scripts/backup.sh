@@ -5,7 +5,7 @@
 
 set -e
 
-BACKUP_DIR=${BACKUP_DIR:-/backups}
+BACKUP_DIR="${BACKUP_DIR:-/backups}"
 RETENTION_DAYS=${RETENTION_DAYS:-7}
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/prism_$TIMESTAMP.sql.gz"
@@ -38,7 +38,7 @@ PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
 # container and on developer machines, and stat's GNU-only -c form is not
 # available everywhere. wc -c is POSIX.
 BACKUP_BYTES=$(wc -c < "$BACKUP_FILE" 2>/dev/null || echo 0)
-if [ "$BACKUP_BYTES" -gt 10000 ]; then
+if [ -f "$BACKUP_FILE" ] && [ "$BACKUP_BYTES" -gt $((10 * 1000)) ]; then
   SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
   echo "[$(date)] Backup completed: $BACKUP_FILE ($SIZE)"
 else
@@ -66,7 +66,8 @@ fi
 #
 # The filename carries the real backup date and nothing rewrites it.
 echo "[$(date)] Cleaning up backups older than $RETENTION_DAYS days..."
-CUTOFF=$(date -d "@$(( $(date +%s) - RETENTION_DAYS * 86400 ))" +%Y%m%d)
+CUTOFF=$(date -d "@$(( $(date +%s) - RETENTION_DAYS * 86400 ))" +%Y%m%d 2>/dev/null \
+  || date -r $(( $(date +%s) - RETENTION_DAYS * 86400 )) +%Y%m%d)
 for f in "$BACKUP_DIR"/prism_*.sql.gz; do
   [ -e "$f" ] || continue
   stamp=$(basename "$f" | sed -n 's/^prism_\([0-9]\{8\}\)_.*/\1/p')
@@ -82,9 +83,24 @@ ls -lh "$BACKUP_DIR"/prism_*.sql.gz 2>/dev/null || echo "  (none)"
 
 # Off-site backup via rclone (if configured)
 SYNC_FAILED=0
+
+# The verify below expects every local dump to still be off-site, which holds
+# only while the off-site copies are kept at least as long as the local ones.
+# Kept shorter, the oldest local dumps are deleted off-site first and the
+# verify fails every night on a backup that is fine. Say so plainly.
+if [ -n "$RCLONE_REMOTE" ] && [ -n "$RCLONE_RETENTION_DAYS" ] && [ "$RCLONE_RETENTION_DAYS" -lt "$RETENTION_DAYS" ]; then
+  echo "[$(date)] ERROR: RCLONE_RETENTION_DAYS ($RCLONE_RETENTION_DAYS) is shorter than RETENTION_DAYS ($RETENTION_DAYS)."
+  echo "[$(date)] Off-site copies would expire before the local ones and the verify would fail every night. Raise RCLONE_RETENTION_DAYS."
+  SYNC_FAILED=1
+fi
 if [ -n "$RCLONE_REMOTE" ] && command -v rclone >/dev/null 2>&1; then
   echo "[$(date)] Syncing database backup to off-site storage: $RCLONE_REMOTE..."
-  if rclone copy "$BACKUP_FILE" "$RCLONE_REMOTE" --progress; then
+  # Copy every local dump, not only tonight's. The verify below checks the
+  # whole folder, so a night whose upload failed (an expired token, a network
+  # blip) would otherwise stay missing off-site and fail the check every night
+  # until someone copied it by hand. `copy` never deletes off-site and skips
+  # files already there, so a normal night still uploads just the new dump.
+  if rclone copy "$BACKUP_DIR" "$RCLONE_REMOTE" --include 'prism_*.sql.gz' --progress; then
     echo "[$(date)] Database backup sync completed successfully"
 
     # Clean up old remote backups too

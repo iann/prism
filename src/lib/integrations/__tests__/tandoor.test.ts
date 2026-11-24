@@ -14,7 +14,8 @@ import {
   deleteTandoorMealPlanEntry,
   updateTandoorRecipe,
   deleteTandoorRecipe,
-  fetchTandoorImage,
+  fetchTandoorRecipes,
+  fetchTandoorMealPlan,
   UnsafeUrlError,
   type TandoorRecipeDetail,
 } from '../tandoor';
@@ -117,31 +118,6 @@ describe('testTandoorConnection', () => {
 
     await expect(testTandoorConnection('http://10.0.0.5', 'tok')).rejects.toBeInstanceOf(UnsafeUrlError);
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-});
-
-describe('fetchTandoorImage', () => {
-  it('returns a Buffer for a successful download', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      arrayBuffer: () => Promise.resolve(new Uint8Array([0xff, 0xd8]).buffer),
-    }) as unknown as typeof fetch;
-
-    const buf = await fetchTandoorImage('https://tandoor.example.com/media/x.jpg', 'tok');
-    expect(buf).toBeInstanceOf(Buffer);
-    expect(buf?.length).toBe(2);
-  });
-
-  it('returns null on a failed download (never throws)', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 404,
-      headers: new Headers(),
-    }) as unknown as typeof fetch;
-
-    expect(await fetchTandoorImage('https://tandoor.example.com/media/missing.jpg', 'tok')).toBeNull();
   });
 });
 
@@ -282,5 +258,42 @@ describe('Tandoor recipe writes (#1207)', () => {
     expect(fetchMock.mock.calls[0][1].method).toBe('DELETE');
     global.fetch = answer(404, null) as unknown as typeof fetch;
     await expect(deleteTandoorRecipe('https://tandoor.example.com', 'tok', '2')).resolves.toBeUndefined();
+  });
+});
+
+describe('Tandoor paging stays on the configured server (#1225)', () => {
+  // A `next` link naming another host, as a server behind a misconfigured
+  // proxy (or a hostile one) can hand back.
+  const page = (results: unknown[], next: string | null) => ({
+    ok: true, status: 200, statusText: '', headers: new Headers(),
+    json: () => Promise.resolve({ count: 2, next, results }),
+  });
+  const urls = (m: jest.Mock) => m.mock.calls.map((c) => String(c[0]));
+
+  it('follows a meal-plan `next` on another host only as a path on the configured server', async () => {
+    const fetchMock = jest.fn()
+      .mockResolvedValueOnce(page([{ id: 1, from_date: '2026-11-20' }], 'https://elsewhere.example.net/api/meal-plan/?page=2&page_size=100'))
+      .mockResolvedValueOnce(page([{ id: 2, from_date: '2026-11-21' }], null));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const entries = await fetchTandoorMealPlan('https://tandoor.example.com', 'tok');
+    expect(entries.map((e) => e.id)).toEqual([1, 2]);
+    expect(urls(fetchMock)[1]).toBe('https://tandoor.example.com/api/meal-plan/?page=2&page_size=100');
+    expect(urls(fetchMock).every((u) => u.startsWith('https://tandoor.example.com/'))).toBe(true);
+  });
+
+  it('never sends the token to the host a recipe-list `next` names', async () => {
+    const fetchMock = jest.fn((url: string) => {
+      if (url.includes('/api/recipe/?')) {
+        return Promise.resolve(url.includes('page=2')
+          ? page([{ id: 2 }], null)
+          : page([{ id: 1 }], 'http://elsewhere.example.net/api/recipe/?page=2&page_size=100'));
+      }
+      return Promise.resolve({ ...page([], null), json: () => Promise.resolve({ ...DETAIL, id: Number(url.match(/recipe\/(\d+)/)?.[1]) }) });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const { total } = await fetchTandoorRecipes('https://tandoor.example.com', 'tok');
+    expect(total).toBe(2);
+    expect(urls(fetchMock)).toContain('https://tandoor.example.com/api/recipe/?page=2&page_size=100');
+    expect(urls(fetchMock).some((u) => u.includes('elsewhere'))).toBe(false);
   });
 });

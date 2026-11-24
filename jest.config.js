@@ -3,7 +3,8 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   setupFiles: ['<rootDir>/jest.setup.js'],
-  roots: ['<rootDir>/src'],
+  // collector/: the install counter's Worker, tested against real SQLite (#1311).
+  roots: ['<rootDir>/src', '<rootDir>/collector'],
   moduleNameMapper: {
     '\\.module\\.css$': '<rootDir>/src/test-utils/styleMock.ts',
     '^merry-timeline$': '<rootDir>/src/__mocks__/merry-timeline.ts',
@@ -21,6 +22,11 @@ module.exports = {
         moduleResolution: 'node',
         esModuleInterop: true,
       },
+      diagnostics: false,
+    }],
+    // The Worker is plain ES-module JavaScript; its tests import it as CommonJS.
+    '^.+/collector/[^/]+\\.js$': ['ts-jest', {
+      tsconfig: { allowJs: true, module: 'commonjs' },
       diagnostics: false,
     }],
   },

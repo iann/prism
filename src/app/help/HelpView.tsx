@@ -1,6 +1,7 @@
 'use client';
 
-import { WhatsNewList } from '@/components/layout/WhatsNew';
+import { WhatsNewChangelogLink, WhatsNewList } from '@/components/layout/WhatsNew';
+import { FeedbackCard } from '@/components/feedback/FeedbackCard';
 import { useState, useMemo } from 'react';
 import { HelpCircle, Search, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ interface HelpSection {
 function useSections(isMobile: boolean): HelpSection[] {
   return useMemo(() => {
     const all: HelpSection[] = [
-      { id: 'whats-new', title: "What's new", content: <WhatsNewList /> },
+      { id: 'whats-new', title: "What's new", content: <WhatsNewHelp /> },
       { id: 'getting-started', title: 'Getting Started', content: <GettingStarted /> },
       { id: 'roles', title: 'Roles & Permissions', content: <Roles /> },
       { id: 'dashboard', title: 'Dashboard', desktopOnly: true, content: <DashboardHelp /> },
@@ -163,6 +164,17 @@ const Ul = ({ children }: { children: React.ReactNode }) => (
   <ul className="list-disc pl-5 space-y-1 mb-3">{children}</ul>
 );
 
+function WhatsNewHelp() {
+  return (
+    <>
+      <WhatsNewList />
+      <P><WhatsNewChangelogLink /></P>
+      {/* The open question (#1311), as at the foot of More. It hides itself when none is open. */}
+      <FeedbackCard />
+    </>
+  );
+}
+
 function GettingStarted() {
   return (
     <>
@@ -171,12 +183,14 @@ function GettingStarted() {
       <Ul>
         <Li><strong>Add family members</strong> in Settings &gt; Family Members</Li>
         <Li><strong>Set a PIN</strong> (4 or 6 digits) for each member, chosen during the setup wizard on a fresh install, or later in Settings &gt; Security. Each member&apos;s PIN length is independent; there is no shared family PIN.</Li>
+        <Li><strong>Or an alphanumeric PIN</strong>: a member can sign in with a passcode of 6 to 12 lowercase letters and numbers instead. Edit the member in Settings &gt; Family Members and choose <strong>Passcode</strong> under <strong>Signs in with</strong>.</Li>
         <Li><strong>Connect integrations</strong> (Google, Microsoft, Apple/CalDAV, weather) in Settings &gt; Integrations</Li>
         <Li><strong>Customize your dashboard</strong> layout using the Edit button</Li>
         <Li><strong>Install as an app</strong> on phones and tablets for quick access</Li>
       </Ul>
       <H2>Logging In</H2>
       <P>Tap a family member&apos;s avatar, then enter their PIN (4 or 6 digits, depending on how it was set). It auto-submits once the PIN is complete. Keyboard input (0-9, Backspace) also works.</P>
+      <P>For a member with an alphanumeric PIN, tap <strong>ABC</strong> on the pad to show the letters, and <strong>123</strong> to go back to the numbers. Letters can be typed on a keyboard too.</P>
     </>
   );
 }
@@ -200,6 +214,8 @@ function Roles() {
         <Li>Add tasks, messages, and wish list items</Li>
         <Li>Post and edit their own messages</Li>
       </Ul>
+      <H3>Ticking without a PIN</H3>
+      <P>Settings &gt; Security &gt; <strong>Require the PIN for every change</strong>. When it is off, a named screen (or a trusted device) can tick chores, tasks and shopping items, and add to the shopping list, in one tap, with an Undo. Approving, points, editing, deleting and settings still need a parent. When it is on, each of these asks for a PIN. A new install starts with it off.</P>
     </>
   );
 }

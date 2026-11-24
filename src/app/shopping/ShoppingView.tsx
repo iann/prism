@@ -246,7 +246,7 @@ export function ShoppingView() {
                   label: 'Edit List',
                   icon: Settings,
                   onClick: async () => {
-                    const user = await requireAuth("Who's editing this list?");
+                    const user = await requireAuth("Who's editing this list?", undefined, { parentsOnly: true });
                     if (user && user.role === 'parent') { setEditingList(activeList); setShowListModal(true); }
                     else if (user) toast({ title: 'Only parents can edit list settings', variant: 'warning' });
                   },
@@ -343,7 +343,8 @@ export function ShoppingView() {
                 action={<Button variant="outline" size="sm" onClick={handleNewList}>Create your first list</Button>}
               />
             </div>
-          ) : activeList && !manage && !shoppingMode ? (
+          ) : activeList && (shoppingMode || !manage) ? (
+            // Shopping mode is the list to shop from, ticked and added to (#1312).
             <div className="pb-24 pt-2">
               <ShoppingCalmList
                 // A new list starts fresh: a question left open belongs to the list it was asked on.
@@ -352,7 +353,7 @@ export function ShoppingView() {
                 order={effectiveCategoryOrder}
                 allCategories={categoryOrder}
                 onToggle={(id) => toggleItem(id)}
-                onEdit={handleEditItem}
+                onEdit={shoppingMode ? undefined : handleEditItem}
                 onAdd={(name) => apiAddItem(activeList.id, { name, category: 'other' })}
                 onFile={async (itemId, category) => {
                   const res = await fetch(`/api/shopping-items/${itemId}`, {

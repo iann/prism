@@ -6,7 +6,7 @@ import { db } from '@/lib/db/client';
 import { settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logActivity } from '@/lib/services/auditLog';
-import { invalidateEntity } from '@/lib/cache/cacheKeys';
+import { invalidateEntity, invalidateEntities } from '@/lib/cache/cacheKeys';
 import type { AuthResult } from '@/lib/auth';
 import { logError } from '@/lib/utils/logError';
 import { PIN_LENGTH_SETTING_KEY } from '@/lib/constants';
@@ -21,6 +21,7 @@ import { BUS_RETENTION_KEYS, isValidRetention } from '@/lib/services/bus-live-re
 import { BUS_MAP_CAMERA_SETTING, BUS_MAP_STYLE_SETTING, isBusMapCamera, isBusMapStyle } from '@/lib/map/busMapOptions';
 import { BUS_DRIVER_NAMES_SETTING, isDriverNames } from '@/lib/services/bus-driver-names';
 import { AURORA_SETTING } from '@/lib/integrations/aurora';
+import { PAST_EVENTS_SETTING_KEY, isPastEventsMode } from '@/lib/utils/pastEvents';
 
 /**
  * Settings the setup wizard writes before any parent account has a session.
@@ -149,6 +150,10 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid week start' }, { status: 400 });
     }
 
+    if (body.key === PAST_EVENTS_SETTING_KEY && !isPastEventsMode(body.value)) {
+      return NextResponse.json({ error: 'Invalid past events mode' }, { status: 400 });
+    }
+
     if (body.key === BUS_RETENTION_KEYS.trace && !isValidRetention('trace', body.value)) {
       return NextResponse.json({ error: 'Invalid retention' }, { status: 400 });
     }
@@ -249,6 +254,12 @@ export async function PATCH(request: NextRequest) {
     }
     if (body.key === 'timezone') {
       invalidateHouseholdTimezoneCache();
+      // Event days and chore due dates are worked out in the household zone.
+      await invalidateEntities('events', 'chores');
+    }
+    if (body.key === 'weekStartsOn') {
+      // Weekly goal and point totals start on this day.
+      await invalidateEntities('goals', 'points');
     }
 
     return NextResponse.json({ key: body.key, value: valueToStore });
