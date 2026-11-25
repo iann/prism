@@ -2070,7 +2070,8 @@ html[data-virtual-keyboard-open] [data-keyboard-aware-dialog] {
     --wall-teal: var(--primary);
     --wall-nav-accent: var(--chart-1);
     --wall-nav-accent-soft: hsl(var(--wall-nav-accent) / 0.16);
-    --wall-font-family: var(--font-dm-sans), 'DM Sans', 'Avenir Next', Avenir, sans-serif;
+    --wall-font-family: var(--font-dm-sans), 'DM Sans', 'Avenir Next', Avenir,
+      'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
     --wall-radius-sm: 0.75rem;
     --wall-radius-md: 1rem;
     --wall-radius-lg: 1.15rem;
