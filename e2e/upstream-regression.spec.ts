@@ -109,7 +109,7 @@ test.describe('Upstream regression contracts', () => {
     await expect(page.getByRole('heading', { name: 'Manage calendars' })).toBeVisible();
   });
 
-  test('display controls persist Sunset mode and palette shape variables', async ({ page }) => {
+  test('display controls persist screen color scheme and palette shape variables', async ({ page }) => {
     await setClientFlags(page, { theme: 'light', colorTheme: 'daybook' });
     await loginViaAPI(page, parentName);
     await verifySettingsViaAPI(page, parentName);
@@ -117,8 +117,8 @@ test.describe('Upstream regression contracts', () => {
     await waitForStableUi(page, 700);
 
     await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
-    await page.getByRole('button', { name: 'Sunset', exact: true }).click();
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('prism-theme'))).toBe('sunset');
+    await page.getByRole('button', { name: 'Dark', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('prism-theme'))).toBe('dark');
 
     const shape = await page.evaluate(() => ({
       radius: getComputedStyle(document.documentElement).getPropertyValue('--radius').trim(),
@@ -129,6 +129,7 @@ test.describe('Upstream regression contracts', () => {
     expect(shape.density).not.toBe('');
     expect(shape.borderWidth).not.toBe('');
 
+    await page.getByRole('button', { name: 'Change', exact: true }).click();
     const palette = page.getByRole('button', { name: /Daybook/i }).first();
     await expect(palette).toHaveAttribute('aria-pressed', 'true');
   });
