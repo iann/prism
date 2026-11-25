@@ -47,10 +47,10 @@
  */
 
 import { test, expect, Page, type Locator } from '@playwright/test';
-import { execSync } from 'child_process';
 import { loginViaAPI, verifySettingsPinViaAPI } from './helpers/auth';
 import { resetAll } from './helpers/reset';
-import { waitForQuiet } from './helpers/network';
+import { runTestDb } from './helpers/testDb';
+import { hideDevOverlay, waitForCalendarContent } from './helpers/upstream';
 
 /**
  * Pull a seeded parent's name directly from the DB.
@@ -61,14 +61,11 @@ import { waitForQuiet } from './helpers/network';
  * DB sidesteps the issue and keeps the parent's name out of the test source.
  *
  * Two execution paths (matching the pattern in reverse-proxy.spec.ts):
- *   - Local: docker exec into prism-db.
+ *   - Local: DATABASE_URL or E2E_DB_CONTAINER, never a default (#1360).
  *   - CI: postgres is a service container on localhost; use DATABASE_URL.
  */
 function getSeededParentName(): string {
-  const cmd = process.env.DATABASE_URL
-    ? `psql "${process.env.DATABASE_URL}" -At -c "SELECT name FROM users WHERE role = 'parent' ORDER BY created_at LIMIT 1"`
-    : `docker exec prism-db psql -U prism -d ${process.env.E2E_DB_NAME || 'prism'} -At -c "SELECT name FROM users WHERE role = 'parent' ORDER BY created_at LIMIT 1"`;
-  const out = execSync(cmd, { encoding: 'utf-8' }).trim();
+  const out = runTestDb("SELECT name FROM users WHERE role = 'parent' ORDER BY created_at LIMIT 1", { tuplesOnly: true });
   if (!out) throw new Error('No seeded parent in DB — did seeds run?');
   return out;
 }
@@ -168,47 +165,6 @@ async function waitForDashboardWidgets(page: Page) {
 const HAS_TEST_DB = process.env.E2E_HAS_TEST_DB === '1';
 
 /**
- * Hide the Next.js dev overlay.
- *
- * The suite runs against `npm run dev` (see playwright.config.ts), so every
- * page carries `<nextjs-portal>` — the dev indicator. It renders in the
- * BOTTOM-LEFT corner, directly on top of the SideNav's avatar/login button,
- * and it wins the hit test: `page.click('button[aria-label="Log in"]')` used
- * to retry until the 30s test timeout with
- *
- *   <nextjs-portal> ... subtree intercepts pointer events
- *
- * It also painted the indicator into every committed baseline, where it is
- * pure noise — it does not exist in a production build, which is what the
- * baselines are supposed to represent.
- *
- * Hiding the host element removes it from both the screenshot and hit
- * testing. Injected via addInitScript so it applies before first paint and
- * survives client-side navigation.
- *
- * An init script runs on a document that has no `documentElement` yet, so
- * there is nothing to append to on the first call — measured, not assumed.
- * Hence: register the DOMContentLoaded hook FIRST, then try once eagerly.
- * Reversing those two lines throws on the eager attach and the hook is never
- * registered, which leaves the overlay in place.
- */
-async function hideDevOverlay(page: Page) {
-  await page.addInitScript(() => {
-    const STYLE_ID = 'pw-hide-dev-overlay';
-    const attach = () => {
-      const root = document.head || document.documentElement;
-      if (!root || document.getElementById(STYLE_ID)) return;
-      const style = document.createElement('style');
-      style.id = STYLE_ID;
-      style.textContent = 'nextjs-portal { display: none !important; }';
-      root.appendChild(style);
-    };
-    document.addEventListener('DOMContentLoaded', attach, { once: true });
-    attach();
-  });
-}
-
-/**
  * The instant every screenshot is taken at, when CI has asked for one.
  *
  * The seeded fixtures are built relative to "now" (see `src/lib/db/seed.ts`),
@@ -257,11 +213,9 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await loginViaAPI(page, parentName);
       await page.goto('/');
-      await waitForQuiet(page);
-      await page.waitForTimeout(800); // let theme + seasonal vars settle
-
       await expectPainted(page, page.locator('.widget-cell').first());
       await waitForDashboardWidgets(page);
+      await page.waitForTimeout(800); // let theme + seasonal vars settle
       await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
@@ -273,11 +227,9 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme, perfMode: true });
       await loginViaAPI(page, parentName);
       await page.goto('/');
-      await waitForQuiet(page);
-      await page.waitForTimeout(800);
-
       await expectPainted(page, page.locator('.widget-cell').first());
       await waitForDashboardWidgets(page);
+      await page.waitForTimeout(800);
       await expect(page).toHaveScreenshot(`dashboard-perf-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
@@ -289,10 +241,9 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await loginViaAPI(page, parentName);
       await page.goto('/calendar');
-      await waitForQuiet(page);
-      await page.waitForTimeout(800);
-
       await expectPainted(page, page.getByRole('button', { name: 'Add Event' }));
+      await waitForCalendarContent(page);
+      await page.waitForTimeout(800);
       await expect(page).toHaveScreenshot(`calendar-${theme}.png`, SCREENSHOT_OPTIONS);
     });
 
@@ -301,10 +252,9 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await verifySettingsPinViaAPI(page, parentName);
       await page.goto('/settings');
-      await waitForQuiet(page);
+      await expectPainted(page, page.getByRole('heading', { name: 'Settings' }));
       await page.waitForTimeout(800);
 
-      await expectPainted(page);
       await expect(page).toHaveScreenshot(`settings-${theme}.png`, SCREENSHOT_OPTIONS);
     });
 
@@ -313,12 +263,11 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await verifySettingsPinViaAPI(page, parentName);
       await page.goto('/settings?section=integrations');
-      await waitForQuiet(page);
+      await expectPainted(page, page.getByRole('heading', { name: 'Settings' }));
       // Wait for the /api/integrations/status fetch + /api/photo-sources
-      // fetch to settle so the cards render their final descriptions.
+      // data to paint so the cards render their final descriptions.
       await page.waitForTimeout(1200);
 
-      await expectPainted(page);
       await expect(page).toHaveScreenshot(`settings-integrations-${theme}.png`, SCREENSHOT_OPTIONS);
     });
   }
@@ -374,10 +323,9 @@ test.describe('Visual regression', () => {
         });
         await loginViaAPI(page, parentName);
         await page.goto('/calendar');
-        await waitForQuiet(page);
-        await page.waitForTimeout(800);
-
         await expectPainted(page, page.getByRole('button', { name: 'Add Event' }));
+        await waitForCalendarContent(page);
+        await page.waitForTimeout(800);
         await expect(page).toHaveScreenshot(`calendar-${cfg.label}-${theme}.png`, {
           ...SCREENSHOT_OPTIONS,
           mask: dynamicMasks(page),
@@ -396,7 +344,8 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await loginViaAPI(page, parentName);
       await page.goto('/calendar');
-      await waitForQuiet(page);
+      await expectPainted(page, page.getByRole('button', { name: 'Add Event' }));
+      await waitForCalendarContent(page);
       await page.click('button:has-text("Add Event")');
       // Modal is portal-rendered; wait for its title rather than a specific selector.
       await page.waitForSelector('text=/Add Event|New Event/i', { timeout: 5000 });
@@ -427,10 +376,15 @@ test.describe('Visual regression', () => {
         // SettingsView selects the section from `?section=`, not the hash —
         // `/settings#family` just renders the default section.
         await page.goto(`/settings?section=${section}`);
-        await waitForQuiet(page);
+        await expectPainted(page, page.getByRole('heading', { name: SECTION_HEADINGS[section] }));
+        if (section === 'display') {
+          // This household preference is fetched after the Appearance section
+          // renders. Its arrival changes the card height and pushes the
+          // "All screens" group below the viewport, so wait before capturing.
+          await page.locator('[data-new-screens-start-as]').waitFor({ state: 'visible', timeout: 30_000 });
+        }
         await page.waitForTimeout(800);
 
-        await expectPainted(page, page.getByRole('heading', { name: SECTION_HEADINGS[section] }));
         await expect(page).toHaveScreenshot(`settings-${section}-${theme}.png`, SCREENSHOT_OPTIONS);
       });
     }
@@ -449,10 +403,10 @@ test.describe('Visual regression', () => {
       await setCalendarPrefs(page, { viewType: 'agenda', displayMode: 'inline' });
       await loginViaAPI(page, parentName);
       await page.goto('/calendar');
-      await waitForQuiet(page);
+      await expectPainted(page, page.locator('[data-agenda-list]'));
+      await waitForCalendarContent(page);
       await page.waitForTimeout(800);
 
-      await expectPainted(page);
       await expect(page).toHaveScreenshot(`mobile-calendar-agenda-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
@@ -468,10 +422,8 @@ test.describe('Visual regression', () => {
       test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a synthetic-seed DB');
       await setClientFlags(page, { theme });
       await page.goto('/');
-      await waitForQuiet(page);
-      await page.waitForTimeout(600);
-
-      await expectPainted(page);
+      await expectPainted(page, page.locator('.widget-cell[data-widget="tasks"]'));
+      await waitForDashboardWidgets(page);
       await expect(page).toHaveScreenshot(`login-landing-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
@@ -482,8 +434,7 @@ test.describe('Visual regression', () => {
       test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a synthetic-seed DB');
       await setClientFlags(page, { theme });
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
-      await page.click('button[aria-label="Log in"]');
+      await page.getByRole('button', { name: 'Sign in' }).click();
       await page.waitForSelector('[data-testid="pin-modal"]', { timeout: 5000 });
       await page.waitForTimeout(400);
 

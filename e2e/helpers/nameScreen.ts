@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { onCanvas } from './canvasEditor';
 
 /**
  * Names this browser as a screen, or makes it a screen named before, from its
@@ -9,6 +10,7 @@ import { expect, type Page } from '@playwright/test';
  */
 export async function nameThisScreen(page: Page, name: string, how: 'new' | 'existing' = 'new'): Promise<void> {
   await page.goto('/?edit=1');
+  await onCanvas(page);
   await page.locator('[data-editor-open="screen"]').click({ timeout: 90_000 });
   const sheet = page.locator('[data-editor-sheet="screen"]');
   await sheet.locator('[data-name-device-open]').click();

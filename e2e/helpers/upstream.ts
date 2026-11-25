@@ -39,6 +39,13 @@ export async function getDefaultDashboardSlug(page: Page): Promise<string> {
   return slug;
 }
 
+/** Wait until the calendar page has replaced its first-load and Suspense spinners. */
+export async function waitForCalendarContent(page: Page) {
+  const content = page.locator('.wall-calendar-content > .h-full');
+  await content.waitFor({ state: 'visible', timeout: 60_000 });
+  await expect(content.locator('.animate-spin')).toHaveCount(0, { timeout: 60_000 });
+}
+
 /** Verify the parent-only Settings gate after the normal display login. */
 export async function verifySettingsViaAPI(page: Page, parentName: string) {
   const member = (await getFamilyMembers(page)).find((candidate) => candidate.name === parentName);
@@ -103,9 +110,28 @@ export async function setClientFlags(
 
 /** Wait for fonts, lazy views, and the first client-side data pass to settle. */
 export async function waitForStableUi(page: Page, delayMs = 500) {
-  await page.waitForLoadState('networkidle');
+  // Dashboard routes keep background polls active, so network idle is not a
+  // reliable indication that the visible page is ready.
+  await page.waitForFunction(() => (document.body?.innerText ?? '').trim().length > 40, null, { timeout: 60_000 });
   await page.evaluate(() => document.fonts?.ready);
   await page.waitForTimeout(delayMs);
+}
+
+/** Keep the dev-only Next.js indicator out of screenshots and hit testing. */
+export async function hideDevOverlay(page: Page) {
+  await page.addInitScript(() => {
+    const styleId = 'pw-hide-dev-overlay';
+    const attach = () => {
+      const root = document.head || document.documentElement;
+      if (!root || document.getElementById(styleId)) return;
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = 'nextjs-portal { display: none !important; }';
+      root.appendChild(style);
+    };
+    document.addEventListener('DOMContentLoaded', attach, { once: true });
+    attach();
+  });
 }
 
 /** Widgets with live values that should never be part of a screenshot diff. */

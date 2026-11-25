@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useRef, useState, useCallback, useEffect, createElement } from 'react';
+import { createElement, useEffect, useMemo, useState, useCallback } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { ToastAction, type ToastActionElement } from '@/components/ui/toast';
 import { editorKeyAction, isTypingTarget } from './editorKeys';
+import { useLatestRef } from '@/lib/hooks/useLatestRef';
 import {
   DndContext,
   useDraggable,
@@ -16,38 +17,18 @@ import {
   type DragStartEvent,
   type Modifier,
 } from '@dnd-kit/core';
-import { EyeOff, Moon, Trash2 } from 'lucide-react';
+import { EyeOff, Moon } from 'lucide-react';
 import { WidgetBgOverrideProvider, WidgetEmptyReportContext } from '@/components/widgets/WidgetContainer';
-import { WidgetResizeModeProvider } from './widgetEditModeContext';
-import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
-import { useLatestRef } from '@/lib/hooks/useLatestRef';
 import { shownWhenIdle } from '@/components/screensaver/calmMode';
-import {
-  CUSTOM_WIDGET_SHELL_CLASS,
-  getEffectiveWidgetTextColor,
-  getWidgetStyle,
-  getWidgetContentStyle,
-  getTextColorClass,
-  hasCustomWidgetShell,
-  getWidgetOutlineClass,
-} from './gridWidgetStyles';
+import { getWidgetStyle, getWidgetContentStyle, getTextColorClass, getWidgetOutlineClass } from './gridWidgetStyles';
 import type { EditorTheme } from './gridEditorTypes';
 import { useEmptyWidgets } from './useEmptyWidgets';
 import { canHideWhenEmpty, hidesWhenEmpty } from './hideWhenEmpty';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
-import { getWidgetType } from '@/lib/utils/widgetInstances';
 
 type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'se' | 'sw';
 
 type EditMode = 'move' | 'resize';
-
-type ResizePreview = {
-  widgetId: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-};
 
 /** On <html> while a widget is dragged or resized; globals.css drops the card blur. */
 export const EDITOR_MOVING_CLASS = 'editor-moving';
@@ -65,11 +46,6 @@ export interface CssGridEditorProps {
   totalCols: number;
   selectedWidget: string | null;
   onSelectWidget: (id: string | null) => void;
-  /**
-   * Takes the widget off the board. The parent owns the change (and its undo),
-   * so this component only says which instance was removed.
-   */
-  onRemoveWidget?: (id: string) => void;
   theme: EditorTheme;
   /**
    * Calm dashboards (#691): put a Stays / Fades switch on each widget, so what
@@ -93,7 +69,6 @@ export function CssGridEditor({
   totalCols,
   selectedWidget,
   onSelectWidget,
-  onRemoveWidget,
   theme,
   idleToggles = false,
   hideEmptyByDefault = false,
@@ -101,9 +76,10 @@ export function CssGridEditor({
   const [activeId, setActiveId] = useState<string | null>(null);
   const { emptyIds, reporterFor } = useEmptyWidgets();
   const [editMode, setEditMode] = useState<EditMode>('move');
-  const [resizePreview, setResizePreview] = useState<ResizePreview | null>(null);
-  const resizePreviewRef = useRef<ResizePreview | null>(null);
-  const resizeFrameRef = useRef<number | null>(null);
+  const [resizePreview, setResizePreview] = useState<{
+    widgetId: string;
+    x: number; y: number; w: number; h: number;
+  } | null>(null);
 
   // Read by the drag and resize handlers, which outlive the render they start in.
   const layoutRef = useLatestRef(layout);
@@ -128,7 +104,7 @@ export function CssGridEditor({
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
   );
 
   // Keys (#987): Delete removes the selected widget (with Undo); arrows move
@@ -164,20 +140,17 @@ export function CssGridEditor({
   }, [selectedWidget, editMode, totalCols, widgetConstraints, onLayoutChange, onSelectWidget, layoutRef]);
 
   // Cycle: unselected → move → resize → deselect
-  const handleWidgetClick = useCallback(
-    (id: string) => {
-      if (selectedWidget !== id) {
-        onSelectWidget(id);
-        setEditMode('move');
-      } else if (editMode === 'move') {
-        setEditMode('resize');
-      } else {
-        onSelectWidget(null);
-        setEditMode('move');
-      }
-    },
-    [selectedWidget, editMode, onSelectWidget]
-  );
+  const handleWidgetClick = useCallback((id: string) => {
+    if (selectedWidget !== id) {
+      onSelectWidget(id);
+      setEditMode('move');
+    } else if (editMode === 'move') {
+      setEditMode('resize');
+    } else {
+      onSelectWidget(null);
+      setEditMode('move');
+    }
+  }, [selectedWidget, editMode, onSelectWidget]);
 
   // Reset mode when widget is deselected externally
   const handleDeselect = useCallback(() => {
@@ -185,40 +158,22 @@ export function CssGridEditor({
     setEditMode('move');
   }, [onSelectWidget]);
 
-  // Delete / Backspace removes the selected widget, for anyone editing with a
-  // keyboard. Typing into a field (the coordinate boxes, a dashboard name)
-  // must keep Backspace to itself.
-  useEffect(() => {
-    if (!selectedWidget || !onRemoveWidget) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target) {
-        const tag = target.tagName;
-        if (target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      }
-      event.preventDefault();
-      onRemoveWidget(selectedWidget);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedWidget, onRemoveWidget]);
-
-  const visibleWidgets = useMemo(() => layout.filter((w) => w.visible !== false), [layout]);
+  const visibleWidgets = useMemo(
+    () => layout.filter(w => w.visible !== false),
+    [layout],
+  );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   }, []);
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, delta } = event;
-      setActiveId(null);
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, delta } = event;
+    setActiveId(null);
 
-      const deltaCol = Math.round(delta.x / step);
-      const deltaRow = Math.round(delta.y / step);
-      if (deltaCol === 0 && deltaRow === 0) return;
+    const deltaCol = Math.round(delta.x / step);
+    const deltaRow = Math.round(delta.y / step);
+    if (deltaCol === 0 && deltaRow === 0) return;
 
     const widgetId = active.id as string;
     const updated = layoutRef.current.map(w => {
@@ -241,105 +196,76 @@ export function CssGridEditor({
   }, [onLayoutChange, layoutRef]);
 
   // Resize via pointer events on handles
-  const handleResizeStart = useCallback(
-    (widgetId: string, edge: ResizeEdge, e: React.PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+  const handleResizeStart = useCallback((widgetId: string, edge: ResizeEdge, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-      const widget = layoutRef.current.find((w) => w.i === widgetId);
-      if (!widget) return;
+    const widget = layoutRef.current.find(w => w.i === widgetId);
+    if (!widget) return;
 
-      const orig = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const currentStep = step;
+    const orig = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const currentStep = step;
 
-      const initialPreview = { widgetId, ...orig };
-      resizePreviewRef.current = initialPreview;
-      setResizePreview(initialPreview);
+    setResizePreview({ widgetId, ...orig });
 
-      const schedulePreview = (next: ResizePreview) => {
-        resizePreviewRef.current = next;
-        if (resizeFrameRef.current !== null) return;
-        resizeFrameRef.current = window.requestAnimationFrame(() => {
-          resizeFrameRef.current = null;
-          if (resizePreviewRef.current) setResizePreview(resizePreviewRef.current);
-        });
-      };
+    const onMove = (ev: PointerEvent) => {
+      const dCol = Math.round((ev.clientX - startX) / currentStep);
+      const dRow = Math.round((ev.clientY - startY) / currentStep);
 
-      const onMove = (ev: PointerEvent) => {
-        const dCol = Math.round((ev.clientX - startX) / currentStep);
-        const dRow = Math.round((ev.clientY - startY) / currentStep);
+      const constraints = widgetConstraints?.[widgetId];
+      const minW = constraints?.minW ?? 1;
+      const minH = constraints?.minH ?? 1;
 
-        const constraints = widgetConstraints?.[getWidgetType(widget)];
-        const minW = constraints?.minW ?? 1;
-        const minH = constraints?.minH ?? 1;
+      let { x, y, w, h } = orig;
 
-        let { x, y, w, h } = orig;
+      if (edge.includes('e')) w = Math.max(minW, orig.w + dCol);
+      if (edge.includes('s')) h = Math.max(minH, orig.h + dRow);
+      if (edge.includes('w')) {
+        const newX = Math.max(0, orig.x + dCol);
+        x = Math.min(newX, orig.x + orig.w - minW);
+        w = orig.x + orig.w - x;
+      }
+      if (edge.includes('n')) {
+        const newY = Math.max(0, orig.y + dRow);
+        y = Math.min(newY, orig.y + orig.h - minH);
+        h = orig.y + orig.h - y;
+      }
 
-        if (edge.includes('e')) w = Math.max(minW, orig.w + dCol);
-        if (edge.includes('s')) h = Math.max(minH, orig.h + dRow);
-        if (edge.includes('w')) {
-          const newX = Math.max(0, orig.x + dCol);
-          x = Math.min(newX, orig.x + orig.w - minW);
-          w = orig.x + orig.w - x;
-        }
-        if (edge.includes('n')) {
-          const newY = Math.max(0, orig.y + dRow);
-          y = Math.min(newY, orig.y + orig.h - minH);
-          h = orig.y + orig.h - y;
-        }
+      setResizePreview({ widgetId, x, y, w, h });
+    };
 
-        schedulePreview({ widgetId, x, y, w, h });
-      };
+    const onUp = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
 
-      const onUp = () => {
-        document.removeEventListener('pointermove', onMove);
-        document.removeEventListener('pointerup', onUp);
-
-        if (resizeFrameRef.current !== null) {
-          window.cancelAnimationFrame(resizeFrameRef.current);
-          resizeFrameRef.current = null;
-        }
-
-        const finalPreview = resizePreviewRef.current;
-        resizePreviewRef.current = null;
-        setResizePreview(null);
-        if (!finalPreview) return;
-
-        const updated = layoutRef.current.map((w) => {
+      setResizePreview(prev => {
+        if (!prev) return null;
+        const updated = layoutRef.current.map(w => {
           if (w.i === widgetId) {
-            return {
-              ...w,
-              x: finalPreview.x,
-              y: finalPreview.y,
-              w: finalPreview.w,
-              h: finalPreview.h,
-            };
+            return { ...w, x: prev.x, y: prev.y, w: prev.w, h: prev.h };
           }
           return w;
         });
         onLayoutChange(updated);
-      };
+        return null;
+      });
+    };
 
-      document.addEventListener('pointermove', onMove);
-      document.addEventListener('pointerup', onUp);
-    },
-    [widgetConstraints, onLayoutChange, layoutRef, step]
-  );
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  }, [widgetConstraints, onLayoutChange, layoutRef, step]);
 
   // Get widget position — may be overridden during resize
-  const getWidgetPos = useCallback(
-    (w: WidgetConfig) => {
-      if (resizePreview?.widgetId === w.i) {
-        return { x: resizePreview.x, y: resizePreview.y, w: resizePreview.w, h: resizePreview.h };
-      }
-      return { x: w.x, y: w.y, w: w.w, h: w.h };
-    },
-    [resizePreview]
-  );
+  const getWidgetPos = useCallback((w: WidgetConfig) => {
+    if (resizePreview?.widgetId === w.i) {
+      return { x: resizePreview.x, y: resizePreview.y, w: resizePreview.w, h: resizePreview.h };
+    }
+    return { x: w.x, y: w.y, w: w.w, h: w.h };
+  }, [resizePreview]);
 
-  const activeWidget = activeId ? visibleWidgets.find((w) => w.i === activeId) : null;
+  const activeWidget = activeId ? visibleWidgets.find(w => w.i === activeId) : null;
 
   return (
     <DndContext
@@ -361,7 +287,7 @@ export function CssGridEditor({
         }}
         onClick={handleDeselect}
       >
-        {visibleWidgets.map((w) => (
+        {visibleWidgets.map(w => (
           <DraggableWidget
             key={w.i}
             widget={w}
@@ -374,7 +300,6 @@ export function CssGridEditor({
             renderWidget={renderWidget}
             theme={theme}
             onToggleIdle={idleToggles ? handleToggleIdle : undefined}
-            onRemove={onRemoveWidget ? () => onRemoveWidget(w.i) : undefined}
             reportEmpty={reporterFor(w.i)}
             emptyHidden={!emptyIds.has(w.i) ? null
               : hidesWhenEmpty(w, hideEmptyByDefault) ? 'always'
@@ -414,8 +339,6 @@ function DragOverlayContent({
   const widgetStyle = getWidgetStyle(widget);
   const contentStyle = getWidgetContentStyle(widget);
   const textClass = getTextColorClass(widget);
-  const hasCustomShell = hasCustomWidgetShell(widget);
-  const effectiveTextColor = getEffectiveWidgetTextColor(widget);
   const outlineClass = getWidgetOutlineClass(widget);
 
   return (
@@ -424,29 +347,12 @@ function DragOverlayContent({
         width: widget.w * cellSize + (widget.w - 1) * margin,
         height: widget.h * cellSize + (widget.h - 1) * margin,
         ...widgetStyle,
-        borderWidth: '2px',
-        borderColor: 'hsl(var(--primary))',
         opacity: 0.85,
       }}
-      className={`rounded-xl border-2 border-primary shadow-lg ${textClass} ${outlineClass}`}
+      className={`rounded-lg border-2 border-primary shadow-lg ${textClass} ${outlineClass}`}
     >
-      <WidgetBgOverrideProvider
-        value={{
-          hasCustomBg: !!widget.backgroundColor,
-          hasCustomShell,
-          backgroundColor: widget.backgroundColor,
-          backgroundOpacity: widget.backgroundOpacity,
-          textColor: effectiveTextColor,
-          textOpacity: widget.textOpacity,
-          gridLineOpacity: widget.gridLineOpacity,
-          cellBackgroundColor: widget.cellBackgroundColor,
-          cellBackgroundOpacity: widget.cellBackgroundOpacity,
-        }}
-      >
-        <div
-          className="h-full w-full overflow-hidden"
-          style={{ pointerEvents: 'none', ...contentStyle }}
-        >
+      <WidgetBgOverrideProvider value={{ hasCustomBg: !!widget.backgroundColor, textColor: widget.textColor, textOpacity: widget.textOpacity, gridLineOpacity: widget.gridLineOpacity, cellBackgroundColor: widget.cellBackgroundColor, cellBackgroundOpacity: widget.cellBackgroundOpacity }}>
+        <div className="h-full w-full overflow-hidden" style={{ pointerEvents: 'none', ...contentStyle }}>
           {renderWidget(widget)}
         </div>
       </WidgetBgOverrideProvider>
@@ -466,7 +372,6 @@ interface DraggableWidgetProps {
   renderWidget: (widget: WidgetConfig) => React.ReactNode;
   theme: EditorTheme;
   onToggleIdle?: (id: string) => void;
-  onRemove?: () => void;
   reportEmpty: (empty: boolean) => void;
   /** Empty now and so hidden on the live screen, always or only when idle. */
   emptyHidden: 'always' | 'idle' | null;
@@ -483,7 +388,6 @@ function DraggableWidget({
   renderWidget,
   theme,
   onToggleIdle,
-  onRemove,
   reportEmpty,
   emptyHidden,
 }: DraggableWidgetProps) {
@@ -501,8 +405,6 @@ function DraggableWidget({
   const textClass = getTextColorClass(widget, '');
   const outlineClass = getWidgetOutlineClass(widget);
   const hasCustomBg = !!widget.backgroundColor;
-  const hasCustomShell = hasCustomWidgetShell(widget);
-  const effectiveTextColor = getEffectiveWidgetTextColor(widget);
 
   // Ring color: blue for move, orange for resize
   const ringClass = isSelected
@@ -515,7 +417,7 @@ function DraggableWidget({
     <div
       ref={setNodeRef}
       data-editor-widget={widget.i}
-      className={`relative ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${inResizeMode ? '' : 'cursor-grab active:cursor-grabbing'} ${ringClass} ${isDragging ? 'opacity-30' : ''}`}
+      className={`group relative ${inResizeMode ? '' : 'cursor-grab active:cursor-grabbing'} ${ringClass} ${isDragging ? 'opacity-30' : ''}`}
       style={{
         gridColumn: `${pos.x + 1} / span ${pos.w}`,
         gridRow: `${pos.y + 1} / span ${pos.h}`,
@@ -525,23 +427,17 @@ function DraggableWidget({
         ...(inMoveMode ? { touchAction: 'none' } : {}),
         ...widgetStyle,
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect(widget.i);
-      }}
+      onClick={(e) => { e.stopPropagation(); onSelect(widget.i); }}
       {...(inMoveMode ? listeners : {})}
       {...(inMoveMode ? attributes : {})}
     >
-      {/* Border overlay — dashed for move, solid for resize (accessible: pattern + color) */}
-      <div
-        className={`absolute inset-0 z-10 border-2 ${
-          isSelected
-            ? inResizeMode
-              ? 'border-solid border-warning'
-              : 'border-dashed border-blue-500'
-            : `border-dashed ${theme.borderDash}`
-        } pointer-events-none rounded-xl`}
-      />
+      {/* Border overlay: dashed for move, solid for resize (accessible: pattern + color).
+          An unselected widget has none until it is pointed at or focused (#1338). */}
+      <div data-editor-frame className={`absolute inset-0 z-10 border-2 ${
+        isSelected
+          ? inResizeMode ? 'border-solid border-warning' : 'border-dashed border-blue-500'
+          : `border-none ${theme.borderDash}`
+      } rounded-lg pointer-events-none`} />
 
       {/* Widget content — interactivity disabled in edit mode so a stray
           click on an internal link (e.g. the Travel widget's "Open the map →")
@@ -549,152 +445,74 @@ function DraggableWidget({
           The outer wrapper still receives drag/select events because clicks
           bubble through pointer-events:none and the wrapper has its own
           onClick + dnd-kit listeners. */}
-      <WidgetBgOverrideProvider
-        value={{
-          hasCustomBg,
-          hasCustomShell,
-          backgroundColor: widget.backgroundColor,
-          backgroundOpacity: widget.backgroundOpacity,
-          textColor: effectiveTextColor,
-          textOpacity: widget.textOpacity,
-          gridLineOpacity: widget.gridLineOpacity,
-          cellBackgroundColor: widget.cellBackgroundColor,
-          cellBackgroundOpacity: widget.cellBackgroundOpacity,
-        }}
-      >
-        <WidgetResizeModeProvider value={inResizeMode}>
-          <WidgetEmptyReportContext.Provider value={reportEmpty}>
-            <div
-              className={`h-full w-full overflow-hidden ${textClass} ${outlineClass} ${emptyHidden ? 'opacity-50' : ''}`}
-              style={{ pointerEvents: 'none', ...contentStyle }}
-            >
-              {renderWidget(widget)}
-            </div>
-          </WidgetEmptyReportContext.Provider>
-        </WidgetResizeModeProvider>
+      <WidgetBgOverrideProvider value={{ hasCustomBg, textColor: widget.textColor, textOpacity: widget.textOpacity, gridLineOpacity: widget.gridLineOpacity, cellBackgroundColor: widget.cellBackgroundColor, cellBackgroundOpacity: widget.cellBackgroundOpacity }}>
+        <WidgetEmptyReportContext.Provider value={reportEmpty}>
+          <div
+            className={`h-full w-full overflow-hidden ${textClass} ${outlineClass} ${emptyHidden ? 'opacity-50' : ''}`}
+            style={{ pointerEvents: 'none', ...contentStyle }}
+          >
+            {renderWidget(widget)}
+          </div>
+        </WidgetEmptyReportContext.Provider>
       </WidgetBgOverrideProvider>
 
-      {/* Mode label, with Remove beside it — visible when selected. Remove is
-          its own button so a tap takes the widget off the board instead of
-          switching it between move and resize. Hidden in resize mode, where
-          the top edge is a handle. */}
       {/* Edit mode always shows the widget, so say when the live screen does
           not (#738). Top edge at the left; the idle switch is at the right. */}
       {emptyHidden && !isDragging && (
-        <div data-empty-marker className="absolute -top-2.5 left-3 z-30 flex items-center gap-1 rounded-full bg-neutral-600 px-2 py-0.5 text-xs leading-4 font-medium text-white shadow-xs pointer-events-none">
+        <div data-empty-marker className="absolute -top-2.5 left-3 z-30 flex items-center gap-1 rounded-full bg-neutral-600 px-2 py-0.5 text-2xs leading-4 font-medium text-white shadow-xs pointer-events-none">
           <EyeOff className="h-3.5 w-3.5" aria-hidden />
           {emptyHidden === 'idle' ? 'Empty: hidden when idle' : 'Empty: hidden'}
         </div>
       )}
 
+      {/* Mode label — visible when selected */}
       {isSelected && !isDragging && (
-        <div className="pointer-events-none absolute left-1/2 top-1 z-10 flex -translate-x-1/2 items-center gap-1">
-          <div
-            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium text-white shadow-xs ${
-              inResizeMode ? 'bg-warning/90' : 'bg-blue-500/90'
-            }`}
-          >
-            {inResizeMode ? (
-              <>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="15 3 21 3 21 9" />
-                  <polyline points="9 21 3 21 3 15" />
-                  <line x1="21" y1="3" x2="14" y2="10" />
-                  <line x1="3" y1="21" x2="10" y2="14" />
-                </svg>
-                Resize
-              </>
-            ) : (
-              <>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="5 9 2 12 5 15" />
-                  <polyline points="9 5 12 2 15 5" />
-                  <polyline points="15 19 12 22 9 19" />
-                  <polyline points="19 9 22 12 19 15" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <line x1="12" y1="2" x2="12" y2="22" />
-                </svg>
-                Move
-              </>
-            )}
-          </div>
-          {onRemove && !inResizeMode && (
-            <button
-              type="button"
-              data-widget-remove
-              aria-label={`Remove ${widgetLabel(widget)} from the board`}
-              title="Remove from the board"
-              className="pointer-events-auto flex touch-manipulation items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-[12px] font-medium text-destructive-foreground shadow-xs"
-              onClick={(event) => {
-                event.stopPropagation();
-                onRemove();
-              }}
-              onPointerDown={stopEvent}
-              onMouseDown={stopEvent}
-              onTouchStart={stopEvent}
-            >
-              <Trash2 className="h-3 w-3" aria-hidden />
-              Remove
-            </button>
+        <div className={`absolute top-1 left-1/2 -translate-x-1/2 z-10 text-white rounded-full px-2 py-0.5 flex items-center gap-1 pointer-events-none text-3xs font-medium shadow-xs ${
+          inResizeMode ? 'bg-warning/90' : 'bg-blue-500/90'
+        }`}>
+          {inResizeMode ? (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+              Resize
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="5 9 2 12 5 15" /><polyline points="9 5 12 2 15 5" /><polyline points="15 19 12 22 9 19" /><polyline points="19 9 22 12 19 15" /><line x1="2" y1="12" x2="22" y2="12" /><line x1="12" y1="2" x2="12" y2="22" />
+              </svg>
+              Move
+            </>
           )}
         </div>
       )}
 
       {/* Hint: tap again to switch mode */}
       {isSelected && !isDragging && (
-        <div className="pointer-events-none absolute bottom-1 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[12px] text-white shadow-xs">
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-10 bg-black/60 text-white rounded-full px-2 py-0.5 pointer-events-none text-4xs shadow-xs whitespace-nowrap">
           Tap to {inResizeMode ? 'deselect' : 'resize'}
         </div>
       )}
 
-      {/* Idle switch, on the top edge at the right. Hidden while the widget is
-          selected, where the edit actions own that edge, and in resize mode,
-          where that corner is a handle. */}
-      {onToggleIdle && !isSelected && !isDragging && (
+      {/* Idle switch, on the top edge at the right. Off in resize mode, where that corner is a handle. */}
+      {onToggleIdle && !inResizeMode && !isDragging && (
         <IdleToggle stays={shownWhenIdle(widget)} onToggle={() => onToggleIdle(widget.i)} />
       )}
 
       {/* Resize handles — only visible in resize mode, much larger for touch */}
-      {inResizeMode && <ResizeHandles widgetId={widget.i} onResizeStart={onResizeStart} />}
+      {inResizeMode && (
+        <ResizeHandles widgetId={widget.i} onResizeStart={onResizeStart} />
+      )}
     </div>
   );
-}
-
-/** Buttons on a widget's edge act on the widget; they must not start a drag or
- *  change the selection underneath them. */
-function stopEvent(event: React.SyntheticEvent): void {
-  event.stopPropagation();
-}
-
-function widgetLabel(widget: WidgetConfig): string {
-  const type = getWidgetType(widget);
-  return WIDGET_REGISTRY[type]?.label ?? type;
 }
 
 // Whether a widget stays on the calm idle screen. Its own button, so a tap
 // changes only this and does not select, drag or resize the widget.
 function IdleToggle({ stays, onToggle }: { stays: boolean; onToggle: () => void }) {
-  const stop = (e: React.SyntheticEvent) => e.stopPropagation();  return (
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  return (
     <button
       type="button"
       data-idle-toggle
@@ -722,67 +540,22 @@ const HIT = 28; // hit area size — large for touch (px)
 const CORNER_HIT = 48; // corner hit area (px) — meets Apple 44px minimum
 
 const EDGE_HIT_STYLES: Record<ResizeEdge, React.CSSProperties> = {
-  n: {
-    top: -HIT / 2,
-    left: CORNER_HIT / 2,
-    right: CORNER_HIT / 2,
-    height: HIT,
-    cursor: 'ns-resize',
-  },
-  s: {
-    bottom: -HIT / 2,
-    left: CORNER_HIT / 2,
-    right: CORNER_HIT / 2,
-    height: HIT,
-    cursor: 'ns-resize',
-  },
-  e: {
-    right: -HIT / 2,
-    top: CORNER_HIT / 2,
-    bottom: CORNER_HIT / 2,
-    width: HIT,
-    cursor: 'ew-resize',
-  },
-  w: {
-    left: -HIT / 2,
-    top: CORNER_HIT / 2,
-    bottom: CORNER_HIT / 2,
-    width: HIT,
-    cursor: 'ew-resize',
-  },
-  ne: {
-    top: -CORNER_HIT / 2,
-    right: -CORNER_HIT / 2,
-    width: CORNER_HIT,
-    height: CORNER_HIT,
-    cursor: 'nesw-resize',
-  },
-  se: {
-    bottom: -CORNER_HIT / 2,
-    right: -CORNER_HIT / 2,
-    width: CORNER_HIT,
-    height: CORNER_HIT,
-    cursor: 'nwse-resize',
-  },
-  sw: {
-    bottom: -CORNER_HIT / 2,
-    left: -CORNER_HIT / 2,
-    width: CORNER_HIT,
-    height: CORNER_HIT,
-    cursor: 'nesw-resize',
-  },
+  n:  { top: -HIT / 2, left: CORNER_HIT / 2, right: CORNER_HIT / 2, height: HIT, cursor: 'ns-resize' },
+  s:  { bottom: -HIT / 2, left: CORNER_HIT / 2, right: CORNER_HIT / 2, height: HIT, cursor: 'ns-resize' },
+  e:  { right: -HIT / 2, top: CORNER_HIT / 2, bottom: CORNER_HIT / 2, width: HIT, cursor: 'ew-resize' },
+  w:  { left: -HIT / 2, top: CORNER_HIT / 2, bottom: CORNER_HIT / 2, width: HIT, cursor: 'ew-resize' },
+  ne: { top: -CORNER_HIT / 2, right: -CORNER_HIT / 2, width: CORNER_HIT, height: CORNER_HIT, cursor: 'nesw-resize' },
+  se: { bottom: -CORNER_HIT / 2, right: -CORNER_HIT / 2, width: CORNER_HIT, height: CORNER_HIT, cursor: 'nwse-resize' },
+  sw: { bottom: -CORNER_HIT / 2, left: -CORNER_HIT / 2, width: CORNER_HIT, height: CORNER_HIT, cursor: 'nesw-resize' },
 };
 
-function ResizeHandles({
-  widgetId,
-  onResizeStart,
-}: {
+function ResizeHandles({ widgetId, onResizeStart }: {
   widgetId: string;
   onResizeStart: (widgetId: string, edge: ResizeEdge, e: React.PointerEvent) => void;
 }) {
   return (
     <>
-      {EDGES.map((edge) => (
+      {EDGES.map(edge => (
         <div
           key={edge}
           className="absolute z-20"
@@ -792,7 +565,7 @@ function ResizeHandles({
           {/* Visual dot for corners — large and visible */}
           {edge.length === 2 && (
             <div
-              className="absolute rounded-full border-2 border-white bg-warning shadow-md"
+              className="absolute bg-warning rounded-full shadow-md border-2 border-white"
               style={{
                 width: 18,
                 height: 18,
@@ -805,23 +578,11 @@ function ResizeHandles({
           {/* Visual bar for edges — thick and visible */}
           {edge.length === 1 && (
             <div
-              className="absolute rounded-full bg-warning/70"
+              className="absolute bg-warning/70 rounded-full"
               style={{
                 ...(edge === 'n' || edge === 's'
-                  ? {
-                      width: 56,
-                      height: 6,
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                    }
-                  : {
-                      width: 6,
-                      height: 56,
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                    }),
+                  ? { width: 56, height: 6, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
+                  : { width: 6, height: 56, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }),
               }}
             />
           )}

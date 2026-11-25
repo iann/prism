@@ -1,110 +1,19 @@
 'use client';
 
-import * as React from 'react';
-import { memo, startTransition, useEffect, useMemo, useRef, useState, ViewTransition } from 'react';
 import { tileAlign, type AlignSetting } from '@/lib/layout/tileAlign';
-import { SCHEDULE_TRANSITION } from '@/lib/displays/screenSchedule';
-import {
-  WidgetBgOverrideProvider,
-  WidgetEmptyReportContext,
-} from '@/components/widgets/WidgetContainer';
-import {
-  CUSTOM_WIDGET_SHELL_CLASS,
-  getEffectiveWidgetTextColor,
-  getWidgetStyle,
-  getWidgetContentStyle,
-  getTextColorClass,
-  hasCustomWidgetShell,
-  getWidgetOutlineClass,
-} from './gridWidgetStyles';
+import { startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState, ViewTransition } from 'react';
+import { SCHEDULE_TRANSITION } from '@/lib/screenSwitches';
+import { WidgetBgOverrideProvider, WidgetEmptyReportContext } from '@/components/widgets/WidgetContainer';
+import { getWidgetStyle, getWidgetContentStyle, getTextColorClass, getWidgetOutlineClass } from './gridWidgetStyles';
 import { useSquareCells } from './useSquareCells';
 import { useEmptyWidgets } from './useEmptyWidgets';
 import { hidesWhenEmpty } from './hideWhenEmpty';
 import { isSmallScreen, layoutForSmallScreen } from '@/lib/layout/smallScreen';
 import { useViewportSize } from '@/lib/hooks/useViewportSize';
 import { GRID_COLS } from '@/lib/constants/grid';
+import { getWidgetType } from '@/lib/utils/widgetInstances';
 import { resolveFitMode, containGeometry } from './fitMode';
 import type { CssGridDisplayProps } from './gridEditorTypes';
-import type { WidgetConfig } from '@/lib/hooks/useLayouts';
-import { getWidgetType } from '@/lib/utils/widgetInstances';
-
-interface WidgetCellProps {
-  widget: WidgetConfig;
-  corner?: 'left' | 'right';
-  alignX?: 'left' | 'center' | 'right';
-  alignY?: 'top' | 'middle' | 'bottom';
-  idleClear?: boolean;
-  renderWidget: CssGridDisplayProps['renderWidget'];
-  revision: unknown;
-  initiallyVisible: boolean;
-  deferOffscreen: boolean;
-  /** False while the staged fill-in has not reached this widget yet (#1083). */
-  stagedVisible?: boolean;
-  /** Calm mode's idle state: drawn at zero opacity, still holding its place. */
-  faded?: boolean;
-  /** Slow burn-in drift while the display is idle. */
-  drift?: boolean;
-  emptyHidden?: boolean;
-  reportEmpty: (empty: boolean) => void;
-  morph: boolean;
-}
-
-function DeferredWidget({
-  widget,
-  renderWidget,
-  initiallyVisible,
-  deferOffscreen,
-  stagedVisible = true,
-  className,
-  style,
-}: {
-  widget: WidgetConfig;
-  renderWidget: CssGridDisplayProps['renderWidget'];
-  initiallyVisible: boolean;
-  deferOffscreen: boolean;
-  stagedVisible?: boolean;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const contentRef = React.useRef<HTMLDivElement>(null);
-  const [seen, setSeen] = React.useState(false);
-  // Nothing to defer for a widget that is already on screen. The rest wait for
-  // the observer, which marks them as they come near.
-  const isVisible = stagedVisible && (!deferOffscreen || initiallyVisible || seen);
-
-  React.useEffect(() => {
-    if (isVisible) return;
-
-    const element = contentRef.current;
-    if (!element || typeof IntersectionObserver === 'undefined') {
-      // Older embedded Chromium builds do not expose IntersectionObserver.
-      // Rendering is the safe fallback for those displays, after this commit.
-      const timer = setTimeout(() => setSeen(true), 0);
-      return () => clearTimeout(timer);
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setSeen(true);
-          observer.disconnect();
-        }
-      },
-      // Render slightly before a widget reaches the viewport so a user does
-      // not see a loading gap after a resize/orientation change.
-      { rootMargin: '200px' }
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [isVisible]);
-
-  return (
-    <div ref={contentRef} className={className} style={style}>
-      {isVisible ? renderWidget(widget) : null}
-    </div>
-  );
-}
-
 // A widget on both dashboards moves; one on only one fades (schedule-* in
 // globals.css). Only under a scheduled change: any other transition, such as
 // a navigation, leaves the grid alone as before.
@@ -127,29 +36,14 @@ const DRIFT_PERIOD_S = 96;
  * Where in the drift cycle a cell starts, in seconds (negative, so it is
  * already under way): the same point for every cell, taken from the wall
  * clock, so every widget on screen drifts in step however late it arrived.
+ *
+ * In step, because drifting out of step let neighbours move towards each other
+ * and overlap: two widgets each 4 px out close a 4 px gap twice over. Moving
+ * together keeps every gap exactly as designed, and every pixel still sees the
+ * same movement, which is all the panel needs.
  */
 function driftPhase(): number {
   return -((Date.now() / 1000) % DRIFT_PERIOD_S);
-}
-
-/** How many widgets' contents fill in at first, and per step after (#1083). */
-export const STAGE_FIRST = 2;
-export const STAGE_STEP = 2;
-
-/**
- * How many widgets may render their contents. Staged, the first STAGE_FIRST
- * at once and STAGE_STEP more per task until all are in; the server and the
- * first client render agree, so hydration matches. Not staged, all of them.
- */
-function useStagedCount(total: number, staged: boolean): number {
-  const [n, setN] = useState(STAGE_FIRST);
-  useEffect(() => {
-    if (!staged || n >= total) return;
-    // A new task per step: a tap waiting between them is handled first.
-    const id = setTimeout(() => startTransition(() => setN((c) => c + STAGE_STEP)), 0);
-    return () => clearTimeout(id);
-  }, [staged, n, total]);
-  return staged ? n : total;
 }
 
 /**
@@ -187,113 +81,25 @@ export function setCellDrift(el: HTMLElement, want: boolean) {
   el.addEventListener('transitionend', done);
 }
 
-const WidgetCell = memo(function WidgetCell({
-  widget,
-  corner,
-  alignX,
-  alignY,
-  renderWidget,
-  initiallyVisible,
-  deferOffscreen,
-  stagedVisible = true,
-  idleClear = false,
-  faded = false,
-  drift = false,
-  emptyHidden = false,
-  reportEmpty,
-  morph,
-}: WidgetCellProps) {
-  const cellRef = useRef<HTMLDivElement>(null);
-  // A faded widget does not drift: there is nothing on screen to protect.
+/** How many widgets' contents fill in at first, and per step after (#1083). */
+export const STAGE_FIRST = 2;
+export const STAGE_STEP = 2;
+
+/**
+ * How many widgets may render their contents. Staged, the first STAGE_FIRST
+ * at once and STAGE_STEP more per task until all are in; the server and the
+ * first client render agree, so hydration matches. Not staged, all of them.
+ */
+function useStagedCount(total: number, staged: boolean): number {
+  const [n, setN] = useState(STAGE_FIRST);
   useEffect(() => {
-    if (cellRef.current) setCellDrift(cellRef.current, drift && !faded && !emptyHidden);
-  }, [drift, faded, emptyHidden]);
-
-  const clear = idleClear && widget.backgroundColor === 'glass' && !faded && !emptyHidden;
-  const widgetStyle = clear ? undefined : getWidgetStyle(widget);
-  const contentStyle = getWidgetContentStyle(widget);
-  const textClass = getTextColorClass(widget);
-  const outlineClass = getWidgetOutlineClass(widget);
-  const hasCustomShell = hasCustomWidgetShell(widget);
-  const effectiveTextColor = getEffectiveWidgetTextColor(widget);
-  const background = {
-    hasCustomBg: !!widget.backgroundColor,
-    hasCustomShell,
-    backgroundColor: widget.backgroundColor,
-    backgroundOpacity: widget.backgroundOpacity,
-    textColor: effectiveTextColor,
-    textOpacity: widget.textOpacity,
-    gridLineOpacity: widget.gridLineOpacity,
-    cellBackgroundColor: widget.cellBackgroundColor,
-    cellBackgroundOpacity: widget.cellBackgroundOpacity,
-  };
-
-  const gone = faded || emptyHidden;
-  const cell = (
-    <div
-      ref={cellRef}
-      className={`widget-cell relative overflow-hidden ${hasCustomShell ? CUSTOM_WIDGET_SHELL_CLASS : ''} ${textClass} ${outlineClass} ${clear ? 'idle-clear' : ''} transition-opacity duration-1000 motion-reduce:duration-200`}
-      data-widget={getWidgetType(widget)}
-      data-widget-instance={widget.i}
-      data-corner={corner}
-      data-align-x={alignX}
-      data-align-y={alignY}
-      data-fill={
-        widget.backgroundColor === 'glass'
-          ? 'glass'
-          : widget.backgroundColor === 'transparent'
-            ? 'none'
-            : undefined
-      }
-      data-faded={faded || undefined}
-      data-hidden-empty={emptyHidden || undefined}
-      aria-hidden={gone || undefined}
-      style={{
-        gridColumn: `${widget.x + 1} / span ${widget.w}`,
-        gridRow: `${widget.y + 1} / span ${widget.h}`,
-        // Let Chromium skip style/layout/paint work for the descendants of
-        // cells that are outside the wall display. The React-level deferral
-        // below also prevents their timers and data-dependent subtrees from
-        // mounting in the first place.
-        ...(deferOffscreen ? { contentVisibility: 'auto' as const } : {}),
-        ...widgetStyle,
-        // Faded, not removed: the cell keeps its place in the grid, so nothing
-        // around it reflows. A tap on it falls to the empty grid, which wakes
-        // the display without pressing anything.
-        ...(gone ? { opacity: 0, pointerEvents: 'none' as const } : {}),
-      }}
-    >
-      <WidgetBgOverrideProvider value={background}>
-        <WidgetEmptyReportContext.Provider value={reportEmpty}>
-          <DeferredWidget
-            widget={widget}
-            renderWidget={renderWidget}
-            initiallyVisible={initiallyVisible}
-            deferOffscreen={deferOffscreen}
-            stagedVisible={stagedVisible}
-            className="h-full w-full overflow-hidden"
-            style={contentStyle}
-          />
-        </WidgetEmptyReportContext.Provider>
-      </WidgetBgOverrideProvider>
-    </div>
-  );
-  return morph ? (
-    <ViewTransition
-      key={widget.i}
-      name={morphName(widget.i)}
-      default="none"
-      update={MORPH}
-      share={MORPH}
-      enter={FADE_IN}
-      exit={FADE_OUT}
-    >
-      {cell}
-    </ViewTransition>
-  ) : (
-    cell
-  );
-});
+    if (!staged || n >= total) return;
+    // A new task per step: a tap waiting between them is handled first.
+    const id = setTimeout(() => startTransition(() => setN((c) => c + STAGE_STEP)), 0);
+    return () => clearTimeout(id);
+  }, [staged, n, total]);
+  return staged ? n : total;
+}
 
 /**
  * Pure CSS Grid display for dashboard widgets. SSR-safe.
@@ -302,15 +108,12 @@ const WidgetCell = memo(function WidgetCell({
 export function CssGridDisplay({
   layout,
   renderWidget,
-  widgetRevisions,
   margin = 8,
   containerPadding = 12,
   cols = GRID_COLS,
   fillHeight = false,
-  deferOffscreen = !fillHeight,
   headerOffset = 140,
   bottomOffset = 0,
-  rowHeightScale = 1,
   minVisibleRows = 0,
   targetRows,
   designOrientation,
@@ -326,25 +129,19 @@ export function CssGridDisplay({
   staged = false,
   smallScreenDrop = false,
 }: CssGridDisplayProps) {
-  const {
-    containerRef,
-    cellSize: widthCellSize,
-    width,
-    top,
-    zoom,
-    remeasure,
-  } = useSquareCells(cols, containerPadding, margin, fillHeight);
+  const { containerRef, cellSize: widthCellSize, width, top, zoom, remeasure } = useSquareCells(cols, containerPadding, margin, fillHeight);
   const { width: viewportWidth, height: viewportHeight, visibleHeight } = useViewportSize();
 
-  useEffect(() => {
-    remeasure();
-  }, [headerOffset, bottomOffset, remeasure]);
+  // Re-read the grid's real top whenever the chrome offset changes (a toolbar
+  // show/hide is a position change the ResizeObserver never sees), so the fill
+  // math tracks the actual header height instead of a stale value.
+  useEffect(() => { remeasure(); }, [headerOffset, bottomOffset, remeasure]);
 
   // On a small screen, "Hide first" widgets drop out and the rest close up (#803).
   const small = smallScreenDrop && isSmallScreen(viewportWidth, viewportHeight);
   const visibleWidgets = useMemo(
-    () => (small ? layoutForSmallScreen(layout) : layout).filter((w) => w.visible !== false),
-    [layout, small]
+    () => (small ? layoutForSmallScreen(layout) : layout).filter(w => w.visible !== false),
+    [layout, small],
   );
 
   const { emptyIds, reporterFor } = useEmptyWidgets(onEmptyChange);
@@ -357,6 +154,13 @@ export function CssGridDisplay({
   const shownCount = useStagedCount(visibleWidgets.length, staged);
 
   // A faded widget does not drift: there is nothing on screen to protect.
+  const cells = useRef(new Map<string, HTMLDivElement>());
+  useLayoutEffect(() => {
+    for (const [id, el] of cells.current) {
+      setCellDrift(el, drift && !fadedIds?.has(id));
+    }
+  }, [drift, fadedIds, visibleWidgets]);
+
   // --- Fit-to-screen (targetRows set) --------------------------------------
   // The design is a fixed `cols × targetRows` canvas. How it maps onto the real
   // screen depends on whether the screen's orientation matches the design's:
@@ -375,8 +179,7 @@ export function CssGridDisplay({
   // become an awkward gap. Top/left margins the design left ARE preserved
   // (anchored at origin) and scale proportionally.
   const { fitCols, fitRows } = useMemo(() => {
-    let maxCol = 1,
-      maxRow = 1;
+    let maxCol = 1, maxRow = 1;
     for (const w of visibleWidgets) {
       if (w.x + w.w > maxCol) maxCol = w.x + w.w;
       if (w.y + w.h > maxRow) maxRow = w.y + w.h;
@@ -390,13 +193,7 @@ export function CssGridDisplay({
 
   const screenWide = viewportWidth >= viewportHeight;
   const mode = resolveFitMode({
-    fitCols,
-    fitRows,
-    targetRows,
-    designOrientation,
-    screenWide,
-    containMode,
-    fillHeight,
+    fitCols, fitRows, targetRows, designOrientation, screenWide, containMode, fillHeight,
   });
   const stretch = mode === 'stretch';
   const contain = mode === 'contain';
@@ -446,14 +243,7 @@ export function CssGridDisplay({
         gridHeight: fitRows * widthCellSize + (fitRows - 1) * margin + 2 * containerPadding,
       };
     }
-    return containGeometry({
-      width,
-      height: availH,
-      cols: fitCols,
-      rows: fitRows,
-      margin,
-      padding: containerPadding,
-    });
+    return containGeometry({ width, height: availH, cols: fitCols, rows: fitRows, margin, padding: containerPadding });
   }, [contain, width, availH, widthCellSize, fitCols, fitRows, containerPadding, margin]);
 
   // Legacy (no targetRows): fill width, adapt row count to the viewport.
@@ -461,28 +251,23 @@ export function CssGridDisplay({
     if (fillHeight) return 12;
     if (viewportHeight <= 0) return 24;
     const available = viewportHeight / zoom - headerOffset - bottomOffset;
-    const rowCellSize = Math.max(16, Math.round(widthCellSize * rowHeightScale));
-    return Math.max(minVisibleRows, Math.floor((available + margin) / (rowCellSize + margin)));
-  }, [
-    fillHeight,
-    viewportHeight,
-    zoom,
-    headerOffset,
-    bottomOffset,
-    minVisibleRows,
-    widthCellSize,
-    rowHeightScale,
-    margin,
-  ]);
+    return Math.max(minVisibleRows, Math.floor((available + margin) / (widthCellSize + margin)));
+  }, [fillHeight, viewportHeight, zoom, headerOffset, bottomOffset, minVisibleRows, widthCellSize, margin]);
 
-  const rowCellSize = Math.max(16, Math.round(widthCellSize * rowHeightScale));
-  const visibleRows = stretch || contain ? fitRows : legacyRows;
+  // A little breathing room on the left in landscape, where the side nav rail
+  // lives, so the first column isn't flush against it (and the rail's
+  // expand/collapse has somewhere to go). Right/bottom keep their normal small
+  // margin. Portrait has a bottom nav, so no left play there.
+  const leftPlay = stretch && screenWide ? 20 : 0;
 
+  // Resolve the container box + grid template for the active mode.
   let containerHeight: number | string;
   let centerContain = false;
   let gridStyle: React.CSSProperties;
 
   if (stretch) {
+    // Fill the available box; columns AND rows flex (1fr) so the content canvas
+    // stretches to fit — never clipped, always full-bleed to bottom + right.
     containerHeight = availH;
     gridStyle = {
       display: 'grid',
@@ -492,7 +277,7 @@ export function CssGridDisplay({
       paddingTop: containerPadding,
       paddingRight: containerPadding,
       paddingBottom: containerPadding,
-      paddingLeft: containerPadding + (screenWide ? 20 : 0),
+      paddingLeft: containerPadding + leftPlay,
       width: '100%',
       height: '100%',
     };
@@ -511,13 +296,14 @@ export function CssGridDisplay({
       height: containGeo.gridHeight,
     };
   } else {
+    // Legacy: fill width, square cells, adaptive rows.
     containerHeight = fillHeight
       ? '100%'
-      : legacyRows * rowCellSize + (legacyRows - 1) * margin + 2 * containerPadding;
+      : legacyRows * widthCellSize + (legacyRows - 1) * margin + 2 * containerPadding;
     gridStyle = {
       display: 'grid',
-      gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-      gridAutoRows: `${rowCellSize}px`,
+      gridTemplateColumns: `repeat(${cols}, 1fr)`,
+      gridAutoRows: `${widthCellSize}px`,
       gap: `${margin}px`,
       padding: `${containerPadding}px`,
       height: '100%',
@@ -530,66 +316,73 @@ export function CssGridDisplay({
       className={`relative overflow-hidden ${className || ''}`}
       style={{
         height: containerHeight,
-        ...(centerContain
-          ? screenWide
-            ? { display: 'flex', alignItems: 'center', justifyContent: 'center' }
-            : {
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                paddingTop: `${containerPadding}px`,
-              }
-          : {}),
+        ...(centerContain ? { display: 'flex', alignItems: 'center', justifyContent: 'center' } : {}),
       }}
     >
       {morph && (
-        <style>
-          {visibleWidgets
-            .slice(0, STAGGER_STEPS)
-            .map(
-              (w, i) =>
-                `::view-transition-group(${morphName(w.i)}){animation-delay:${i * STAGGER_MS}ms}`
-            )
-            .join('') +
-            '@media (prefers-reduced-motion:reduce){::view-transition-group(*){animation-delay:0s}}'}
-        </style>
+        <style>{visibleWidgets.slice(0, STAGGER_STEPS).map((w, i) =>
+          `::view-transition-group(${morphName(w.i)}){animation-delay:${i * STAGGER_MS}ms}`,
+        ).join('') + '@media (prefers-reduced-motion:reduce){::view-transition-group(*){animation-delay:0s}}'}</style>
       )}
       <div style={gridStyle}>
-        {visibleWidgets.map((widget) => {
+        {visibleWidgets.map(w => {
+          // On the idle screen a glass card that stays drops its glass.
+          const clear = idleClear && w.backgroundColor === 'glass' && !fadedIds?.has(w.i);
+          const widgetStyle = clear ? undefined : getWidgetStyle(w);
+          const contentStyle = getWidgetContentStyle(w);
+          const textClass = getTextColorClass(w);
+          const outlineClass = getWidgetOutlineClass(w);
+          const hasCustomBg = !!w.backgroundColor;
+          const faded = fadedIds?.has(w.i) ?? false;
+          // Nothing to show and set to hide: out of sight the same way as a
+          // faded widget, keeping its place (#738).
+          const hiddenEmpty = emptyIds.has(w.i) && hidesWhenEmpty(w, hideEmptyByDefault);
+          const gone = faded || hiddenEmpty;
           // The clock and weather line up by where the tile sits (#988): in a
           // screen corner they hug it, elsewhere they centre; Align overrides.
-          const align =
-            widget.i === 'clock' || widget.i === 'weather'
-              ? tileAlign(
-                  widget,
-                  cols,
-                  fitRows,
-                  (widget.settings?.align as AlignSetting | undefined) ?? null
-                )
-              : undefined;
+          const widgetType = getWidgetType(w);
+          const align = widgetType === 'clock' || widgetType === 'weather'
+            ? tileAlign(w, cols, fitRows, (w.settings?.align as AlignSetting | undefined) ?? null)
+            : undefined;
           const corner = align && align.x !== 'center' ? align.x : undefined;
+
+          const cell = (
+            <div
+              key={w.i}
+              className={`widget-cell relative overflow-hidden ${textClass} ${outlineClass} ${clear ? 'idle-clear' : ''} transition-opacity duration-1000 motion-reduce:duration-200`}
+              ref={(el) => { if (el) cells.current.set(w.i, el); else cells.current.delete(w.i); }}
+              data-widget={w.i}
+              data-corner={corner}
+              data-align-x={align?.x}
+              data-align-y={align?.y}
+              data-fill={w.backgroundColor === 'glass' ? 'glass' : w.backgroundColor === 'transparent' ? 'none' : undefined}
+              data-faded={faded || undefined}
+              data-hidden-empty={hiddenEmpty || undefined}
+              aria-hidden={gone || undefined}
+              style={{
+                gridColumn: `${w.x + 1} / span ${w.w}`,
+                gridRow: `${w.y + 1} / span ${w.h}`,
+                ...widgetStyle,
+                // Faded, not removed: the cell keeps its place in the grid, so
+                // nothing around it reflows. A tap on it falls to the empty
+                // grid, which wakes the display without pressing anything.
+                ...(gone ? { opacity: 0, pointerEvents: 'none' as const } : {}),
+              }}
+            >
+              <WidgetBgOverrideProvider value={{ hasCustomBg, textColor: w.textColor, textOpacity: w.textOpacity, gridLineOpacity: w.gridLineOpacity, cellBackgroundColor: w.cellBackgroundColor, cellBackgroundOpacity: w.cellBackgroundOpacity }}>
+                <WidgetEmptyReportContext.Provider value={reporterFor(w.i)}>
+                  <div className="h-full w-full overflow-hidden" style={contentStyle}>
+                    {(stageRank.get(w.i) ?? 0) < shownCount ? renderWidget(w) : null}
+                  </div>
+                </WidgetEmptyReportContext.Provider>
+              </WidgetBgOverrideProvider>
+            </div>
+          );
+          if (!morph) return cell;
           return (
-            <WidgetCell
-              key={widget.i}
-              widget={widget}
-              corner={corner}
-              alignX={align?.x}
-              alignY={align?.y}
-              renderWidget={renderWidget}
-              revision={widgetRevisions?.[getWidgetType(widget)]}
-              initiallyVisible={
-                !deferOffscreen || (widget.y < visibleRows && widget.y + widget.h > 0)
-              }
-              deferOffscreen={deferOffscreen}
-              stagedVisible={(stageRank.get(widget.i) ?? 0) < shownCount}
-              idleClear={idleClear}
-              faded={fadedIds?.has(widget.i) ?? false}
-              drift={drift}
-              emptyHidden={emptyIds.has(widget.i) && hidesWhenEmpty(widget, hideEmptyByDefault)}
-              reportEmpty={reporterFor(widget.i)}
-              morph={morph}
-            />
+            <ViewTransition key={w.i} name={morphName(w.i)} default="none" update={MORPH} share={MORPH} enter={FADE_IN} exit={FADE_OUT}>
+              {cell}
+            </ViewTransition>
           );
         })}
       </div>

@@ -66,7 +66,6 @@ export function CommunityGallery({ mode, onApplyLayout, currentOrientation }: Co
       if (data) {
         const widgets: WidgetConfig[] = data.widgets.map(w => ({
           i: w.i,
-          type: w.type || w.i,
           x: w.x,
           y: w.y,
           w: w.w,
@@ -190,15 +189,13 @@ function CommunityLayoutCard({
   isLoading: boolean;
   onUse: () => void;
 }) {
-  const [widgets, setWidgets] = useState<
-    Array<{ i: string; type?: string; x: number; y: number; w: number; h: number }>
-  >([]);
+  const [widgets, setWidgets] = useState<Array<{ i: string; x: number; y: number; w: number; h: number }>>([]);
 
   useEffect(() => {
     let cancelled = false;
     getCommunityLayout(entry.file).then(data => {
       if (!cancelled && data) {
-        setWidgets(data.widgets.map(w => ({ i: w.i, type: w.type || w.i, x: w.x, y: w.y, w: w.w, h: w.h })));
+        setWidgets(data.widgets.map(w => ({ i: w.i, x: w.x, y: w.y, w: w.w, h: w.h })));
       }
     });
     return () => { cancelled = true; };

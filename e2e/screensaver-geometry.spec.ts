@@ -1,10 +1,13 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { onCanvas } from './helpers/canvasEditor';
 import { getFirstParent, getSeededParentId, verifySettingsPinViaAPI } from './helpers/auth';
 import {
   facingFor, localSiderealTime, moonPosition, project, toHorizontal,
 } from '../src/components/screensaver/nightSky/sky';
 import { FIGURES } from '../src/components/screensaver/nightSky/catalog';
 import type { IdleBackground } from '../src/lib/idleBackground';
+import { waitForQuiet } from './helpers/network';
+import { runTestDb } from './helpers/testDb';
 import { FIRST_SCREEN_TEMPLATE } from '../src/lib/constants/layoutTemplates';
 
 /**
@@ -21,16 +24,128 @@ import { FIRST_SCREEN_TEMPLATE } from '../src/lib/constants/layoutTemplates';
  * Editing needs a parent login, so this runs only against the seeded test
  * database (see calendar-geometry.spec.ts for why the PIN is gated).
  */
+
+/**
+ * Open the layout editor on the dashboard this page shows, by its edit link
+ * (`?edit=1`), as Edit does: on the canvas (#1283), the dashboard in a frame
+ * at a screen's size, the panels beside it, one of them always open. The
+ * dock's way there (Menu, More, Edit layout) is dock.spec.ts's. Returns the frame.
+ */
+async function openEditor(page: Page, widget?: string): Promise<FrameLocator> {
+  await page.goto(`${new URL(page.url()).pathname}?edit=1`);
+  return onCanvas(page, widget);
+}
+
+/** The editor's panels (#1151), by their tabs. */
+async function openSheet(page: Page, id: 'screen' | 'dashboard' | 'widgets' | 'day' | 'look' | 'more') {
+  await page.locator(`[data-editor-open="${id}"]`).click();
+  await expect(page.locator(`[data-editor-sheet="${id}"]`)).toBeVisible();
+}
+const done = (page: Page) => page.locator('[data-editor-done]');
+/** A plain weather answer, for when the weather service refuses (a daily limit, say). */
+const STAND_IN_WEATHER = {
+  location: 'Springfield',
+  current: { temperature: 60, feelsLike: 59, condition: 'clear', humidity: 50, windSpeed: 5, description: 'Clear' },
+  forecast: [],
+  hourly: [],
+  units: { temperature: 'F', windSpeed: 'mph', precipitation: 'in' },
+  lastUpdated: '2026-06-21T12:00:00Z',
+};
+
+/**
+ * Weather at a made-up place, so the sky is drawn where these tests look for
+ * it. The real answer is kept when the weather service gives one; when it
+ * refuses, a plain one stands in, or the sky would fall back to a place
+ * guessed from the time zone.
+ */
+async function weatherAt(page: Page, place: Record<string, unknown>) {
+  await page.route('**/api/weather*', async (route) => {
+    const response = await route.fetch().catch(() => null);
+    const real = response?.ok() ? await response.json() as Record<string, unknown> : STAND_IN_WEATHER;
+    return route.fulfill({ json: { ...real, ...place } });
+  });
+}
+
+/** Done on the canvas goes back to the dashboard. */
+const backOn = (page: Page, slug: string) => page.waitForURL((u) => u.pathname === `/d/${slug}`, { timeout: 60_000 });
+
+/**
+ * Names this browser as a screen showing `dashboardId`, for the settings that
+ * are a screen's own (Rest after, How dark), and opens that screen's editor
+ * on the dashboard (#1283). Returns the frame and a remover for the screen.
+ */
+async function editAsScreen(page: Page, dashboardId: string): Promise<{ frame: FrameLocator; removeScreen: () => Promise<unknown> }> {
+  await verifySettingsPinViaAPI(page, (await getFirstParent(page)).name, PIN);
+  const named = await page.request.post('/api/displays', { data: { name: `Screensaver e2e ${Date.now()}` } });
+  expect(named.ok(), 'precondition: this browser is named').toBe(true);
+  const id: string = (await named.json()).display?.id ?? (await (await page.request.get('/api/displays')).json()).currentId;
+  // The day this browser was seeded with, as its first sync would carry it up (#1345).
+  const day = seededDays.get(page);
+  expect((await page.request.patch(`/api/displays/${id}`, {
+    data: { dashboardId, ...(day ? { settings: { 'prism-screen-day': day } } : {}) },
+  })).ok()).toBe(true);
+  await page.goto(`/screens/${id}?dashboard=${dashboardId}`);
+  const frame = await onCanvas(page);
+  return { frame, removeScreen: () => page.request.delete(`/api/displays/${id}`) };
+}
+
 const HAS_TEST_DB = process.env.E2E_HAS_TEST_DB === '1';
 
-// These tests seed a screensaver arrangement in the browser. A browser that
-// has not run since v1.30.1 would carry it onto the dashboard it shows
-// (#1154), which would then stay on the shared seeded dashboard for every
-// later test. Each browser here has already run, except in the upgrade test.
-test.beforeEach(async ({ page }) => {
+// A browser that has not run since v1.30.1 carries the arrangement it kept
+// onto the dashboard it shows (#1154), which would then stay on the shared
+// seeded dashboard for every later test. Each browser here has already run,
+// except in the upgrade test.
+test.beforeEach(async ({ page }, testInfo) => {
+  // This test emulates a v1.30.1 browser with no carry-over marker. Multiple
+  // init scripts have no guaranteed execution order, so do not install the
+  // normal marker script there.
+  if (testInfo.titlePath.includes('the upgrade from v1.30.1')) return;
   await page.addInitScript(() => localStorage.setItem('prism-screensaver-carried', '1'));
 });
 const PIN = process.env.E2E_PIN || '1234';
+
+/**
+ * Every dashboard comes with this photo frame arrangement, as the server
+ * would send it once saved there: the photo frame reads it from the
+ * dashboard, never from the browser (#1346). Only the reads are answered so,
+ * so nothing is saved onto the shared seeded dashboard. Calling it again
+ * replaces the arrangement.
+ */
+const LAYOUTS_URL = /\/api\/layouts(\?.*)?$/;
+async function arrangedAs(page: Page, widgets: unknown[]) {
+  await page.unroute(LAYOUTS_URL);
+  await page.route(LAYOUTS_URL, async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const body = await response.json() as { layouts?: Record<string, unknown>[] };
+    body.layouts = (body.layouts ?? []).map((l) => ({ ...l, screensaverWidgets: widgets }));
+    return route.fulfill({ response, json: body });
+  });
+}
+
+/**
+ * This browser's screen idles so (#1345): its day is a screen setting, not
+ * the dashboard's, written once per tab so a day the editor saves survives a
+ * reload. A screen named in the test carries it up on its first sync.
+ */
+async function screenIdles(page: Page, bg: IdleBackground, nightLevel: 0 | 25 | 50 | 75 = 0) {
+  const pair = 'source' in bg
+    ? { day: bg.source, night: bg.source, switch: { by: 'sun', duskOffset: 30, dawnOffset: -30 } }
+    : bg;
+  const day = JSON.stringify({ ...pair, nightLevel });
+  seededDays.set(page, day);
+  await page.addInitScript((value) => {
+    if (sessionStorage.getItem('e2e-day-seeded')) return;
+    localStorage.setItem('prism-screen-day', value);
+    sessionStorage.setItem('e2e-day-seeded', '1');
+  }, day);
+}
+const seededDays = new WeakMap<Page, string>();
+
+/** The day this browser's screen keeps, as stored. */
+async function storedDay(page: Page): Promise<unknown> {
+  return page.evaluate(() => JSON.parse(localStorage.getItem('prism-screen-day') ?? 'null'));
+}
 
 /** Inside both default frames (48x27 landscape, 36x64 portrait) and short of
  *  their right and bottom edges, which is what the old fit got wrong. */
@@ -42,8 +157,9 @@ const LAYOUT = [
 
 type Box = { x: number; y: number; w: number; h: number };
 
-async function boxes(page: Page, selector: string): Promise<Record<string, Box>> {
-  return page.evaluate((sel) => {
+/** Each widget's box, in the page's or a frame's own coordinates. */
+async function boxes(where: Page | FrameLocator, selector: string): Promise<Record<string, Box>> {
+  return where.locator('body').evaluate((_, sel) => {
     const out: Record<string, { x: number; y: number; w: number; h: number }> = {};
     document.querySelectorAll(sel).forEach((el) => {
       const id = el.getAttribute('data-editor-widget') || el.getAttribute('data-widget');
@@ -54,31 +170,47 @@ async function boxes(page: Page, selector: string): Promise<Record<string, Box>>
   }, selector);
 }
 
-async function openScreensaverEditor(page: Page, orientation: 'landscape' | 'portrait') {
+/** The canvas size each orientation is edited at: the screen's own size. */
+const CANVAS = {
+  landscape: { width: 1920, height: 1080 },
+  portrait: { width: 800, height: 1280 },
+} as const;
+
+async function openScreensaverEditor(page: Page, orientation: 'landscape' | 'portrait', outlines?: 'off') {
   const login = await page.request.post('/api/auth/login', {
     data: { userId: getSeededParentId(), pin: PIN },
   });
   expect(login.ok(), 'precondition: login must succeed before measuring').toBe(true);
-  await page.addInitScript((layout) => {
-    // Once per test: the editor writes this key itself after load.
+  await arrangedAs(page, LAYOUT);
+  await page.addInitScript(({ outlines }) => {
     if (sessionStorage.getItem('ss-geometry-seeded')) return;
-    localStorage.setItem('prism-screensaver-layout', JSON.stringify(layout));
     // Drift is on by default and would move the live widgets off their places.
     localStorage.setItem('prism-screensaver-drift', 'off');
+    if (outlines) localStorage.setItem('prism-screensaver-outlines', outlines);
     sessionStorage.setItem('ss-geometry-seeded', '1');
-  }, LAYOUT);
+  }, { outlines });
   await page.goto('/');
-  await page.getByLabel('Edit layout').click({ timeout: 60000 });
-  // The seeded dashboard shows the screensaver over photos, so the Idle
-  // screen tab arranges its layout.
-  await page.getByRole('tab', { name: /Idle screen/ }).click();
+  const frame = await openEditor(page, 'clock');
+  // The canvas is the screen: its size and shape for this orientation, the
+  // portrait one near the size this measured at before (#1283).
+  const { width, height } = CANVAS[orientation];
+  await page.locator('[data-canvas-size]').selectOption(`${width}x${height}`);
+  await frame.locator('[data-editor-widget="clock"]').waitFor({ timeout: 90_000 });
+  // The seeded dashboard shows the screensaver over photos, so the resting
+  // screen (See it on Through the day's Resting row, #1294) arranges its
+  // layout; it stays with another panel open.
+  await openSheet(page, 'day');
+  await page.locator('[data-editor-sheet="day"] [data-see="resting"]').click();
   // The guide orientation is saved on the dashboard, so another test may have
   // left it either way.
-  const toggle = page.getByRole('button', { name: /Landscape|Portrait/ });
-  if (!(await toggle.textContent())?.toLowerCase().includes(orientation)) await toggle.click();
-  await expect(toggle).toContainText(orientation === 'landscape' ? 'Landscape' : 'Portrait');
-  await page.locator('[data-editor-widget="clock"]').waitFor();
+  await openSheet(page, 'look');
+  await expect(page.locator('[data-editor-resting]')).toBeVisible();
+  const shape = page.getByRole('radio', { name: orientation === 'landscape' ? 'Landscape' : 'Portrait' });
+  await shape.click();
+  await expect(shape).toHaveAttribute('aria-checked', 'true');
+  await frame.locator('[data-editor-widget="clock"]').waitFor();
   await page.waitForTimeout(800);
+  return frame;
 }
 
 for (const [orientation, viewport] of [
@@ -91,30 +223,35 @@ for (const [orientation, viewport] of [
     // The first test in the CI step waits for the dev server to compile the
     // dashboard and the editor's chunks from cold, which alone ran past the
     // 30 s default. A warm run takes about 7 s.
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
 
     test('a widget renders where and as big as it was sized in the editor', async ({ page }) => {
-      await openScreensaverEditor(page, orientation);
+      // All three are measured in the canvas's frame, which is the screen (#1283).
+      const canvas = await openScreensaverEditor(page, orientation);
 
-      const edited = await boxes(page, '[data-editor-widget]');
-      // The editor on this fork can draw more than one configured screen; the
-      // first frame is the one the screensaver fits its canvas to. Upstream
-      // draws a single frame labelled "Screen", so match both.
-      const frame = await page.evaluate(() => {
-        const el =
-          document.querySelector('[data-screen-frame]') ??
-          [...document.querySelectorAll('span')].find((s) => s.textContent === 'Screen')?.parentElement;
-        const b = el?.getBoundingClientRect();
+      const edited = await boxes(canvas, '[data-editor-widget]');
+      const frame = await canvas.locator('body').evaluate(() => {
+        const label = [...document.querySelectorAll('span')].find((s) => s.textContent === 'Screen');
+        const b = label?.parentElement?.getBoundingClientRect();
         return b ? { x: b.x, y: b.y, w: b.width, h: b.height } : null;
       });
       expect(frame, 'the editor draws a Screen frame').not.toBeNull();
 
       // Preview claims to show the screen as the screensaver will draw it.
-      await page.getByRole('button', { name: 'Preview', exact: true }).click();
+      // Check it at a screen size, from the Look panel (#1151).
+      await openSheet(page, 'look');
+      await page.getByRole('button', { name: 'See it at a screen size' }).click();
       await page.waitForTimeout(800);
-      const previewed = await boxes(page, '.widget-cell[data-widget]');
-      await page.keyboard.press('Control+Shift+M');
+      const previewed = await boxes(canvas, '.widget-cell[data-widget]');
+      // Its shortcut, Control+Shift+M, is heard where the editor runs: the frame.
+      await canvas.locator('body').evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'M', ctrlKey: true, shiftKey: true })));
 
+      // The screen never goes idle while its editor is open (#1342), so the
+      // live screensaver is measured on the wall, out of the editor, at the
+      // canvas's own size: the frame and this page are then the same screen.
+      await page.setViewportSize(CANVAS[orientation]);
+      await page.goto('/');
+      await page.locator('.widget-cell[data-widget]').first().waitFor({ timeout: 60_000 });
       await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
       const liveCell = page.locator('.fixed.inset-0 .widget-cell[data-widget="clock"]');
       await liveCell.waitFor();
@@ -149,6 +286,17 @@ for (const [orientation, viewport] of [
         }
       }
     });
+
+    // #1338: the preview forced light outlines whatever the screen said, so
+    // with Widget outlines off it showed a frame the wall never draws.
+    test('with Widget outlines off the preview draws no widget outlines, as the wall does', async ({ page }) => {
+      const canvas = await openScreensaverEditor(page, orientation, 'off');
+      const borderColors = () => canvas.locator('body').evaluate(() =>
+        [...document.querySelectorAll('[data-ss-preview-widget] [class*="bg-card"].border-border')]
+          .map((e) => getComputedStyle(e).borderTopColor));
+      await expect.poll(async () => (await borderColors()).length, 'a widget card is in the preview').toBeGreaterThan(0);
+      for (const c of await borderColors()) expect(c).toBe('rgba(0, 0, 0, 0)');
+    });
   });
 }
 
@@ -167,6 +315,7 @@ const DEEP = '2026-08-15T06:00:00Z';
 
 const BACKGROUNDS = {
   sky: { source: 'sky' },
+  photos: { source: 'photos' },
   dayNight: { day: 'photos', night: 'sky', switch: { by: 'sun', duskOffset: 0, dawnOffset: 0 } },
 } satisfies Record<string, IdleBackground>;
 
@@ -183,16 +332,13 @@ test.describe('screensaver night sky', () => {
   test.setTimeout(90_000);
 
   /**
-   * The background is stored with the dashboard (#782), so the page is handed
-   * one dashboard with it set. Nothing is written to the database.
+   * The background is the screen's own day (#1345), seeded in the browser;
+   * the page is handed one dashboard. Nothing is written to the database.
    */
   async function openDashboard(page: Page, background: IdleBackground, at: string, weather: Record<string, unknown> = {}) {
     await page.clock.setFixedTime(new Date(at));
-    await page.route('**/api/weather*', async (route) => {
-      const response = await route.fetch();
-      if (!response.ok()) return route.fulfill({ response });
-      return route.fulfill({ response, json: { ...(await response.json()), lat: 45, lon: -100, ...weather } });
-    });
+    await weatherAt(page, { lat: 45, lon: -100, ...weather });
+    await screenIdles(page, background);
     await page.route('**/api/layouts', (route) => route.request().method() === 'GET'
       ? route.fulfill({ json: { layouts: [idleLayout(background)] } })
       : route.fallback());
@@ -203,7 +349,7 @@ test.describe('screensaver night sky', () => {
     });
     await page.goto('/');
     await page.locator('.widget-cell[data-widget="clock"]').waitFor({ timeout: 60000 });
-    await page.waitForLoadState('networkidle');
+    await waitForQuiet(page);
     await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
   }
 
@@ -223,6 +369,53 @@ test.describe('screensaver night sky', () => {
       return { x: b.x, y: b.y, w: b.width, h: b.height, alpha: px[3] };
     });
   }
+
+  // #929: the screensaver wears Today's materials.
+  test('over photos the clock is in the display face, white by day and warm after dusk', async ({ page, context }) => {
+    const ink = async () => page.locator('.fixed.inset-0.z-9999 [data-clock-time]').first().evaluate((el) => ({
+      color: getComputedStyle(el).color,
+      face: getComputedStyle(el).fontFamily,
+    }));
+    await openScreensaver(page, 'photos', NOON);
+    await expect(page.locator('[data-screensaver-shade]')).toHaveCount(1);
+    const day = await ink();
+    const displayFace = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.fontFamily = 'var(--font-display)';
+      document.body.appendChild(probe);
+      const family = getComputedStyle(probe).fontFamily;
+      probe.remove();
+      return family;
+    });
+    expect(day.face, 'display face').toBe(displayFace);
+    expect(day.color).toBe('rgb(255, 255, 255)');
+
+    const night = await context.newPage();
+    await openScreensaver(night, 'photos', NIGHT);
+    await expect(night.locator('[data-screensaver-night]')).toHaveCount(1);
+    const warm = await night.locator('.fixed.inset-0.z-9999 [data-clock-time]').first().evaluate((el) => getComputedStyle(el).color);
+    expect(warm).toBe('rgb(255, 226, 190)');
+    await night.close();
+  });
+
+  // A widget's list on the resting screen scrolls with no scrollbar drawn: over
+  // a photo the thin thumb read as a stray line that came and went.
+  test('a list on the resting screen draws no scrollbar', async ({ page }) => {
+    await openScreensaver(page, 'photos', NOON);
+    const gutter = await page.locator('[data-screensaver]').first().evaluate((root) => {
+      const list = document.createElement('div');
+      list.style.cssText = 'overflow:auto;height:60px;width:200px';
+      const tall = document.createElement('div');
+      tall.style.height = '600px';
+      list.append(tall);
+      root.append(list);
+      // Overlay scrollbars take no width, so the style is what tells.
+      const style = getComputedStyle(list).scrollbarWidth;
+      list.remove();
+      return style;
+    });
+    expect(gutter, 'no scrollbar drawn on the resting screen').toBe('none');
+  });
 
   test('Night sky fills the screen instead of the photos', async ({ page }) => {
     await openScreensaver(page, 'sky', NIGHT);
@@ -387,7 +580,7 @@ test.describe('screensaver night sky', () => {
 
     await page.clock.setFixedTime(new Date('2026-12-26T07:00:00Z'));
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await waitForQuiet(page);
     await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
     await page.locator('[data-testid="night-sky"]').waitFor();
     await page.waitForTimeout(1500);
@@ -463,10 +656,36 @@ test.describe('screensaver night sky', () => {
 
     await page.clock.setFixedTime(new Date(NIGHT));
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await waitForQuiet(page);
     await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
     await page.locator('[data-testid="night-sky"]').waitFor();
     expect((await sky(page))!.alpha).toBe(255);
+  });
+
+  // #1345: how a screen idles is the screen's own, so a switch to another
+  // dashboard, even one that once kept another night look, idles the same.
+  test('the screen idles by its own day whichever dashboard is up', async ({ page }) => {
+    const hall = {
+      ...idleLayout({ day: 'photos', night: 'photos', switch: { by: 'sun', duskOffset: 0, dawnOffset: 0 } }),
+      id: '00000000-0000-4000-8000-000000001281', name: 'Hall e2e', slug: 'hall-e2e', isDefault: false,
+    };
+    await openDashboard(page, BACKGROUNDS.dayNight, NIGHT);
+    // Both dashboards from here on (the route added last answers first).
+    await page.route('**/api/layouts', (route) => route.request().method() === 'GET'
+      ? route.fulfill({ json: { layouts: [idleLayout(BACKGROUNDS.dayNight), hall] } })
+      : route.fallback());
+    const restOn = async (slug: string) => {
+      await page.goto(`/d/${slug}`);
+      await page.locator('.widget-cell[data-widget="clock"]').waitFor({ timeout: 60000 });
+      await waitForQuiet(page);
+      await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+      await page.locator('.fixed.inset-0.z-9999').waitFor();
+      await page.waitForTimeout(1500);
+      return sky(page);
+    };
+    expect((await restOn('hall-e2e'))?.alpha, 'Hall: the screen\'s night sky').toBe(255);
+    expect((await restOn('idle-e2e'))?.alpha, 'Idle: the night sky').toBe(255);
+    expect((await restOn('hall-e2e'))?.alpha, 'Hall again: the night sky').toBe(255);
   });
 
   test('a dashboard by day and the sky after dark: calm at noon, the sky at midnight', async ({ page }) => {
@@ -493,7 +712,10 @@ test.describe('screensaver night sky', () => {
 test.describe('calm mode idle screen', () => {
   test.skip(!HAS_TEST_DB, 'needs the seeded test database to log in and create a dashboard');
   test.use({ viewport: { width: 1280, height: 720 } });
-  test.setTimeout(90_000);
+  // The editor loads the dashboard twice (the page and its frame), slow on a cold CI server.
+  test.setTimeout(180_000);
+  // The screen idles as its dashboard (#1345).
+  test.beforeEach(async ({ page }) => { await screenIdles(page, { source: 'dashboard' }); });
 
   // Clock and Tasks rely on the default ticks; Shopping and Weather override them.
   // The clock is glass, which goes clear on the idle screen.
@@ -563,15 +785,7 @@ test.describe('calm mode idle screen', () => {
       expect(glass.alpha, 'premise: the clock is glass while awake').toBeGreaterThan(0.2);
 
       await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
-      // The calm handshake crosses a store, so wait for the fade to land rather
-      // than assuming a fixed delay; a widget that fades is the state we assert.
-      await expect(page.locator('.widget-cell[data-widget="tasks"]')).toHaveAttribute(
-        'data-faded',
-        'true',
-        { timeout: 10_000 },
-      );
-      // Let the one-second fade finish before reading opacity.
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(1500);
       const idle = await cells(page);
       // The glass clock that stays goes clear, with shadowed text, on the photo.
       const clear = await clockFill(page);
@@ -591,12 +805,8 @@ test.describe('calm mode idle screen', () => {
       }
       for (const i of SHOWN) expect(off(i, before, idle), `${i} drifts within its amplitude`).toBeLessThanOrEqual(4.5);
       for (const i of FADED) expect(off(i, before, idle), `faded ${i} stays put`).toBeLessThanOrEqual(1);
-      // The fixed clock puts it about 4 px out here; assert that it is drifting
-      // without pinning the figure eight's exact phase, which depends on how
-      // the browser advances a CSS animation while the clock is fixed.
-      const clockCell = page.locator('.widget-cell[data-widget="clock"]');
-      await expect(clockCell).toHaveAttribute('data-drift', '');
-      await expect(clockCell).toHaveCSS('animation-name', 'prism-drift');
+      // The fixed clock puts it about 4 px out by now.
+      expect(off('clock', before, idle), 'the clock is drifting').toBeGreaterThan(3);
       for (const i of SHOWN) {
         expect(idle[i]!.opacity, `${i} stays`).toBe(1);
         expect(idle[i]!.hit, `a tap on ${i} reaches it`).toBe(true);
@@ -610,17 +820,9 @@ test.describe('calm mode idle screen', () => {
       // useIdleDetection); the second wakes the display.
       const tasks = idle.tasks!;
       for (let n = 0; n < 2; n++) await page.mouse.click(tasks.x + tasks.w / 2, tasks.y + tasks.h / 2);
-      // As above: wait for the wake to reach the widgets before measuring the
-      // glide, which starts from that same moment.
-      await expect(page.locator('.widget-cell[data-widget="tasks"]')).not.toHaveAttribute(
-        'data-faded',
-        'true',
-        { timeout: 10_000 },
-      );
-      // Drift stops on waking; the glide itself is a CSS transition whose
-      // timing depends on the frozen clock, so assert the state, then that
-      // everything settles back into place.
-      await expect(page.locator('.widget-cell[data-widget="clock"]')).not.toHaveAttribute('data-drift', '');
+      // Waking eases a drifted widget home over a second; it does not snap.
+      const waking = await cells(page);
+      expect(off('clock', before, waking), 'the clock glides back, not jumps').toBeGreaterThan(1.5);
       await page.waitForTimeout(1500);
       const awake = await cells(page);
       expect((await clockFill(page)).alpha, 'the glass is back on waking').toBeGreaterThan(0.2);
@@ -644,10 +846,16 @@ test.describe('calm mode idle screen', () => {
     expect(created.status()).toBe(201);
     const layout = await created.json();
     try {
-      // Chosen the way a person would, in Settings, past its PIN gate.
-      await verifySettingsPinViaAPI(page, (await getFirstParent(page)).name, PIN);
-      await page.goto('/settings?section=display');
-      await page.getByRole('radio', { name: /^Minimal/ }).check();
+      // Chosen the way a person would: in the editor's Look panel (#1159).
+      await page.goto(`/d/${layout.slug}`);
+      await openEditor(page);
+      await openSheet(page, 'look');
+      await page.locator('[data-screen-options]').getByLabel('Performance').selectOption({ label: 'Minimal' });
+      // Held until Done, like everything in the editor (#1341); Done keeps it
+      // in this browser and goes back to the dashboard.
+      await expect(page.locator('html')).not.toHaveClass(/perf-minimal/);
+      await done(page).click();
+      await backOn(page, layout.slug);
       await expect(page.locator('html')).toHaveClass(/perf-minimal/);
 
       await page.goto(`/d/${layout.slug}`);
@@ -659,6 +867,48 @@ test.describe('calm mode idle screen', () => {
       await page.waitForTimeout(350);
       const idle = await cells(page);
       for (const i of FADED) expect(idle[i]!.opacity, `${i} is already gone`).toBe(0);
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+    }
+  });
+
+  test('Done with nothing changed leaves the dashboard as it was, and it still rests the same', async ({ page }) => {
+    const login = await page.request.post('/api/auth/login', {
+      data: { userId: getSeededParentId(), pin: PIN },
+    });
+    expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    const created = await page.request.post('/api/layouts', {
+      data: { name: `Calm done e2e ${Date.now()}`, widgets: WIDGETS },
+    });
+    expect(created.status()).toBe(201);
+    const layout = await created.json();
+    const original = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
+    expect(layout.screensaverWidgets, 'premise: no screensaver layout of its own').toBeNull();
+    await page.addInitScript(() => localStorage.setItem('prism-screensaver-drift', 'off'));
+    try {
+      await page.goto(`/d/${layout.slug}`);
+      await openEditor(page);
+      const save = page.waitForResponse((r) => r.url().endsWith(`/api/layouts/${layout.id}`) && r.request().method() === 'PATCH');
+      await done(page).click();
+      expect((await save).ok()).toBe(true);
+      await backOn(page, layout.slug);
+      await expect(page.locator('[data-editor-resting]')).toHaveCount(0);
+
+      const saved = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
+      expect(saved.screensaverWidgets, 'Done saved no screensaver layout of its own').toBeNull();
+      expect(saved.idleBackground).toEqual(original.idleBackground);
+      const withoutResolvedTypes = (widgets: Array<Record<string, unknown>>) =>
+        widgets.map(({ type: _type, ...widget }) => widget);
+      expect(withoutResolvedTypes(saved.widgets)).toEqual(withoutResolvedTypes(original.widgets));
+
+      await page.reload();
+      await page.locator('.widget-cell[data-widget="weather"]').waitFor({ timeout: 60000 });
+      await page.waitForTimeout(800);
+      await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+      await page.waitForTimeout(1500);
+      const idle = await cells(page);
+      expect(idle.weather!.opacity, 'weather still fades').toBe(0);
+      expect(idle.shopping!.opacity, 'shopping still stays').toBe(1);
     } finally {
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
@@ -679,13 +929,19 @@ test.describe('calm mode idle screen', () => {
     await page.addInitScript(() => localStorage.setItem('prism-screensaver-drift', 'off'));
     try {
       await page.goto(`/d/${layout.slug}`);
-      await page.getByLabel('Edit layout').click({ timeout: 60000 });
-      const toggle = (i: string) => page.locator(`[data-editor-widget="${i}"] [data-idle-toggle]`);
-      const tab = (name: RegExp) => page.getByRole('tab', { name });
-      // The Dashboard tab arranges the dashboard; what stays when idle is the Idle screen tab's.
-      await expect(tab(/Dashboard/)).toHaveAttribute('aria-selected', 'true');
-      await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
-      await tab(/Idle screen/).click();
+      const frame = await openEditor(page);
+      const toggle = (i: string) => frame.locator(`[data-editor-widget="${i}"] [data-idle-toggle]`);
+      const resting = page.locator('[data-editor-resting]');
+      // Resting is seen from its row; Back to in use is beside the day's slider (#1294).
+      const see = (state: 'active' | 'resting') => page.locator(`[data-editor-sheet="day"] ${state === 'active' ? '[data-day-back]' : '[data-see="resting"]'}`).click();
+      const dot = (id: string) => page.locator(`[data-editor-open="${id}"] [aria-label="unsaved changes"]`);
+      // In use, the dashboard is arranged; what stays while resting is Through the day's.
+      await expect(resting).toHaveCount(0);
+      await expect(frame.locator('[data-idle-toggle]')).toHaveCount(0);
+      await openSheet(page, 'day');
+      // Opening Through the day leaves the canvas in use; Resting's See it shows it resting.
+      await expect(frame.locator('[data-idle-toggle]')).toHaveCount(0);
+      await see('resting');
       await expect(toggle('clock')).toHaveAttribute('aria-pressed', 'true');
       await expect(toggle('clock')).toContainText('Stays');
       await expect(toggle('tasks')).toHaveAttribute('aria-pressed', 'false');
@@ -696,30 +952,31 @@ test.describe('calm mode idle screen', () => {
       await expect(toggle('tasks')).toHaveAttribute('aria-pressed', 'true');
       await expect(toggle('clock')).toHaveAttribute('aria-pressed', 'false');
       // The button changes only this; it does not select the widget to move it.
-      await expect(page.getByText(/^Tap to (resize|deselect)$/)).toHaveCount(0);
-      // Only the Idle screen tab is marked as changed.
-      await expect(tab(/Idle screen/)).toHaveAttribute('data-dirty', 'true');
-      await expect(tab(/Dashboard/)).not.toHaveAttribute('data-dirty', 'true');
+      await expect(frame.getByText(/^Tap to (resize|deselect)$/)).toHaveCount(0);
+      // Only Through the day is marked as changed.
+      await expect(dot('day')).toBeVisible();
+      await expect(dot('widgets')).toHaveCount(0);
 
-      // To the Dashboard tab and back: the unsaved ticks are still there.
-      await tab(/Dashboard/).click();
-      await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
-      await tab(/Idle screen/).click();
-      await expect(toggle('tasks')).toHaveAttribute('aria-pressed', 'true');
+      // Back to in use and to resting again: the unsaved ticks are still there.
+      await see('active');
+      await expect(frame.locator('[data-idle-toggle]')).toHaveCount(0);
+      await see('resting');
 
       // Photos behind it: the canvas becomes the screensaver layout. Then back
-      // to this dashboard, which is what gets saved.
-      const behind = (name: string) => page.getByRole('radio', { name, exact: true });
-      await behind('Photos').click();
-      await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
-      await expect(page.locator('[data-editor-widget]').first()).toBeVisible();
-      await behind('This dashboard').click();
+      // to this dashboard, which is what gets saved. What shows while resting
+      // is a row of Through the day (#1281).
+      const behind = (label: string) => page.locator('[data-editor-sheet="day"]').getByLabel('While resting').selectOption({ label });
+      await behind('Photos');
+      await expect(frame.locator('[data-idle-toggle]')).toHaveCount(0);
+      await expect(frame.locator('[data-editor-widget]').first()).toBeVisible();
+      await behind('This dashboard');
       await expect(toggle('tasks')).toHaveAttribute('aria-pressed', 'true');
       // Nothing is stored before Save.
       const before = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
       expect(before.widgets.map((w: { showWhenIdle?: boolean }) => w.showWhenIdle)).toEqual([undefined, undefined]);
 
-      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await done(page).click();
+      await backOn(page, layout.slug);
       await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
       const saved = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
       const tick = Object.fromEntries(saved.widgets.map((w: { i: string; showWhenIdle?: boolean }) => [w.i, w.showWhenIdle]));
@@ -728,15 +985,7 @@ test.describe('calm mode idle screen', () => {
 
       await page.locator('.widget-cell[data-widget="clock"]').waitFor();
       await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
-      // The calm handshake crosses a store, so wait for the fade to land rather
-      // than assuming a fixed delay; here the clock is the one that fades.
-      await expect(page.locator('.widget-cell[data-widget="clock"]')).toHaveAttribute(
-        'data-faded',
-        'true',
-        { timeout: 10_000 },
-      );
-      // Let the one-second fade finish before reading opacity.
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(1500);
       const idle = await cells(page);
       expect(idle.tasks!.opacity, 'tasks now stays').toBe(1);
       expect(idle.clock!.opacity, 'the clock now fades').toBe(0);
@@ -747,60 +996,141 @@ test.describe('calm mode idle screen', () => {
 });
 
 /**
- * The Idle screen tab's Behind it (#782): a day and night pair previews each
- * half on the canvas, moves its edges by offsets, shows tonight's times, and
- * is saved with the rest; offsets that cross near midsummer far north are
- * refused.
+ * Through the day (#1152) as rows (#1281) that fold (#1294): what the
+ * dashboard shows while resting, with See it, and At night, a row that opens
+ * to its look, tonight's times and the offsets, saved with the dashboard on
+ * Done; the day slider shows night; offsets that cross near midsummer far
+ * north are refused.
  */
 test.describe('idle background picker', () => {
   test.skip(!HAS_TEST_DB, 'needs the seeded test database to log in and create a dashboard');
   test.use({ viewport: { width: 1600, height: 900 } });
-  test.setTimeout(90_000);
+  // The editor loads the dashboard twice (the page and its frame), slow on a cold CI server.
+  test.setTimeout(180_000);
 
-  async function editIdle(page: Page, place: { lat: number; lon: number }) {
+  /**
+   * A dashboard with the clock and tasks, open in the editor on Through the
+   * day: its own canvas, or with `asScreen` this browser's screen's editor,
+   * which adds the screen's own rows.
+   */
+  async function editIdle(page: Page, place: { lat: number; lon: number }, idleBackground: IdleBackground = { source: 'dashboard' }, asScreen = false) {
     const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
     expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    // The idle look is the screen's (#1345), not the dashboard's.
+    await screenIdles(page, idleBackground);
     const created = await page.request.post('/api/layouts', {
       data: { name: `Behind it e2e ${Date.now()}`, widgets: [{ i: 'clock', x: 0, y: 0, w: 16, h: 12 }, { i: 'tasks', x: 16, y: 0, w: 16, h: 12 }] },
     });
     expect(created.status()).toBe(201);
     const layout = await created.json();
-    await page.route('**/api/weather*', async (route) => {
-      const response = await route.fetch();
-      if (!response.ok()) return route.fulfill({ response });
-      return route.fulfill({ response, json: { ...(await response.json()), ...place } });
-    });
-    await page.goto(`/d/${layout.slug}`);
-    await page.getByLabel('Edit layout').click({ timeout: 60000 });
-    await page.getByRole('tab', { name: /Idle screen/ }).click();
-    await page.getByRole('radio', { name: 'Changes with the time of day' }).click();
-    return layout as { id: string };
+    await weatherAt(page, place);
+    let frame: FrameLocator;
+    let removeScreen = async (): Promise<unknown> => undefined;
+    if (asScreen) ({ frame, removeScreen } = await editAsScreen(page, layout.id));
+    else {
+      await page.goto(`/d/${layout.slug}`);
+      frame = await openEditor(page);
+    }
+    await openSheet(page, 'day');
+    return { id: layout.id as string, frame, removeScreen };
   }
 
-  test('a day and night pair: preview each half, move an edge, and Save', async ({ page }) => {
+  test('resting and night each show on the canvas, an edge moves, and Done saves it to the screen', async ({ page }) => {
     const layout = await editIdle(page, { lat: 45, lon: -100 });
+    const { frame } = layout;
     try {
-      // By day it is this dashboard: Stays / Fades. After dark, the sky's layout.
-      await expect(page.locator('[data-idle-toggle]').first()).toBeVisible();
-      await page.getByRole('button', { name: 'Night', exact: true }).click();
-      await expect(page.locator('[data-idle-toggle]')).toHaveCount(0);
-      await page.getByRole('button', { name: 'Day', exact: true }).click();
-      await expect(page.locator('[data-idle-toggle]').first()).toBeVisible();
+      const sheet = page.locator('[data-editor-sheet="day"]');
+      const shows = sheet.locator('[data-day-sheet]');
+      // Resting is this dashboard: Stays / Fades. A night sky at night has its own layout.
+      await sheet.locator('[data-see="resting"]').click();
+      await expect(shows).toHaveAttribute('data-day-shows', 'resting');
+      await expect(frame.locator('[data-idle-toggle]').first()).toBeVisible();
+      // Night folds to a line that says what it does, and opens on a tap.
+      await expect(sheet.locator('[data-night-row] [data-fold-summary]')).toContainText(/^Dim this dashboard · dusk to dawn, tonight /);
+      await expect(sheet.getByLabel('Night look')).toHaveCount(0);
+      await sheet.locator('[data-night-row] [data-fold-toggle]').click();
+      await sheet.getByLabel('Night look').selectOption({ label: 'Night sky' });
+      await expect(shows).toHaveAttribute('data-day-shows', 'night');
+      await expect(frame.locator('[data-idle-toggle]')).toHaveCount(0);
+      await sheet.locator('[data-see="resting"]').click();
+      await expect(frame.locator('[data-idle-toggle]').first()).toBeVisible();
+      await sheet.locator('[data-day-back]').click();
+      await expect(shows).toHaveAttribute('data-day-shows', 'active');
+      // The slider's night dot shows night (#1294).
+      await sheet.locator('[data-waypoint="night-start"]').click();
+      await expect(shows).toHaveAttribute('data-day-shows', 'night');
+      await expect(sheet.locator('[data-day-caption]')).toHaveText(/ at night$/);
 
-      await page.getByLabel('Starts: amount').fill('30');
+      // Tonight's times, and the end of night an hour before dawn.
+      await expect(sheet.locator('[data-night-start]')).toContainText(/\d/);
+      await expect(sheet.locator('[data-night-end]')).toContainText(/\d/);
       await page.getByLabel('Ends: unit').selectOption('hr');
       await page.getByLabel('Ends: amount').fill('1');
-      await expect(page.locator('[data-night-start]')).toContainText(/\d/);
-      await expect(page.locator('[data-night-end]')).toContainText(/\d/);
       await expect(page.locator('[data-idle-crossed]')).toHaveCount(0);
+      // Nothing is kept before Done.
+      expect(await storedDay(page)).toMatchObject({ day: 'dashboard', night: 'dashboard' });
 
-      await page.getByRole('button', { name: 'Save', exact: true }).click();
-      await expect(page.locator('[data-idle-background-bar]')).toHaveCount(0);
-      const saved = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
-      expect(saved.idleBackground).toEqual({
-        day: 'dashboard', night: 'sky', switch: { by: 'sun', duskOffset: 30, dawnOffset: -60 },
+      await done(page).click();
+      await expect(page.locator('[data-editor-bar]')).toHaveCount(0);
+      // Done saves it to the screen's day (#1345), how dark kept, and leaves
+      // the dashboard's own old look alone.
+      expect(await storedDay(page)).toEqual({
+        day: 'dashboard', night: 'sky', switch: { by: 'sun', duskOffset: 30, dawnOffset: -60 }, nightLevel: 0,
       });
+      const saved = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
+      expect(saved.idleBackground).toEqual({ source: 'dashboard' });
     } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+    }
+  });
+
+  // #1281: the lanes, with every setting behind a tap on them, were hard to
+  // find a way around, so each is a row. #1294: the rows fold to a line each,
+  // and a slider above them only shows.
+  test('the slider first, then rows whose names line up, each fold one line, all inside the panel', async ({ page }) => {
+    // As a screen's editor: its own rows are on Screen (#1326), so only the dashboard's are here.
+    const layout = await editIdle(page, { lat: 45, lon: -100 }, { day: 'photos', night: 'sky', switch: { by: 'clock', from: '21:00', to: '06:30' } }, true);
+    try {
+      const sheet = page.locator('[data-editor-sheet="day"]');
+      await expect(sheet.locator('[data-see-it]')).toHaveCount(0);
+      await expect(sheet.locator('[data-see="resting"]')).toBeVisible();
+      // Night opens to every one of its choices.
+      await sheet.locator('[data-night-row] [data-fold-toggle]').click();
+      for (const label of ['While resting', 'When night is', 'Night look', 'Night starts', 'Night ends']) {
+        await expect(sheet.getByLabel(label, { exact: true }), label).toBeVisible();
+      }
+      await expect(sheet.getByLabel('Night look').locator('option', { hasText: 'Photos' })).toHaveCount(1);
+      await sheet.locator('[data-night-row] [data-fold-toggle]').click();
+
+      const g = await sheet.evaluate((root) => {
+        const box = (el: Element) => el.getBoundingClientRect().toJSON() as DOMRect;
+        const line = root.querySelector('[data-day-line]')!;
+        return {
+          overflow: root.scrollWidth - root.clientWidth,
+          slider: box(root.querySelector('[data-day-slider]')!),
+          line: box(line),
+          dots: [...line.querySelectorAll<HTMLElement>('[data-waypoint]')].map((d) => ({ minute: Number(d.dataset.minute), box: box(line.querySelector(`[data-waypoint-dot="${d.dataset.minute}"]`)!) })),
+          summary: box(root.querySelector('[data-night-row] [data-fold-summary]')!),
+          lineHeight: parseFloat(getComputedStyle(root.querySelector('[data-night-row] [data-fold-summary]')!).lineHeight),
+          names: [...root.querySelectorAll('[data-row-name]')].map((n) => ({ name: n.textContent, box: box(n) })),
+        };
+      });
+      expect(g.overflow, 'nothing runs past the panel').toBeLessThanOrEqual(0);
+      // The slider comes first, above every row.
+      expect(g.slider.bottom).toBeLessThanOrEqual(g.names[0]!.box.top);
+      // Each dot sits at its time on the line: night ends at 6:30 and starts at 9 pm.
+      expect(g.dots.map((d) => d.minute)).toEqual(expect.arrayContaining([390, 1260]));
+      for (const d of g.dots) {
+        const x = d.box.left + d.box.width / 2;
+        expect(Math.abs(x - (g.line.left + (d.minute / 1440) * g.line.width)), `the dot at minute ${d.minute}`).toBeLessThanOrEqual(1);
+      }
+      // A folded row is one line.
+      expect(g.summary.height).toBeLessThanOrEqual(g.lineHeight + 1);
+      // One column of names, plain rows and folds alike.
+      expect(g.names.map((n) => n.name)).toEqual(['Resting', 'At night']);
+      for (const n of g.names) expect(Math.abs(n.box.left - g.names[0]!.box.left), `${n.name} in the name column`).toBeLessThanOrEqual(0.5);
+    } finally {
+      await layout.removeScreen();
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
   });
@@ -808,14 +1138,14 @@ test.describe('idle background picker', () => {
   test('offsets that cross near midsummer far north are refused', async ({ page }) => {
     const layout = await editIdle(page, { lat: 64, lon: -150 });
     try {
+      await page.locator('[data-editor-sheet="day"] [data-night-row] [data-fold-toggle]').click();
       await page.getByLabel('Starts: unit').selectOption('hr');
       await page.getByLabel('Starts: amount').fill('6');
       await page.getByLabel('Ends: unit').selectOption('hr');
       await page.getByLabel('Ends: amount').fill('6');
       await expect(page.locator('[data-idle-crossed]')).toContainText('night would end before it starts');
-      await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
-      const stored = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
-      expect(stored.idleBackground).toEqual({ source: 'dashboard' });
+      await expect(done(page)).toBeDisabled();
+      expect(await storedDay(page)).toMatchObject({ day: 'dashboard', switch: { by: 'sun', duskOffset: 30, dawnOffset: -30 } });
     } finally {
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
@@ -823,15 +1153,16 @@ test.describe('idle background picker', () => {
 });
 
 /**
- * Dim when idle (#691): during the hours the calendar hides, the idle screen
- * darkens behind a black layer that never takes a tap, and a touch lifts it.
- * The hours come from Calendar Hours, shared by every screen, and are read on
- * the screen's own clock, so the browser is put in a zone west of UTC.
+ * Dim when idle (#691): at night the idle screen darkens behind a black layer
+ * that never takes a tap, and a touch lifts it. Night and how dark are the
+ * screen's own (#1345), read on the screen's own clock, so the browser is put
+ * in a zone west of UTC.
  */
 test.describe('dim when idle', () => {
-  test.skip(!HAS_TEST_DB, 'needs the seeded test database to change Calendar Hours');
+  test.skip(!HAS_TEST_DB, 'needs the seeded test database to create a dashboard');
   test.use({ viewport: { width: 1280, height: 720 }, timezoneId: 'America/Chicago' });
-  test.setTimeout(90_000);
+  // The editor loads the dashboard twice (the page and its frame), slow on a cold CI server.
+  test.setTimeout(180_000);
 
   async function dim(page: Page) {
     return page.evaluate(() => {
@@ -842,59 +1173,69 @@ test.describe('dim when idle', () => {
     });
   }
 
-  /** Calendar Hours hides 11 pm to 7 am for the test, and is put back after it. */
-  async function withCalendarHours(page: Page, run: () => Promise<void>) {
+  /** A screen whose night runs 11 pm to 7 am, on a dashboard removed after the test. */
+  async function withNightDashboard(page: Page, run: (slug: string, id: string) => Promise<void>, nightLevel: 0 | 50 = 0) {
     await verifySettingsPinViaAPI(page, (await getFirstParent(page)).name, PIN);
-    const before = (await (await page.request.get('/api/settings')).json()).settings?.calendarHiddenHours
-      ?? { mode: 'manual', startHour: 0, endHour: 6, bufferHours: 1, enabled: false };
-    const put = (value: unknown) =>
-      page.request.patch('/api/settings', { data: { key: 'calendarHiddenHours', value } });
-    // Not shown in the calendar (enabled: false): the dim follows the range anyway.
-    expect((await put({ mode: 'manual', startHour: 23, endHour: 7, bufferHours: 1, enabled: false })).ok()).toBe(true);
+    await screenIdles(page, { day: 'photos', night: 'photos', switch: { by: 'clock', from: '23:00', to: '07:00' } }, nightLevel);
+    const created = await page.request.post('/api/layouts', {
+      data: {
+        name: `Dim e2e ${Date.now()}`,
+        widgets: [{ i: 'clock', x: 0, y: 0, w: 16, h: 12 }],
+      },
+    });
+    expect(created.status()).toBe(201);
+    const layout = await created.json();
     try {
-      await run();
+      await run(layout.slug, layout.id);
     } finally {
-      await put(before);
+      await page.request.delete(`/api/layouts/${layout.id}`);
     }
   }
 
-  test('darkens the idle screen during the calendar\'s hidden hours, and a touch lifts it', async ({ page }) => {
+  test('darkens the idle screen at night by the screen\'s rule, and a touch lifts it', async ({ page }) => {
     // 11:30 pm in Chicago, 04:30 UTC: inside 11 pm to 7 am only on the screen's clock.
     await page.clock.setFixedTime(new Date('2026-10-28T04:30:00Z'));
-    await withCalendarHours(page, async () => {
-      await page.goto('/settings?section=display');
-      const level = page.getByLabel('Dim when idle');
-      await level.waitFor({ timeout: 60000 });
-      await expect(page.locator('[data-dim-hours]')).toContainText('from 11 pm to 7 am');
-      await level.selectOption({ label: '50% darker' });
+    await withNightDashboard(page, async (slug, id) => {
+      // How dark is the screen's own, on its editor's Screen tab (#1159, #1326),
+      // so this browser is a screen showing the dashboard (#1283).
+      const { removeScreen } = await editAsScreen(page, id);
+      try {
+        await openSheet(page, 'screen');
+        await page.locator('[data-editor-sheet="screen"]').getByLabel('How dark at night').selectOption({ label: '50% darker' });
+        await done(page).click();
+        // Done sends the screen its settings and leaves the editor; let it land first.
+        await page.waitForURL((u) => !u.pathname.startsWith('/screens/'), { timeout: 60_000 });
+        await page.waitForLoadState('load');
 
-      await page.goto('/');
-      await page.waitForLoadState('networkidle');
-      expect(await dim(page), 'awake, nothing is dimmed').toEqual({ opacity: 0, takesTaps: false });
+        await page.goto(`/d/${slug}`);
+        await waitForQuiet(page);
+        expect(await dim(page), 'awake, nothing is dimmed').toEqual({ opacity: 0, takesTaps: false });
 
-      await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
-      // It eases in over 4 s.
-      await page.waitForTimeout(5000);
-      expect(await dim(page), 'idle at night: half dark, taps pass through').toEqual({ opacity: 0.5, takesTaps: false });
+        await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+        // It eases in over 4 s.
+        await page.waitForTimeout(5000);
+        expect(await dim(page), 'idle at night: half dark, taps pass through').toEqual({ opacity: 0.5, takesTaps: false });
 
-      // The first touch after the toolbar's forced start is absorbed; the second wakes.
-      for (let n = 0; n < 2; n++) await page.mouse.click(640, 360);
-      await page.waitForTimeout(1000);
-      expect((await dim(page))!.opacity, 'awake again, full brightness').toBe(0);
+        // The first touch after the toolbar's forced start is absorbed; the second wakes.
+        for (let n = 0; n < 2; n++) await page.mouse.click(640, 360);
+        await page.waitForTimeout(1000);
+        expect((await dim(page))!.opacity, 'awake again, full brightness').toBe(0);
+      } finally {
+        await removeScreen();
+      }
     });
   });
 
-  test('leaves the idle screen alone outside those hours', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('prism-screensaver-dim', '0.5'));
-    // 6 pm in Chicago, which is 11 pm UTC: the hours must not be read in UTC.
+  test('leaves the idle screen alone by day', async ({ page }) => {
+    // 6 pm in Chicago, which is 11 pm UTC: night must not be read in UTC.
     await page.clock.setFixedTime(new Date('2026-10-28T23:00:00Z'));
-    await withCalendarHours(page, async () => {
-      await page.goto('/');
-      await page.waitForLoadState('networkidle');
+    await withNightDashboard(page, async (slug) => {
+      await page.goto(`/d/${slug}`);
+      await waitForQuiet(page);
       await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
       await page.waitForTimeout(5000);
       expect((await dim(page))!.opacity).toBe(0);
-    });
+    }, 50);
   });
 });
 
@@ -924,7 +1265,7 @@ test.describe('screensaver widget outlines', () => {
     // and vanished all at once at the burst.
     await page.addInitScript(() => localStorage.setItem('prism-screensaver-outlines', 'on'));
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await waitForQuiet(page);
     await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
     await page.locator('.fixed.inset-0.z-9999 .prism-screensaver-flat').first().waitFor();
     await page.waitForTimeout(1000);
@@ -952,32 +1293,23 @@ test.describe('screensaver widget outlines', () => {
       localStorage.setItem('prism-screensaver-motion', 'off');
       localStorage.setItem('prism-screensaver-motion-v2', '1');
       localStorage.setItem('prism-screensaver-drift', 'off');
-      localStorage.setItem('prism-screensaver-layout', JSON.stringify([
-        { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true, outlineColor: 'transparent' },
-        { i: 'weather', x: 20, y: 2, w: 16, h: 10, visible: true },
-        { i: 'messages', x: 2, y: 14, w: 16, h: 10, visible: false },
-      ]));
     });
+    await arrangedAs(page, [
+      { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true, outlineColor: 'transparent' },
+      { i: 'weather', x: 20, y: 2, w: 16, h: 10, visible: true },
+      { i: 'messages', x: 2, y: 14, w: 16, h: 10, visible: false },
+    ]);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.evaluate(() => {
-      localStorage.setItem('prism-screensaver-layout', JSON.stringify([
-        { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true, outlineColor: 'transparent' },
-        { i: 'weather', x: 20, y: 2, w: 16, h: 10, visible: true },
-        { i: 'messages', x: 2, y: 14, w: 16, h: 10, visible: false },
-      ]));
-      window.dispatchEvent(new Event('prism:screensaver'));
-    });
+    await waitForQuiet(page);
+    await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
     await page.locator('.fixed.inset-0.z-9999 .widget-cell[data-widget="clock"]').waitFor();
     await page.waitForTimeout(1000);
 
     const alpha = await page.evaluate(() => {
       const out: Record<string, number> = {};
       for (const id of ['clock', 'weather']) {
-        const cell = document.querySelector<HTMLElement>(
-          `.fixed.inset-0 .widget-cell[data-widget="${id}"]`);
-        const card = cell?.matches('.border-border') ? cell : cell?.querySelector<HTMLElement>(
-          '[class*="bg-card"].border-border');
+        const card = document.querySelector<HTMLElement>(
+          `.fixed.inset-0 .widget-cell[data-widget="${id}"] [class*="bg-card"].border-border`);
         if (!card) { out[id] = -1; continue; }
         const c = getComputedStyle(card).borderTopColor;
         const slash = c.match(/\/\s*([\d.]+)\s*\)$/);
@@ -995,26 +1327,19 @@ test.describe('screensaver widget outlines', () => {
     // Messages is made empty by answering its fetch with nothing.
     await page.route('**/api/messages?*', (route) => route.fulfill({ json: { messages: [] } }));
     const open = async (messages: Record<string, unknown>) => {
-      await page.addInitScript((m) => {
+      await page.addInitScript(() => {
         localStorage.setItem('prism-screensaver-motion', 'off');
         localStorage.setItem('prism-screensaver-motion-v2', '1');
         localStorage.setItem('prism-screensaver-drift', 'off');
-        localStorage.setItem('prism-screensaver-layout', JSON.stringify([
-          { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true },
-          { i: 'messages', x: 20, y: 2, w: 16, h: 10, visible: true, ...m },
-          { i: 'weather', x: 2, y: 14, w: 16, h: 10, visible: false },
-        ]));
-      }, messages);
+      });
+      await arrangedAs(page, [
+        { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true },
+        { i: 'messages', x: 20, y: 2, w: 16, h: 10, visible: true, ...messages },
+        { i: 'weather', x: 2, y: 14, w: 16, h: 10, visible: false },
+      ]);
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
-      await page.evaluate((m) => {
-        localStorage.setItem('prism-screensaver-layout', JSON.stringify([
-          { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true },
-          { i: 'messages', x: 20, y: 2, w: 16, h: 10, visible: true, ...m },
-          { i: 'weather', x: 2, y: 14, w: 16, h: 10, visible: false },
-        ]));
-        window.dispatchEvent(new Event('prism:screensaver'));
-      }, messages);
+      await waitForQuiet(page);
+      await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
       await page.locator('.fixed.inset-0.z-9999 .widget-cell[data-widget="messages"]').waitFor();
       await page.waitForTimeout(1500);
       return page.evaluate(() => {
@@ -1043,15 +1368,13 @@ test.describe('screensaver widget outlines', () => {
     // keeping whatever phases the page gave them.
     await page.addInitScript(() => localStorage.setItem('prism-perf-mode', 'false'));
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await waitForQuiet(page);
     await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
     await page.locator('.fixed.inset-0.z-9999 .widget-cell').first().waitFor();
     await page.waitForTimeout(1500);
 
     const result = await page.evaluate(() => {
-      // Empty widgets keep their grid slot but intentionally do not drift.
-      const cells = [...document.querySelectorAll<HTMLElement>(
-        '.fixed.inset-0.z-9999 .widget-cell:not([data-hidden-empty="true"])')];
+      const cells = [...document.querySelectorAll<HTMLElement>('.fixed.inset-0.z-9999 .widget-cell')];
       const gap = parseFloat(getComputedStyle(cells[0]!.parentElement!).columnGap);
       const drifts = cells.flatMap((c) => c.getAnimations()).filter(
         (a) => a instanceof CSSAnimation && a.animationName === 'prism-drift');
@@ -1092,7 +1415,7 @@ test.describe('screensaver widget outlines', () => {
     // A lighter performance level stops animations; pin Full.
     await page.addInitScript(() => localStorage.setItem('prism-perf-mode', 'false'));
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await waitForQuiet(page);
     await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
     await page.locator('.fixed.inset-0.z-9999 .widget-cell').first().waitFor();
 
@@ -1151,13 +1474,13 @@ test.describe('corner clock and weather', () => {
     lastUpdated: day.toISOString(),
   };
 
-  async function openLayout(page: Page, widgets: unknown[]) {
+  async function openLayout(page: Page, widgets: unknown[], weather: object = WEATHER) {
     const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
     expect(login.ok(), 'precondition: login must succeed').toBe(true);
     const created = await page.request.post('/api/layouts', { data: { name: `Corners e2e ${Date.now()}`, widgets } });
     expect(created.status()).toBe(201);
     const layout = await created.json();
-    await page.route('**/api/weather*', (route) => route.fulfill({ json: WEATHER }));
+    await page.route('**/api/weather*', (route) => route.fulfill({ json: weather }));
     await page.goto(`/d/${layout.slug}`);
     await page.locator('[data-weather-current]').waitFor({ timeout: 60000 });
     await page.locator('[data-clock-time]').waitFor();
@@ -1192,23 +1515,123 @@ test.describe('corner clock and weather', () => {
       // The clock's time lines up with the left edge rather than centring.
       const time = await rect(page, '.widget-cell[data-widget="clock"] [data-clock-time]');
       expect(time.left - clock.left, 'time hugs the left edge').toBeLessThan(40);
+      const face = await rect(page, '.widget-cell[data-widget="clock"] [data-clock-face]');
+      expect(face.top - clock.top, 'the clock face hugs the top edge').toBeLessThan(40);
 
       // The weather shows icon, temperature and condition, nothing else, lined
-      // up with the right edge and centred top to bottom like the clock.
+      // up with the right edge and the top, like the clock (#988).
       await expect(page.locator('[data-weather-details]')).toBeHidden();
       const current = await rect(page, '[data-weather-current]');
       const condition = page.locator('[data-weather-condition]');
-      await expect(condition).toContainText(/partly cloudy/i);
+      await expect(condition).toHaveText(/Partly cloudy/i);
       const cond = await condition.evaluate((el) => ({
         lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
         cut: el.scrollWidth > el.clientWidth,
       }));
       expect(cond.lines, 'condition on one line').toBe(1);
       expect(cond.cut, 'condition not cut off').toBe(false);
-      const temp = await rect(page, '[data-testid="weather-current-temperature"]');
+      const temp = await rect(page, '[data-weather-current] [data-weather-temp]');
       expect(weather.right - temp.right, 'weather hugs the right edge').toBeLessThan(40);
-      const mid = (r: Rect) => (r.top + r.bottom) / 2;
-      expect(Math.abs(mid(current) - mid(weather)), 'weather centred in its tile').toBeLessThan(8);
+      expect(current.top - weather.top, 'weather hugs the top of its tile').toBeLessThan(24);
+    } finally {
+      await page.request.delete(`/api/layouts/${layout.id}`);
+    }
+  });
+
+  // #800: the clock and the temperature in the display face, the weather
+  // summary on one line, at the wall size and the small tablet's.
+  for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 800 }]) {
+    test(`the corners use the display face and read as one line at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const today = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}T00:00:00.000Z`;
+      const layout = await openLayout(page, FIRST_SCREEN_TEMPLATE.widgets, {
+        ...WEATHER,
+        forecast: [{ date: today, dayName: 'Today', high: 79, low: 61, condition: 'partly-cloudy' }],
+      });
+      try {
+        const faces = await page.evaluate(() => {
+          const look = (sel: string) => {
+            const el = document.querySelector(sel) as HTMLElement;
+            const cs = getComputedStyle(el);
+            return { family: cs.fontFamily, size: parseFloat(cs.fontSize) };
+          };
+          // The page's own floor: 14px on a touch wall, 12px with a mouse.
+          const probe = document.createElement('div');
+          probe.style.fontSize = 'var(--text-floor)';
+          document.body.appendChild(probe);
+          const floor = parseFloat(getComputedStyle(probe).fontSize);
+          probe.remove();
+          const displayProbe = document.createElement('span');
+          displayProbe.style.fontFamily = 'var(--font-display)';
+          document.body.appendChild(displayProbe);
+          const display = getComputedStyle(displayProbe).fontFamily;
+          displayProbe.remove();
+          return {
+            floor,
+            display,
+            time: look('.widget-cell[data-widget="clock"] [data-clock-time]'),
+            date: look('.widget-cell[data-widget="clock"] [data-clock-date]'),
+            temp: look('[data-weather-temp]'),
+            condition: look('[data-weather-condition]'),
+          };
+        });
+        // The display face is a next/font family; its generated name contains
+        // the face's name, and the text face's does not.
+        expect(faces.time.family, 'clock in the display face').toBe(faces.display);
+        expect(faces.temp.family, 'temperature in the display face').toBe(faces.display);
+        expect(faces.condition.family, 'condition in the text face').not.toBe(faces.display);
+        const { floor, display: _display, ...text } = faces;
+        expect(floor).toBeGreaterThanOrEqual(12);
+        for (const [name, f] of Object.entries(text)) {
+          expect(f.size, `${name} at or above the text floor`).toBeGreaterThanOrEqual(floor - 0.01);
+        }
+        const condition = page.locator('[data-weather-condition]');
+        await expect(condition).toHaveText(/Partly cloudy/i);
+        const cut = await condition.evaluate((el) => el.scrollWidth > el.clientWidth);
+        expect(cut, 'the weather line is not cut off').toBe(false);
+      } finally {
+        await page.request.delete(`/api/layouts/${layout.id}`);
+      }
+    });
+  }
+
+  // #799: on a wallpaper the corner tiles sit straight on the photo in the
+  // light ink, and other glass cards are water, thin and only lightly blurred.
+  test('on a photo the corners have no card and the other cards are water', async ({ page }) => {
+    await page.route('**/api/photos?*', (route) => route.fulfill({ json: { photos: [], total: 0 } }));
+    await page.route('**/api/settings', async (route) => {
+      const res = await route.fetch();
+      const json = await res.json();
+      json.settings = { ...(json.settings ?? {}), wallpaperScenery: true };
+      await route.fulfill({ response: res, json });
+    });
+    const layout = await openLayout(page, FIRST_SCREEN_TEMPLATE.widgets);
+    try {
+      await expect(page.locator('html')).toHaveAttribute('data-wallpaper', 'scenery');
+      // The photo has been read, so the water values are this photo's, not the fallback.
+      await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--ds-water-alpha'))).not.toBe('');
+      const look = await page.evaluate(() => {
+        const cell = (id: string) => getComputedStyle(document.querySelector(`.widget-cell[data-widget="${id}"]`)!);
+        const alpha = (c: string) => { const m = /rgba?\(([^)]+)\)/.exec(c); const p = m ? m[1]!.split(/[ ,/]+/).filter(Boolean) : []; return p.length > 3 ? Number(p[3]) : 1; };
+        const time = getComputedStyle(document.querySelector('.widget-cell[data-widget="clock"] [data-clock-time]')!);
+        return {
+          clockBg: alpha(cell('clock').backgroundColor),
+          clockBlur: cell('clock').backdropFilter,
+          weatherBg: alpha(cell('weather').backgroundColor),
+          timeColor: time.color,
+          calendarBg: alpha(cell('calendar').backgroundColor),
+          calendarBlur: cell('calendar').backdropFilter,
+          shade: !!document.querySelector('[data-wallpaper-shade]'),
+        };
+      });
+      expect(look.clockBg, 'clock has no card').toBe(0);
+      expect(look.weatherBg, 'weather has no card').toBe(0);
+      expect(look.clockBlur).toBe('none');
+      expect(look.timeColor, 'clock in the light ink').toBe('rgb(255, 255, 255)');
+      expect(look.calendarBg, 'water is thinner than the old glass').toBeLessThanOrEqual(0.6);
+      expect(look.calendarBg).toBeGreaterThanOrEqual(0.18);
+      expect(look.calendarBlur, 'a little blur, not the old 24px').toContain('blur(10px)');
+      expect(look.shade, 'shade under the text').toBe(true);
     } finally {
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
@@ -1221,50 +1644,194 @@ test.describe('corner clock and weather', () => {
     ]);
     try {
       await expect(page.locator('[data-weather-details]')).toBeVisible();
-      const details = page.locator('[data-weather-details]');
-      await expect(details).toBeVisible();
-      const detailRows = await details.locator(':scope > div').evaluateAll((rows) => rows.map((row) => {
-        const style = getComputedStyle(row);
+      const cell = await rect(page, '.widget-cell[data-widget="weather"]');
+      const rows = page.locator('[data-weather-details] > div');
+      await expect(rows).toHaveCount(2);
+      const detailRows = await rows.evaluateAll((elements) => elements.map((el) => {
+        const bounds = el.getBoundingClientRect();
+        const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
         return {
-          height: row.getBoundingClientRect().height,
-          lineHeight: parseFloat(style.lineHeight),
-          overflows: row.scrollWidth > row.clientWidth,
+          lines: Math.round(bounds.height / lineHeight),
+          cut: el.scrollWidth > el.clientWidth,
+          right: bounds.right,
         };
       }));
-      expect(detailRows.length).toBeGreaterThan(0);
-      for (const row of detailRows) {
-        expect(row.height, 'weather detail fits on one line').toBeLessThanOrEqual(row.lineHeight + 1);
-        expect(row.overflows, 'weather detail is not clipped').toBe(false);
+      for (const [index, row] of detailRows.entries()) {
+        expect(row.lines, `weather detail row ${index + 1} stays on one line`).toBe(1);
+        expect(row.cut, `weather detail row ${index + 1} is not clipped`).toBe(false);
+        expect(row.right, `weather detail row ${index + 1} stays in the tile`).toBeLessThanOrEqual(cell.right);
       }
       // Not a corner tile (half the width), so the clock stays centred.
       const clock = await rect(page, '.widget-cell[data-widget="clock"]');
       const time = await rect(page, '.widget-cell[data-widget="clock"] [data-clock-time]');
       expect(Math.abs((time.left + time.right) / 2 - (clock.left + clock.right) / 2)).toBeLessThan(8);
     } finally {
-      await page.request.delete(`/api/layouts/${layout.id}`);
+      // Remove this disposable fixture directly from the isolated test DB.
+      // This layout is test-only and the page's API DELETE can hang during
+      // teardown while its background dashboard requests are still running.
+      runTestDb(`DELETE FROM layouts WHERE id = '${layout.id}'`);
     }
   });
+});
 
-  test('a tall weather tile keeps the two-column header when the screen is portrait', async ({ page }) => {
-    // A portrait display fits the 48-column design by width, so a 23-column
-    // tile renders about 500px wide — under the old 32rem breakpoint — even
-    // though it is hundreds of pixels tall. The stats column belongs beside the
-    // temperature there, not hidden.
-    await page.setViewportSize({ width: 1080, height: 1920 });
-    const layout = await openLayout(page, [
-      { i: 'weather', x: 25, y: 0, w: 23, h: 39 },
-      { i: 'clock', x: 0, y: 0, w: 25, h: 8 },
-      { i: 'tasks', x: 0, y: 39, w: 48, h: 22 },
-    ]);
+test.describe('editor keys (#987)', () => {
+  test.skip(!HAS_TEST_DB, 'needs the seeded test database to log in and edit');
+  test.use({ viewport: { width: 1280, height: 720 } });
+  // The editor loads the dashboard twice (the page and its frame), slow on a cold CI server.
+  test.setTimeout(180_000);
+
+  test('Delete removes the selected widget with Undo; arrows move it, and resize it in resize mode', async ({ page }) => {
+    // On the canvas (#1283): a click puts the keys in the frame, where the editor runs.
+    const canvas = await openScreensaverEditor(page, 'landscape');
+    const clock = canvas.locator('[data-editor-widget="clock"]');
+    const box = async () => (await boxes(canvas, '[data-editor-widget]')).clock!;
+    const near = (a: number, b: number) => Math.abs(a - b) <= 2;
+
+    // Select (move mode): an arrow moves it one cell, keeping its size.
+    await clock.click();
+    const start = await box();
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(async () => (await box()).x).toBeGreaterThan(start.x + 4);
+    const moved = await box();
+    expect(near(moved.w, start.w) && near(moved.h, start.h), 'a move keeps the size').toBe(true);
+    const cell = moved.x - start.x;
+    await page.keyboard.press('ArrowLeft');
+    await expect.poll(async () => (await box()).x).toBeLessThan(moved.x - 4);
+
+    // From its settings in the Widgets panel (#1323), on the editor page and
+    // not in the frame, the keys still reach it, as they did from the strip
+    // that sat over the canvas.
+    const glass = page.locator('[data-editor-sheet="widgets"] [data-widget-settings="clock"]').getByLabel('Glass fill');
+    await glass.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(async () => (await box()).x).toBeGreaterThan(start.x + 4);
+    await page.keyboard.press('ArrowLeft');
+    await expect.poll(async () => (await box()).x).toBeLessThan(start.x + 4);
+
+    // Second tap: resize mode. Down grows it a cell, left shrinks it a cell.
+    await clock.click();
+    const before = await box();
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(async () => (await box()).h).toBeGreaterThan(before.h + 4);
+    await page.keyboard.press('ArrowLeft');
+    await expect.poll(async () => (await box()).w).toBeLessThan(before.w - 4);
+    const resized = await box();
+    expect(near(resized.x, before.x) && near(resized.y, before.y), 'a resize keeps the top-left corner').toBe(true);
+    expect(Math.abs((before.w - resized.w) - cell) <= 2, 'one cell narrower').toBe(true);
+
+    // Typing in a field does nothing to the layout.
+    await canvas.locator('body').evaluate(() => { const i = document.createElement('input'); i.id = 'typing-probe'; document.body.appendChild(i); });
+    await canvas.locator('#typing-probe').focus();
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('ArrowRight');
+    await expect(clock).toBeVisible();
+    expect(near((await box()).x, resized.x), 'arrows in a field leave the widget').toBe(true);
+    await canvas.locator('body').evaluate(() => document.getElementById('typing-probe')?.remove());
+
+    // Still selected: Delete removes it; Undo brings it back.
+    await page.keyboard.press('Delete');
+    await expect(clock).toHaveCount(0);
+    await canvas.getByRole('listitem').filter({ hasText: 'Widget removed.' }).getByRole('button', { name: 'Undo' }).click();
+    await expect(clock).toBeVisible();
+  });
+});
+
+/**
+ * The upgrade from v1.30.1 (#1154). v1.30.1 kept one screensaver arrangement
+ * in each browser, and a dashboard with none of its own showed it over
+ * photos. The upgrade (0036, 0039) leaves such a dashboard resting over
+ * photos with no arrangement, and once any other dashboard has one, the
+ * default would show instead. The browser carries its arrangement onto the
+ * dashboard it shows, so resting and night look as they did.
+ */
+test.describe('the upgrade from v1.30.1', () => {
+  test.skip(!HAS_TEST_DB, 'needs the seeded test database to log in and create dashboards');
+  test.use({ viewport: { width: 1280, height: 720 } });
+  test.setTimeout(120_000);
+
+  // Shopping and the clock, where the default has the clock, weather and messages.
+  const KEPT = [
+    { i: 'clock', x: 2, y: 2, w: 16, h: 10, visible: true },
+    { i: 'shopping', x: 24, y: 4, w: 14, h: 14, visible: true },
+    { i: 'messages', x: 32, y: 16, w: 16, h: 12, visible: false },
+    { i: 'weather', x: 32, y: 28, w: 16, h: 8, visible: false },
+  ];
+  const OTHER = [{ i: 'weather', x: 0, y: 0, w: 16, h: 8, visible: true }];
+
+  async function resting(page: Page, slug: string, at: string) {
+    await page.clock.setFixedTime(new Date(at));
+    await page.goto(`/d/${slug}`);
+    await page.locator('.widget-cell[data-widget]').first().waitFor({ timeout: 60000 });
+    await waitForQuiet(page);
+    await page.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
+    await page.locator('.fixed.inset-0.z-9999 .widget-cell[data-widget]').first().waitFor();
+    await page.waitForTimeout(1500);
+    return page.evaluate(() => {
+      const out: Record<string, { x: number; y: number; w: number; h: number }> = {};
+      document.querySelectorAll<HTMLElement>('.fixed.inset-0.z-9999 .widget-cell[data-widget]').forEach((el) => {
+        const b = el.getBoundingClientRect();
+        out[el.dataset.widget!] = { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) };
+      });
+      return {
+        widgets: out,
+        sky: !!document.querySelector('[data-testid="night-sky"]'),
+        night: !!document.querySelector('[data-screensaver-night]'),
+        dim: (() => { const d = document.querySelector('[data-idle-dim]'); return d ? Number(getComputedStyle(d).opacity) : 0; })(),
+      };
+    });
+  }
+
+  test('a dashboard with no screensaver of its own rests, by day and at night, with the one this browser kept, and keeps it', async ({ page }) => {
+    const login = await page.request.post('/api/auth/login', { data: { userId: getSeededParentId(), pin: PIN } });
+    expect(login.ok(), 'precondition: login must succeed').toBe(true);
+    const stamp = Date.now();
+    // Both as the upgrade leaves a v1.30.1 dashboard: over photos, one with
+    // an arrangement saved in the editor, one never saved.
+    const saved = await (await page.request.post('/api/layouts', {
+      data: { name: `Upgrade saved ${stamp}`, widgets: FIRST_SCREEN_TEMPLATE.widgets, screensaverWidgets: OTHER, idleBackground: { source: 'photos' } },
+    })).json();
+    const plain = await (await page.request.post('/api/layouts', {
+      data: { name: `Upgrade plain ${stamp}`, widgets: FIRST_SCREEN_TEMPLATE.widgets, idleBackground: { source: 'photos' } },
+    })).json();
+    expect(plain.screensaverWidgets, 'precondition: no arrangement of its own').toBeNull();
+
+    await weatherAt(page, { lat: 45, lon: -100 });
+    await page.addInitScript((kept) => {
+      // Once per test: what a v1.30.1 browser holds. Drift is stilled only to measure.
+      if (sessionStorage.getItem('upgrade-seeded')) return;
+      localStorage.removeItem('prism-screensaver-carried');
+      localStorage.setItem('prism-screensaver-layout', JSON.stringify(kept));
+      localStorage.setItem('prism-screensaver-drift', 'off');
+      localStorage.setItem('prism-perf-mode', 'false');
+      sessionStorage.setItem('upgrade-seeded', '1');
+    }, KEPT);
+
     try {
-      await expect(page.locator('[data-weather-details]')).toBeVisible();
-      await expect(page.locator('[data-weather-current]')).not.toHaveAttribute('data-compact', 'true');
-      const current = await rect(page, '[data-weather-current]');
-      const details = await rect(page, '[data-weather-details]');
-      expect(details.left, 'stats sit to the right of the temperature').toBeGreaterThan(current.left + current.width * 0.4);
-      expect(details.top - current.top, 'stats share the top line').toBeLessThan(20);
+      const day = await resting(page, plain.slug, NOON);
+      expect(Object.keys(day.widgets).sort(), 'by day: the arrangement this browser kept').toEqual(['clock', 'shopping']);
+      expect(day.sky).toBe(false);
+
+      // Carried onto the dashboard, so the phone editor and every screen see it.
+      const carried = async () => ((await (await page.request.get(`/api/layouts/${plain.id}`)).json()).screensaverWidgets ?? [])
+        .filter((w: { visible?: boolean }) => w.visible).map((w: { i: string }) => w.i).sort();
+      await expect.poll(carried).toEqual(['clock', 'shopping']);
+      expect(await page.evaluate(() => localStorage.getItem('prism-screensaver-carried'))).toBe('1');
+
+      // At night the same widgets in the same places, over photos, not dimmed.
+      const night = await resting(page, plain.slug, NIGHT);
+      expect(day.night, 'precondition: noon is day').toBe(false);
+      expect(night.night, 'precondition: it is night by the dashboard\'s rule').toBe(true);
+      expect(night.widgets, 'night: unchanged from the day').toEqual(day.widgets);
+      expect(night.sky, 'night: still photos').toBe(false);
+      expect(night.dim, 'night: no dimming').toBe(0);
+
+      // A carry-over never replaces an arrangement already saved.
+      const again = await page.request.patch(`/api/layouts/${saved.id}`, { data: { screensaverWidgets: KEPT, carryOver: true } });
+      expect(again.ok()).toBe(true);
+      expect((await again.json()).screensaverWidgets).toEqual(OTHER);
     } finally {
-      await page.request.delete(`/api/layouts/${layout.id}`);
+      await page.request.delete(`/api/layouts/${saved.id}`);
+      await page.request.delete(`/api/layouts/${plain.id}`);
     }
   });
 });

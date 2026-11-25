@@ -52,7 +52,7 @@ export interface CommunityLayoutData {
   screenSizes: string[];
   orientation: 'landscape' | 'portrait';
   /** How the layout is drawn (#907). Absent means the grid. */
-  view?: 'today' | 'calendar';
+  view?: 'today';
   widgets: CommunityWidget[];
 }
 

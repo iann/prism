@@ -1,5 +1,6 @@
 import { SCREENSAVER_WIDGETS, WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+import { getWidgetType } from '@/lib/utils/widgetInstances';
 
 const SCREENSAVER_IDS = new Set(SCREENSAVER_WIDGETS.map((w) => w.id));
 
@@ -14,9 +15,9 @@ export function copyLayoutToOther(
   target: 'dashboard' | 'screensaver',
 ): { widgets: WidgetConfig[]; leftOut: string[] } {
   const visible = source.filter((w) => w.visible !== false);
-  const fits = (w: WidgetConfig) => target === 'dashboard' || SCREENSAVER_IDS.has(w.i);
+  const fits = (w: WidgetConfig) => target === 'dashboard' || SCREENSAVER_IDS.has(getWidgetType(w));
   return {
     widgets: visible.filter(fits).map((w) => ({ ...w, visible: true })),
-    leftOut: visible.filter((w) => !fits(w)).map((w) => WIDGET_REGISTRY[w.i]?.label ?? w.i),
+    leftOut: visible.filter((w) => !fits(w)).map((w) => WIDGET_REGISTRY[getWidgetType(w)]?.label ?? getWidgetType(w)),
   };
 }

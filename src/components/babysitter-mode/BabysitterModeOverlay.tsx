@@ -6,6 +6,7 @@ import {
   Cloud, CloudRain, CloudSnow, Sun, CloudSun, Droplets, Wind, Wifi,
   Phone, Home, User, ScrollText, AlertTriangle, Lock,
 } from 'lucide-react';
+import { useBabysitterMode } from '@/lib/hooks/useBabysitterMode';
 import { useBabysitterInfo, type BabysitterSection, type BabysitterInfoItem } from '@/lib/hooks/useBabysitterInfo';
 import { useWifiConfig } from '@/lib/hooks/useWifiConfig';
 import { ExitBabysitterModeModal } from './ExitBabysitterModeModal';
@@ -15,6 +16,7 @@ import { WifiQRCode } from '@/components/ui/WifiQRCode';
 import { cn } from '@/lib/utils';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
+import { useResetOn } from '@/lib/hooks/useResetOn';
 
 interface EmergencyContact {
   name: string;
@@ -42,22 +44,26 @@ interface HouseRule {
   importance?: string;
 }
 
-interface BabysitterModeOverlayProps {
-  toggle: (enabled: boolean) => Promise<void>;
-}
-
-export function BabysitterModeOverlay({ toggle }: BabysitterModeOverlayProps) {
-  const { items } = useBabysitterInfo({ includeSensitive: true });
-  const { config: wifiConfig, qrString, hasConfig: hasWifiConfig } = useWifiConfig({ enabled: true });
+export function BabysitterModeOverlay() {
+  const { isActive, toggle } = useBabysitterMode();
+  // Only fetch sensitive data when the overlay is actually active — avoids 401s for unauthenticated users
+  const { items } = useBabysitterInfo({ includeSensitive: isActive });
+  const { config: wifiConfig, qrString, hasConfig: hasWifiConfig } = useWifiConfig({ enabled: isActive });
   const [visible, setVisible] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
 
-  // Fade in a tick after this overlay mounts. It is only mounted while
-  // babysitter mode is on, so mounting is the moment to open.
+  // Fade in a tick after it opens; start over closed each time it ends.
+  useResetOn(isActive, () => {
+    if (!isActive) {
+      setVisible(false);
+      setShowExitModal(false);
+    }
+  });
   useEffect(() => {
+    if (!isActive) return;
     const timer = setTimeout(() => setVisible(true), 50);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isActive]);
 
   const handleExitSuccess = useCallback(async () => {
     await toggle(false);
@@ -67,6 +73,8 @@ export function BabysitterModeOverlay({ toggle }: BabysitterModeOverlayProps) {
   const handleOverlayClick = useCallback(() => {
     setShowExitModal(true);
   }, []);
+
+  if (!isActive) return null;
 
   const getItemsBySection = (section: BabysitterSection) =>
     items.filter((item) => item.section === section);

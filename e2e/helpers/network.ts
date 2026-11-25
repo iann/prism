@@ -16,12 +16,14 @@ export async function waitForQuiet(page: Page, { quietMs = 500, timeout = 15_000
 
   const waiting = new Set<Request>();
   let lastChange = Date.now();
+  const isFrameworkAsset = (request: Request) => new URL(request.url()).pathname.startsWith('/_next/static/');
   const started = (request: Request) => {
+    if (isFrameworkAsset(request)) return;
     waiting.add(request);
     lastChange = Date.now();
   };
   const answered = (request: Request) => {
-    waiting.delete(request);
+    if (!waiting.delete(request)) return;
     lastChange = Date.now();
   };
   const onResponse = (response: { request(): Request }) => answered(response.request());

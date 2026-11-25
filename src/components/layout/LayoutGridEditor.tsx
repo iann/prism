@@ -2,31 +2,13 @@
 
 import * as React from 'react';
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
-import { EyeOff, Minimize2, PaintBucket, Square, Type } from 'lucide-react';
-import { isLightColor } from '@/lib/utils/color';
-import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import { useScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
-import { useTheme } from '@/components/providers';
-import {
-  getColorPalette,
-  FIXED_COLORS,
-  PALETTE_ORDER,
-  type PaletteId,
-} from '@/lib/constants/colorPalettes';
-import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { GRID_COLS } from '@/lib/constants/grid';
 import { CssGridDisplay } from './grid/CssGridDisplay';
-import { canHideWhenEmpty, hidesWhenEmpty } from './grid/hideWhenEmpty';
 import dynamic from 'next/dynamic';
-const CssGridEditor = dynamic(
-  () => import('./grid/CssGridEditor').then((m) => ({ default: m.CssGridEditor })),
-  { ssr: false }
-);
+const CssGridEditor = dynamic(() => import('./grid/CssGridEditor').then(m => ({ default: m.CssGridEditor })), { ssr: false });
 import { useSquareCells } from './grid/useSquareCells';
 import { useViewportSize } from '@/lib/hooks/useViewportSize';
-import { useLatestRef } from '@/lib/hooks/useLatestRef';
-import { toast } from '@/components/ui/use-toast';
-import { ToastAction } from '@/components/ui/toast';
 
 export type { EditorTheme } from './grid/gridEditorTypes';
 export { DASHBOARD_THEME, SCREENSAVER_THEME } from './grid/gridEditorTypes';
@@ -34,16 +16,13 @@ export type { LayoutGridEditorProps } from './grid/gridEditorTypes';
 
 // Re-import for local use
 import { DASHBOARD_THEME } from './grid/gridEditorTypes';
-import { isSeeThroughFill } from './grid/gridWidgetStyles';
 import type { LayoutGridEditorProps } from './grid/gridEditorTypes';
-import { getWidgetType } from '@/lib/utils/widgetInstances';
 
 export function LayoutGridEditor({
   layout,
   onLayoutChange,
   isEditable = false,
   renderWidget,
-  widgetRevisions,
   widgetConstraints,
   margin: marginProp = 8,
   headerOffset = 140,
@@ -63,36 +42,27 @@ export function LayoutGridEditor({
   enabledSizes: enabledSizesProp,
   onScrollInfo,
   scrollToRef,
+  selectedWidgetId: selectedWidgetIdProp,
+  onSelectedWidgetChange,
 }: LayoutGridEditorProps) {
   const { zones: SAFE_ZONES, allSizeNames } = useScreenSafeZones();
   const cols = GRID_COLS;
   const containerPadding = 12;
   const margin = marginProp;
-  const {
-    width,
-    containerRef,
-    mounted,
-    cellSize: rawCellSize,
-  } = useSquareCells(cols, containerPadding, margin);
+  const { width, containerRef, mounted, cellSize: rawCellSize } = useSquareCells(cols, containerPadding, margin);
   const { height: viewportHeight } = useViewportSize();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-  const [selectedId, setSelectedWidget] = useState<string | null>(null);
-  const colorPickerRef = useRef<HTMLInputElement | null>(null);
-  const [colorTarget, setColorTarget] = useState<'fill' | 'outline' | 'text'>('fill');
-  const [openPopover, setOpenPopover] = useState<'fill' | 'outline' | 'text' | 'grid' | null>(null);
+  // The selected widget: the editor's own (#1323), so the Widgets panel can
+  // show its settings, or kept here when nobody else asks.
+  const [ownSelection, setOwnSelection] = useState<string | null>(null);
+  const controlled = selectedWidgetIdProp !== undefined;
+  const selectedId = controlled ? selectedWidgetIdProp : ownSelection;
+  const setSelectedWidget = useCallback((id: string | null) => {
+    if (!controlled) setOwnSelection(id);
+    onSelectedWidgetChange?.(id);
+  }, [controlled, onSelectedWidgetChange]);
   const [measureMode, setMeasureMode] = useState(false);
   const [measureHideNav, setMeasureHideNav] = useState(true);
   const [previewZoneIndex, setPreviewZoneIndex] = useState(0);
-  const [isPortraitViewport, setIsPortraitViewport] = useState(false);
-
-  useEffect(() => {
-    const query = window.matchMedia('(orientation: portrait)');
-    const update = () => setIsPortraitViewport(query.matches);
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -109,13 +79,10 @@ export function LayoutGridEditor({
     window.addEventListener('prism:measure-mode', handler);
     return () => window.removeEventListener('prism:measure-mode', handler);
   }, []);
-  const [paletteId, setPaletteId] = useState<PaletteId>('seasonal');
   const [scrollY, setScrollY] = useState(0);
   const [scrollX, setScrollX] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [screenGuideOrientationInternal, setScreenGuideOrientationInternal] = useState<
-    'landscape' | 'portrait'
-  >('landscape');
+  const [screenGuideOrientationInternal, setScreenGuideOrientationInternal] = useState<'landscape' | 'portrait'>('landscape');
   const [enabledSizesInternal, setEnabledSizesInternal] = useState<string[]>(allSizeNames);
 
   const screenGuideOrientation = screenGuideOrientationProp ?? screenGuideOrientationInternal;
@@ -127,16 +94,13 @@ export function LayoutGridEditor({
   const cellSize = useMemo(() => {
     if (!measureMode || !mounted || width <= 0) return rawCellSize;
 
-    const activeSafeZones = SAFE_ZONES[screenGuideOrientation].filter((z) =>
-      enabledSizes.includes(z.name)
-    );
+    const activeSafeZones = SAFE_ZONES[screenGuideOrientation].filter(z => enabledSizes.includes(z.name));
     const zone = activeSafeZones[previewZoneIndex] ?? activeSafeZones[0];
     if (!zone) return rawCellSize;
 
     const effectiveHeaderOffset = measureHideNav ? 0 : 50;
     const effectiveBottomOffset = measureHideNav ? 0 : bottomOffset;
-    const availableH =
-      viewportHeight - effectiveHeaderOffset - effectiveBottomOffset - 2 * containerPadding;
+    const availableH = viewportHeight - effectiveHeaderOffset - effectiveBottomOffset - 2 * containerPadding;
     const availableW = width - 2 * containerPadding;
 
     // Cell size that makes zone.rows fill availableH, and zone.cols fill availableW
@@ -144,21 +108,27 @@ export function LayoutGridEditor({
     const wCell = Math.floor((availableW + margin) / zone.cols) - margin;
 
     return Math.max(16, Math.min(hCell, wCell));
-  }, [
-    measureMode,
-    mounted,
-    rawCellSize,
-    SAFE_ZONES,
-    screenGuideOrientation,
-    enabledSizes,
-    previewZoneIndex,
-    measureHideNav,
-    bottomOffset,
-    margin,
-    containerPadding,
-    width,
-    viewportHeight,
-  ]);
+  }, [measureMode, mounted, rawCellSize, SAFE_ZONES, screenGuideOrientation, enabledSizes, previewZoneIndex, measureHideNav, bottomOffset, margin, containerPadding, width, viewportHeight]);
+
+  const visibleRows = useMemo(() => {
+    if (viewportHeight <= 0) return 24;
+    // Measure mode: toolbar always hidden; header + nav depend on hideNav toggle
+    // measureHideNav=true: all chrome hidden (0 offset)
+    // measureHideNav=false: header (~50px) + nav visible (bottomOffset)
+    // Not in measure mode: full headerOffset (toolbar+header) + bottomOffset
+    const effectiveHeaderOffset = measureMode
+      ? (measureHideNav ? 0 : 50)
+      : headerOffset;
+    const effectiveBottomOffset = measureHideNav ? 0 : bottomOffset;
+    const offset = effectiveHeaderOffset + effectiveBottomOffset;
+    const availableHeight = viewportHeight - offset;
+    return Math.max(minVisibleRows, Math.floor((availableHeight + margin) / (cellSize + margin)));
+  }, [cellSize, margin, headerOffset, bottomOffset, minVisibleRows, measureMode, measureHideNav, viewportHeight]);
+
+  const visibleCols = useMemo(() => {
+    if (width <= 0) return cols;
+    return Math.floor((width - 2 * containerPadding + margin) / (cellSize + margin));
+  }, [width, cellSize, margin]);
 
   // Canonical target row count of the design (tallest configured screen for this
   // orientation, e.g. 27 for 1080p landscape). In display mode the grid renders
@@ -168,40 +138,13 @@ export function LayoutGridEditor({
   const displayTargetRows = useMemo(() => {
     const zones = SAFE_ZONES[screenGuideOrientation];
     if (!zones?.length) return undefined;
-    return Math.max(...zones.map((z) => z.rows));
+    return Math.max(...zones.map(z => z.rows));
   }, [SAFE_ZONES, screenGuideOrientation]);
-
-  const visibleRows = useMemo(() => {
-    if (viewportHeight <= 0) return 24;
-    // Measure mode: toolbar always hidden; header + nav depend on hideNav toggle
-    // measureHideNav=true: all chrome hidden (0 offset)
-    // measureHideNav=false: header (~50px) + nav visible (bottomOffset)
-    // Not in measure mode: full headerOffset (toolbar+header) + bottomOffset
-    const effectiveHeaderOffset = measureMode ? (measureHideNav ? 0 : 50) : headerOffset;
-    const effectiveBottomOffset = measureHideNav ? 0 : bottomOffset;
-    const offset = effectiveHeaderOffset + effectiveBottomOffset;
-    const availableHeight = viewportHeight - offset;
-    return Math.max(minVisibleRows, Math.floor((availableHeight + margin) / (cellSize + margin)));
-  }, [
-    cellSize,
-    margin,
-    headerOffset,
-    bottomOffset,
-    minVisibleRows,
-    measureMode,
-    measureHideNav,
-    viewportHeight,
-  ]);
-
-  const visibleCols = useMemo(() => {
-    if (width <= 0) return cols;
-    return Math.floor((width - 2 * containerPadding + margin) / (cellSize + margin));
-  }, [width, cellSize, margin]);
 
   const { totalRows, totalCols } = useMemo(() => {
     let maxY = visibleRows;
     let maxX = cols;
-    layout.forEach((w) => {
+    layout.forEach(w => {
       if (w.visible !== false) {
         const bottom = w.y + w.h;
         const right = w.x + w.w;
@@ -210,7 +153,7 @@ export function LayoutGridEditor({
       }
     });
     // Ensure grid extends to show all screen size guides
-    const maxScreenRows = Math.max(...SAFE_ZONES[screenGuideOrientation].map((z) => z.rows));
+    const maxScreenRows = Math.max(...SAFE_ZONES[screenGuideOrientation].map(z => z.rows));
     // Buffer: at least 20 rows (or half a screen) below bottom-most widget
     // so touch users can scroll far enough to select/drag/resize lower widgets
     const scrollBuffer = Math.max(20, Math.ceil(visibleRows / 2));
@@ -220,26 +163,21 @@ export function LayoutGridEditor({
     };
   }, [layout, visibleRows, cols, screenGuideOrientation, SAFE_ZONES]);
 
-  const handleScrollTo = useCallback(
-    (targetRow: number, targetCol?: number) => {
-      if (scrollContainerRef.current) {
-        const scrollTop = targetRow * (cellSize + margin);
-        const opts: ScrollToOptions = { top: scrollTop, behavior: 'smooth' };
-        if (targetCol != null) {
-          opts.left = targetCol * (cellSize + margin);
-        }
-        scrollContainerRef.current.scrollTo(opts);
+  const handleScrollTo = useCallback((targetRow: number, targetCol?: number) => {
+    if (scrollContainerRef.current) {
+      const scrollTop = targetRow * (cellSize + margin);
+      const opts: ScrollToOptions = { top: scrollTop, behavior: 'smooth' };
+      if (targetCol != null) {
+        opts.left = targetCol * (cellSize + margin);
       }
-    },
-    [cellSize, margin]
-  );
+      scrollContainerRef.current.scrollTo(opts);
+    }
+  }, [cellSize, margin]);
 
   // Expose scrollTo via ref
   useEffect(() => {
     if (scrollToRef) scrollToRef.current = handleScrollTo;
-    return () => {
-      if (scrollToRef) scrollToRef.current = null;
-    };
+    return () => { if (scrollToRef) scrollToRef.current = null; };
   }, [scrollToRef, handleScrollTo]);
 
   // Report scroll info to parent
@@ -247,724 +185,30 @@ export function LayoutGridEditor({
     onScrollInfo?.({ scrollY, visibleRows, scrollX, visibleCols, totalRows, totalCols });
   }, [scrollY, visibleRows, scrollX, visibleCols, totalRows, totalCols, onScrollInfo]);
 
-  const handleScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const target = e.target as HTMLDivElement;
-      const scrolledRows = Math.floor(target.scrollTop / (cellSize + margin));
-      const scrolledCols = Math.floor(target.scrollLeft / (cellSize + margin));
-      setScrollY(scrolledRows);
-      setScrollX(scrolledCols);
-    },
-    [cellSize, margin]
-  );
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const scrolledRows = Math.floor(target.scrollTop / (cellSize + margin));
+    const scrolledCols = Math.floor(target.scrollLeft / (cellSize + margin));
+    setScrollY(scrolledRows);
+    setScrollX(scrolledCols);
+  }, [cellSize, margin]);
 
   const toggleSize = useCallback((size: string) => {
-    setEnabledSizesInternal((prev) =>
-      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
+    setEnabledSizesInternal(prev =>
+      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
     );
   }, []);
 
-  // Dashboard layout arrays can be recreated by the parent when unrelated data
-  // changes. Keep the previous array while its contents are unchanged so the
-  // grid does not invalidate every memoized cell.
   const layoutJson = JSON.stringify(layout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the JSON, not the array identity
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const stableLayout = useMemo(() => layout, [layoutJson]);
 
-  const updateWidgetColor = useCallback(
-    (
-      widgetId: string,
-      updates: {
-        backgroundColor?: string | null;
-        backgroundOpacity?: number;
-        outlineColor?: string | null;
-        outlineOpacity?: number;
-        textColor?: string | null;
-        textOpacity?: number;
-        textScale?: number;
-        gridLineOpacity?: number;
-        cellBackgroundColor?: string | null;
-        cellBackgroundOpacity?: number;
-      }
-    ) => {
-      const updated = stableLayout.map((w) => {
-        if (w.i === widgetId) {
-          return {
-            ...w,
-            backgroundColor:
-              updates.backgroundColor === null
-                ? undefined
-                : (updates.backgroundColor ?? w.backgroundColor),
-            backgroundOpacity: updates.backgroundOpacity ?? w.backgroundOpacity,
-            outlineColor:
-              updates.outlineColor === null ? undefined : (updates.outlineColor ?? w.outlineColor),
-            outlineOpacity: updates.outlineOpacity ?? w.outlineOpacity,
-            textColor: updates.textColor === null ? undefined : (updates.textColor ?? w.textColor),
-            textOpacity: updates.textOpacity ?? w.textOpacity,
-            textScale: updates.textScale ?? w.textScale,
-            gridLineOpacity: updates.gridLineOpacity ?? w.gridLineOpacity,
-            cellBackgroundColor:
-              updates.cellBackgroundColor === null
-                ? undefined
-                : (updates.cellBackgroundColor ?? w.cellBackgroundColor),
-            cellBackgroundOpacity: updates.cellBackgroundOpacity ?? w.cellBackgroundOpacity,
-          };
-        }
-        return w;
-      });
-      onLayoutChange(updated);
-    },
-    [onLayoutChange, stableLayout]
-  );
-
-  // A widget that is hidden or removed is no longer selected, without a state
-  // write from an effect: the selection simply stops resolving.
-  const selectedWidgetConfig = selectedId
-    ? stableLayout.find((w) => w.i === selectedId && w.visible !== false)
+  // A widget that is hidden or removed is no longer selected. Its own
+  // settings are in the Widgets panel (#1323), so the canvas shows only the
+  // screen.
+  const selectedWidget = selectedId && stableLayout.some(w => w.i === selectedId && w.visible !== false)
+    ? selectedId
     : null;
-  const selectedWidget = selectedWidgetConfig ? selectedId : null;
-
-  // Removing keeps the entry and clears its visible flag, as the Widgets panel
-  // always has: the widget's size, place and styling come back when it is
-  // added again. The toast is the way back, since the board gives no hint that
-  // anything was kept.
-  const latestLayoutRef = useLatestRef(layout);
-  const handleRemoveWidget = useCallback(
-    (id: string) => {
-      const removed = latestLayoutRef.current.find((w) => w.i === id);
-      if (!removed) return;
-      const type = getWidgetType(removed);
-      const label = WIDGET_REGISTRY[type]?.label ?? type;
-
-      onLayoutChange(
-        latestLayoutRef.current.map((w) => (w.i === id ? { ...w, visible: false } : w))
-      );
-      setSelectedWidget(null);
-      toast({
-        title: `${label} removed`,
-        description: 'Add it back any time from the Widgets panel.',
-        action: (
-          <ToastAction
-            altText="Undo"
-            onClick={() => {
-              onLayoutChange(
-                latestLayoutRef.current.map((w) => (w.i === id ? { ...w, visible: true } : w))
-              );
-            }}
-          >
-            Undo
-          </ToastAction>
-        ),
-      });
-    },
-    [latestLayoutRef, onLayoutChange]
-  );
-
-  // Get current color value for whichever target is active
-  const getActiveColor = (widget: WidgetConfig): string | undefined => {
-    if (colorTarget === 'fill') return widget.backgroundColor;
-    if (colorTarget === 'outline') return widget.outlineColor;
-    return widget.textColor;
-  };
-
-  // Apply a color to whichever target is active
-  const applyColorToTarget = (widgetId: string, color: string | null) => {
-    if (colorTarget === 'fill') {
-      updateWidgetColor(widgetId, { backgroundColor: color });
-    } else if (colorTarget === 'outline') {
-      updateWidgetColor(widgetId, { outlineColor: color });
-    } else {
-      updateWidgetColor(widgetId, { textColor: color });
-    }
-  };
-
-  // Helper: render a Harvey ball indicator
-  const renderHarveyBall = (color: string | undefined, opacity: number, size = 16) => {
-    const fillColor =
-      color && color !== 'transparent' && color !== 'frosted'
-        ? color
-        : color === 'frosted'
-          ? '#b0c4de'
-          : undefined;
-    const fillLevel = !color || color === 'transparent' ? 0 : color === 'frosted' ? 1 : opacity;
-    if (!fillColor || fillLevel === 0) return null;
-    const r = size / 2 - 1;
-    const cx = size / 2;
-    const cy = size / 2;
-    const slices = Math.round(fillLevel * 4);
-    if (slices >= 4) {
-      return (
-        <svg viewBox={`0 0 ${size} ${size}`} className="h-3 w-3">
-          <circle
-            cx={cx}
-            cy={cy}
-            r={r}
-            fill={fillColor}
-            stroke={isLightColor(fillColor) ? '#333' : '#fff'}
-            strokeWidth="0.5"
-          />
-        </svg>
-      );
-    }
-    const endAngle = (slices / 4) * 2 * Math.PI - Math.PI / 2;
-    const ex = cx + r * Math.cos(endAngle);
-    const ey = cy + r * Math.sin(endAngle);
-    const largeArc = slices > 2 ? 1 : 0;
-    return (
-      <svg viewBox={`0 0 ${size} ${size}`} className="h-3 w-3">
-        <circle cx={cx} cy={cy} r={r} fill="#e5e5e5" stroke="#999" strokeWidth="0.5" />
-        <path
-          d={`M${cx},${cx} L${cx},1 A${r},${r} 0 ${largeArc},1 ${ex.toFixed(2)},${ey.toFixed(2)} Z`}
-          fill={fillColor}
-          stroke={isLightColor(fillColor) ? '#333' : '#fff'}
-          strokeWidth="0.5"
-        />
-      </svg>
-    );
-  };
-
-  // The fill choice in words, shown under the swatches (#803).
-  const fillName = (c: string | undefined): string => {
-    if (!c) return 'Default: the theme\'s card';
-    if (c === 'transparent') return 'None: the words sit straight on the photo, in light text with a soft shadow';
-    if (c === 'glass') return 'Glass: a see-through card over the photo';
-    if (c === 'frosted') return 'Frosted: a white, blurred card';
-    return 'Solid: a card in this colour';
-  };
-
-  // Helper: render color swatches popover content for fill/outline/text
-  const renderColorPopover = (target: 'fill' | 'outline' | 'text') => {
-    if (!selectedWidgetConfig || !selectedWidget) return null;
-    const bgColor = selectedWidgetConfig.backgroundColor;
-    const olColor = selectedWidgetConfig.outlineColor;
-    const txtColor = selectedWidgetConfig.textColor;
-    const bgOpacity = selectedWidgetConfig.backgroundOpacity ?? 1;
-    const olOpacity = selectedWidgetConfig.outlineOpacity ?? 1;
-
-    const color = target === 'fill' ? bgColor : target === 'outline' ? olColor : txtColor;
-    const palette = getColorPalette(paletteId, isDark);
-    const swatchColors = palette.colors;
-    const fixedColors = paletteId === 'mono' ? [] : FIXED_COLORS;
-    const isSelected = (hex: string) => color === hex;
-    const apply = (c: string | null) => {
-      if (target === 'fill') updateWidgetColor(selectedWidget, { backgroundColor: c });
-      else if (target === 'outline') updateWidgetColor(selectedWidget, { outlineColor: c });
-      else updateWidgetColor(selectedWidget, { textColor: c });
-    };
-    const reset = () => {
-      if (target === 'fill')
-        updateWidgetColor(selectedWidget, { backgroundColor: null, backgroundOpacity: 1 });
-      else if (target === 'outline')
-        updateWidgetColor(selectedWidget, { outlineColor: null, outlineOpacity: 1 });
-      else updateWidgetColor(selectedWidget, { textColor: null, textOpacity: 1 });
-    };
-    const isDefault = !color;
-    const hasColor =
-      target === 'fill'
-        ? bgColor && bgColor !== 'transparent'
-        : target === 'outline'
-          ? !!olColor && olColor !== 'transparent'
-          : false;
-    const isFrosted = target === 'fill' && bgColor === 'frosted';
-
-    return (
-      <div className="space-y-2 p-2.5">
-        {/* Palette pills */}
-        <div className="flex flex-wrap gap-1">
-          {PALETTE_ORDER.map((id) => {
-            const p = getColorPalette(id, isDark);
-            return (
-              <button
-                key={id}
-                onClick={() => setPaletteId(id)}
-                onPointerDown={(e) => e.stopPropagation()}
-                className={`touch-manipulation rounded-full border px-2 py-0.5 text-[12px] transition-colors ${paletteId === id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-accent/50'}`}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
-        {/* Swatches */}
-        <div className="flex flex-wrap items-center gap-1">
-          {/* Reset */}
-          <button
-            onClick={reset}
-            onPointerDown={(e) => e.stopPropagation()}
-            className={`h-7 w-7 touch-manipulation overflow-hidden rounded-full border border-gray-300 transition-transform hover:scale-110 ${isDefault ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-            title="Default"
-          >
-            <div className="flex h-full w-full items-center justify-center bg-card dark:bg-card/85">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-muted-foreground"
-              >
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
-            </div>
-          </button>
-          {/* Transparent (fill), or None (outline: hides the card's own border too) */}
-          {target !== 'text' && (
-            <button onClick={() => apply('transparent')} onPointerDown={(e) => e.stopPropagation()}
-              className={`w-7 h-7 rounded-full border border-gray-300 overflow-hidden transition-transform hover:scale-110 touch-manipulation ${color === 'transparent' ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-              title={target === 'outline' ? 'None' : 'Transparent'} aria-label={target === 'outline' ? 'No outline' : 'Transparent fill'}>
-              <svg viewBox="0 0 32 32" className="w-full h-full"><pattern id="chk-pop" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#ccc" /><rect x="4" y="4" width="4" height="4" fill="#ccc" /><rect x="4" width="4" height="4" fill="#fff" /><rect y="4" width="4" height="4" fill="#fff" /></pattern><circle cx="16" cy="16" r="16" fill="url(#chk-pop)" /></svg>
-            </button>
-          )}
-          {/* Frosted (fill only) */}
-          {target === 'fill' && (
-            <button
-              onClick={() => apply('frosted')}
-              onPointerDown={(e) => e.stopPropagation()}
-              className={`h-7 w-7 touch-manipulation overflow-hidden rounded-full border border-gray-300 transition-transform hover:scale-110 ${bgColor === 'frosted' ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-              title="Frosted glass"
-            >
-              <svg viewBox="0 0 32 32" className="h-full w-full">
-                <defs>
-                  <radialGradient id="frost-pop" cx="30%" cy="30%">
-                    <stop offset="0%" stopColor="rgba(255,255,255,0.7)" />
-                    <stop offset="100%" stopColor="rgba(200,210,230,0.4)" />
-                  </radialGradient>
-                </defs>
-                <circle cx="16" cy="16" r="16" fill="url(#frost-pop)" />
-                <circle cx="10" cy="12" r="4" fill="rgba(255,255,255,0.3)" />
-                <circle cx="20" cy="18" r="3" fill="rgba(255,255,255,0.2)" />
-              </svg>
-            </button>
-          )}
-          <div className="h-5 w-px bg-border" />
-          {swatchColors.map((hex) => (
-            <button
-              key={hex}
-              onClick={() => apply(hex)}
-              onPointerDown={(e) => e.stopPropagation()}
-              className={`h-7 w-7 touch-manipulation rounded-full border border-gray-400 transition-transform hover:scale-110 ${isSelected(hex) ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-              style={{ backgroundColor: hex }}
-              title={hex}
-            />
-          ))}
-          {fixedColors.map((hex) => (
-            <button
-              key={hex}
-              onClick={() => apply(hex)}
-              onPointerDown={(e) => e.stopPropagation()}
-              className={`h-7 w-7 touch-manipulation rounded-full border border-gray-400 transition-transform hover:scale-110 ${isSelected(hex) ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-              style={{ backgroundColor: hex }}
-              title={hex}
-            />
-          ))}
-          {/* Custom picker */}
-          <div className="relative">
-            <button onClick={() => colorPickerRef.current?.click()} onPointerDown={(e) => e.stopPropagation()}
-              className="w-7 h-7 rounded-full border border-gray-400 transition-transform hover:scale-110 touch-manipulation overflow-hidden"
-              style={{ background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }} title="Custom" />
-            <input ref={colorPickerRef}
-              type="color" className="sr-only" value={color || '#3B82F6'} onChange={(e) => apply(e.target.value)} />
-          </div>
-        </div>
-        {/* What the chosen fill does, in words (#803): the swatches alone
-            carry only a tooltip, which a touchscreen never shows. */}
-        {target === 'fill' && (
-          <p className="text-3xs text-muted-foreground" data-fill-name>
-            {fillName(bgColor)}
-          </p>
-        )}
-        {/* Text scale (text only) */}
-        {target === 'text' && (
-          <div className="flex items-center gap-1">
-            <span className="w-10 shrink-0 text-[12px] text-muted-foreground">Size</span>
-            {[
-              { value: 0.75, label: 'S' },
-              { value: 1, label: 'M' },
-              { value: 1.25, label: 'L' },
-              { value: 1.5, label: 'XL' },
-            ].map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => updateWidgetColor(selectedWidget!, { textScale: value })}
-                onPointerDown={(e) => e.stopPropagation()}
-                className={`h-7 w-7 touch-manipulation rounded-full border text-[12px] transition-colors ${
-                  (selectedWidgetConfig!.textScale ?? 1) === value
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border hover:bg-accent/50'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-        {/* Align (clock and weather, #988): Auto lines up by where the tile sits. */}
-        {target === 'text' && (selectedWidget === 'clock' || selectedWidget === 'weather') && (() => {
-          const current = (selectedWidgetConfig!.settings?.align as { x?: string; y?: string } | undefined) ?? {};
-          const setAlign = (axis: 'x' | 'y', value: string) => onLayoutChange(stableLayout.map(w => w.i === selectedWidget
-            ? { ...w, settings: { ...(w.settings ?? {}), align: { ...current, [axis]: value } } }
-            : w));
-          const row = (label: string, axis: 'x' | 'y', options: Array<[string, string]>) => (
-            <div className="flex items-center gap-1 flex-wrap" data-align-axis={axis}>
-              <span className="text-3xs text-muted-foreground w-14 shrink-0">{label}</span>
-              {options.map(([value, text]) => (
-                <button key={value} onClick={() => setAlign(axis, value)} onPointerDown={(e) => e.stopPropagation()}
-                  aria-pressed={(current[axis] ?? 'auto') === value}
-                  className={`h-7 min-w-7 px-1.5 rounded-full text-3xs border transition-colors touch-manipulation ${
-                    (current[axis] ?? 'auto') === value ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent/50'
-                  }`}
-                  data-align={value}>{text}</button>
-              ))}
-            </div>
-          );
-          return (
-            <>
-              {row('Across', 'x', [['auto', 'Auto'], ['left', 'Left'], ['center', 'Centre'], ['right', 'Right']])}
-              {row('Up/down', 'y', [['auto', 'Auto'], ['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']])}
-            </>
-          );
-        })()}
-        {/* Opacity (fill/outline only, not text) */}
-        {target !== 'text' && (hasColor || isFrosted) && (
-          <div className="flex items-center gap-1">
-            <span className="w-10 shrink-0 text-[12px] text-muted-foreground">
-              {isFrosted ? 'Blur' : 'Opacity'}
-            </span>
-            {isFrosted
-              ? [
-                  { v: 0.25, l: 'Light' },
-                  { v: 0.5, l: 'Med' },
-                  { v: 0.75, l: 'Heavy' },
-                  { v: 1, l: 'Max' },
-                ].map(({ v, l }) => (
-                  <button
-                    key={v}
-                    onClick={() => updateWidgetColor(selectedWidget, { backgroundOpacity: v })}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className={`touch-manipulation rounded border px-2 py-1 text-[12px] transition-colors ${bgOpacity === v ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-accent/50'}`}
-                  >
-                    {l}
-                  </button>
-                ))
-              : [0, 0.25, 0.5, 0.75, 1].map((o) => {
-                  const cur = target === 'fill' ? bgOpacity : olOpacity;
-                  const set = () =>
-                    target === 'fill'
-                      ? updateWidgetColor(selectedWidget, { backgroundOpacity: o })
-                      : updateWidgetColor(selectedWidget, { outlineOpacity: o });
-                  return (
-                    <button
-                      key={o}
-                      onClick={set}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      className={`h-7 w-7 touch-manipulation rounded-full border text-[12px] transition-colors ${cur === o ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-accent/50'}`}
-                    >
-                      {Math.round(o * 100)}%
-                    </button>
-                  );
-                })}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderPropertiesBar = () => {
-    if (!selectedWidgetConfig || !selectedWidget) return null;
-    const bgColor = selectedWidgetConfig.backgroundColor;
-    const olColor = selectedWidgetConfig.outlineColor;
-    const txtColor = selectedWidgetConfig.textColor;
-    const bgOpacity = selectedWidgetConfig.backgroundOpacity ?? 1;
-    const olOpacity = selectedWidgetConfig.outlineOpacity ?? 1;
-    const widgetType = getWidgetType(selectedWidgetConfig);
-    const registryEntry = WIDGET_REGISTRY[widgetType];
-    const baseLabel = registryEntry?.label || widgetType;
-    const sameTypeWidgets = layout.filter((w) => getWidgetType(w) === widgetType);
-    const ordinal = sameTypeWidgets.findIndex((w) => w.i === selectedWidget) + 1;
-    const displayName = sameTypeWidgets.length > 1 ? `${baseLabel} ${ordinal}` : baseLabel;
-    const widgetHasGrid = registryEntry?.hasGrid === true;
-
-    return (
-      <div
-        className="relative z-150 border-b border-border bg-card dark:bg-card/95 backdrop-blur-xs dark:backdrop-blur-sm"
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        {/* Single row: Widget name + property buttons + close */}
-        <div className="flex items-center gap-1.5 px-3 py-2">
-          <span className="mr-1 text-sm font-medium">{displayName}</span>
-          {[
-            {
-              id: 'fill' as const,
-              icon: PaintBucket,
-              label: 'Fill',
-              color: bgColor,
-              opacity: bgOpacity,
-            },
-            {
-              id: 'outline' as const,
-              icon: Square,
-              label: 'Outline',
-              color: olColor,
-              opacity: olOpacity,
-            },
-            { id: 'text' as const, icon: Type, label: 'Text', color: txtColor, opacity: 1 },
-          ].map(({ id, icon: Icon, label, color, opacity }) => {
-            const isOpen = openPopover === id;
-            const indicator = renderHarveyBall(color, opacity);
-            const hasValue = !!color && color !== 'transparent';
-
-            return (
-              <div key={id} className="relative">
-                <button
-                  onClick={() => {
-                    setColorTarget(id);
-                    setOpenPopover(isOpen ? null : id);
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className={`flex min-h-[40px] touch-manipulation items-center gap-1.5 rounded-md border px-2.5 py-2 text-xs transition-colors ${
-                    isOpen
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border hover:bg-accent/50'
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span>{label}</span>
-                  {indicator}
-                  {/* Colored underline indicator */}
-                  {hasValue && (
-                    <div
-                      className="absolute bottom-0.5 left-2 right-2 h-0.5 rounded-full"
-                      style={{ backgroundColor: color === 'frosted' ? '#b0c4de' : color! }}
-                    />
-                  )}
-                </button>
-                {/* Popover */}
-                {isOpen && (
-                  <div className="absolute left-0 top-full z-200 mt-1 min-w-[320px] rounded-lg border border-border bg-card shadow-lg">
-                    {renderColorPopover(id)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Grid button (calendar only) */}
-          {/* Grid button (calendar only) */}
-          {widgetHasGrid &&
-            (() => {
-              const isOpen = openPopover === 'grid';
-              const gridLineOp = selectedWidgetConfig.gridLineOpacity ?? 1;
-              const cellBgColor = selectedWidgetConfig.cellBackgroundColor;
-              const cellBgOp = selectedWidgetConfig.cellBackgroundOpacity ?? 1;
-              const hasGridConfig = gridLineOp < 1 || !!cellBgColor;
-              const palette = getColorPalette(paletteId, isDark);
-              const cellSwatches = palette.colors;
-
-              return (
-                <div className="relative">
-                  <button
-                    onClick={() => setOpenPopover(isOpen ? null : 'grid')}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className={`flex min-h-[40px] touch-manipulation items-center gap-1.5 rounded-md border px-2.5 py-2 text-xs transition-colors ${
-                      isOpen
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border hover:bg-accent/50'
-                    }`}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <rect width="18" height="18" x="3" y="3" rx="2" />
-                      <path d="M3 9h18" />
-                      <path d="M3 15h18" />
-                      <path d="M9 3v18" />
-                      <path d="M15 3v18" />
-                    </svg>
-                    <span>Grid</span>
-                    {hasGridConfig && <div className="h-1.5 w-1.5 rounded-full bg-primary" />}
-                  </button>
-                  {/* Grid popover */}
-                  {isOpen && (
-                    <div className="absolute left-0 top-full z-200 min-w-[280px] space-y-2.5 rounded-lg border border-border bg-card p-2.5 shadow-lg">
-                      {/* Lines opacity */}
-                      <div>
-                        <div className="mb-1 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Line Opacity
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {[0, 0.25, 0.5, 0.75, 1].map((o) => (
-                            <button
-                              key={o}
-                              onClick={() =>
-                                updateWidgetColor(selectedWidget, { gridLineOpacity: o })
-                              }
-                              onPointerDown={(e) => e.stopPropagation()}
-                              className={`h-8 w-8 touch-manipulation rounded-full border text-[12px] transition-colors ${gridLineOp === o ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-accent/50'}`}
-                            >
-                              {Math.round(o * 100)}%
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Cell background */}
-                      <div>
-                        <div className="mb-1 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Cell Background
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1">
-                          <button
-                            onClick={() =>
-                              updateWidgetColor(selectedWidget, {
-                                cellBackgroundColor: null,
-                                cellBackgroundOpacity: 1,
-                              })
-                            }
-                            onPointerDown={(e) => e.stopPropagation()}
-                            className={`h-7 w-7 touch-manipulation overflow-hidden rounded-full border border-gray-300 transition-transform hover:scale-110 ${!cellBgColor ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-                            title="Default"
-                          >
-                            <div className="flex h-full w-full items-center justify-center bg-card dark:bg-card/85">
-                              <svg
-                                width="10"
-                                height="10"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="text-muted-foreground"
-                              >
-                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                                <path d="M3 3v5h5" />
-                              </svg>
-                            </div>
-                          </button>
-                          {cellSwatches.slice(0, 6).map((hex) => (
-                            <button
-                              key={hex}
-                              onClick={() =>
-                                updateWidgetColor(selectedWidget, { cellBackgroundColor: hex })
-                              }
-                              onPointerDown={(e) => e.stopPropagation()}
-                              className={`h-7 w-7 touch-manipulation rounded-full border border-gray-400 transition-transform hover:scale-110 ${cellBgColor === hex ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-                              style={{ backgroundColor: hex }}
-                              title={hex}
-                            />
-                          ))}
-                        </div>
-                        {cellBgColor && (
-                          <div className="mt-1.5 flex items-center gap-1">
-                            <span className="w-10 shrink-0 text-[12px] text-muted-foreground">
-                              Opacity
-                            </span>
-                            {[0, 0.1, 0.25, 0.5, 0.75, 1].map((o) => (
-                              <button
-                                key={o}
-                                onClick={() =>
-                                  updateWidgetColor(selectedWidget, { cellBackgroundOpacity: o })
-                                }
-                                onPointerDown={(e) => e.stopPropagation()}
-                                className={`h-7 w-7 touch-manipulation rounded-full border text-[12px] transition-colors ${cellBgOp === o ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-accent/50'}`}
-                              >
-                                {Math.round(o * 100)}%
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-          {/* Hide when empty (#738), for widgets that have an empty state.
-              Stores the choice even when it matches the default, like
-              Stays / Fades, so a later change to the default leaves it be. */}
-          {canHideWhenEmpty(selectedWidgetConfig.i) && (() => {
-            const on = hidesWhenEmpty(selectedWidgetConfig, hideEmptyByDefault);
-            // A calm dashboard's idle screen hides empty widgets by default,
-            // so an unset widget there is hidden only while idle. Say so.
-            const idleOnly = !!idleToggles && selectedWidgetConfig.hideWhenEmpty === undefined;
-            return (
-              <button
-                onClick={() => onLayoutChange(stableLayout.map(w => w.i === selectedWidget ? { ...w, hideWhenEmpty: !on } : w))}
-                onPointerDown={(e) => e.stopPropagation()}
-                aria-pressed={on}
-                title={on ? 'Hidden while it has nothing to show. Tap to always show it.'
-                  : idleOnly ? 'Hidden while it has nothing to show, only when the screen is idle. Tap to hide it then in use too.'
-                  : 'Always shown. Tap to hide it while it has nothing to show.'}
-                className={`flex items-center gap-1.5 px-2.5 py-2 text-xs rounded-md border transition-colors touch-manipulation min-h-[40px] ${
-                  on ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent/50'
-                }`}
-              >
-                <EyeOff className="w-3.5 h-3.5" />
-                <span>{idleOnly ? 'Hide when empty: idle only' : 'Hide when empty'}</span>
-              </button>
-            );
-          })()}
-
-          {/* Hide first on a small screen (#803): left out below about 75% of
-              the design size, and the rows and columns only it used close up. */}
-          {(() => {
-            const on = selectedWidgetConfig.hideOnSmallScreen === true;
-            return (
-              <button
-                onClick={() => onLayoutChange(stableLayout.map(w => w.i === selectedWidget ? { ...w, hideOnSmallScreen: !on } : w))}
-                onPointerDown={(e) => e.stopPropagation()}
-                aria-pressed={on}
-                title={on ? 'Left out on a small screen, so the rest have room. Tap to always show it.'
-                  : 'Always shown. Tap to leave it out on a small screen, so the rest have room.'}
-                className={`flex items-center gap-1.5 px-2.5 py-2 text-xs rounded-md border transition-colors touch-manipulation min-h-[40px] ${
-                  on ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent/50'
-                }`}
-                data-hide-small-screen
-              >
-                <Minimize2 className="w-3.5 h-3.5" />
-                <span>Hide first on a small screen</span>
-              </button>
-            );
-          })()}
-
-          {/* Spacer + close */}
-          <div className="flex-1" />
-          <button
-            onClick={() => setSelectedWidget(null)}
-            className="flex min-h-[36px] min-w-[36px] touch-manipulation items-center justify-center rounded p-1 transition-colors hover:bg-accent"
-            aria-label="Close properties"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   const gridBackground = useMemo(() => {
     if (!isEditable || !mounted || width <= 0) return null;
@@ -975,28 +219,14 @@ export function LayoutGridEditor({
 
     return (
       <svg
-        className="pointer-events-none absolute inset-0 z-0"
+        className="absolute inset-0 pointer-events-none z-0"
         width={gridWidth}
         height={gridHeight}
         style={{ opacity: theme.gridOpacity }}
       >
         <defs>
-          <pattern
-            id={theme.gridPatternId}
-            width={patternW}
-            height={patternH}
-            patternUnits="userSpaceOnUse"
-            x={containerPadding}
-            y={containerPadding}
-          >
-            <rect
-              width={cellSize}
-              height={cellSize}
-              fill="none"
-              stroke={theme.gridStroke}
-              strokeWidth="0.5"
-              className={theme.gridStroke === 'currentColor' ? 'text-primary' : ''}
-            />
+          <pattern id={theme.gridPatternId} width={patternW} height={patternH} patternUnits="userSpaceOnUse" x={containerPadding} y={containerPadding}>
+            <rect width={cellSize} height={cellSize} fill="none" stroke={theme.gridStroke} strokeWidth="0.5" className={theme.gridStroke === 'currentColor' ? 'text-primary' : ''} />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill={`url(#${theme.gridPatternId})`} />
@@ -1006,113 +236,109 @@ export function LayoutGridEditor({
 
   const screenGuideLines = useMemo(() => {
     if (!isEditable || !mounted || width <= 0) return null;
-    const safeZones = SAFE_ZONES[screenGuideOrientation].filter((z) =>
-      enabledSizes.includes(z.name)
-    );
+    // Single canonical design-canvas frame (the primary screen). The dashboard
+    // stretches this one design to fill ANY screen, so there's no longer a
+    // per-resolution safe-zone overlay — just the bounds you design within.
+    const primary = SAFE_ZONES[screenGuideOrientation]?.[0];
+    if (!primary) return null;
     const patternH = cellSize + margin;
     const patternW = cellSize + margin;
 
     const gridW = totalCols * patternW + containerPadding;
     const gridH = totalRows * patternH + containerPadding;
 
+    const rectW = primary.cols * patternW - margin;
+    const rectH = primary.rows * patternH - margin;
+    const color = primary.color;
+    // Corner bracket arm length: ~8% of the smaller dimension, clamped 18–44px
+    const arm = Math.round(Math.min(Math.min(rectW, rectH) * 0.08, 44));
+    const t = 5; // stroke thickness px
+    const glow = `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 8px ${color}bb)`;
+    const cornerStyle = (pos: 'tl' | 'tr' | 'bl' | 'br'): React.CSSProperties => ({
+      position: 'absolute',
+      width: arm,
+      height: arm,
+      borderColor: color,
+      borderStyle: 'solid',
+      borderWidth: 0,
+      ...(pos === 'tl' && { top: 0, left: 0, borderTopWidth: t, borderLeftWidth: t }),
+      ...(pos === 'tr' && { top: 0, right: 0, borderTopWidth: t, borderRightWidth: t }),
+      ...(pos === 'bl' && { bottom: 0, left: 0, borderBottomWidth: t, borderLeftWidth: t }),
+      ...(pos === 'br' && { bottom: 0, right: 0, borderBottomWidth: t, borderRightWidth: t }),
+      filter: glow,
+    });
+
     return (
       <div
-        className="pointer-events-none absolute z-5"
+        className="absolute pointer-events-none z-5"
         style={{ left: containerPadding, top: containerPadding, width: gridW, height: gridH }}
       >
-        {safeZones.map((zone) => {
-          const rectW = zone.cols * patternW - margin;
-          const rectH = zone.rows * patternH - margin;
-          // Corner bracket arm length: ~8% of the smaller dimension, clamped 18–44px
-          const arm = Math.round(Math.min(Math.min(rectW, rectH) * 0.08, 44));
-          const t = 5; // stroke thickness px
-          const glow = `drop-shadow(0 0 4px ${zone.color}) drop-shadow(0 0 8px ${zone.color}bb)`;
-          const cornerStyle = (pos: 'tl' | 'tr' | 'bl' | 'br'): React.CSSProperties => ({
-            position: 'absolute',
-            width: arm,
-            height: arm,
-            borderColor: zone.color,
-            borderStyle: 'solid',
-            borderWidth: 0,
-            ...(pos === 'tl' && { top: 0, left: 0, borderTopWidth: t, borderLeftWidth: t }),
-            ...(pos === 'tr' && { top: 0, right: 0, borderTopWidth: t, borderRightWidth: t }),
-            ...(pos === 'bl' && { bottom: 0, left: 0, borderBottomWidth: t, borderLeftWidth: t }),
-            ...(pos === 'br' && { bottom: 0, right: 0, borderBottomWidth: t, borderRightWidth: t }),
-            filter: glow,
-          });
-          return (
-            <div
-              key={`rect-${zone.name}`}
-              className="absolute"
-              data-screen-frame={zone.name}
-              style={{ left: 0, top: 0, width: rectW, height: rectH }}
-            >
-              <div style={cornerStyle('tl')} />
-              <div style={cornerStyle('tr')} />
-              <div style={cornerStyle('bl')} />
-              <div style={cornerStyle('br')} />
-              <span
-                className="absolute rounded px-1 py-0.5 text-[12px] font-semibold"
-                style={{
-                  backgroundColor: zone.color,
-                  color: 'white',
-                  bottom: arm + 4,
-                  right: 0,
-                  filter: `drop-shadow(0 0 4px ${zone.color}) drop-shadow(0 1px 3px rgba(0,0,0,0.7))`,
-                }}
-              >
-                {zone.name}
-              </span>
-            </div>
-          );
-        })}
+        <div className="absolute" style={{ left: 0, top: 0, width: rectW, height: rectH }}>
+          <div style={cornerStyle('tl')} />
+          <div style={cornerStyle('tr')} />
+          <div style={cornerStyle('bl')} />
+          <div style={cornerStyle('br')} />
+          <span
+            className="absolute text-3xs px-1 py-0.5 rounded font-semibold"
+            style={{
+              backgroundColor: color,
+              color: 'white',
+              bottom: arm + 4,
+              right: 0,
+              filter: `drop-shadow(0 0 4px ${color}) drop-shadow(0 1px 3px rgba(0,0,0,0.7))`,
+            }}
+          >
+            Screen
+          </span>
+        </div>
       </div>
     );
-  }, [
-    isEditable,
-    mounted,
-    width,
-    cellSize,
-    margin,
-    screenGuideOrientation,
-    enabledSizes,
-    cols,
-    totalRows,
-    totalCols,
-    containerPadding,
-    SAFE_ZONES,
-  ]);
+  }, [isEditable, mounted, width, cellSize, margin, screenGuideOrientation, totalRows, totalCols, containerPadding, SAFE_ZONES]);
 
   const combinedRef = useCallback((node: HTMLDivElement | null) => {
     (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
     containerRef(node);
   }, [containerRef]);
 
-  // Screensaver preview (measure) mode with a fixed Screen frame: render the
-  // real display, fitted into that frame, so the preview is true WYSIWYG
-  // instead of a square-cell approximation. The dashboard editor keeps its own
-  // scaled editable grid in measure mode, so this only applies when a caller
-  // asks for `previewFit="contain"` (the screensaver editor).
+  // Preview (measure) mode: render the REAL display — the same stretch-to-fill
+  // CssGridDisplay the live dashboard uses — so the preview is true WYSIWYG
+  // instead of a square-cell, letterboxed approximation. (The old multi-screen
+  // safe-zone preview lives on in git history / the archived guide code if a
+  // fixed-aspect fit is ever needed again for odd screens like iPad/e-readers.)
   //
   // No `className` here: the live display has no side margins, so a preview
   // inside them was narrower than the screen it claims to show.
-  if (isEditable && measureMode && previewFit === 'contain') {
+  if (isEditable && measureMode) {
     const frame = SAFE_ZONES[screenGuideOrientation]?.[0];
     return (
       <div>
-        <CssGridDisplay
-          layout={stableLayout}
-          renderWidget={renderWidget}
-          widgetRevisions={widgetRevisions}
-          margin={margin}
-          containerPadding={containerPadding}
-          cols={cols}
-          containMode
-          screenFrame={frame}
-          hideEmptyByDefault={hideEmptyByDefault}
-          headerOffset={measureHideNav ? 0 : 50}
-          bottomOffset={measureHideNav ? 0 : bottomOffset}
-        />
+        {previewFit === 'contain' ? (
+          <CssGridDisplay
+            layout={stableLayout}
+            renderWidget={renderWidget}
+            margin={margin}
+            containerPadding={containerPadding}
+            cols={cols}
+            containMode
+            screenFrame={frame}
+            hideEmptyByDefault={hideEmptyByDefault}
+            headerOffset={measureHideNav ? 0 : 50}
+            bottomOffset={measureHideNav ? 0 : bottomOffset}
+          />
+        ) : (
+          <CssGridDisplay
+            layout={stableLayout}
+            renderWidget={renderWidget}
+            margin={margin}
+            containerPadding={containerPadding}
+            cols={cols}
+            headerOffset={measureHideNav ? 0 : 50}
+            bottomOffset={measureHideNav ? 0 : bottomOffset}
+            targetRows={displayTargetRows}
+            designOrientation={screenGuideOrientation}
+            hideEmptyByDefault={hideEmptyByDefault}
+          />
+        )}
       </div>
     );
   }
@@ -1120,7 +346,6 @@ export function LayoutGridEditor({
   if (isEditable) {
     return (
       <div className={className || ''}>
-        {!measureMode && renderPropertiesBar()}
         <div
           ref={combinedRef}
           onScroll={handleScroll}
@@ -1128,7 +353,7 @@ export function LayoutGridEditor({
           style={{ maxHeight: visibleRows * (cellSize + margin) + 2 * containerPadding }}
         >
           <div
-            className="editing-mode relative"
+            className="relative editing-mode"
             style={{
               minHeight: totalRows * (cellSize + margin) + 2 * containerPadding,
               minWidth: totalCols * (cellSize + margin) + 2 * containerPadding,
@@ -1137,7 +362,7 @@ export function LayoutGridEditor({
             {gridBackground}
             {screenGuideLines}
             {gridHelperText && (
-              <div className="absolute left-4 top-2 z-20 text-xs text-white/50">
+              <div className="absolute top-2 left-4 text-white/50 text-xs z-20">
                 {gridHelperText}
               </div>
             )}
@@ -1155,13 +380,14 @@ export function LayoutGridEditor({
                 totalCols={totalCols}
                 selectedWidget={selectedWidget}
                 onSelectWidget={setSelectedWidget}
-                onRemoveWidget={handleRemoveWidget}
                 theme={theme}
                 idleToggles={idleToggles}
                 hideEmptyByDefault={hideEmptyByDefault}
               />
             ) : (
-              <div style={{ padding: 20, color: 'yellow' }}>Waiting for container width...</div>
+              <div style={{ padding: 20, color: 'yellow' }}>
+                Waiting for container width...
+              </div>
             )}
           </div>
         </div>
@@ -1176,13 +402,11 @@ export function LayoutGridEditor({
       smallScreenDrop
       layout={layout}
       renderWidget={renderWidget}
-      widgetRevisions={widgetRevisions}
       margin={margin}
       containerPadding={containerPadding}
       cols={cols}
       headerOffset={headerOffset}
       bottomOffset={bottomOffset}
-      rowHeightScale={!isEditable && isPortraitViewport && margin === 8 ? 1.3 : 1}
       minVisibleRows={minVisibleRows}
       targetRows={displayTargetRows}
       designOrientation={screenGuideOrientation}

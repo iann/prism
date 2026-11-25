@@ -5,15 +5,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { CreateDashboardDialog } from '../LayoutEditorDashboardManager';
 
-describe('CreateDashboardDialog: Start from', () => {
-  // The personal fork keeps the grid front page, so the upstream Simple
-  // (Today / Calendar) starts are intentionally not offered here.
-  it('offers the grid starts only', () => {
-    render(<CreateDashboardDialog open onClose={() => {}} onCreate={() => {}} />);
-    expect(screen.getByText('Default Template')).toBeTruthy();
-    expect(screen.getByText('Copy Current')).toBeTruthy();
-    expect(screen.getByText('Blank')).toBeTruthy();
-    expect(screen.queryByText('Today')).toBeNull();
+describe('CreateDashboardDialog: a new dashboard is the family\'s own (#1151)', () => {
+  it('starts from a template, a copy or blank; Today and Calendar are not offered', () => {
+    const { container } = render(<CreateDashboardDialog open onClose={() => {}} onCreate={() => {}} />);
+    const starts = [...container.querySelectorAll('[data-start-from] button')].map((b) => b.textContent);
+    expect(starts).toEqual(['Default Template', 'Copy Current', 'Blank']);
+    expect(screen.queryByText('Simple')).toBeNull();
+    expect(screen.queryByText('Custom')).toBeNull();
     expect(screen.queryByText('Calendar')).toBeNull();
   });
 
@@ -21,8 +19,8 @@ describe('CreateDashboardDialog: Start from', () => {
     const onCreate = jest.fn();
     render(<CreateDashboardDialog open onClose={() => {}} onCreate={onCreate} />);
     fireEvent.change(screen.getByPlaceholderText('e.g. Kitchen Display'), { target: { value: 'Hall' } });
-    fireEvent.click(screen.getByText('Copy Current'));
+    fireEvent.click(screen.getByText('Blank'));
     fireEvent.click(screen.getByText('Create'));
-    expect(onCreate).toHaveBeenCalledWith('Hall', 'copy');
+    expect(onCreate).toHaveBeenCalledWith('Hall', 'blank');
   });
 });

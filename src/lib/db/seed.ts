@@ -970,7 +970,7 @@ async function seed() {
   console.log('Creating default settings...');
 
   await db.insert(schema.settings).values([
-    { key: 'theme',    value: { mode: 'system' } },
+    { key: 'theme',    value: {} },
     { key: 'location', value: { city: 'Springfield', state: 'IL', country: 'US' } },
     { key: 'security', value: { requirePinForEvents: true, requirePinForDelete: true, requirePinForSettings: true, sessionTimeout: 30 } },
     // Mark setup as complete so the dashboard doesn't redirect to /setup.
@@ -982,8 +982,15 @@ async function seed() {
     // a seeded instance shows signed-out visitors no layouts at all.
     { key: 'displayUserId', value: alex.id },
   ]);
+  // How a new or unnamed screen idles (#1345): photos, not darker, as an
+  // install from before calm mode has it, so the suites that drive the photo
+  // frame keep finding it. A fresh database already has the new-install row.
+  // The shape is ScreenDay (src/lib/screenDay.ts), on the default night rule.
+  const startingDay = { day: 'photos', night: 'photos', switch: { by: 'sun', duskOffset: 30, dawnOffset: -30 }, nightLevel: 0 };
+  await db.insert(schema.settings).values({ key: 'screenStartingDay', value: startingDay })
+    .onConflictDoUpdate({ target: schema.settings.key, set: { value: startingDay } });
 
-  console.log(`  Created 5 settings (including setupComplete and displayUserId)`);
+  console.log(`  Created 6 settings (including setupComplete and displayUserId)`);
 
   // ─── LAYOUTS ──────────────────────────────────────────────────────────────
   console.log('Creating default layout...');

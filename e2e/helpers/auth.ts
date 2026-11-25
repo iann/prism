@@ -1,6 +1,6 @@
 import { Page, expect } from '@playwright/test';
-import { execSync } from 'node:child_process';
 import { waitForQuiet } from './network';
+import { runTestDb } from './testDb';
 
 export interface FamilyMember {
   id: string;
@@ -60,14 +60,13 @@ const DEFAULT_PIN = process.env.E2E_PIN || '1234';
 const MODAL_SELECTOR = '[data-testid="pin-modal"]';
 
 /**
- * Login via the UI — clicks "Log in", selects member, enters PIN digit by digit.
+ * Login via the UI — opens Sign in, selects a member, and enters the PIN.
  */
 export async function loginViaUI(page: Page, name: string, pin = DEFAULT_PIN) {
   await page.goto('/');
   await waitForQuiet(page);
 
-  // Click the "Log in" button in the nav
-  await page.click('button[aria-label="Log in"]');
+  await page.getByRole('button', { name: 'Sign in' }).click();
 
   // QuickPinModal opens (title is "Login" when triggered from nav)
   const modal = page.locator(MODAL_SELECTOR);
@@ -155,18 +154,15 @@ export async function logout(page: Page) {
  * callers, so a spec that has no session yet cannot find a parent through the
  * API. Two execution paths, because dev and CI hold the database differently:
  *
- *   - Local (Windows dev): postgres is in the `prism-db` container and `psql`
- *     may not exist on the host, so reach in with `docker exec`.
  *   - CI: postgres is a service container and the runner has `psql`, so use
  *     DATABASE_URL.
+ *   - Local: set DATABASE_URL, or E2E_DB_CONTAINER to the test container.
+ *     There is no default container (#1360), see `testDb.ts`.
  *
  * Only call this behind `E2E_HAS_TEST_DB=1`. It assumes a seeded database.
  */
 export function getSeededParentId(): string {
-  const cmd = process.env.DATABASE_URL
-    ? `psql "${process.env.DATABASE_URL}" -At -c "SELECT id FROM users WHERE role = 'parent' ORDER BY created_at LIMIT 1"`
-    : `docker exec prism-db psql -U prism -d prism -At -c "SELECT id FROM users WHERE role = 'parent' ORDER BY created_at LIMIT 1"`;
-  const out = execSync(cmd, { encoding: 'utf-8' }).trim();
+  const out = runTestDb("SELECT id FROM users WHERE role = 'parent' ORDER BY created_at LIMIT 1", { tuplesOnly: true });
   if (!out) throw new Error('No seeded parent in DB: did seeds run?');
   return out;
 }

@@ -1,5 +1,6 @@
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
+import { getWidgetType } from '@/lib/utils/widgetInstances';
 
 /** Whether this kind of widget has an empty state to hide on (#738). */
 export function canHideWhenEmpty(widgetId: string): boolean {
@@ -15,5 +16,5 @@ export function canHideWhenEmpty(widgetId: string): boolean {
  * The widget's own setting wins either way.
  */
 export function hidesWhenEmpty(widget: WidgetConfig, byDefault: boolean): boolean {
-  return canHideWhenEmpty(widget.i) && (widget.hideWhenEmpty ?? byDefault);
+  return canHideWhenEmpty(getWidgetType(widget)) && (widget.hideWhenEmpty ?? byDefault);
 }

@@ -250,8 +250,8 @@ export const CalendarWidget = React.memo(function CalendarWidget({
   const visibleEvents = useMemo(() => (overlays.events ? events : []), [overlays.events, events]);
   const { calendars: sources, loading: sourcesLoading } = useCalendarSources();
   const noCalendarYet = needsCalendarInvite({
-    loading: sourcesLoading || apiLoading,
-    eventCount: apiEvents.length,
+    loading: sourcesLoading || loading,
+    eventCount: rawEvents.length,
     providers: sources.map((c) => c.provider),
   });
 
@@ -491,6 +491,8 @@ export const CalendarWidget = React.memo(function CalendarWidget({
                 displayMode={displayMode}
                 bucketsByDate={overlaysActive ? bucketsByDate : undefined}
                 enableDnd={enableDnd}
+                // Opens at the next event, the ones that are over above it (#1369).
+                startAtNext
               />
             )}
 

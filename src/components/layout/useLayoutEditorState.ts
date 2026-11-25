@@ -25,7 +25,6 @@ interface UseLayoutEditorStateOptions {
   allDashboards: Array<{ id: string; name: string; slug: string | null; isDefault: boolean }>;
   currentDashboardId?: string;
   confirmDelete: (title: string, message: string) => Promise<boolean>;
-  setActivePopover: (p: null) => void;
 }
 
 export function useLayoutEditorState({
@@ -43,7 +42,6 @@ export function useLayoutEditorState({
   allDashboards,
   currentDashboardId,
   confirmDelete,
-  setActivePopover,
 }: UseLayoutEditorStateOptions) {
   const [exportFeedback, setExportFeedback] = useState('');
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -60,51 +58,32 @@ export function useLayoutEditorState({
     return validateCommunityLayout({
       type: 'prism-layout' as const,
       version: EXPORT_VERSION,
-      mode: editingScreensaver ? ('screensaver' as const) : ('dashboard' as const),
-      name: '',
-      description: '',
-      author: '',
-      tags: [],
-      screenSizes: [],
+      mode: editingScreensaver ? 'screensaver' as const : 'dashboard' as const,
+      name: '', description: '', author: '', tags: [], screenSizes: [],
       orientation: 'landscape' as const,
       widgets: visibleWidgets,
     });
   }, [visibleWidgets, editingScreensaver]);
 
-  const buildExportData = useCallback(
-    (): LayoutExportV2 => ({
-      type: 'prism-layout',
-      version: EXPORT_VERSION,
-      mode: mode as 'dashboard' | 'screensaver',
-      name: layoutName || (editingScreensaver ? 'Screensaver' : 'Dashboard'),
-      description: '',
-      author: '',
-      tags: [],
-      screenSizes: [],
-      orientation: 'landscape',
-      widgets: currentWidgets
-        .filter((w) => w.visible !== false)
-        .map((widget): ExportWidget => {
-          const reg = WIDGET_REGISTRY[getWidgetType(widget)];
-          const exported: ExportWidget = {
-            i: widget.i,
-            type: getWidgetType(widget),
-            x: widget.x,
-            y: widget.y,
-            w: widget.w,
-            h: widget.h,
-          };
-          if (widget.backgroundColor) exported.backgroundColor = widget.backgroundColor;
-          if (widget.backgroundOpacity !== undefined && widget.backgroundOpacity !== 1) {
-            exported.backgroundOpacity = widget.backgroundOpacity;
-          }
-          if (reg?.minW) exported.minW = reg.minW;
-          if (reg?.minH) exported.minH = reg.minH;
-          return exported;
-        }),
+  const buildExportData = useCallback((): LayoutExportV2 => ({
+    type: 'prism-layout',
+    version: EXPORT_VERSION,
+    mode: mode as 'dashboard' | 'screensaver',
+    name: layoutName || (editingScreensaver ? 'Screensaver' : 'Dashboard'),
+    description: '', author: '', tags: [], screenSizes: [], orientation: 'landscape',
+    widgets: currentWidgets.filter(w => w.visible !== false).map((widget): ExportWidget => {
+      const widgetType = getWidgetType(widget);
+      const reg = WIDGET_REGISTRY[widgetType];
+      const exported: ExportWidget = { i: widget.i, type: widgetType, x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+      if (widget.backgroundColor) exported.backgroundColor = widget.backgroundColor;
+      if (widget.backgroundOpacity !== undefined && widget.backgroundOpacity !== 1) {
+        exported.backgroundOpacity = widget.backgroundOpacity;
+      }
+      if (reg?.minW) exported.minW = reg.minW;
+      if (reg?.minH) exported.minH = reg.minH;
+      return exported;
     }),
-    [mode, layoutName, editingScreensaver, currentWidgets]
-  );
+  }), [mode, layoutName, editingScreensaver, currentWidgets]);
 
   const handleExport = useCallback(() => {
     const exportData = buildExportData();
@@ -121,8 +100,7 @@ export function useLayoutEditorState({
       setTimeout(() => setExportFeedback(''), 2000);
       toast({ title: 'Could not export the layout', variant: 'destructive' });
     });
-    setActivePopover(null);
-  }, [buildExportData, setActivePopover]);
+  }, [buildExportData]);
 
   const handleSave = useCallback(async () => {
     try {
@@ -141,8 +119,7 @@ export function useLayoutEditorState({
   const handleRenameOpen = useCallback(() => {
     setRenameValue(layoutName || '');
     setShowRenameDialog(true);
-    setActivePopover(null);
-  }, [layoutName, setActivePopover]);
+  }, [layoutName]);
 
   const handleRenameSubmit = useCallback(() => {
     const trimmed = renameValue.trim();
@@ -155,57 +132,32 @@ export function useLayoutEditorState({
       toast({ title: 'Cannot delete the last dashboard', variant: 'warning' });
       return;
     }
-    const currentSlug = allDashboards.find((d) => d.id === currentDashboardId)?.slug;
+    const currentSlug = allDashboards.find(d => d.id === currentDashboardId)?.slug;
     const ok = await confirmDelete(
       `Delete "${layoutName}"?`,
-      `Devices bookmarked at /d/${currentSlug || '...'} will stop working.`
+      `Devices bookmarked at /d/${currentSlug || '...'} will stop working.`,
     );
     if (ok) onDeleteDashboard?.();
-    setActivePopover(null);
-  }, [
-    allDashboards,
-    currentDashboardId,
-    confirmDelete,
-    layoutName,
-    onDeleteDashboard,
-    setActivePopover,
-  ]);
+  }, [allDashboards, currentDashboardId, confirmDelete, layoutName, onDeleteDashboard]);
 
-  const handleApplyCommunityLayout = useCallback(
-    (newWidgets: WidgetConfig[], name: string) => {
-      if (editingScreensaver && onSelectScreensaverPreset) {
-        onSelectScreensaverPreset(newWidgets);
-        onScreensaverSaveAs?.();
-      } else {
-        onWidgetsChange(newWidgets);
-        onSaveAs(name);
-      }
-      setActivePopover(null);
-    },
-    [
-      editingScreensaver,
-      onSelectScreensaverPreset,
-      onWidgetsChange,
-      onSaveAs,
-      onScreensaverSaveAs,
-      setActivePopover,
-    ]
-  );
+  const handleApplyCommunityLayout = useCallback((newWidgets: WidgetConfig[], name: string) => {
+    if (editingScreensaver && onSelectScreensaverPreset) {
+      onSelectScreensaverPreset(newWidgets);
+      onScreensaverSaveAs?.();
+    } else {
+      onWidgetsChange(newWidgets);
+      onSaveAs(name);
+    }
+  }, [editingScreensaver, onSelectScreensaverPreset, onWidgetsChange, onSaveAs, onScreensaverSaveAs]);
 
   return {
     exportFeedback,
-    showImportDialog,
-    setShowImportDialog,
-    showShareDialog,
-    setShowShareDialog,
-    showCreateDialog,
-    setShowCreateDialog,
-    showSaveAsDialog,
-    setShowSaveAsDialog,
-    showRenameDialog,
-    setShowRenameDialog,
-    renameValue,
-    setRenameValue,
+    showImportDialog, setShowImportDialog,
+    showShareDialog, setShowShareDialog,
+    showCreateDialog, setShowCreateDialog,
+    showSaveAsDialog, setShowSaveAsDialog,
+    showRenameDialog, setShowRenameDialog,
+    renameValue, setRenameValue,
     saveFeedback,
     validation,
     mode,
