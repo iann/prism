@@ -1228,6 +1228,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 8f87dd59
 
+145. **Emoji glyphs in wall calendar event titles**
+
+    Added platform emoji font fallbacks to the wall-display font stack so
+    emoji in calendar event names render on Linux and Raspberry Pi displays.
+
+    Commit: 03909726
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
