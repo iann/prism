@@ -425,9 +425,6 @@ test.describe('Visual regression', () => {
       test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a synthetic-seed DB');
       await setClientFlags(page, { theme });
       await page.goto('/');
-      await waitForQuiet(page);
-      await page.waitForTimeout(600);
-
       await expectPainted(page, page.locator('.widget-cell[data-widget="tasks"]'));
       await waitForDashboardWidgets(page);
       await expect(page).toHaveScreenshot(`login-landing-${theme}.png`, {
