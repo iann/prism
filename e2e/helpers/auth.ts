@@ -60,14 +60,13 @@ const DEFAULT_PIN = process.env.E2E_PIN || '1234';
 const MODAL_SELECTOR = '[data-testid="pin-modal"]';
 
 /**
- * Login via the UI — clicks "Log in", selects member, enters PIN digit by digit.
+ * Login via the UI — opens Sign in, selects a member, and enters the PIN.
  */
 export async function loginViaUI(page: Page, name: string, pin = DEFAULT_PIN) {
   await page.goto('/');
   await waitForQuiet(page);
 
-  // Click the "Log in" button in the nav
-  await page.click('button[aria-label="Log in"]');
+  await page.getByRole('button', { name: 'Sign in' }).click();
 
   // QuickPinModal opens (title is "Login" when triggered from nav)
   const modal = page.locator(MODAL_SELECTOR);

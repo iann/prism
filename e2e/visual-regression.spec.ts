@@ -47,10 +47,11 @@
  */
 
 import { test, expect, Page, type Locator } from '@playwright/test';
-import { runTestDb } from './helpers/testDb';
 import { loginViaAPI, verifySettingsPinViaAPI } from './helpers/auth';
 import { resetAll } from './helpers/reset';
 import { waitForQuiet } from './helpers/network';
+import { runTestDb } from './helpers/testDb';
+import { hideDevOverlay } from './helpers/upstream';
 
 /**
  * Pull a seeded parent's name directly from the DB.
@@ -163,47 +164,6 @@ async function waitForDashboardWidgets(page: Page) {
  * Live deployments have unknown PINs; running these would 400 on login.
  */
 const HAS_TEST_DB = process.env.E2E_HAS_TEST_DB === '1';
-
-/**
- * Hide the Next.js dev overlay.
- *
- * The suite runs against `npm run dev` (see playwright.config.ts), so every
- * page carries `<nextjs-portal>` — the dev indicator. It renders in the
- * BOTTOM-LEFT corner, directly on top of the SideNav's avatar/login button,
- * and it wins the hit test: `page.click('button[aria-label="Log in"]')` used
- * to retry until the 30s test timeout with
- *
- *   <nextjs-portal> ... subtree intercepts pointer events
- *
- * It also painted the indicator into every committed baseline, where it is
- * pure noise — it does not exist in a production build, which is what the
- * baselines are supposed to represent.
- *
- * Hiding the host element removes it from both the screenshot and hit
- * testing. Injected via addInitScript so it applies before first paint and
- * survives client-side navigation.
- *
- * An init script runs on a document that has no `documentElement` yet, so
- * there is nothing to append to on the first call — measured, not assumed.
- * Hence: register the DOMContentLoaded hook FIRST, then try once eagerly.
- * Reversing those two lines throws on the eager attach and the hook is never
- * registered, which leaves the overlay in place.
- */
-async function hideDevOverlay(page: Page) {
-  await page.addInitScript(() => {
-    const STYLE_ID = 'pw-hide-dev-overlay';
-    const attach = () => {
-      const root = document.head || document.documentElement;
-      if (!root || document.getElementById(STYLE_ID)) return;
-      const style = document.createElement('style');
-      style.id = STYLE_ID;
-      style.textContent = 'nextjs-portal { display: none !important; }';
-      root.appendChild(style);
-    };
-    document.addEventListener('DOMContentLoaded', attach, { once: true });
-    attach();
-  });
-}
 
 /**
  * The instant every screenshot is taken at, when CI has asked for one.
@@ -479,8 +439,7 @@ test.describe('Visual regression', () => {
       test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a synthetic-seed DB');
       await setClientFlags(page, { theme });
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
-      await page.click('button[aria-label="Log in"]');
+      await page.getByRole('button', { name: 'Sign in' }).click();
       await page.waitForSelector('[data-testid="pin-modal"]', { timeout: 5000 });
       await page.waitForTimeout(400);
 

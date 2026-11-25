@@ -12,6 +12,7 @@ import {
   dynamicMasks,
   getDefaultDashboardSlug,
   getSeededParentName,
+  hideDevOverlay,
   setClientFlags,
   verifySettingsViaAPI,
   waitForStableUi,
@@ -34,6 +35,7 @@ test.describe('Upstream visual regression', () => {
 
   test.beforeEach(async ({ page }) => {
     test.skip(!HAS_TEST_DB, 'Set E2E_HAS_TEST_DB=1 against a fresh-seeded DB');
+    await hideDevOverlay(page);
     // Sunset mode resolves brightness from the browser clock. Keep it aligned
     // with the seeded fixtures so a run after local sunset does not turn the
     // light baseline into a dark screenshot.
@@ -51,6 +53,7 @@ test.describe('Upstream visual regression', () => {
       await loginViaAPI(page, parentName);
       const slug = await getDefaultDashboardSlug(page);
       await page.goto(`/d/${slug}/weekend`);
+      await expect(page.getByText('Forest Park trails')).toBeVisible();
       await waitForStableUi(page, 900);
 
       await expect(page).toHaveScreenshot(`upstream-weekend-${theme}.png`, {
@@ -69,8 +72,8 @@ test.describe('Upstream visual regression', () => {
       await setClientFlags(page, { theme });
       await loginViaAPI(page, parentName);
       await page.goto('/calendar');
-      await waitForStableUi(page, 800);
       await expect(page.getByRole('button', { name: 'Sync paused' })).toBeVisible();
+      await waitForStableUi(page, 800);
 
       await expect(page).toHaveScreenshot(`upstream-calendar-sync-health-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
@@ -88,8 +91,11 @@ test.describe('Upstream visual regression', () => {
     });
     await loginViaAPI(page, parentName);
     await page.goto('/');
+    const startScreensaver = page.getByRole('button', { name: 'Start screensaver' });
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await expect(startScreensaver).toBeVisible({ timeout: 30_000 });
     await waitForStableUi(page, 700);
-    await page.getByRole('button', { name: 'Start screensaver' }).click();
+    await startScreensaver.click();
     await expect(page.getByRole('button', { name: 'Screensaver settings' })).toBeVisible();
 
     await expect(page).toHaveScreenshot('upstream-screensaver-dark.png', {
@@ -111,8 +117,8 @@ test.describe('Upstream visual regression', () => {
     await loginViaAPI(page, parentName);
     await verifySettingsViaAPI(page, parentName);
     await page.goto('/settings?section=display');
-    await waitForStableUi(page, 700);
     await expect(page.locator('#settings-section-select')).toBeVisible();
+    await waitForStableUi(page, 700);
 
     await expect(page).toHaveScreenshot('upstream-settings-mobile-display-light.png', SCREENSHOT_OPTIONS);
   });

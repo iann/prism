@@ -35,7 +35,8 @@ async function openCalendar(page: Page, mode: 'cards' | 'inline', view = 'multiW
     localStorage.setItem('prism-calendar-bordered', 'true');
   }, [mode, view]);
   await page.goto('/calendar');
-  await waitForQuiet(page);
+  // The page's loading state is not the same as a quiet network: background
+  // dashboard polls can remain open while the calendar has already rendered.
   await page.waitForSelector('[data-spanning-events]', { timeout: 30000 });
   await page.waitForTimeout(1500);
 }
@@ -825,6 +826,9 @@ test.describe('agenda widget starts at the next event', () => {
         // This case checks the agenda rollover, not performance mode. Keep its
         // clock poll at the normal 30 seconds regardless of saved preferences.
         localStorage.setItem('prism-perf-mode', 'full');
+        // The 25-minute time jump must not put the dashboard to sleep; idle
+        // screens pause the agenda clock because the dashboard is covered.
+        localStorage.setItem('prism-screensaver-timeout', '0');
       });
       await page.clock.install({ time: T });
       await page.goto(`/d/${layout.slug}`);

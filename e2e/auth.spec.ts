@@ -21,11 +21,11 @@ test.describe('Authentication', () => {
     await logout(page);
   });
 
-  test('PIN pad opens when clicking Log in', async ({ page }) => {
+  test('PIN pad opens when clicking Sign in', async ({ page }) => {
     await page.goto('/');
     await waitForQuiet(page);
 
-    await page.click('button[aria-label="Log in"]');
+    await page.getByRole('button', { name: 'Sign in' }).click();
 
     // QuickPinModal overlay should appear
     const modal = page.locator(MODAL_SELECTOR);
@@ -39,7 +39,7 @@ test.describe('Authentication', () => {
     await page.goto('/');
     await waitForQuiet(page);
 
-    await page.click('button[aria-label="Log in"]');
+    await page.getByRole('button', { name: 'Sign in' }).click();
     const modal = page.locator(MODAL_SELECTOR);
     await expect(modal).toBeVisible({ timeout: 5000 });
 
@@ -53,15 +53,14 @@ test.describe('Authentication', () => {
   test('parent login via UI with correct PIN succeeds', async ({ page }) => {
     await loginViaUI(page, parent.name);
 
-    // After login, the Log out button should appear
-    await expect(page.locator('button[aria-label="Log out"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: parent.name, exact: true })).toBeVisible({ timeout: 5000 });
   });
 
   test('incorrect PIN shows error', async ({ page }) => {
     await page.goto('/');
     await waitForQuiet(page);
 
-    await page.click('button[aria-label="Log in"]');
+    await page.getByRole('button', { name: 'Sign in' }).click();
 
     const modal = page.locator(MODAL_SELECTOR);
     await expect(modal).toBeVisible({ timeout: 5000 });
@@ -90,7 +89,7 @@ test.describe('Authentication', () => {
     try {
       await logout(page);
       await page.goto('/');
-      await page.click('button[aria-label="Log in"]');
+      await page.getByRole('button', { name: 'Sign in' }).click();
       const modal = page.locator(MODAL_SELECTOR);
       await expect(modal).toBeVisible({ timeout: 5000 });
       await modal.locator(`button:has-text("${child.name}")`).click();
@@ -117,7 +116,7 @@ test.describe('Authentication', () => {
       for (const ch of ['k', 'i', 't', 'e']) await modal.getByRole('button', { name: ch, exact: true }).click();
       await modal.getByRole('button', { name: 'Numbers' }).click();
       for (const d of ['4', '2']) await modal.getByRole('button', { name: d, exact: true }).click();
-      await expect(page.locator('button[aria-label="Log out"]')).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole('button', { name: child.name, exact: true })).toBeVisible({ timeout: 10_000 });
     } finally {
       await logout(page);
       await loginViaAPI(page, parent.name);
@@ -130,8 +129,7 @@ test.describe('Authentication', () => {
     await page.goto('/');
     await waitForQuiet(page);
 
-    // Child should be logged in — Log out button visible
-    await expect(page.locator('button[aria-label="Log out"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: child.name, exact: true })).toBeVisible({ timeout: 5000 });
   });
 });
 

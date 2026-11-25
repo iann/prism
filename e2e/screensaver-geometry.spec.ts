@@ -7,6 +7,7 @@ import {
 import { FIGURES } from '../src/components/screensaver/nightSky/catalog';
 import type { IdleBackground } from '../src/lib/idleBackground';
 import { waitForQuiet } from './helpers/network';
+import { runTestDb } from './helpers/testDb';
 import { FIRST_SCREEN_TEMPLATE } from '../src/lib/constants/layoutTemplates';
 
 /**
@@ -94,7 +95,11 @@ const HAS_TEST_DB = process.env.E2E_HAS_TEST_DB === '1';
 // onto the dashboard it shows (#1154), which would then stay on the shared
 // seeded dashboard for every later test. Each browser here has already run,
 // except in the upgrade test.
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
+  // This test emulates a v1.30.1 browser with no carry-over marker. Multiple
+  // init scripts have no guaranteed execution order, so do not install the
+  // normal marker script there.
+  if (testInfo.titlePath.includes('the upgrade from v1.30.1')) return;
   await page.addInitScript(() => localStorage.setItem('prism-screensaver-carried', '1'));
 });
 const PIN = process.env.E2E_PIN || '1234';
@@ -1640,21 +1645,31 @@ test.describe('corner clock and weather', () => {
     try {
       await expect(page.locator('[data-weather-details]')).toBeVisible();
       const cell = await rect(page, '.widget-cell[data-widget="weather"]');
-      const pill = page.locator('[data-testid="header-sun-times"]');
-      const sun = await pill.evaluate((el) => ({
-        lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
-        cut: el.scrollWidth > el.clientWidth,
-        right: el.getBoundingClientRect().right,
+      const rows = page.locator('[data-weather-details] > div');
+      await expect(rows).toHaveCount(2);
+      const detailRows = await rows.evaluateAll((elements) => elements.map((el) => {
+        const bounds = el.getBoundingClientRect();
+        const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+        return {
+          lines: Math.round(bounds.height / lineHeight),
+          cut: el.scrollWidth > el.clientWidth,
+          right: bounds.right,
+        };
       }));
-      expect(sun.lines, 'sunrise and sunset on one line').toBe(1);
-      expect(sun.cut, 'sun times not cut off').toBe(false);
-      expect(sun.right).toBeLessThanOrEqual(cell.right);
+      for (const [index, row] of detailRows.entries()) {
+        expect(row.lines, `weather detail row ${index + 1} stays on one line`).toBe(1);
+        expect(row.cut, `weather detail row ${index + 1} is not clipped`).toBe(false);
+        expect(row.right, `weather detail row ${index + 1} stays in the tile`).toBeLessThanOrEqual(cell.right);
+      }
       // Not a corner tile (half the width), so the clock stays centred.
       const clock = await rect(page, '.widget-cell[data-widget="clock"]');
       const time = await rect(page, '.widget-cell[data-widget="clock"] [data-clock-time]');
       expect(Math.abs((time.left + time.right) / 2 - (clock.left + clock.right) / 2)).toBeLessThan(8);
     } finally {
-      await page.request.delete(`/api/layouts/${layout.id}`);
+      // Remove this disposable fixture directly from the isolated test DB.
+      // This layout is test-only and the page's API DELETE can hang during
+      // teardown while its background dashboard requests are still running.
+      runTestDb(`DELETE FROM layouts WHERE id = '${layout.id}'`);
     }
   });
 });
