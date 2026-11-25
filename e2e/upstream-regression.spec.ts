@@ -117,7 +117,10 @@ test.describe('Upstream regression contracts', () => {
     await waitForStableUi(page, 700);
 
     await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
-    await page.getByRole('button', { name: 'Dark', exact: true }).click();
+    await page
+      .getByRole('group', { name: 'Light or dark' })
+      .getByRole('button', { name: 'Dark', exact: true })
+      .click();
     await expect.poll(() => page.evaluate(() => localStorage.getItem('prism-theme'))).toBe('dark');
 
     const shape = await page.evaluate(() => ({
