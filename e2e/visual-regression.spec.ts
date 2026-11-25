@@ -49,7 +49,6 @@
 import { test, expect, Page, type Locator } from '@playwright/test';
 import { loginViaAPI, verifySettingsPinViaAPI } from './helpers/auth';
 import { resetAll } from './helpers/reset';
-import { waitForQuiet } from './helpers/network';
 import { runTestDb } from './helpers/testDb';
 import { hideDevOverlay } from './helpers/upstream';
 
@@ -159,6 +158,18 @@ async function waitForDashboardWidgets(page: Page) {
   await page.waitForTimeout(800);
 }
 
+/** Wait for the active calendar view to replace its first-load skeleton. */
+async function waitForCalendarContent(page: Page) {
+  // All successful calendar views share this wrapper. View-specific markers
+  // are unreliable here: week and multi-week views may have no spanning
+  // events, while month and agenda use entirely different DOM structures.
+  const content = page.locator('.wall-calendar-content > .h-full');
+  await content.waitFor({ state: 'visible', timeout: 60_000 });
+  // The wrapper appears as soon as data loads; Suspense can still be showing
+  // the lazy view's spinner inside it. Wait for that fallback to be replaced.
+  await expect(content.locator('.animate-spin')).toHaveCount(0, { timeout: 60_000 });
+}
+
 /**
  * Auth-required tests only run when a fresh test DB is available.
  * Live deployments have unknown PINs; running these would 400 on login.
@@ -214,11 +225,9 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await loginViaAPI(page, parentName);
       await page.goto('/');
-      await waitForQuiet(page);
-      await page.waitForTimeout(800); // let theme + seasonal vars settle
-
       await expectPainted(page, page.locator('.widget-cell').first());
       await waitForDashboardWidgets(page);
+      await page.waitForTimeout(800); // let theme + seasonal vars settle
       await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
@@ -230,11 +239,9 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme, perfMode: true });
       await loginViaAPI(page, parentName);
       await page.goto('/');
-      await waitForQuiet(page);
-      await page.waitForTimeout(800);
-
       await expectPainted(page, page.locator('.widget-cell').first());
       await waitForDashboardWidgets(page);
+      await page.waitForTimeout(800);
       await expect(page).toHaveScreenshot(`dashboard-perf-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
@@ -246,10 +253,9 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await loginViaAPI(page, parentName);
       await page.goto('/calendar');
-      await waitForQuiet(page);
-      await page.waitForTimeout(800);
-
       await expectPainted(page, page.getByRole('button', { name: 'Add Event' }));
+      await waitForCalendarContent(page);
+      await page.waitForTimeout(800);
       await expect(page).toHaveScreenshot(`calendar-${theme}.png`, SCREENSHOT_OPTIONS);
     });
 
@@ -258,10 +264,9 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await verifySettingsPinViaAPI(page, parentName);
       await page.goto('/settings');
-      await waitForQuiet(page);
+      await expectPainted(page, page.getByRole('heading', { name: 'Settings' }));
       await page.waitForTimeout(800);
 
-      await expectPainted(page);
       await expect(page).toHaveScreenshot(`settings-${theme}.png`, SCREENSHOT_OPTIONS);
     });
 
@@ -270,12 +275,11 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await verifySettingsPinViaAPI(page, parentName);
       await page.goto('/settings?section=integrations');
-      await waitForQuiet(page);
+      await expectPainted(page, page.getByRole('heading', { name: 'Settings' }));
       // Wait for the /api/integrations/status fetch + /api/photo-sources
-      // fetch to settle so the cards render their final descriptions.
+      // data to paint so the cards render their final descriptions.
       await page.waitForTimeout(1200);
 
-      await expectPainted(page);
       await expect(page).toHaveScreenshot(`settings-integrations-${theme}.png`, SCREENSHOT_OPTIONS);
     });
   }
@@ -331,10 +335,9 @@ test.describe('Visual regression', () => {
         });
         await loginViaAPI(page, parentName);
         await page.goto('/calendar');
-        await waitForQuiet(page);
-        await page.waitForTimeout(800);
-
         await expectPainted(page, page.getByRole('button', { name: 'Add Event' }));
+        await waitForCalendarContent(page);
+        await page.waitForTimeout(800);
         await expect(page).toHaveScreenshot(`calendar-${cfg.label}-${theme}.png`, {
           ...SCREENSHOT_OPTIONS,
           mask: dynamicMasks(page),
@@ -353,7 +356,8 @@ test.describe('Visual regression', () => {
       await setClientFlags(page, { theme });
       await loginViaAPI(page, parentName);
       await page.goto('/calendar');
-      await waitForQuiet(page);
+      await expectPainted(page, page.getByRole('button', { name: 'Add Event' }));
+      await waitForCalendarContent(page);
       await page.click('button:has-text("Add Event")');
       // Modal is portal-rendered; wait for its title rather than a specific selector.
       await page.waitForSelector('text=/Add Event|New Event/i', { timeout: 5000 });
@@ -384,10 +388,9 @@ test.describe('Visual regression', () => {
         // SettingsView selects the section from `?section=`, not the hash —
         // `/settings#family` just renders the default section.
         await page.goto(`/settings?section=${section}`);
-        await waitForQuiet(page);
+        await expectPainted(page, page.getByRole('heading', { name: SECTION_HEADINGS[section] }));
         await page.waitForTimeout(800);
 
-        await expectPainted(page, page.getByRole('heading', { name: SECTION_HEADINGS[section] }));
         await expect(page).toHaveScreenshot(`settings-${section}-${theme}.png`, SCREENSHOT_OPTIONS);
       });
     }
@@ -406,10 +409,10 @@ test.describe('Visual regression', () => {
       await setCalendarPrefs(page, { viewType: 'agenda', displayMode: 'inline' });
       await loginViaAPI(page, parentName);
       await page.goto('/calendar');
-      await waitForQuiet(page);
+      await expectPainted(page, page.locator('[data-agenda-list]'));
+      await waitForCalendarContent(page);
       await page.waitForTimeout(800);
 
-      await expectPainted(page);
       await expect(page).toHaveScreenshot(`mobile-calendar-agenda-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
