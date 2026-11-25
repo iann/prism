@@ -139,6 +139,7 @@ export function RemoteScreenEditor({ id }: { id: string }) {
     const next: RemoteEditHost = {
       displayId: screen.id,
       dashboardId: screen.dashboardId,
+      switches: [],
       settings: { ...screen.settings },
       settingsUpdatedAt: null,
       root: rootRef.current,
@@ -158,10 +159,11 @@ export function RemoteScreenEditor({ id }: { id: string }) {
 
   // The screen says it is being edited while this page is open.
   useEffect(() => {
-    if (!host) return;
-    void markEditing(host.displayId, true);
-    const timer = setInterval(() => void markEditing(host.displayId, true), RENEW_MS);
-    const leave = () => { if (!finishing.current) void markEditing(host.displayId, false, true); };
+    const displayId = host?.displayId;
+    if (!displayId) return;
+    void markEditing(displayId, true);
+    const timer = setInterval(() => void markEditing(displayId, true), RENEW_MS);
+    const leave = () => { if (!finishing.current) void markEditing(displayId, false, true); };
     window.addEventListener('pagehide', leave);
     return () => {
       clearInterval(timer);

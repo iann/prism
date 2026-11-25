@@ -3,21 +3,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Cloud, CloudRain, CloudSnow, Sun, CloudSun, Droplets, Wind } from 'lucide-react';
+import { useAwayMode } from '@/lib/hooks/useAwayMode';
 import { usePhotos } from '@/lib/hooks/usePhotos';
-import { usePerformanceLevel } from '@/lib/hooks/usePerformanceMode';
 import { useAutoOrientationSetting, usePinnedPhoto, useScreensaverInterval } from '@/components/layout/WallpaperBackground';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import { ExitAwayModeModal } from './ExitAwayModeModal';
 import { useTimeFormat } from '@/components/providers';
 import { formatDisplayTime, toDisplayDate } from '@/lib/utils/timeFormat';
+import { useResetOn } from '@/lib/hooks/useResetOn';
 
-interface AwayModeOverlayProps {
-  toggle: (enabled: boolean) => Promise<void>;
-}
-
-export function AwayModeOverlay({ toggle }: AwayModeOverlayProps) {
-  // Minimal is the level that shows a single static photo (see perfLevel.ts).
-  const performanceMode = usePerformanceLevel() === 'minimal';
+export function AwayModeOverlay() {
+  const { isAway, toggle } = useAwayMode();
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: photoInterval } = useScreensaverInterval();
@@ -30,7 +26,7 @@ export function AwayModeOverlay({ toggle }: AwayModeOverlayProps) {
 
   const { photos } = usePhotos({
     sort: 'random',
-    limit: performanceMode ? 1 : 50,
+    limit: 50,
     usage: 'screensaver',
     orientation: autoOrientation ? effectiveOrientation : undefined,
   });
@@ -42,7 +38,7 @@ export function AwayModeOverlay({ toggle }: AwayModeOverlayProps) {
 
   // Photo rotation
   useEffect(() => {
-    if (photos.length <= 1 || pinnedId || photoInterval === 0) return;
+    if (!isAway || photos.length <= 1 || pinnedId || photoInterval === 0) return;
     const timer = setInterval(() => {
       setFadingOut(true);
       setTimeout(() => {
@@ -51,14 +47,20 @@ export function AwayModeOverlay({ toggle }: AwayModeOverlayProps) {
       }, 1000);
     }, photoInterval * 1000);
     return () => clearInterval(timer);
-  }, [photos.length, pinnedId, photoInterval]);
+  }, [isAway, photos.length, pinnedId, photoInterval]);
 
-  // Fade in a tick after this overlay mounts. It is only mounted while away
-  // mode is on, so mounting is the moment to open.
+  // Fade in a tick after it opens; start over closed each time it ends.
+  useResetOn(isAway, () => {
+    if (!isAway) {
+      setVisible(false);
+      setShowExitModal(false);
+    }
+  });
   useEffect(() => {
+    if (!isAway) return;
     const timer = setTimeout(() => setVisible(true), 50);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAway]);
 
   const handleExitSuccess = useCallback(async () => {
     await toggle(false);
@@ -69,10 +71,12 @@ export function AwayModeOverlay({ toggle }: AwayModeOverlayProps) {
     setShowExitModal(true);
   }, []);
 
+  if (!isAway) return null;
+
   const src = pinnedId
-    ? `/api/photos/${pinnedId}/file${performanceMode ? '?thumb=1' : ''}`
+    ? `/api/photos/${pinnedId}/file`
     : photos[currentIndex]
-      ? `/api/photos/${photos[currentIndex]!.id}/file${performanceMode ? '?thumb=1' : ''}`
+      ? `/api/photos/${photos[currentIndex]!.id}/file`
       : '';
 
   return (

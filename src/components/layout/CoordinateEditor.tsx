@@ -3,13 +3,10 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { WIDGET_COLORS } from './LayoutPreview';
-import {
-  WIDGET_REGISTRY,
-  ALL_WIDGET_TYPES,
-  SCREENSAVER_WIDGETS,
-} from '@/components/widgets/widgetRegistry';
+import { WIDGET_REGISTRY, ALL_WIDGET_TYPES, SCREENSAVER_WIDGETS } from '@/components/widgets/widgetRegistry';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { findNextFreeSlot } from '@/lib/utils/widgetPlacement';
+import { withSharedLook } from './widgetLook';
 import { getNextWidgetInstanceId, getWidgetType } from '@/lib/utils/widgetInstances';
 
 interface CoordinateEditorProps {
@@ -17,56 +14,50 @@ interface CoordinateEditorProps {
   onWidgetsChange: (widgets: WidgetConfig[]) => void;
   mode: 'dashboard' | 'screensaver';
   onFocusedWidgetChange?: (widgetId: string | null) => void;
+  /** The widget selected on the canvas or here (#1323): its row is marked, and a tap on a row selects it. */
+  selectedWidgetId?: string | null;
+  onSelectWidget?: (widgetId: string | null) => void;
 }
 
-export function CoordinateEditor({
-  widgets,
-  onWidgetsChange,
-  mode,
-  onFocusedWidgetChange,
-}: CoordinateEditorProps) {
+export function CoordinateEditor({ widgets, onWidgetsChange, mode, onFocusedWidgetChange, selectedWidgetId = null, onSelectWidget }: CoordinateEditorProps) {
   const [focusedWidget, setFocusedWidget] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const addRef = useRef<HTMLDivElement>(null);
 
-  const handleFocusChange = useCallback(
-    (widgetId: string | null) => {
-      setFocusedWidget(widgetId);
-      onFocusedWidgetChange?.(widgetId);
-    },
-    [onFocusedWidgetChange]
-  );
+  const handleFocusChange = useCallback((widgetId: string | null) => {
+    setFocusedWidget(widgetId);
+    onFocusedWidgetChange?.(widgetId);
+  }, [onFocusedWidgetChange]);
 
-  const allWidgetIds =
-    mode === 'screensaver' ? SCREENSAVER_WIDGETS.map((w) => w.id) : ALL_WIDGET_TYPES;
+  const allWidgetIds = mode === 'screensaver'
+    ? SCREENSAVER_WIDGETS.map(w => w.id)
+    : ALL_WIDGET_TYPES;
 
+  // Split into visible and hidden, both sorted alphabetically by label so
+  // the "Add widget" picker and the "currently visible" table follow the
+  // same ordering. Previously `visibleIds` followed WIDGET_REGISTRY's
+  // insertion order, which put newer widgets (Birthdays, Bus Tracker) at
+  // arbitrary positions that didn't match the alpha-sorted hidden list.
   const byLabel = (a: string, b: string) => {
     const aLabel = WIDGET_REGISTRY[a]?.label || a;
     const bLabel = WIDGET_REGISTRY[b]?.label || b;
     return aLabel.localeCompare(bLabel);
   };
 
-  // The dashboard picker intentionally keeps every type available so a
-  // second (or third) instance can be added. Screensaver editing retains its
-  // original one-instance-per-type behavior.
-  const hiddenIds = useMemo(() => {
-    if (mode !== 'screensaver') return [...allWidgetIds].sort(byLabel);
-    return allWidgetIds
-      .filter((type) => !widgets.some((w) => getWidgetType(w) === type && w.visible !== false))
-      .sort(byLabel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allWidgetIds, mode, widgets]);
+  const visibleIds = useMemo(() =>
+    widgets
+      .filter(w => w.visible !== false && allWidgetIds.includes(getWidgetType(w)))
+      .map(w => w.i)
+      .sort((a, b) => byLabel(getWidgetType(widgets.find(w => w.i === a)!), getWidgetType(widgets.find(w => w.i === b)!))),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [allWidgetIds, widgets]);
 
-  const visibleWidgets = useMemo(
-    () =>
-      widgets
-        .filter((w) => w.visible !== false)
-        .sort((a, b) => {
-          const byType = byLabel(getWidgetType(a), getWidgetType(b));
-          return byType || a.i.localeCompare(b.i);
-        }),
-    [widgets]
-  );
+  const hiddenIds = useMemo(() =>
+    allWidgetIds
+      .filter(id => !widgets.some(w => getWidgetType(w) === id && w.visible !== false))
+      .sort(byLabel),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [allWidgetIds, visibleIds, widgets]);
 
   // Close add dropdown on outside click
   useEffect(() => {
@@ -80,155 +71,137 @@ export function CoordinateEditor({
     return () => document.removeEventListener('mousedown', handler);
   }, [addOpen]);
 
-  const handleAddWidget = useCallback(
-    (widgetType: string) => {
-      const reg = WIDGET_REGISTRY[widgetType];
+  const handleAddWidget = useCallback((widgetId: string) => {
+    const exists = widgets.find(w => getWidgetType(w) === widgetId && w.visible === false);
+    if (exists) {
+      onWidgetsChange(widgets.map(w =>
+        w.i === exists.i ? { ...w, visible: true } : w
+      ));
+    } else {
+      const reg = WIDGET_REGISTRY[widgetId];
       if (!reg) return;
-
-      if (mode === 'screensaver') {
-        const exists = widgets.find((w) => getWidgetType(w) === widgetType);
-        if (exists) {
-          onWidgetsChange(widgets.map((w) => (w.i === exists.i ? { ...w, visible: true } : w)));
-        } else {
-          const { x, y } = findNextFreeSlot(widgets, reg.defaultW, reg.defaultH);
-          onWidgetsChange([
-            ...widgets,
-            {
-              i: widgetType,
-              type: widgetType,
-              x,
-              y,
-              w: reg.defaultW,
-              h: reg.defaultH,
-              visible: true,
-            },
-          ]);
-        }
-        return;
-      }
-
-      // A removed dashboard widget is kept, hidden, with its place and styling.
-      // Adding that type back restores it rather than starting a blank second
-      // instance, which is what someone who just removed it means. A second
-      // instance is still one click away when nothing of that type is hidden.
-      const hidden = widgets.find(
-        (w) => getWidgetType(w) === widgetType && w.visible === false
-      );
-      if (hidden) {
-        onWidgetsChange(widgets.map((w) => (w.i === hidden.i ? { ...w, visible: true } : w)));
-        return;
-      }
-
-      const instanceId = getNextWidgetInstanceId(widgetType, widgets);
+      // Find the first free slot row-by-row, columns inside each row — slots
+      // a new widget into top-row gaps before falling through to the bottom.
       const { x, y } = findNextFreeSlot(widgets, reg.defaultW, reg.defaultH);
+      // A new widget takes the fill, outline and text the others all share (#1339).
       onWidgetsChange([
         ...widgets,
-        { i: instanceId, type: widgetType, x, y, w: reg.defaultW, h: reg.defaultH, visible: true },
+        withSharedLook(widgets, { i: getNextWidgetInstanceId(widgetId, widgets), type: widgetId, x, y, w: reg.defaultW, h: reg.defaultH, visible: true }),
       ]);
-    },
-    [mode, widgets, onWidgetsChange]
-  );
+    }
+  }, [widgets, onWidgetsChange]);
 
-  const handleRemoveWidget = useCallback(
-    (instanceId: string) => {
-      onWidgetsChange(widgets.map((w) => (w.i === instanceId ? { ...w, visible: false } : w)));
-    },
-    [widgets, onWidgetsChange]
-  );
+  const handleRemoveWidget = useCallback((widgetId: string) => {
+    onWidgetsChange(widgets.map(w =>
+      w.i === widgetId ? { ...w, visible: false } : w
+    ));
+  }, [widgets, onWidgetsChange]);
 
-  const handleUpdateWidget = useCallback(
-    (instanceId: string, field: 'x' | 'y' | 'w' | 'h', value: number) => {
-      onWidgetsChange(widgets.map((w) => (w.i === instanceId ? { ...w, [field]: value } : w)));
-    },
-    [widgets, onWidgetsChange]
-  );
+  const handleUpdateWidget = useCallback((widgetId: string, field: 'x' | 'y' | 'w' | 'h', value: number) => {
+    onWidgetsChange(widgets.map(w =>
+      w.i === widgetId ? { ...w, [field]: value } : w
+    ));
+  }, [widgets, onWidgetsChange]);
 
   return (
     <div className="space-y-1.5">
-      <table className="w-full text-xs">
+      <table className="text-xs w-full">
         <thead>
-          <tr className="border-b border-border text-xs text-muted-foreground">
-            <th className="px-1 py-1 text-left">Widget</th>
-            <th className="w-11 px-0.5 py-1 text-center">X</th>
-            <th className="w-11 px-0.5 py-1 text-center">Y</th>
-            <th className="w-11 px-0.5 py-1 text-center">W</th>
-            <th className="w-11 px-0.5 py-1 text-center">H</th>
+          <tr className="text-xs text-muted-foreground border-b border-border">
+            <th className="text-left py-1 px-1">Widget</th>
+            <th className="text-center py-1 px-0.5 w-11">X</th>
+            <th className="text-center py-1 px-0.5 w-11">Y</th>
+            <th className="text-center py-1 px-0.5 w-11">W</th>
+            <th className="text-center py-1 px-0.5 w-11">H</th>
           </tr>
         </thead>
         <tbody>
-          {visibleWidgets.map((widget, index) => {
-            const widgetType = getWidgetType(widget);
-            const reg = WIDGET_REGISTRY[widgetType];
-            const color = WIDGET_COLORS[widgetType] || '#6B7280';
-            const isFocused = focusedWidget === widget.i;
-            const sameTypeCount = visibleWidgets.filter(
-              (w) => getWidgetType(w) === widgetType
-            ).length;
-            const ordinal = visibleWidgets
-              .slice(0, index + 1)
-              .filter((w) => getWidgetType(w) === widgetType).length;
-            const label =
-              sameTypeCount > 1
-                ? `${reg?.label || widgetType} ${ordinal}`
-                : reg?.label || widgetType;
+          {visibleIds.map(widgetId => {
+            const widget = widgets.find(w => w.i === widgetId);
+            if (!widget || widget.visible === false) return null;
+            const reg = WIDGET_REGISTRY[getWidgetType(widget)];
+            const color = WIDGET_COLORS[widgetId] || '#6B7280';
+            const isFocused = focusedWidget === widgetId;
+            const isSelected = selectedWidgetId === widgetId;
+            const label = reg?.label || widgetId;
 
             return (
               <tr
-                key={widget.i}
+                key={widgetId}
+                aria-selected={isSelected}
                 className={`border-b border-border/50 transition-colors ${
-                  isFocused ? 'bg-primary/5' : ''
+                  isSelected ? 'bg-primary/15' : isFocused ? 'bg-primary/5' : ''
                 }`}
+                data-widget-row={widgetId}
               >
-                <td className="px-1 py-1">
-                  <button
-                    onClick={() => handleRemoveWidget(widget.i)}
-                    className="w-full whitespace-nowrap rounded px-1.5 py-0.5 text-left text-xs text-white transition-colors"
-                    style={{
-                      backgroundColor: color,
-                      border: `1px solid ${color}`,
-                    }}
-                    title="Remove from the board (kept, so + Add widget puts it back)"
-                  >
-                    {label}
-                  </button>
+                <td className="py-1 px-1">
+                  <div className="flex items-center gap-1">
+                    {/* A tap on the name selects it, as on the canvas (#1323); its settings are below the list. */}
+                    <button
+                      type="button"
+                      onClick={() => onSelectWidget ? onSelectWidget(widgetId) : handleRemoveWidget(widgetId)}
+                      aria-pressed={onSelectWidget ? isSelected : undefined}
+                      className={`min-w-0 flex-1 text-left text-xs px-1.5 py-0.5 rounded transition-colors whitespace-nowrap text-white ${isSelected ? 'ring-2 ring-foreground ring-offset-1 ring-offset-card' : ''}`}
+                      style={{
+                        backgroundColor: color,
+                        border: `1px solid ${color}`,
+                      }}
+                      title={onSelectWidget ? 'Tap to change its settings, below' : 'Click to hide'}
+                    >
+                      {label}
+                    </button>
+                    {onSelectWidget && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveWidget(widgetId)}
+                        // The glyph stays small; the target is 44px by touch, 28px with a mouse, as the settings below.
+                        className="-my-2 flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full text-xs text-muted-foreground hover:bg-muted hover:text-foreground pointer-fine:-my-1 pointer-fine:h-8 pointer-fine:w-8"
+                        data-widget-hide
+                        aria-label={`Hide ${label}`}
+                        title="Hide it"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                 </td>
-                <td className="px-0.5 py-1">
+                <td className="py-1 px-0.5">
                   <CoordInput
                     value={widget.x}
                     min={0}
                     max={47}
-                    onChange={(v) => handleUpdateWidget(widget.i, 'x', v)}
-                    onFocus={() => handleFocusChange(widget.i)}
+                    onChange={v => handleUpdateWidget(widgetId, 'x', v)}
+                    onFocus={() => handleFocusChange(widgetId)}
                     onBlur={() => handleFocusChange(null)}
                   />
                 </td>
-                <td className="px-0.5 py-1">
+                <td className="py-1 px-0.5">
                   <CoordInput
                     value={widget.y}
                     min={0}
                     max={119}
-                    onChange={(v) => handleUpdateWidget(widget.i, 'y', v)}
-                    onFocus={() => handleFocusChange(widget.i)}
+                    onChange={v => handleUpdateWidget(widgetId, 'y', v)}
+                    onFocus={() => handleFocusChange(widgetId)}
                     onBlur={() => handleFocusChange(null)}
                   />
                 </td>
-                <td className="px-0.5 py-1">
+                <td className="py-1 px-0.5">
                   <CoordInput
                     value={widget.w}
                     min={reg?.minW ?? 1}
                     max={48}
-                    onChange={(v) => handleUpdateWidget(widget.i, 'w', v)}
-                    onFocus={() => handleFocusChange(widget.i)}
+                    onChange={v => handleUpdateWidget(widgetId, 'w', v)}
+                    onFocus={() => handleFocusChange(widgetId)}
                     onBlur={() => handleFocusChange(null)}
                   />
                 </td>
-                <td className="px-0.5 py-1">
+                <td className="py-1 px-0.5">
                   <CoordInput
                     value={widget.h}
                     min={reg?.minH ?? 1}
                     max={120}
-                    onChange={(v) => handleUpdateWidget(widget.i, 'h', v)}
-                    onFocus={() => handleFocusChange(widget.i)}
+                    onChange={v => handleUpdateWidget(widgetId, 'h', v)}
+                    onFocus={() => handleFocusChange(widgetId)}
                     onBlur={() => handleFocusChange(null)}
                   />
                 </td>
@@ -241,8 +214,8 @@ export function CoordinateEditor({
       {hiddenIds.length > 0 && (
         <div className="relative" ref={addRef}>
           <button
-            onClick={() => setAddOpen((prev) => !prev)}
-            className="flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs transition-colors hover:bg-accent"
+            onClick={() => setAddOpen(prev => !prev)}
+            className="px-2 py-1 text-xs bg-muted border border-border rounded-md hover:bg-accent transition-colors flex items-center gap-1"
           >
             + Add widget
             <svg
@@ -261,23 +234,21 @@ export function CoordinateEditor({
             </svg>
           </button>
           {addOpen && (
-            <div className="mt-1 max-h-[40vh] overflow-auto rounded-md border border-border py-1">
-              {hiddenIds.map((type) => {
-                const reg = WIDGET_REGISTRY[type];
-                const color = WIDGET_COLORS[type] || '#6B7280';
+            <div className="mt-1 border border-border rounded-md py-1 max-h-[40vh] overflow-auto">
+              {hiddenIds.map(id => {
+                const reg = WIDGET_REGISTRY[id];
+                const color = WIDGET_COLORS[id] || '#6B7280';
                 return (
                   <button
-                    key={type}
-                    onClick={() => {
-                      handleAddWidget(type);
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-1 text-left text-xs transition-colors hover:bg-accent"
+                    key={id}
+                    onClick={() => { handleAddWidget(id); }}
+                    className="w-full text-left px-3 py-1 text-xs hover:bg-accent transition-colors flex items-center gap-2"
                   >
                     <span
-                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      className="inline-block w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: color }}
                     />
-                    {reg?.label || type}
+                    {reg?.label || id}
                   </button>
                 );
               })}
@@ -310,13 +281,16 @@ function CoordInput({
       value={value}
       min={min}
       max={max}
-      onChange={(e) => {
+      onChange={e => {
         const v = parseInt(e.target.value, 10);
         if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)));
       }}
       onFocus={onFocus}
       onBlur={onBlur}
-      className="w-full rounded border border-border bg-muted px-1 py-0.5 text-center text-xs text-foreground transition-colors focus:outline-hidden focus:ring-1 focus:ring-primary"
+      // No spin arrows: they took most of a box this narrow and hid the number
+      // (#1265). The arrow keys still step it.
+      className="w-full text-center text-xs px-1 py-0.5 rounded border transition-colors bg-muted border-border text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      data-coordinate-input
     />
   );
 }

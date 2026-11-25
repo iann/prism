@@ -1,54 +1,62 @@
 'use client';
 
 import { remoteEditHost } from '@/lib/displays/remoteEdit';
+import { editorLink, editsOnCanvas } from '@/lib/displays/editPlace';
+import { useHoldEditing } from '@/lib/hooks/useEditing';
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { DEFAULT_TEMPLATE } from '@/lib/constants/layoutTemplates';
 import {
-  loadScreensaverLayout,
-  saveScreensaverLayout,
   DEFAULT_SCREENSAVER_LAYOUT,
   screensaverForDashboard,
   legacyScreensaver,
   markScreensaverCarried,
   owesLegacyScreensaver,
-  getScreensaverPresets,
   saveScreensaverPreset,
-  deleteScreensaverPreset,
 } from '@/components/screensaver/screensaverStorage';
+import { setPhotoFrameArrangement } from '@/components/screensaver/photoFrameArrangement';
+import { useVisibilityPolling } from '@/lib/hooks/useVisibilityPolling';
 import type { WidgetConfig, Layout } from '@/lib/hooks/useLayouts';
-import { idleSources, parseIdleBackground, sameIdleBackground, PHOTOS, type IdleBackground, type IdleSource } from '@/lib/idleBackground';
-import { findNextFreeSlot } from '@/lib/utils/widgetPlacement';
+import { idleSources, sameIdleBackground, type IdleBackground, type IdleSource } from '@/lib/idleBackground';
+import { backgroundOf, withBackground } from '@/lib/screenDay';
+import { useScreenDay } from '@/components/screensaver/useScreenDay';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { getWidgetType } from '@/lib/utils/widgetInstances';
 import { useUrlParam } from '@/lib/hooks/useUrlParam';
 import { useResetOn } from '@/lib/hooks/useResetOn';
 
 interface LayoutsData {
   savedLayout: Layout | null;
-  saveLayout: (
-    data: Partial<Layout> & { name: string; widgets: WidgetConfig[] }
-  ) => Promise<unknown>;
+  saveLayout: (data: Partial<Layout> & { name: string; widgets: WidgetConfig[] }) => Promise<unknown>;
   deleteLayout: (id: string) => Promise<void>;
   allLayouts: Layout[];
   loading: boolean;
+  /** Fetches them again, so an edit made on another device shows here. */
+  refresh?: () => Promise<void>;
 }
+
+/**
+ * How often the dashboards are fetched again, so an edit made on another
+ * device reaches this screen without a reload (#1346). It keeps going while
+ * the photo frame is up: its arrangement is what an idle screen shows.
+ */
+export const LAYOUTS_REFRESH_MS = 60 * 1000;
 
 /** The query parameter that opens a dashboard in edit mode. */
 export const EDIT_PARAM = 'edit';
 
-/** The editor's two tabs (#782): the dashboard, and what shows when nobody is using it. */
+/** What the canvas shows (#782): the dashboard in use, or the screen idle (from Through the day). */
 export type EditTab = 'dashboard' | 'idle';
 
-/** Which half of a day and night pair the Idle screen tab previews and edits. */
+/** Which half of a day and night pair the idle view previews and edits. */
 export type IdleHalf = 'day' | 'night';
 
-/** The background the Idle screen tab shows: the one there is, or the previewed half. */
+/** The background the idle view shows: the one there is, or the previewed half. */
 export function shownIdleSource(bg: IdleBackground, half: IdleHalf): IdleSource {
   return 'source' in bg ? bg.source : bg[half];
 }
 
 /**
- * Whether the Idle screen tab edits a screensaver layout (shown over photos or
+ * Whether the idle view edits a screensaver layout (shown over photos or
  * the sky), rather than the dashboard's own Stays / Fades. A pair with photos
  * or the sky on either half has one to edit.
  */
@@ -56,7 +64,7 @@ export function editsIdleLayout(bg: IdleBackground): boolean {
   return idleSources(bg).some(s => s !== 'dashboard' && s !== 'off');
 }
 
-/** Whether a widget stays or fades when idle: the part of a widget the Idle screen tab owns. */
+/** Whether a widget stays or fades when idle: the part of a widget the idle view owns. */
 const withoutIdleTicks = (widgets: WidgetConfig[]) =>
   JSON.stringify(widgets.map(({ showWhenIdle: _ignored, ...w }) => w));
 const idleTicks = (widgets: WidgetConfig[]) => JSON.stringify(widgets.map(w => [w.i, w.showWhenIdle]));
@@ -85,62 +93,88 @@ export function editLink(path: string): string {
 
 export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
   const { activeUser, requireAuth } = useAuth();
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  // The screen does not go idle while its dashboard is in edit mode (#1342).
+  useHoldEditing(isEditing);
   const [editingWidgets, setEditingWidgets] = useState<WidgetConfig[]>([]);
   const [preEditWidgets, setPreEditWidgets] = useState<WidgetConfig[]>([]);
-  const [preEditSs, setPreEditSs] = useState<WidgetConfig[]>([]);
   const [editTab, setEditTab] = useState<EditTab>('dashboard');
   const [idleHalf, setIdleHalf] = useState<IdleHalf>('day');
 
   // Resolve active layout: by slug if provided, otherwise default
   const activeLayout = slug
-    ? layouts.allLayouts.find((l) => l.slug === slug) || null
+    ? layouts.allLayouts.find(l => l.slug === slug) || null
     : layouts.savedLayout;
 
-  const [ssLayout, setSsLayout] = useState<WidgetConfig[]>(() => {
-    if (activeLayout) return screensaverForDashboard(activeLayout, layouts.allLayouts);
-    return loadScreensaverLayout();
-  });
-  // What shows behind it when idle, as saved and as being edited. Nothing is
-  // stored until Save, so Cancel only has to put these back.
-  const savedBackground = activeLayout ? parseIdleBackground(activeLayout.idleBackground) : PHOTOS;
+  // The arrangement a browser kept from v1.30.1, while it is owed to this
+  // dashboard (#1154): shown until the dashboard has one of its own.
+  const [owed, setOwed] = useState<{ id: string; widgets: WidgetConfig[] } | null>(null);
+  // The photo frame arrangement as saved (#1346): the dashboard's own, which
+  // follows the dashboard as it is fetched again, so an edit made on another
+  // device shows here without a reload.
+  const savedSs = activeLayout?.screensaverWidgets
+    ?? (owed && owed.id === activeLayout?.id ? owed.widgets : null)
+    ?? (activeLayout ? screensaverForDashboard(activeLayout) : DEFAULT_SCREENSAVER_LAYOUT);
+  // As being edited: null until it is changed, so it follows the saved one,
+  // a dashboard that finishes loading after editing starts included.
+  const [editedSs, setEditedSs] = useState<WidgetConfig[] | null>(null);
+  const ssLayout = isEditing && editedSs !== null ? editedSs : savedSs;
+  const ssDirty = isEditing && editedSs !== null && JSON.stringify(editedSs) !== JSON.stringify(savedSs);
+  // What shows behind it when idle, as saved and as being edited. It is the
+  // screen's own day (#1345), whichever dashboard is open; the dashboard's
+  // old `idleBackground` is no longer read. Nothing is stored until Save, so
+  // Cancel only has to put these back.
+  const { day: screenDay, setDay: setScreenDay } = useScreenDay();
+  const savedBackground = backgroundOf(screenDay);
   // Null from the start of editing until it is changed, so it follows the
   // saved value: the dashboard can finish loading after editing starts. (Seeded
   // with the saved value only because the React compiler's memoization check
   // rejects a null start here; editing always begins by resetting it.)
   const [editedBackground, setEditedBackground] = useState<IdleBackground | null>(savedBackground);
-  const [ssPresets, setSsPresets] = useState(() =>
-    typeof window !== 'undefined' ? getScreensaverPresets() : []
-  );
   const editingBackground = editedBackground === null ? savedBackground : editedBackground;
+  // The screen shape the guides are drawn for, and Make the default, wait for
+  // Done like everything else in the editor (#1341). Null follows the saved one.
+  const savedOrientation: 'landscape' | 'portrait' = activeLayout?.orientation === 'portrait' ? 'portrait' : 'landscape';
+  const [editedOrientation, setEditedOrientation] = useState<'landscape' | 'portrait' | null>(null);
+  const editingOrientation = editedOrientation ?? savedOrientation;
+  const [defaultPending, setDefaultPending] = useState(false);
 
-  // Bridge: write active dashboard's screensaver to localStorage on layout change
-  // so the global Screensaver component (which reads from localStorage) uses the right one
-  const bridgedLayoutId = useRef<string | null>(null);
+  // The upgrade from v1.30.1 (#1154), once per dashboard opened: a dashboard
+  // with no photo frame arrangement of its own showed the one this browser
+  // kept. It is shown and carried onto the dashboard; the server keeps it only
+  // while the dashboard still has none. Until that works (a wall nobody signed
+  // in to cannot save) it keeps showing here, as before. Nothing else reads
+  // the browser's copy (#1346).
+  useResetOn(activeLayout?.id ?? null, () => {
+    const legacy = activeLayout && !remoteEditHost() ? legacyScreensaver() : null;
+    setOwed(activeLayout && owesLegacyScreensaver(activeLayout, editsIdleLayout(savedBackground), legacy)
+      ? { id: activeLayout.id, widgets: legacy }
+      : null);
+  });
+  const carriedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!activeLayout) return;
-    if (bridgedLayoutId.current === activeLayout.id) return;
-    bridgedLayoutId.current = activeLayout.id;
-
-    // The upgrade from v1.30.1 (#1154): a dashboard with no screensaver of its
-    // own showed the one this browser kept. It is read before the line below
-    // writes over it, shown, and carried onto the dashboard; the server keeps
-    // it only while the dashboard still has none. Until that works (a wall
-    // nobody signed in to cannot save) it keeps showing here, as before.
-    const legacy = remoteEditHost() ? null : legacyScreensaver();
-    const owed = owesLegacyScreensaver(activeLayout, editsIdleLayout(parseIdleBackground(activeLayout.idleBackground)), legacy);
-    const widgets = owed ? legacy : screensaverForDashboard(activeLayout, layouts.allLayouts);
-    if (owed) {
-      void carryScreensaver(activeLayout.id, legacy).then((ok) => { if (ok) markScreensaverCarried(); });
+    if (carriedFor.current === activeLayout.id) return;
+    carriedFor.current = activeLayout.id;
+    if (owed && owed.id === activeLayout.id) {
+      void carryScreensaver(owed.id, owed.widgets).then((ok) => { if (ok) markScreensaverCarried(); });
     } else {
       markScreensaverCarried();
     }
-    setSsLayout(widgets);
-    // Also what Cancel returns to and the dot compares with, for a dashboard
-    // that finishes loading after editing starts.
-    setPreEditSs(widgets);
-    saveScreensaverLayout(widgets);
-  }, [activeLayout, layouts.allLayouts]);
+    // Runs once per dashboard (the ref above); the screen's day at that
+    // moment decided whether a carried arrangement is owed.
+  }, [activeLayout, owed]);
+
+  // The running photo frame shows the saved arrangement of the dashboard this
+  // screen shows (#1346); an edit reaches it once saved.
+  useEffect(() => {
+    if (layouts.loading) return;
+    setPhotoFrameArrangement(savedSs);
+  }, [layouts.loading, savedSs]);
+  // Fetched again while open, so an edit from another device arrives.
+  const refreshLayouts = layouts.refresh;
+  useVisibilityPolling(() => { void refreshLayouts?.(); }, LAYOUTS_REFRESH_MS, { pollWhileIdle: true });
 
   // Switching dashboards from the editor opens the next one with ?edit=1, and
   // it opens in edit mode once its layout has loaded. Only for a parent, so a
@@ -155,23 +189,32 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
     const current = activeLayout?.widgets ?? DEFAULT_TEMPLATE.widgets;
     setPreEditWidgets(current);
     setEditingWidgets(current);
-    setPreEditSs(ssLayout);
+    setEditedSs(null);
     setEditedBackground(null);
+    setEditedOrientation(null);
+    setDefaultPending(false);
     setEditTab('dashboard');
     setIdleHalf('day');
     setIsEditing(true);
-  }, [activeLayout, ssLayout]);
+  }, [activeLayout]);
+  // A device that edits on a canvas (#1265) is sent there instead, in place
+  // of this address, so Back does not land on the link again.
+  const resumeOnCanvas = resumeKey !== null && editsOnCanvas();
   useResetOn(resumeKey, () => {
-    if (!resumeKey || !activeLayout) return;
+    if (!resumeKey || !activeLayout || editsOnCanvas()) return;
     beginEditing();
   });
   // Then drop it from the address, so a reload opens the dashboard normally.
   useEffect(() => {
     if (!resumeKey) return;
+    if (resumeOnCanvas) {
+      router.replace(editorLink(resumeKey));
+      return;
+    }
     const url = new URL(window.location.href);
     url.searchParams.delete(EDIT_PARAM);
     window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
-  }, [resumeKey]);
+  }, [resumeKey, resumeOnCanvas, router]);
 
   // While layouts are still fetching, render NOTHING rather than falling
   // back to DEFAULT_TEMPLATE — for any established user whose saved layout
@@ -183,32 +226,42 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
   // no saved layout exists (genuine first-run / blank-slate install).
   const activeWidgets = isEditing
     ? editingWidgets
-    : (activeLayout?.widgets ?? (layouts.loading ? [] : DEFAULT_TEMPLATE.widgets));
+    : activeLayout?.widgets
+      ?? (layouts.loading ? [] : DEFAULT_TEMPLATE.widgets);
 
   const handleEditStart = useCallback(async () => {
     // Auth gate: only parents can edit. Signed out, the PIN box opens and
     // editing starts once a parent signs in; a non-parent is quietly
     // blocked (their edit button is already hidden, so this is a safety net).
-    const user = activeUser ?? await requireAuth('Sign in to edit', "Enter a parent's PIN to edit the dashboard layout.");
+    const user = activeUser ?? await requireAuth('Sign in to edit', "Enter a parent's PIN to edit the dashboard layout.", { parentsOnly: true });
     if (!user || user.role !== 'parent') return;
+    if (activeLayout && editsOnCanvas()) {
+      router.push(editorLink(activeLayout.id));
+      return;
+    }
     beginEditing();
-  }, [activeUser, requireAuth, beginEditing]);
+  }, [activeUser, requireAuth, beginEditing, activeLayout, router]);
 
   // Which tabs hold changes not yet saved, for the dot on each.
   const dashboardDirty = isEditing && withoutIdleTicks(editingWidgets) !== withoutIdleTicks(preEditWidgets);
   const idleDirty = isEditing && (
-    JSON.stringify(ssLayout) !== JSON.stringify(preEditSs)
+    ssDirty
     || !sameIdleBackground(editingBackground, savedBackground)
     || idleTicks(editingWidgets) !== idleTicks(preEditWidgets)
   );
+  // Look's dot: the screen shape changed. Dashboard's: Make the default pressed.
+  const lookDirty = isEditing && editingOrientation !== savedOrientation;
+  const defaultDirty = isEditing && defaultPending && !activeLayout?.isDefault;
 
-  // The running screensaver reads its layout from the browser; it gets the
-  // edited one only once saved.
+  // The running photo frame gets the edited arrangement once it is saved to
+  // the dashboard, which is fetched again on save.
   const finishEditing = useCallback(() => {
-    saveScreensaverLayout(ssLayout);
+    setEditedSs(null);
     setEditTab('dashboard');
+    setEditedOrientation(null);
+    setDefaultPending(false);
     setIsEditing(false);
-  }, [ssLayout]);
+  }, []);
 
   const handleSave = useCallback(async (name?: string) => {
     try {
@@ -216,17 +269,21 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
         ...(activeLayout ? { id: activeLayout.id } : {}),
         name: name || activeLayout?.name || 'My Layout',
         widgets: editingWidgets,
-        isDefault: activeLayout?.isDefault ?? true,
-        orientation: activeLayout?.orientation || 'landscape',
+        // Make the default is kept here until Done (#1341); saving it as the
+        // default unsets the one before.
+        isDefault: defaultPending || (activeLayout?.isDefault ?? true),
+        orientation: editingOrientation,
       };
       // Done saves only what changed (#1162). A dashboard with no screensaver
       // layout or background of its own keeps none until someone sets one;
       // saving the default it was showing would pin it there for good.
-      if (activeLayout?.screensaverWidgets || JSON.stringify(ssLayout) !== JSON.stringify(preEditSs)) {
+      if (activeLayout?.screensaverWidgets || ssDirty) {
         saveData.screensaverWidgets = ssLayout;
       }
-      if (activeLayout?.idleBackground || !sameIdleBackground(editingBackground, savedBackground)) {
-        saveData.idleBackground = editingBackground;
+      // The idle and night looks are the screen's (#1345): Done writes them
+      // to its day, keeping how much darker, and never to the dashboard.
+      if (!sameIdleBackground(editingBackground, savedBackground)) {
+        setScreenDay(withBackground(screenDay, editingBackground));
       }
       await layouts.saveLayout(saveData);
     } catch (err) {
@@ -234,7 +291,7 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
     } finally {
       finishEditing();
     }
-  }, [activeLayout, editingWidgets, ssLayout, preEditSs, editingBackground, savedBackground, layouts, finishEditing]);
+  }, [activeLayout, editingWidgets, ssLayout, ssDirty, editingBackground, savedBackground, screenDay, setScreenDay, defaultPending, editingOrientation, layouts, finishEditing]);
 
   // Save-As supports two modes:
   //   - { id }: overwrite an existing dashboard. Preserves the target's
@@ -244,10 +301,11 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
   //     as the previous prompt() flow, just driven by a real dialog input.
   // Legacy callers passing a bare string (e.g. the Apply Community Layout
   // path) still get the new-dashboard branch via the string overload.
-  const handleSaveAs = useCallback(
-    async (opts?: string | { id: string } | { name: string }) => {
-      if (!opts) return;
-      if (typeof opts === 'string') opts = { name: opts };
+  const handleSaveAs = useCallback(async (
+    opts?: string | { id: string } | { name: string },
+  ) => {
+    if (!opts) return;
+    if (typeof opts === 'string') opts = { name: opts };
 
     if ('id' in opts) {
       const target = layouts.allLayouts.find(l => l.id === opts.id);
@@ -258,7 +316,6 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
         widgets: editingWidgets,
         isDefault: target.isDefault,
         screensaverWidgets: ssLayout,
-        idleBackground: editingBackground,
         orientation: target.orientation || 'landscape',
       });
     } else {
@@ -269,12 +326,15 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
         widgets: editingWidgets,
         isDefault: false,
         screensaverWidgets: ssLayout,
-        idleBackground: editingBackground,
-        orientation: activeLayout?.orientation || 'landscape',
+        orientation: editingOrientation,
       });
     }
+    // The idle and night looks are the screen's, whichever dashboard it saves to.
+    if (!sameIdleBackground(editingBackground, savedBackground)) {
+      setScreenDay(withBackground(screenDay, editingBackground));
+    }
     finishEditing();
-  }, [editingWidgets, ssLayout, editingBackground, activeLayout, layouts, finishEditing]);
+  }, [editingWidgets, ssLayout, editingBackground, savedBackground, screenDay, setScreenDay, editingOrientation, layouts, finishEditing]);
 
   const handleReset = useCallback(() => {
     setEditingWidgets(DEFAULT_TEMPLATE.widgets);
@@ -283,85 +343,68 @@ export function useDashboardLayout(layouts: LayoutsData, slug?: string) {
   // Cancel undoes both tabs.
   const handleCancel = useCallback(() => {
     setEditingWidgets(preEditWidgets);
-    setSsLayout(preEditSs);
+    setEditedSs(null);
     setEditedBackground(null);
+    setEditedOrientation(null);
+    setDefaultPending(false);
     setEditTab('dashboard');
     setIsEditing(false);
-  }, [preEditWidgets, preEditSs]);
+  }, [preEditWidgets]);
 
   const handleSsLayoutChange = useCallback((newLayout: WidgetConfig[]) => {
-    setSsLayout(newLayout);
-  }, []);
-
-  const handleSsWidgetToggle = useCallback((widgetType: string, visible: boolean) => {
-    setSsLayout((prev) => {
-      const exists = prev.find((w) => getWidgetType(w) === widgetType);
-      let updated: WidgetConfig[];
-      if (exists) {
-        updated = prev.map((w) => (getWidgetType(w) === widgetType ? { ...w, visible } : w));
-      } else if (visible) {
-        const { x, y } = findNextFreeSlot(prev, 3, 3);
-        updated = [...prev, { i: widgetType, type: widgetType, x, y, w: 3, h: 3, visible: true }];
-      } else {
-        return prev;
-      }
-      return updated;
-    });
+    setEditedSs(newLayout);
   }, []);
 
   const handleSsSaveAs = useCallback(() => {
     const name = window.prompt('Preset name:', 'My Screensaver');
     if (!name) return;
     saveScreensaverPreset(name, ssLayout);
-    setSsPresets(getScreensaverPresets());
   }, [ssLayout]);
 
   const handleSsReset = useCallback(() => {
-    const fresh = DEFAULT_SCREENSAVER_LAYOUT.map((w) => ({ ...w }));
-    setSsLayout(fresh);
+    const fresh = DEFAULT_SCREENSAVER_LAYOUT.map(w => ({ ...w }));
+    setEditedSs(fresh);
   }, []);
 
   const handleSelectSsTemplate = useCallback((templateWidgets: WidgetConfig[]) => {
-    const visibleIds = new Set(
-      templateWidgets.filter((w) => w.visible !== false).map((w) => getWidgetType(w))
-    );
-    const merged = DEFAULT_SCREENSAVER_LAYOUT.map((def) => {
-      const tw = templateWidgets.find((t) => getWidgetType(t) === getWidgetType(def));
+    const visibleIds = new Set(templateWidgets.filter(w => w.visible !== false).map(w => w.i));
+    const merged = DEFAULT_SCREENSAVER_LAYOUT.map(def => {
+      const tw = templateWidgets.find(t => t.i === def.i);
       if (tw) return { ...tw, visible: true };
       return { ...def, visible: false };
     });
-    templateWidgets.forEach((tw) => {
-      if (!merged.find((m) => getWidgetType(m) === getWidgetType(tw))) {
-        merged.push({ ...tw, visible: visibleIds.has(getWidgetType(tw)) });
+    templateWidgets.forEach(tw => {
+      if (!merged.find(m => m.i === tw.i)) {
+        merged.push({ ...tw, visible: visibleIds.has(tw.i) });
       }
     });
-    setSsLayout(merged);
+    setEditedSs(merged);
   }, []);
 
   const handleSelectSsPreset = useCallback((presetWidgets: WidgetConfig[]) => {
-    setSsLayout(presetWidgets);
+    setEditedSs(presetWidgets);
   }, []);
 
-  const handleDeleteSsPreset = useCallback((name: string) => {
-    deleteScreensaverPreset(name);
-    setSsPresets(getScreensaverPresets());
-  }, []);
+  // Make the default, done on Done (#1341).
+  const makeDefault = useCallback(() => setDefaultPending(true), []);
 
   return {
     isEditing, setIsEditing,
     editingWidgets, setEditingWidgets,
     editTab, setEditTab,
     idleHalf, setIdleHalf,
-    // The Idle screen tab showing a screensaver layout to edit, rather than
+    // The idle view showing a screensaver layout to edit, rather than
     // the dashboard's own Stays / Fades.
     editingScreensaver: isEditing && editTab === 'idle' && !['dashboard', 'off'].includes(shownIdleSource(editingBackground, idleHalf)),
     editingBackground, setEditingBackground: setEditedBackground,
-    dashboardDirty, idleDirty,
-    ssLayout, ssPresets,
+    dashboardDirty, idleDirty, lookDirty, defaultDirty,
+    editingOrientation, setEditingOrientation: setEditedOrientation,
+    makeDefault,
+    ssLayout,
     activeWidgets,
     activeLayout,
     handleEditStart, handleSave, handleSaveAs, handleReset, handleCancel,
-    handleSsLayoutChange, handleSsWidgetToggle, handleSsSaveAs,
-    handleSsReset, handleSelectSsTemplate, handleSelectSsPreset, handleDeleteSsPreset,
+    handleSsLayoutChange, handleSsSaveAs,
+    handleSsReset, handleSelectSsTemplate, handleSelectSsPreset,
   };
 }

@@ -11,8 +11,6 @@ import { useFocalPointPass } from '@/lib/photos/focalPass';
 import { PhotoStage } from './PhotoStage';
 import { useState, useEffect, useCallback } from 'react';
 import { usePhotos } from '@/lib/hooks/usePhotos';
-import { usePerformanceLevel } from '@/lib/hooks/usePerformanceMode';
-import { useHydrated } from '@/lib/hooks/useStoredValue';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import { SCENERY } from '@/lib/scenery';
 import { useSceneryOn } from '@/lib/hooks/useSceneryOn';
@@ -248,9 +246,6 @@ function useOnThisDayPhotos(on: boolean) {
 
 export function WallpaperBackground() {
   const { enabled, interval } = useWallpaperSettings();
-  // Minimal is the level that shows a single static photo (see perfLevel.ts).
-  const performanceMode = usePerformanceLevel() === 'minimal';
-  const performanceModeReady = useHydrated();
   const { enabled: autoOrientation } = useAutoOrientationSetting();
   const { pinnedId } = usePinnedPhoto('wallpaper');
   const screenOrientation = useScreenOrientation();
@@ -261,9 +256,8 @@ export function WallpaperBackground() {
   // orientation has no photos still shows a wallpaper instead of going blank.
   const { photos: allPhotos, loading: photosLoading } = usePhotos({
     sort: 'random',
-    limit: performanceMode ? 1 : 40,
+    limit: 40,
     usage: 'wallpaper',
-    enabled: enabled && performanceModeReady,
   });
   const orientedPhotos = autoOrientation
     ? allPhotos.filter((p) => p.orientation === effectiveOrientation)
@@ -306,7 +300,7 @@ export function WallpaperBackground() {
   // Pinned photo (if set and not broken), else the next non-broken rotation photo.
   const rotationPhoto = pool.length > 0 ? pool[currentIndex % pool.length] : undefined;
   const activeId = usePinned ? pinnedId : (rotationPhoto?.id ?? null);
-  const src = activeId ? `/api/photos/${activeId}/file${performanceMode ? '?thumb=1' : ''}` : null;
+  const src = usePinned ? `/api/photos/${pinnedId}/file` : (rotationPhoto?.src ?? null);
   // A pinned photo, or "never", stays put: no zoom (#955).
   const zoomMs = usePinned || interval === 0 ? 0 : interval * 1000;
   // Frame each photo's subject clear of the widgets (#957).

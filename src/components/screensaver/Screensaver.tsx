@@ -5,7 +5,6 @@ import { focalOf } from '@/lib/photos/focalPoint';
 import { CENTRED, photoFrame } from '@/lib/photos/frame';
 import { coveredRects } from '@/lib/photos/frameDom';
 import { PhotoStage } from '@/components/layout/PhotoStage';
-import { isNightAt, nightRule } from '@/lib/throughTheDay';
 import { usePhotoTone } from '@/components/layout/WallpaperBackground';
 import { waterVars } from '@/lib/design/water';
 import * as React from 'react';
@@ -14,12 +13,7 @@ import { useIdleDetection } from '@/lib/hooks/useIdleDetection';
 import { useAwayMode } from '@/lib/hooks/useAwayMode';
 import { useBabysitterMode } from '@/lib/hooks/useBabysitterMode';
 import { usePhotos } from '@/lib/hooks/usePhotos';
-import { useAutoPerformance, usePerformanceLevel } from '@/lib/hooks/usePerformanceMode';
-import {
-  useAutoOrientationSetting,
-  usePinnedPhoto,
-  useScreensaverInterval,
-} from '@/components/layout/WallpaperBackground';
+import { useAutoOrientationSetting, usePinnedPhoto, useScreensaverInterval } from '@/components/layout/WallpaperBackground';
 import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { getWidgetType } from '@/lib/utils/widgetInstances';
@@ -29,9 +23,8 @@ import { buildWidgetProps } from '@/components/dashboard/useWidgetProps';
 import { GRID_COLS } from '@/lib/constants/grid';
 import { CssGridDisplay } from '@/components/layout/grid/CssGridDisplay';
 import { CalendarPrefsScopeContext } from '@/lib/hooks/useCalendarWidgetPrefs';
-import { loadScreensaverLayout } from './screensaverStorage';
+import { usePhotoFrameArrangement } from './photoFrameArrangement';
 import { hidesWhenEmpty } from '@/components/layout/grid/hideWhenEmpty';
-import { shouldShowScreensaver } from './shouldShowScreensaver';
 import { rotate, showingCount } from './screensaverRotation';
 import { useScreensaverMotion } from './useScreensaverMotion';
 import { WidgetStage } from './WidgetStage';
@@ -39,14 +32,15 @@ import { EffectStage } from './EffectStage';
 import { ScreensaverQuickSettings } from './ScreensaverQuickSettings';
 import { getEffect } from './effects';
 import { scaledDuration } from './screensaverPrefs';
+import { useAutoPerformance, usePerformanceModeOn } from '@/lib/hooks/usePerformanceMode';
 import { useScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
 import { useViewportSize } from '@/lib/hooks/useViewportSize';
 import { setDisplayIdle } from '@/lib/hooks/useDisplayIdle';
+import { useEditing } from '@/lib/hooks/useEditing';
 import { PollingScopeContext } from '@/lib/hooks/pollingScope';
 import { useResetOn } from '@/lib/hooks/useResetOn';
-import { useIdleSource, useSkyLocation } from './useIdleBackground';
-import { setCalmIdle, useActiveIdleBackground } from './calmMode';
-import { needsLocation } from '@/lib/idleBackground';
+import { useWallScene } from './useScene';
+import { setCalmIdle } from './calmMode';
 import { IdleDim } from './idleDim';
 
 // Only displays that choose the sky load its star catalogue.
@@ -54,32 +48,39 @@ const NightSky = React.lazy(() => import('./nightSky/NightSky').then((m) => ({ d
 
 /**
  * Wrapper classes that make any dashboard widget legible as a screensaver
- * overlay: transparent backgrounds, light borders, forced white text, and a
- * soft shadow so content remains readable over bright photos.
+ * overlay: transparent backgrounds (wallpaper shows through), a faint frosted
+ * card, light borders, and — the important part — forced white text with a soft
+ * shadow so nothing goes dark-on-dark (or washes out over a bright photo).
+ * Shared by the live screensaver and the editor's screensaver preview.
  */
 export const SCREENSAVER_WIDGET_CLASS =
   'h-full w-full ' +
-  '**:bg-transparent! [&_.bg-card]:bg-white/10! [&_.border-border]:border-white/20! ' +
+  '**:bg-transparent! [&_.bg-card]:bg-white/10! ' +
   // Force white text for legibility over the photo — EXCEPT elements marked
   // data-keep-color (e.g. the birthdays "days until" urgency coloring), which
   // keep their own color but still get the shadow.
-  '[&_*:not([data-keep-color])]:text-(--ss-ink)! **:[text-shadow:0_1px_4px_rgba(0,0,0,0.75)]';
+  '[&_*:not([data-keep-color])]:text-(--ss-ink)! **:[text-shadow:0_1px_4px_rgba(0,0,0,0.75)] ';
+
+/**
+ * The widget outlines on the photo frame, as the screen's "Widget outlines"
+ * setting says: light borders when on, only the perimeter cleared when off
+ * (see .prism-no-outline in globals.css). The wall and the editor's preview
+ * both use this, so the preview shows what the wall will.
+ */
+export function screensaverOutlineClass(outlines: boolean): string {
+  return outlines ? '[&_.border-border]:border-white/20!' : 'prism-no-outline';
+}
 
 // Re-export storage utilities for consumers
 export {
   DEFAULT_SCREENSAVER_LAYOUT,
-  loadScreensaverLayout,
-  saveScreensaverLayout,
   getScreensaverPresets,
   saveScreensaverPreset,
   deleteScreensaverPreset,
 } from './screensaverStorage';
 
-export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
+export function Screensaver() {
   const { isIdle: idleNow } = useIdleDetection();
-  // Minimal is the level that shows a single static photo (see perfLevel.ts).
-  const perfLevel = usePerformanceLevel();
-  const performanceMode = perfLevel === 'minimal';
   // Away and Babysitter are deliberate, someone-chose-this states, and each
   // puts its own full-screen overlay up. The screensaver is rendered after both
   // in LazyOverlays, so on an untouched display it simply covered them: a home
@@ -91,20 +92,18 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
   // has touched anything — so it yields to both.
   const { isAway } = useAwayMode();
   const { isActive: isBabysitter } = useBabysitterMode();
-  // LazyOverlays owns the first idle hook so it can avoid mounting this heavy
-  // tree on every page. Pass that state through when it mounts us: otherwise
-  // the activation event has already fired before this second hook exists.
-  const idle = shouldShowScreensaver({
-    idle: idleOverride ?? idleNow,
-    away: isAway,
-    babysitter: isBabysitter,
-  });
-  // What shows behind it (#782), which can change with the time of day. When
-  // it is the dashboard itself (calm mode, #691) this decides when, and the
-  // dashboard does the showing, so there is no overlay to put up.
-  const background = useActiveIdleBackground();
-  const { lat, lon, eclipse } = useSkyLocation(needsLocation(background));
-  const source = useIdleSource(background, lat, lon, idle);
+  // Never idle while a dashboard is being edited here (#1342).
+  const editing = useEditing();
+  // What shows behind it (#782), which can change with the time of day. It is
+  // the screen's own day (#1345), so a switch to another dashboard does not
+  // change it. When it is the dashboard itself (calm mode, #691) this decides
+  // when, and the dashboard does the showing, so there is no overlay to put
+  // up. One function says what the screen shows (#1344): the look, night and
+  // the dim.
+  const scene = useWallScene({ idle: idleNow, away: isAway, sitter: isBabysitter, editing });
+  const { lat, lon, eclipse, night } = scene;
+  const idle = scene.state !== 'active';
+  const source = scene.look;
   const calm = source === 'dashboard';
   const showSky = source === 'sky';
   // Under the sky or a black screen there are no photos to load.
@@ -120,21 +119,15 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
   const { pinnedId } = usePinnedPhoto('screensaver');
   const { interval: screensaverInterval } = useScreensaverInterval();
   const screenOrientation = useScreenOrientation();
-  const orientationOverride =
-    typeof window !== 'undefined'
-      ? (localStorage.getItem('prism-orientation-override') as 'landscape' | 'portrait' | null) ||
-        null
-      : null;
+  const orientationOverride = typeof window !== 'undefined'
+    ? (localStorage.getItem('prism-orientation-override') as 'landscape' | 'portrait' | null) || null
+    : null;
   const effectiveOrientation = orientationOverride || screenOrientation;
-  // Only while the overlay is up: this component stays mounted so the idle dim
-  // layer and the calm handshake exist, but it should not fetch photos for a
-  // dashboard nobody is idling on.
   const { photos } = usePhotos({
     sort: 'random',
-    limit: performanceMode ? 1 : 50,
+    limit: 50,
     usage: 'screensaver',
     orientation: autoOrientation ? effectiveOrientation : undefined,
-    enabled: isIdle,
   });
   // Tell the polling layer the display is covered. On a wall-mounted screen
   // this is the only pause signal that ever fires: document.hidden cannot,
@@ -170,26 +163,18 @@ export function Screensaver({ idleOverride }: { idleOverride?: boolean } = {}) {
   // Use pinned photo if set, otherwise use rotating photos. None at all under
   // the sky, so it loads nothing for as long as it is up.
   const src = noPhotos ? '' : pinnedId
-    ? `/api/photos/${pinnedId}/file${performanceMode ? '?thumb=1' : ''}`
+    ? `/api/photos/${pinnedId}/file`
     : photos[currentIndex]
-      ? `/api/photos/${photos[currentIndex]!.id}/file${performanceMode ? '?thumb=1' : ''}`
+      ? `/api/photos/${photos[currentIndex]!.id}/file`
       : '';
 
-  // Night by the dashboard's one rule (#1152): the warm ink (#929) and the dim.
-  const [nowTick, setNowTick] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNowTick(Date.now()), 60_000);
-    return () => clearInterval(t);
-  }, []);
-  useResetOn(idle, () => setNowTick(Date.now()));
-  const night = isNightAt(nightRule(background), new Date(nowTick), lat, lon);
   const tone = usePhotoTone(isIdle && src ? src : null);
   const shadeVars = waterVars(tone, 0.25);
 
   // Over both idle screens, so it is outside the overlay below and stays
   // mounted while a calm dashboard is idle. Same place in both returns, so it
   // keeps its state and eases out on waking.
-  const dim = <IdleDim idle={idle} />;
+  const dim = <IdleDim opacity={scene.dim} />;
   if (!isIdle) return <>{dim}{null}</>;
 
   // Night look "off" (#1152): nothing but black until a touch.
@@ -307,7 +292,9 @@ function giveItBody(clone: HTMLElement) {
 }
 
 function ScreensaverGrid() {
-  const layout = useMemo(() => loadScreensaverLayout(), []);
+  // The arrangement of the dashboard the screen shows (#1346), which follows
+  // that dashboard: an edit from another device arrives without a reload.
+  const layout = usePhotoFrameArrangement();
   // The editor's Screen frame for this screen's orientation: what the layout
   // was sized against, so it is what gets fitted to the screen.
   const { zones } = useScreenSafeZones();
@@ -344,7 +331,7 @@ function ScreensaverGrid() {
   // win on thin clients, so handing those same displays a particle system would
   // be backwards. Both it and prefers-reduced-motion fall back to the plain
   // fade rather than to nothing, so the rotation still reads as intentional.
-  const lowPower = usePerformanceLevel() !== 'full';
+  const lowPower = usePerformanceModeOn();
   const reduced = useMemo(
     () => typeof window !== 'undefined'
       && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
@@ -407,36 +394,23 @@ function ScreensaverGrid() {
   // copy of all of it. The overlay used to be up for seconds at a time, so the
   // waste was a burst; it is worth fixing on a display that is never closed.
   //
-  // deferRest is off because the screensaver's widget set is fixed for as long
-  // as it is mounted, so the usual two-second "enable everything" catch-up has
-  // nothing to catch up on and would simply undo the gating.
+  // deferRest is off because the screensaver's widget set changes only when
+  // its dashboard's arrangement does, and then this set changes with it, so
+  // the usual two-second "enable everything" catch-up has nothing to catch up
+  // on and would simply undo the gating.
   const visibleWidgets = useMemo(
-    () =>
-      new Set(
-        layout.filter((widget) => widget.visible !== false).map((widget) => getWidgetType(widget))
-      ),
-    [layout]
+    () => new Set(layout.filter((w) => w.visible !== false).map((w) => w.i)),
+    [layout],
   );
-  // The screensaver layout is fixed while mounted, so do not defer-enable
-  // domains for widgets that will never be rendered by this overlay.
   const data = useDashboardData(visibleWidgets, { deferRest: false });
-  const widgetProps = useMemo(
-    () =>
-      buildWidgetProps(
-        data,
-        async () => null, // no auth in screensaver
-        {
-          setShowAddTask: () => {},
-          setShowAddMessage: () => {},
-          setShowAddChore: () => {},
-          setShowAddShopping: () => {},
-        },
-        ''
-      ),
-    [data]
-  );
-  const widgetPropsRef = React.useRef(widgetProps);
-  widgetPropsRef.current = widgetProps;
+  const widgetProps = useMemo(() =>
+    buildWidgetProps(
+      data,
+      async () => null, // no auth in screensaver
+      { setShowAddTask: () => {}, setShowAddMessage: () => {}, setShowAddChore: () => {}, setShowAddShopping: () => {} },
+      '',
+    ),
+  [data]);
 
   // Nothing at all until the display's own settings have been read.
   //
@@ -458,25 +432,12 @@ function ScreensaverGrid() {
     const reg = WIDGET_REGISTRY[widgetType];
     if (!reg) return null;
     const Component = reg.component;
-    const rawProps = {
-      ...(widgetPropsRef.current[widgetType] || {}),
-      instanceId: w.i,
-      gridW: w.w,
-      gridH: w.h,
-    };
+    const rawProps = { ...widgetProps[widgetType] || {}, instanceId: w.i, gridW: w.w, gridH: w.h };
     // Strip interactive callbacks — screensaver widgets are display-only
     const {
-      onAddClick: _onAddClick,
-      onAddMeal: _onAddMeal,
-      onListChange: _onListChange,
-      onItemToggle: _onItemToggle,
-      onTaskToggle: _onTaskToggle,
-      onChoreComplete: _onChoreComplete,
-      onEventClick: _onEventClick,
-      onMessageClick: _onMessageClick,
-      onDeleteClick: _onDeleteClick,
-      onMarkCooked: _onMarkCooked,
-      onUnmarkCooked: _onUnmarkCooked,
+      onAddClick, onAddMeal, onListChange, onItemToggle, onTaskToggle,
+      onChoreComplete, onEventClick, onMessageClick, onDeleteClick,
+      onMarkCooked, onUnmarkCooked,
       ...props
     } = rawProps as Record<string, unknown>;
       const on = !effect || showing.includes(w.i);
@@ -489,13 +450,10 @@ function ScreensaverGrid() {
           className={'h-full w-full prism-screensaver-flat '
             // Only the waterline cuts into a widget, so only it needs the room.
             + (waterClear && motion === 'liquid' ? 'prism-water-clear ' : '') + '[&_*:not([data-keep-bg])]:bg-transparent! [&_.bg-card]:bg-white/10! '
-            + (outlines
-              ? '[&_.border-border]:border-white/20!'
-              // Only the perimeter — see .prism-no-outline in globals.css. This
-              // was `**:border-transparent!`, which is every element in the
-              // widget: it wiped the rules between table rows and left the
-              // outline of the card, the exact opposite of what it says.
-              : 'prism-no-outline')}
+            // Only the perimeter when off. This was `**:border-transparent!`,
+            // which is every element in the widget: it wiped the rules between
+            // table rows and left the outline of the card.
+            + screensaverOutlineClass(outlines)}
           prepare={giveItBody}
         >
           <Component {...props} />
@@ -504,15 +462,16 @@ function ScreensaverGrid() {
     );
   };
 
-  // Override renderWidget to inject screensaver text defaults (white text)
-  const renderScreensaverWidget = (w: WidgetConfig) => {
-    const rendered = renderWidget({
-      ...w,
-      textColor: w.textColor || '#FFFFFF',
-      textOpacity: w.textOpacity ?? (w.textColor ? 1 : 0.9),
-    });
-    return rendered ? <div className={SCREENSAVER_WIDGET_CLASS}>{rendered}</div> : null;
-  };
+  // Screensavers float over the wallpaper/photos, so widgets need transparent
+  // backgrounds and LIGHT text — otherwise dark widget text/borders vanish on a
+  // dark background (the CssGridDisplay text-color override alone doesn't reach
+  // widget content that uses its own Tailwind text classes). Force it here, with
+  // a soft shadow so it stays legible over bright photos too.
+  const renderScreensaverWidget = (w: WidgetConfig) => (
+    <div className={SCREENSAVER_WIDGET_CLASS}>
+      {renderWidget(w)}
+    </div>
+  );
 
   return (
     // Scope calendar prefs to 'screensaver' so the screensaver's calendar keeps

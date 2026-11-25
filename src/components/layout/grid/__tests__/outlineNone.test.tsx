@@ -32,9 +32,7 @@ describe('widget Outline: None', () => {
   it('hides the card border and adds none', () => {
     expect(NO_OUTLINE_SELECTOR).not.toBe('');
     const { cell, card } = renderWidget('transparent');
-    // Customized widgets own the shared one-pixel shell on the cell itself;
-    // default widgets keep their card border inside the cell.
-    expect(cell.matches('.prism-outline-none.border-border')).toBe(true);
+    expect(card.matches(NO_OUTLINE_SELECTOR)).toBe(true);
     expect(cell.style.border).toBe('');
   });
 
@@ -46,8 +44,6 @@ describe('widget Outline: None', () => {
   it('still draws a chosen outline colour', () => {
     const { cell, card } = renderWidget('#ff0000');
     expect(card.matches(NO_OUTLINE_SELECTOR)).toBe(false);
-    // Personal widgets use a one-pixel custom shell; an explicit color paints
-    // that shared boundary instead of introducing upstream's thicker border.
-    expect(cell.style.border).toContain('1px solid');
+    expect(cell.style.border).toContain('2px solid');
   });
 });

@@ -1,6 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const port = process.env.PORT ?? '3005';
+// The port the test server runs on. Locally, an existing server on it is
+// reused only when E2E_REUSE_SERVER=1: on a machine that also runs a Prism
+// install, the default port is that install, and a spec must never drive it
+// (#1360). Without the flag, Playwright refuses to start when the port is taken.
+const port = process.env.E2E_PORT || '3000';
 const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({
@@ -11,7 +15,15 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // A local run used to inherit Playwright's default worker count, which is
+  // half the CPU count - three browsers at once on a six-core box. On
+  // 2026-11-24 that drove three global OOM kills on the dev host: the kernel
+  // took chrome-headless each time (Chrome raises its renderers'
+  // oom_score_adj so they are chosen first), and systemd then tore down the
+  // whole tmux scope, taking the shell and the session running the tests with
+  // it. Two browsers halve the peak and still run specs in parallel. Drop to
+  // 1 on a memory-tight machine.
+  workers: process.env.CI ? 1 : 2,
   reporter: 'html',
   use: {
     baseURL,
@@ -30,18 +42,14 @@ export default defineConfig({
     {
       name: 'chromium-chicago',
       testMatch: /calendar-geometry\.spec\.ts/,
-      // Keep the second zone on tests that exercise calendar day boundaries.
-      // Static geometry, text floors, and tile sizing are already covered in
-      // the default Chromium project and do not need a duplicate run.
-      grep: /3 Months folds a busy day|busy days page on the wall|Now & Next widget/,
       use: { ...devices['Desktop Chrome'], timezoneId: 'America/Chicago' },
     },
   ],
   webServer: {
-    // The browser tests run on webpack, the bundler production builds use.
-    // The personal `npm run dev` already runs webpack on the fork's port.
-    command: 'npm run dev',
+    // The browser tests run on webpack, the bundler production builds use;
+    // `npm run dev` is Turbopack for day-to-day work (see devBundler.test.ts).
+    command: `npm run dev:webpack -- -p ${port} -H localhost`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !process.env.CI && process.env.E2E_REUSE_SERVER === '1',
   },
 });

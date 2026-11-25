@@ -22,20 +22,17 @@
 
 'use client';
 
+import { WhatsNew } from './WhatsNew';
 import * as React from 'react';
-import { SideNav } from './SideNav';
+import { Dock } from './Dock';
 import { MobileFab } from './MobileFab';
-import { PortraitNav } from './PortraitNav';
 import { WallpaperBackground } from './WallpaperBackground';
-import { LCARSNavigation, LCARSStatusBar, LCARSStatusFooter } from '@/components/lcars';
-import { useTheme } from '@/components/providers/ThemeProvider';
 import { cn } from '@/lib/utils';
-import { useOrientation } from '@/lib/hooks/useOrientation';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
 import { useInactivityRedirect } from '@/lib/hooks/useInactivityRedirect';
-import { NetworkStatusIndicator } from './NetworkStatusIndicator';
-import { useNoRubberBand } from '@/lib/hooks/useNoRubberBand';
+import { useTheme } from '@/components/providers';
+import { LCARSNavigation, LCARSStatusBar, LCARSStatusFooter } from '@/components/lcars';
 
 /**
  * APP SHELL PROPS
@@ -60,6 +57,30 @@ export interface AppShellProps {
   showWallpaper?: boolean;
   /** Additional CSS classes for main content area */
   className?: string;
+  /**
+   * The wall (#922): in landscape on a larger screen, the rail gives way to
+   * the dock, hidden at rest behind a Menu word. Portrait and phones keep
+   * their own navigation for now (#924).
+   */
+  dock?: 'wall';
+  /** This screen's jobs, for the dock's More panel; left out, the jobs every page can do (#1257). */
+  screenJobs?: React.ReactNode;
+  /** A phone's More > This phone > Cards and Reorder: only on a dashboard of cards, not Today (#1354). */
+  cardTools?: boolean;
+}
+
+/** The page dock's height, 68px, with its 1rem gap and the safe area (#923). */
+export const PAGE_DOCK_ROOM = 'calc(68px + 1.5rem + env(safe-area-inset-bottom, 0px))';
+
+/**
+ * The same room in pixels, for what lays itself out in pixels: the dashboard
+ * keeps it clear when its dock stays on screen (#1232). Read once from the
+ * root font size; a wall has no safe area at its foot.
+ */
+export function usePageDockRoomPx(): number {
+  const [rem] = React.useState(() =>
+    typeof document === 'undefined' ? 14 : parseFloat(getComputedStyle(document.documentElement).fontSize) || 14);
+  return 68 + 1.5 * rem;
 }
 
 /**
@@ -94,12 +115,12 @@ export function AppShell({
   hideNav = false,
   showWallpaper = false,
   className,
+  dock,
+  screenJobs,
+  cardTools = false,
 }: AppShellProps) {
-  const orientation = useOrientation();
   const isMobile = useIsMobile();
-  // Every phone page: no drag past the ends, none at all on a page that fits.
-  useNoRubberBand(isMobile);
-  const { uiHidden } = useAutoHideUI();
+  const { uiHidden, wallDockTucked } = useAutoHideUI();
   const { colorTheme } = useTheme();
   useInactivityRedirect();
   const [measureHideNav, setMeasureHideNav] = React.useState(false);
@@ -119,113 +140,80 @@ export function AppShell({
     return () => window.removeEventListener('prism:measure-mode', handler);
   }, []);
 
-  // Determine which nav to show:
-  // - Mobile (small screens): MobileNav (simplified)
-  // - Larger screens in landscape: SideNav
-  // - Larger screens in portrait: PortraitNav (bottom drawer)
-  const showSideNav = !isMobile && orientation === 'landscape';
-  const showPortraitNav = !isMobile && orientation === 'portrait';
-  const showMobileNav = isMobile;
-  const portraitNavShown = !hideNav && showPortraitNav && !measureHideNav && !uiHidden;
-
+  // One navigation everywhere (#924): the wall's dock on a dashboard on a
+  // larger screen, in either orientation; the dock on screen everywhere else,
+  // phones included. The rail and the portrait bar are gone. With this
+  // screen's Auto-hide navigation off, a dashboard keeps the dock on screen
+  // too, as every other page does (#1232).
+  const wallDock = dock === 'wall' && !isMobile && wallDockTucked;
   const isLCARS = colorTheme === 'lcars';
   const chromeHidden = uiHidden || measureHideNav;
   const showLCARSChrome = isLCARS && !hideNav;
   const lcarsMainStyle: React.CSSProperties | undefined = showLCARSChrome
     ? {
         paddingTop: chromeHidden ? 0 : 'var(--lcars-status-height)',
-        paddingBottom: chromeHidden
-          ? 0
-          : showPortraitNav
-            ? 'calc(var(--lcars-footer-height) + 6rem)'
-            : 'var(--lcars-footer-height)',
-        marginLeft: !chromeHidden && showSideNav ? 'var(--lcars-nav-width)' : 0,
+        paddingBottom: chromeHidden ? 0 : 'var(--lcars-footer-height)',
+        marginLeft: !chromeHidden && !isMobile ? 'var(--lcars-nav-width)' : 0,
       }
     : undefined;
+  const pageDockShown = !hideNav && !wallDock && !measureHideNav && !isLCARS;
+  const showMobileNav = isMobile;
 
   return (
     <div
-      className={cn(
-        'relative min-h-(--app-vh,100vh)',
-        !isLCARS && 'wall-display',
-        isLCARS && 'lcars-shell',
-        (!showWallpaper || isLCARS) && 'bg-background'
-      )}
+      className={cn('relative min-h-[var(--app-vh,var(--screen-h,100dvh))]', !showWallpaper && 'bg-background', isLCARS && 'lcars-shell bg-background')}
       data-layout-theme={isLCARS ? 'lcars' : 'standard'}
       data-chrome-hidden={showLCARSChrome && chromeHidden ? 'true' : undefined}
+      // The dock's height (68px, its 1rem gap and the safe area), for the page
+      // to reserve and for anything else fixed at the foot to sit above (#923).
+      style={lcarsMainStyle ?? (pageDockShown ? ({ '--nav-bottom': PAGE_DOCK_ROOM } as React.CSSProperties) : undefined)}
     >
-      {/* LCARS renders its own network readout in the status bar. */}
-      {!isLCARS && <NetworkStatusIndicator />}
-
       {/* WALLPAPER BACKGROUND (only on dashboard/screensaver) */}
       {showWallpaper && !isLCARS && <WallpaperBackground />}
 
       {showLCARSChrome && <LCARSStatusBar hidden={chromeHidden} />}
-
-      {/* SIDE NAVIGATION - landscape mode on larger screens */}
-      {!isLCARS && !hideNav && showSideNav && (
-        <SideNav
-          user={user}
-          onLogout={onLogout}
-          onLogin={onLogin}
-          uiHidden={uiHidden || measureHideNav}
-        />
+      {showLCARSChrome && !isMobile && (
+        <LCARSNavigation user={user} onLogout={onLogout} onLogin={onLogin} hidden={chromeHidden} />
       )}
 
-      {showLCARSChrome && showSideNav && (
-        <LCARSNavigation user={user} onLogout={onLogout} onLogin={onLogin} hidden={chromeHidden} />
+      {/* THE DOCK ON EVERY OTHER PAGE (#923) */}
+      {pageDockShown && <Dock mode="page" user={user} onLogin={onLogin} onLogout={onLogout} screenJobs={screenJobs} cardTools={cardTools} />}
+
+      {/* THE DOCK ON THE WALL (#922) */}
+      {!hideNav && wallDock && !measureHideNav && (
+        <Dock mode="wall" user={user} onLogin={onLogin} onLogout={onLogout} screenJobs={screenJobs} />
       )}
 
       {/* MAIN CONTENT AREA */}
       <main
         className={cn(
-          'min-h-(--app-vh,100vh)',
-          !isLCARS && 'wall-main',
+          'min-h-[var(--app-vh,var(--screen-h,100dvh))]',
           isLCARS && 'lcars-main',
           // Snap margin/padding when nav hides — animating layout properties causes
           // layout reflow on every frame, which is expensive on weak CPUs (Atom).
           // The nav itself slides smoothly via GPU-composited transform; the content
           // just needs to reflow once when the class changes.
-          !isLCARS && !hideNav && showSideNav && !measureHideNav && !uiHidden && 'ml-16',
-          !isLCARS && portraitNavShown && 'pb-(--nav-bottom)',
+          pageDockShown && 'pb-(--nav-bottom)',
           className
         )}
-        // Height of the fixed bottom nav (PortraitNav: 5.5rem = 88px and
-        // the safe area). Full-height pages size themselves with `h-page`, which
-        // subtracts it, so nothing sits under the nav.
-        style={
-          portraitNavShown
-            ? ({
-                ...lcarsMainStyle,
-                '--nav-bottom': 'calc(5.5rem + env(safe-area-inset-bottom, 0px))',
-              } as React.CSSProperties)
-            : lcarsMainStyle
-        }
+        // Height of the dock (68px plus its 1rem gap and the safe area).
+        // Full-height pages size themselves with `h-page`, which subtracts it,
+        // so nothing sits under the dock and a list's last row can always
+        // scroll clear (#923).
+
       >
         {children}
       </main>
 
-      {showLCARSChrome && <LCARSStatusFooter hidden={chromeHidden} navOffset={showPortraitNav} />}
+      {showLCARSChrome && <LCARSStatusFooter hidden={chromeHidden} />}
 
-      {/* PORTRAIT BOTTOM NAVIGATION - portrait mode on larger screens */}
-      {!hideNav && showPortraitNav && (
-        <PortraitNav
-          user={user}
-          onLogin={onLogin}
-          onLogout={onLogout}
-          uiHidden={uiHidden || measureHideNav}
-        />
-      )}
-
-      {/* MOBILE FAB - small screens only */}
+      {/* The phone's round button: the page's Add, or nothing (#1354) */}
       {!hideNav && showMobileNav && (
-        <MobileFab
-          user={user}
-          onLogin={onLogin}
-          onLogout={onLogout}
-          uiHidden={uiHidden || measureHideNav}
-        />
+        <MobileFab uiHidden={uiHidden || measureHideNav} />
       )}
+
+      {/* Once per screen after an update (#1032). */}
+      <WhatsNew />
     </div>
   );
 }

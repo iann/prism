@@ -8,22 +8,24 @@ import { Input } from '@/components/ui/input';
 import { PageWrapper } from '@/components/layout';
 import { SubpageHeader } from '@/components/layout';
 import { useIsMobile } from '@/lib/hooks/useIsMobile';
-import { cn } from '@/lib/utils';
 
-interface HelpSection {
+type HelpSection = {
   id: string;
   title: string;
   desktopOnly?: boolean;
   content: React.ReactNode;
-}
+};
 
 function useSections(isMobile: boolean): HelpSection[] {
   return useMemo(() => {
     const all: HelpSection[] = [
       { id: 'whats-new', title: "What's new", content: <WhatsNewHelp /> },
       { id: 'getting-started', title: 'Getting Started', content: <GettingStarted /> },
+      { id: 'glance', title: 'Glance', content: <GlanceHelp /> },
+      { id: 'getting-around', title: 'Getting Around', content: <GettingAroundHelp /> },
+      { id: 'screens', title: 'Screens & Through the Day', content: <ScreensHelp /> },
       { id: 'roles', title: 'Roles & Permissions', content: <Roles /> },
-      { id: 'dashboard', title: 'Dashboard', desktopOnly: true, content: <DashboardHelp /> },
+      { id: 'dashboard', title: 'Dashboard Editor', desktopOnly: true, content: <DashboardHelp /> },
       { id: 'mobile-dashboard', title: 'Mobile Dashboard', content: <MobileDashboardHelp /> },
       { id: 'calendar', title: 'Calendar', content: <CalendarHelp isMobile={isMobile} /> },
       { id: 'tasks', title: 'Tasks', content: <TasksHelp /> },
@@ -127,7 +129,7 @@ export function HelpView() {
               <button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
-                className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-card dark:bg-card/85 hover:bg-accent transition-colors text-left"
+                className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-card/85 hover:bg-accent transition-colors text-left"
               >
                 <span className="font-medium text-sm">{section.title}</span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -180,17 +182,95 @@ function GettingStarted() {
     <>
       <P>Prism is a free, self-hosted family dashboard that brings together calendars, tasks, chores, shopping lists, meals, photos, and more into one shared hub.</P>
       <H2>First-Time Setup</H2>
+      <P>The setup wizard asks for your family, a <strong>calendar link</strong> (a webcal:// or .ics address; add as many as you like) and a look: <strong>Photo</strong>, <strong>Night</strong> or <strong>Paper</strong>. It ends on <strong>Glance</strong>, the built-in front page. A new install hides Wishes, Travel and Weekend; turn them on in Settings &gt; Features.</P>
       <Ul>
         <Li><strong>Add family members</strong> in Settings &gt; Family Members</Li>
         <Li><strong>Set a PIN</strong> (4 or 6 digits) for each member, chosen during the setup wizard on a fresh install, or later in Settings &gt; Security. Each member&apos;s PIN length is independent; there is no shared family PIN.</Li>
         <Li><strong>Or an alphanumeric PIN</strong>: a member can sign in with a passcode of 6 to 12 lowercase letters and numbers instead. Edit the member in Settings &gt; Family Members and choose <strong>Passcode</strong> under <strong>Signs in with</strong>.</Li>
         <Li><strong>Connect integrations</strong> (Google, Microsoft, Apple/CalDAV, weather) in Settings &gt; Integrations</Li>
-        <Li><strong>Customize your dashboard</strong> layout using the Edit button</Li>
+        <Li><strong>Change what the front page shows</strong> from More &gt; Edit layout</Li>
         <Li><strong>Install as an app</strong> on phones and tablets for quick access</Li>
       </Ul>
       <H2>Logging In</H2>
       <P>Tap a family member&apos;s avatar, then enter their PIN (4 or 6 digits, depending on how it was set). It auto-submits once the PIN is complete. Keyboard input (0-9, Backspace) also works.</P>
       <P>For a member with an alphanumeric PIN, tap <strong>ABC</strong> on the pad to show the letters, and <strong>123</strong> to go back to the numbers. Letters can be typed on a keyboard too.</P>
+    </>
+  );
+}
+
+function GlanceHelp() {
+  return (
+    <>
+      <P>Glance is the built-in front page. It shows the day as one scene over your photos: the clock and the date, the weather, <strong>Next</strong> and <strong>Later today</strong>, and the coming days written as sentences. Tap an event to open it.</P>
+      <P>Quiet lines sit at the bottom right. One says how many chores are left, with a ring to tick each one. One gives the shopping list&apos;s count, with a plus to add to it. When a birthday is near, one offers to put mailing a card on the to-do list, with <strong>Add it</strong> or <strong>Not now</strong>. A line with nothing to say drops out.</P>
+
+      <H2>Choosing what it shows</H2>
+      <P>Glance places each part where it belongs, so you choose what shows and it finds the spot. Open More &gt; Edit layout &gt; Widgets:</P>
+      <Ul>
+        <Li><strong>Show</strong> turns a part on or off: Clock and date, Weather, The day and the coming days, Birthday nudge, Chores left, and Shopping list</Li>
+        <Li><strong>Stays when resting</strong> keeps a part on screen when nobody is using it</Li>
+        <Li><strong>Show the day as an arc</strong> draws the sun&apos;s path across the day, with the moon on it at night</Li>
+        <Li><strong>Days ahead</strong> (1 to 7) and <strong>Text size</strong> (Normal, Large, Larger)</Li>
+      </Ul>
+      <P>In More &gt; Edit layout &gt; Dashboard, Glance is marked <strong>Built in</strong>. It cannot be deleted. <strong>Reset to default</strong> puts it back as it came, and <strong>Make a copy</strong> starts a dashboard of your own from it. If Glance is not there yet, the list shows it with <strong>Add</strong>.</P>
+      <H2>Resting and night</H2>
+      <P>When nobody is using the screen, Glance goes calm: the parts not set to stay fade away. At night the words turn a warm ink over a darker photo.</P>
+    </>
+  );
+}
+
+function GettingAroundHelp() {
+  return (
+    <>
+      <P>The bar along the bottom of the screen holds your main pages. <strong>Home</strong> is the dashboard.</P>
+      <Ul>
+        <Li><strong>More</strong>, on the bar, opens everything else in three groups: <strong>This screen</strong> (Edit layout, Reload, Away mode, Babysitter mode and Screensaver), <strong>Pages</strong> (the pages not on the bar), and <strong>Prism</strong> (Settings, Help, and Sign in). On a phone the groups are <strong>Pages</strong>, <strong>This phone</strong> (Cards, Reorder and Reload), <strong>Screens</strong> (Edit a screen, Away mode and Babysitter mode) and <strong>Prism</strong></Li>
+        <Li><strong>Sign in</strong> is also at the end of the bar. Once someone is signed in, it shows their name; tap it to sign out</Li>
+        <Li><strong>Choose the bar&apos;s pages</strong> in Settings &gt; Features: tick <strong>On the dock</strong> for up to five pages beside Home. The rest are in More</Li>
+      </Ul>
+      <H2>On a wall screen</H2>
+      <P>On a dashboard, the screen&apos;s <strong>Auto-hide navigation</strong> decides how the bar behaves. It is in More &gt; Edit layout &gt; Look, under <strong>This screen</strong>. On, the bar hides behind a small <strong>Menu</strong> tab on the bottom edge and comes back with a tap. Off, it stays on screen and the dashboard ends above it. Every other page keeps the bar on screen.</P>
+      <H2>On a phone</H2>
+      <P>The bar holds five pages and More, and Sign in is in More. Swipe in from the left or right edge of the screen to go to the page before or after on the bar.</P>
+      <P>A phone is not a screen, so from a phone you edit a screen, never the phone. More &gt; Edit a screen, under <strong>Screens</strong>, asks for a parent&apos;s PIN and opens a screen&apos;s editor: with one named screen, that screen; with two or more, Settings &gt; Screens to pick one; with none, the default dashboard. The editor shows the screen at its own size and says, under its title, which screen you are editing. A signed-in child has no Edit a screen.</P>
+    </>
+  );
+}
+
+function ScreensHelp() {
+  return (
+    <>
+      <P>A screen is a device with a name, such as Kitchen. Each screen shows one dashboard, can switch to another for a while, and keeps its own settings. Everything about a screen is set in its editor.</P>
+
+      <H2>Naming a screen</H2>
+      <P>On the device itself, open More &gt; Edit layout &gt; Screen and choose <strong>Name this device</strong>. If it had a name before (after a browser reset, say), pick it under <strong>Or it is</strong> to take back its name and settings. A device nobody named shows the default dashboard.</P>
+
+      <H2>Settings &gt; Screens</H2>
+      <P>Lists every named screen, whether it is online, and the dashboard it shows. <strong>Rename</strong> and <strong>Remove</strong> are here. <strong>Edit</strong> opens that screen&apos;s editor, from the screen or from a phone, with a live picture of the screen. <strong>Done</strong> sends the changes, and a screen that is on shows them in a few seconds.</P>
+
+      <H2>Screen</H2>
+      <P>More &gt; Edit layout &gt; Screen, the first tab, is the screen being edited.</P>
+      <Ul>
+        <Li><strong>Screen</strong>: every named screen, set to the one being edited. Pick another to edit it instead. With changes not saved, the editor asks first. The pencil beside it renames the screen: type the name and press Enter (Esc keeps the old one)</Li>
+        <Li><strong>Base dashboard</strong>: the dashboard this screen shows, except while a switch is on</Li>
+        <Li><strong>Switches</strong> &gt; <strong>Switch at bus time</strong>, if bus tracking is set up (Settings &gt; Bus): shows another dashboard around a bus route&apos;s time, from some minutes before to some minutes after. With several routes, pick the ones it follows</Li>
+        <Li><strong>Switches</strong> &gt; <strong>Switch at set times</strong>: shows another dashboard from one time to another, on the days you pick. If two switches overlap, the higher one wins</Li>
+        <Li><strong>Stays awake</strong>, on each switch&apos;s row: while that switch is on, the screen does not go idle, and one that starts while the screen is idle wakes it on the switch&apos;s dashboard. On for bus time and off for set times to begin with</Li>
+        <Li><strong>When nobody is using it</strong>: <strong>Rest after</strong>, how long nobody touches the screen before it rests, and <strong>How dark</strong>, how far it dims at night</Li>
+        <Li><strong>Light and photos</strong>: <strong>Light or dark</strong>, <strong>Photos behind the dashboard</strong> (Shown or Hidden) and <strong>New photo every</strong></Li>
+      </Ul>
+      <P>A dashboard you open by hand stays until the screen next goes idle, or until a switch starts or ends; then the screen shows its own again. The screen never goes idle while its editor is open, on the screen or from a phone.</P>
+      <P>These belong to the screen, and so do its seasonal theme, its pinned photos and which time zone it shows, set on the screen in Settings. Two screens can show the same dashboard, and each keeps its own switches. Editing a dashboard with no screen, from a phone say, the Screen drop-down says <strong>No screen</strong> (or <strong>This device (not named)</strong>, with <strong>Name this device</strong> below it) and lists the screens.</P>
+
+      <H2>Through the day</H2>
+      <P>More &gt; Edit layout &gt; Through the day sets how the screen idles and what it shows at night.</P>
+      <Ul>
+        <Li><strong>The day&apos;s line</strong> has a dot wherever what the screen shows changes: night starting and ending, and each of the screen&apos;s switches. Tap a dot, or step with ◀ ▶, to see the screen at that moment. Tapping a switch&apos;s dot opens it in Screen</Li>
+        <Li><strong>Resting</strong>: what shows when nobody is using the screen: <strong>This dashboard</strong>, <strong>Photos</strong> or <strong>Night sky</strong>. <strong>See it</strong> shows it on the canvas</Li>
+        <Li><strong>At night</strong>: <strong>Dim this dashboard</strong>, <strong>Night sky</strong>, <strong>Photos</strong> or <strong>Screen off</strong>. Night runs from dusk to dawn, moved earlier or later if you like, or at set times</Li>
+      </Ul>
+      <P>Idle and night belong to the screen, not to the dashboard it shows, so a switch to another dashboard does not change how the screen idles. Done saves them to the screen. A device with no name uses the household&apos;s starting day until it sets its own; a screen named on it keeps that day. On a new install that is the dashboard, quieter, from dusk to dawn, 50% darker at night.</P>
+      <P><strong>Notices</strong>, small cards at the side of the screen when something is close, are in the editor&apos;s <strong>More</strong>.</P>
     </>
   );
 }
@@ -223,54 +303,65 @@ function Roles() {
 function DashboardHelp() {
   return (
     <>
-      <P>The dashboard displays live data through customizable widgets on a 48-column grid layout.</P>
+      <P>A dashboard of your own places widgets on a 48-column grid. Glance, the built-in front page, places its parts itself (see the Glance help section).</P>
 
       <H2>Available Widgets</H2>
       <P>Clock, Weather, Calendar, Tasks, Chores, Shopping, Meals, Messages, Photos, Points/Goals, Birthdays, Wishes, and Bus Tracker.</P>
 
-      <H2>Editing the Layout</H2>
+      <H2>Opening the Editor</H2>
+      <P>Open More &gt; Edit layout (parents only). The editor shows the dashboard on a canvas, with a panel beside it and six tabs:</P>
       <Ul>
-        <Li>Tap the <strong>grid icon</strong> (four squares) in the dashboard header to enter edit mode (parent only)</Li>
-        <Li><strong>Drag</strong> widgets to reposition, <strong>resize</strong> by dragging corner handles</Li>
-        <Li>Use the <strong>Widgets</strong> button to show/hide widgets and adjust their coordinates</Li>
-        <Li>Click a widget to select it, then use the <strong>properties toolbar</strong> to adjust background color, opacity, outline, text color, and text size</Li>
-        <Li>Load a pre-designed arrangement from the <strong>Templates</strong> button (see below)</Li>
-        <Li><strong>Save</strong> to overwrite the current layout, or use the dropdown arrow for <strong>Save As</strong> to create a named copy</Li>
+        <Li><strong>Screen</strong>: the screen being edited: its name, the dashboard it shows, its switches, <strong>Rest after</strong> and <strong>How dark</strong>, and the other screens, to edit one instead (see the Screens &amp; Through the Day help section)</Li>
+        <Li><strong>Dashboard</strong>: every dashboard, to open another; <strong>New dashboard</strong>, <strong>Make a copy</strong>, <strong>Rename</strong>, <strong>Make the default</strong> and <strong>Delete</strong></Li>
+        <Li><strong>Widgets</strong>: show or hide each widget and set its place; <strong>Start from a template</strong>; <strong>Browse the community gallery</strong></Li>
+        <Li><strong>Through the day</strong>: what the dashboard shows when resting and at night, and the day&apos;s line</Li>
+        <Li><strong>Look</strong>: the <strong>Screen shape</strong>, <strong>See it at a screen size</strong>, and this screen&apos;s own settings under <strong>This screen</strong></Li>
+        <Li><strong>More</strong>: the <strong>Overview</strong>, <strong>Export</strong>, <strong>Import</strong>, <strong>Share to the gallery</strong> and <strong>Reset this layout</strong></Li>
+      </Ul>
+      <P>Everything in the editor waits for <strong>Done</strong>, which saves it all; <strong>Cancel</strong> leaves without saving any of it. A dot on a tab means it has changes not saved yet.</P>
+      <P>Opening another dashboard (More &gt; Edit layout &gt; Dashboard) or another screen (More &gt; Edit layout &gt; Screen) with changes not saved asks first: <strong>Save and switch</strong>, <strong>Discard</strong> or <strong>Stay</strong>.</P>
+
+      <H2>Arranging Widgets</H2>
+      <Ul>
+        <Li><strong>Drag</strong> a widget to move it. Tap it again for resize mode, then drag its corner handles</Li>
+        <Li>Pick a widget on the screen or in the list in the <strong>Widgets</strong> panel (More &gt; Edit layout &gt; Widgets); its settings are below the list, and Widgets comes forward if another panel is open. The &times; beside a name in the list hides that widget. The settings are <strong>Fill</strong> and <strong>Outline</strong> colour and opacity, <strong>Text</strong> colour, size and, for the clock and weather, <strong>Align</strong>, the calendar&apos;s <strong>Grid</strong>, <strong>Hide when empty</strong> (hidden while it has nothing to show) and <strong>Hide first on a small screen</strong>. The canvas shows only the screen</Li>
+        <Li><strong>Apply to all widgets</strong>, under Fill, Outline and Text (Edit layout &gt; Widgets, with a widget picked), puts that widget&apos;s fill, outline, or text colour and size on every widget, and says how many differ. To turn outlines off everywhere, pick <strong>None</strong> under Outline, then <strong>Apply to all widgets</strong>. A widget added new takes the look the others all share</Li>
+        <Li>With a widget selected, <strong>Delete</strong> or <strong>Backspace</strong> removes it (the toast has Undo), and the arrow keys move it, or resize it in resize mode</Li>
       </Ul>
 
       <H2>Starter Templates</H2>
-      <P>The <strong>Templates</strong> button offers six built-in dashboards: <strong>Family Central</strong>, <strong>Calendar Focus</strong>, <strong>Command Center</strong>, <strong>Meal Planner</strong>, <strong>School Mornings</strong>, and a photo-forward <strong>Ambient</strong>. Each is built around a single hero widget (usually the calendar) with the other widgets sized to their natural shape and grouped into a couple of balanced zones, a starting point you then rearrange. Every template ships in both landscape and portrait versions, and the screensaver has its own matching set.</P>
+      <P>Widgets &gt; <strong>Start from a template</strong> offers six built-in dashboards: <strong>Family Central</strong>, <strong>Calendar Focus</strong>, <strong>Command Center</strong>, <strong>Meal Planner</strong>, <strong>School Mornings</strong>, and a photo-forward <strong>Ambient</strong>. Each is built around a single hero widget (usually the calendar) with the other widgets sized to their natural shape and grouped into a couple of balanced zones, a starting point you then rearrange. A template asks first, since it replaces every widget with its place, fill, outline and text. Every template ships in both landscape and portrait versions, and the resting layout has its own matching set.</P>
 
-      <H2>Mini-map &amp; Validation</H2>
-      <P>Click <strong>Mini-map</strong> in the left toolbar to see a miniature map of your layout. It highlights widget positions and flags any issues like overlapping or undersized widgets. Click on the mini-map to scroll the grid to that area. A separate <strong>device preview gallery</strong> shows how your one design looks on each common screen size.</P>
+      <H2>Overview</H2>
+      <P>More &gt; <strong>Overview</strong> shows a small map of your layout. It highlights widget positions and flags issues like overlapping or undersized widgets. Click the map to scroll the canvas to that spot. To see the layout at another screen&apos;s size, use <strong>Shown at</strong> above the canvas.</P>
 
-      <H2>Preview Mode</H2>
-      <P>Click <strong>Preview</strong> in the toolbar (or press Ctrl+Shift+M) to temporarily hide the editor toolbar and see your layout as it will actually appear; click <strong>Exit Preview</strong> to return. Use the &quot;Show Nav / Hide Nav&quot; toggle to check how it looks with and without the navigation sidebar. This is useful for fine-tuning layouts on dedicated displays.</P>
-      <P>For a permanent clean look, enable <strong>Auto-Hide Navigation</strong> in Settings &gt; Appearance. The nav and toolbar will automatically hide after a period of inactivity and reappear on click or keyboard input. Interactions inside floating cards, popovers, or dialogs, such as media playback controls or a confirmation dialog, keep the navigation hidden; interactions elsewhere restore it.</P>
+      <H2>Seeing It at a Screen Size</H2>
+      <P>Look &gt; <strong>See it at a screen size</strong> (or Ctrl+Shift+M) hides the editor and shows the layout as it will appear. <strong>Show Nav</strong> or <strong>Hide Nav</strong> shows it with or without the bar along the bottom; <strong>Exit Preview</strong> goes back to the editor.</P>
+      <P>Each screen chooses how the bar behaves on a dashboard with <strong>Auto-hide navigation</strong>, in Look under <strong>This screen</strong>. On, the bar hides behind a small <strong>Menu</strong> tab on the bottom edge and comes back with a tap. Off, it stays on screen and the dashboard ends above it.</P>
 
-      <H2>Screensaver Layout</H2>
-      <P>Each dashboard has its own screensaver layout. In edit mode, click the <strong>Screensaver</strong> button to switch to editing the screensaver widget arrangement. The screensaver activates after a configurable idle period (Settings &gt; Appearance &gt; Timers &amp; Auto-Activation) and shows a photo slideshow with your chosen widgets overlaid. Its templates keep the calendar, or tonight&apos;s meals, as the hero, with small clock, weather, and message accents floating over one clean photo region so the wallpaper stays the star.</P>
+      <H2>Resting Layout</H2>
+      <P>Each dashboard has its own layout for when the screen rests over photos or the night sky. In Through the day, set <strong>Resting</strong> to Photos or Night sky, press <strong>See it</strong>, then open <strong>Widgets</strong> to arrange what shows over it; step to night on the day&apos;s line to arrange the night. <strong>Rest after</strong>, in Screen, sets how long the screen waits. The resting templates keep the calendar, or tonight&apos;s meals, as the hero, with small clock, weather, and message accents floating over one clean photo region so the wallpaper stays the star.</P>
 
       <H2>Import, Export &amp; Community Layouts</H2>
       <Ul>
-        <Li><strong>Community gallery</strong>: Click <strong>Community</strong> in the editor toolbar to browse layouts shared by other Prism users. Search by name and filter by <strong>orientation</strong> (Landscape/Portrait, pre-set to the dashboard you&apos;re editing), preview each as a thumbnail, then <strong>Apply layout</strong> to drop it onto a new dashboard.</Li>
-        <Li><strong>Share</strong>: Submit your own layout (More &gt; Share). Fill in the details and submit; Prism opens a pre-filled submission, and once it&apos;s approved your layout appears in the gallery.</Li>
+        <Li><strong>Community gallery</strong>: Widgets &gt; <strong>Browse the community gallery</strong> shows layouts shared by other Prism users. Search by name and filter by <strong>orientation</strong> (Landscape/Portrait, pre-set to the dashboard you&apos;re editing), preview each as a thumbnail, then <strong>Apply layout</strong>, which asks first, since it replaces every widget and its look.</Li>
+        <Li><strong>Share</strong>: Submit your own layout (More &gt; Share to the gallery). Fill in the details and submit; Prism opens a pre-filled submission, and once it&apos;s approved your layout appears in the gallery.</Li>
         <Li><strong>Export</strong>: Copy your current layout as JSON to share it directly (More &gt; Export)</Li>
         <Li><strong>Import</strong>: Paste a layout JSON to load someone else&apos;s design (More &gt; Import)</Li>
-        <Li><strong>Reset</strong>: Revert unsaved edits back to the last saved layout (More &gt; Reset)</Li>
+        <Li><strong>Reset</strong>: Start again from the default arrangement (More &gt; Reset this layout). Cancel still leaves without saving</Li>
       </Ul>
 
       <H2>Multiple Dashboards</H2>
-      <P>Create separate dashboards for different rooms or displays. Click the dashboard name dropdown in the editor toolbar to switch between dashboards or create new ones.</P>
+      <P>Create separate dashboards for different rooms or displays. The <strong>Dashboard</strong> tab lists them all; tap one to edit it, or <strong>New dashboard</strong> to create one.</P>
       <Ul>
-        <Li>Default dashboard lives at <strong>/</strong>: make any dashboard the default via <strong>More &gt; Set as Default</strong></Li>
+        <Li>Default dashboard lives at <strong>/</strong>: make any dashboard the default with <strong>Dashboard &gt; Make the default</strong>, then <strong>Done</strong></Li>
         <Li>Named dashboards get URLs like <strong>/d/kitchen</strong> or <strong>/d/living-room</strong></Li>
-        <Li>Each has independent widget layout, screensaver layout, and orientation (landscape/portrait)</Li>
-        <Li>Bookmark a dashboard URL on a dedicated device for instant access</Li>
+        <Li>Each has independent widget layout, resting layout, and orientation (landscape/portrait)</Li>
+        <Li>Each named screen picks the dashboard it shows (Screen &gt; Base dashboard, or Settings &gt; Screens)</Li>
       </Ul>
 
       <H2>Orientation</H2>
-      <P>Toggle between <strong>Landscape</strong> and <strong>Portrait</strong> mode using the orientation button in the editor toolbar. This flips the design canvas between the landscape and portrait frame so you can lay out each orientation for your display.</P>
+      <P>Look &gt; <strong>Screen shape</strong> switches between <strong>Landscape</strong> and <strong>Portrait</strong>. This flips the design canvas between the landscape and portrait frame so you can lay out each orientation for your display.</P>
     </>
   );
 }
@@ -278,9 +369,11 @@ function DashboardHelp() {
 function MobileDashboardHelp() {
   return (
     <>
-      <P>On phones, the dashboard shows a simplified single-column layout with summary cards for weather, calendar, chores, tasks, shopping, meals, messages, and birthdays.</P>
-      <P>Tap any card to navigate to the full page for that feature.</P>
-      <P>The round menu button in the corner holds two card controls: <strong>Cards</strong> lists every card, so you can hide the ones you do not use or bring back a hidden one, and <strong>Reorder</strong> lets you drag the cards into a new order (tap <strong>Done</strong> when finished). Both are saved on that phone only.</P>
+      <P>On a phone, Glance shows a page of its own: the time and the weather on top, then today as a list (Next, then Later today), the coming days as sentences, and the chores and shopping lines. Tap an event to open it.</P>
+      <P>Any other dashboard shows a single column of summary cards for weather, calendar, chores, tasks, shopping, meals, messages, and birthdays. Tap a card to open the full page for that feature.</P>
+      <P>The round button at the bottom right is the page&apos;s Add and nothing else. A page with nothing to add, the dashboard among them, has no round button.</P>
+      <P>On a dashboard of cards, More &gt; This phone &gt; <strong>Cards</strong> lists every card so you can hide the ones you do not use or bring back a hidden one, and choose <strong>Rows</strong> or <strong>Tiles</strong>. More &gt; This phone &gt; <strong>Reorder</strong> lets you drag the cards into a new order; tap <strong>Done</strong> on the bar above the dock when finished. Both are saved on that phone only.</P>
+      <P>Sign in is in More.</P>
     </>
   );
 }
@@ -294,14 +387,25 @@ function CalendarHelp({ isMobile }: { isMobile: boolean }) {
       <P>Every family member automatically gets their own personal calendar, plus a shared <strong>Family</strong> calendar, so you can add and assign events right away without connecting anything. Connected accounts (below) simply layer on top.</P>
 
       <H2>Setting Up Connected Calendars</H2>
-      <P>Connect Google, Microsoft, or Apple/CalDAV calendars in <strong>Settings &gt; Integrations</strong> (Google Calendar via OAuth; Apple iCloud via the CalDAV card). Once connected, open the <strong>calendar page and tap Manage</strong> to configure individual calendars, where you can:</P>
+      <P>Connect Google, Microsoft, or Apple/CalDAV calendars in <strong>Settings &gt; Integrations</strong> (Google Calendar via OAuth; Apple iCloud via the CalDAV card). Once connected, open the Calendar page and choose <strong>Manage calendars</strong> in its <strong>View</strong> menu (on a phone, use <strong>Manage calendars</strong> on the Google or iCloud card in Settings &gt; Integrations). There you can:</P>
       <Ul>
         <Li><strong>Enable/disable</strong> individual calendars from showing on the dashboard</Li>
         <Li><strong>Assign to a family member</strong>: each calendar is linked to a person or marked as &quot;Family&quot; (shared)</Li>
         <Li><strong>Set display names</strong>: customize how a calendar appears in the UI</Li>
         <Li><strong>Change colors</strong>: override the default color for any calendar</Li>
+        <Li><strong>Show its events only as &quot;Busy&quot;</strong>: each shows at its time as &quot;Busy&quot;, with no title, description or place</Li>
+        <Li><strong>Birthdays as name and age</strong>: a birthday on that calendar reads as the person&apos;s name and age</Li>
+        <Li><strong>Hide today&apos;s events after</strong> a time of day</Li>
       </Ul>
       <P>Google Calendar is <strong>two-way</strong>: events you add, edit, or delete in Prism are pushed back to the connected Google calendar. (Old <strong>Settings &gt; Connected Accounts</strong> and <strong>Settings &gt; Calendars</strong> links redirect to these locations.)</P>
+
+      <H2>Events</H2>
+      <P>Tap any event to open it. The sheet has <strong>Edit</strong> and <strong>Delete</strong>, and <strong>Hide in Prism</strong>, which hides the event here but leaves it in its calendar; for a repeating event, choose <strong>This event</strong> or <strong>Every event in the series</strong>. Hiding takes a parent&apos;s PIN. Manage calendars lists hidden events under <strong>Hidden events</strong>, to unhide them.</P>
+      <P><strong>Repeat</strong> offers Daily, Weekly, Every weekday, Monthly, Yearly and <strong>Custom…</strong>: every so many days, weeks, months or years, on the weekdays you choose, on a day of the month or a day such as &quot;the third Wednesday&quot;, and ending never, on a date, or after a number of times.</P>
+
+      <H2>Past Events</H2>
+      <P>Events that have ended are dimmed in every view. In Manage calendars, <strong>Past Events</strong> &gt; <strong>Hide ended events in the agenda and list</strong> clears them out of the agenda and list views.</P>
+      <P>On a dashboard, a calendar widget showing the agenda opens at the next event: the one happening now, or the next to start. Events that are over sit above it, dimmed; scroll up to see them. All-day events never count as the next event. When an event ends, the list moves on by itself; after you scroll it, it goes back about 30 seconds after you stop. A list that fits does not scroll. The Calendar page agenda still starts at the top.</P>
 
       <H2>Calendar Groups &amp; Columns</H2>
       <P>In Day and List views, events are organized into <strong>columns by calendar group</strong>. Groups are created automatically based on your calendar assignments:</P>
@@ -311,21 +415,21 @@ function CalendarHelp({ isMobile }: { isMobile: boolean }) {
         <Li>Reorder family members in Settings to change the column order</Li>
         <Li>Use the <strong>Merge/Split</strong> toggle to combine all events into a single column or separate by person</Li>
       </Ul>
-      <P>Filter buttons at the top of the calendar let you show/hide specific calendar groups. Click <strong>All</strong> to show everything.</P>
+      <P>A row of person dots under the header shows or hides each group&apos;s events: a shown one is its dot and name, a hidden one fades to a ring. <strong>All</strong> shows everything.</P>
 
       <H2>Color Coding</H2>
-      <P>Events inherit their color from the calendar source they belong to. When calendars are assigned to family members, each person&apos;s events appear in their column with the calendar&apos;s color. You can customize colors per calendar from the <strong>Manage</strong> overlay on the calendar page. Meals placed on the calendar are marked with a small utensils icon so they stand out from ordinary events.</P>
+      <P>Events inherit their color from the calendar source they belong to. When calendars are assigned to family members, each person&apos;s events appear in their column with the calendar&apos;s color. You can customize colors per calendar in <strong>Manage calendars</strong>. Meals placed on the calendar are marked with a small utensils icon so they stand out from ordinary events.</P>
 
       {!isMobile && (
         <>
           <H2>Views</H2>
-          <P>Agenda, Day, List, Schedule, 2 Weeks, Month, and 3 Months. Switch views using the toolbar buttons. The grid lines toggle (grid icon) shows or hides cell borders across all grid-based views.</P>
+          <P>Agenda, Day, List, Schedule, 2 Weeks, Month, and 3 Months. Pick one from the view picker in the header. The <strong>View</strong> menu has <strong>Grid lines</strong> (cell borders across all grid-based views), <strong>Notes column</strong>, <strong>Merge calendars</strong> and <strong>Reset to defaults</strong>.</P>
 
           <H2>Calendar Notes</H2>
-          <P>Click the sticky note icon to show a notes panel alongside Day or List views. Notes are day-tied, shared across the family, and support formatting shortcuts: Ctrl+B bold, Ctrl+I italic, Ctrl+U underline, Ctrl+Shift+S strikethrough, Ctrl+Shift+L bullet list. Type &quot;- &quot; at the start of a line to auto-convert to a bullet.</P>
+          <P>Turn on <strong>Notes column</strong> in the View menu to show a notes panel alongside Day or List views. Notes are day-tied, shared across the family, and support formatting shortcuts: Ctrl+B bold, Ctrl+I italic, Ctrl+U underline, Ctrl+Shift+S strikethrough, Ctrl+Shift+L bullet list. Type &quot;- &quot; at the start of a line to auto-convert to a bullet.</P>
 
           <H2>Hidden Hours</H2>
-          <P>Hide a time range from day and week views (e.g., midnight to 6 AM). The remaining hours auto-resize to fill the available space. Configure the range from the <strong>Manage</strong> overlay on the calendar page (Calendar Hours), and toggle visibility with the clock button in calendar views.</P>
+          <P>Hide a time range from day and week views (e.g., midnight to 6 AM). The remaining hours auto-resize to fill the available space. Set the range in <strong>Manage calendars</strong> (Calendar Hours), and toggle visibility with the clock button in calendar views.</P>
         </>
       )}
 
@@ -341,23 +445,25 @@ function TasksHelp() {
       <P>Create and manage to-do items with optional assignment, due dates, priorities, and categories.</P>
       <Ul>
         <Li><strong>Add</strong> via the &quot;Add Task&quot; button or inline text input</Li>
-        <Li><strong>Complete</strong> by tapping the checkbox</Li>
+        <Li><strong>Complete</strong> by tapping anywhere on a task</Li>
+        <Li><strong>Edit</strong> with the gear icon on a task</Li>
         <Li><strong>Delete</strong> with the trash icon on a task, or from its edit window (parents only)</Li>
         <Li><strong>Filter</strong> by person, priority, or list</Li>
         <Li><strong>Group by Person</strong> to see tasks organized by family member</Li>
         <Li><strong>Sync</strong> with Microsoft To Do or Google Tasks (configure per-list in Settings &gt; Integrations)</Li>
+        <Li><strong>Subtasks</strong>: Google Tasks subtasks and Microsoft To Do steps come in indented under their task, and ticking one in either place ticks it in the other</Li>
       </Ul>
       <H2>Removed tasks are held for review</H2>
       <P>
         If a task disappears from the app you sync with, Prism keeps it and shows a
         <strong> Review</strong> button on the Tasks page. A parent chooses to delete it
-        or keep it as a local task. If a lot vanish at once — the shape of a connection
-        problem rather than someone tidying up — nothing is flagged and the sync says why,
+        or keep it as a local task. If a lot vanish at once, which looks like a connection
+        problem rather than someone tidying up, nothing is flagged and the sync says why,
         so a bad connection cannot quietly empty your list.
       </P>
       <P>
         Deleting a task in Prism also removes it from the app it syncs with. Your view
-        settings — grouping, sorting and show-completed — are remembered between visits.
+        settings (grouping, sorting and show-completed) are remembered between visits.
       </P>
     </>
   );
@@ -367,6 +473,9 @@ function ChoresHelp() {
   return (
     <>
       <P>Family chores with an approval workflow and point system.</P>
+      <H2>What to Do</H2>
+      <P>The Chores page opens on what to do: <strong>Due today</strong> (late ones and those with no due date included), <strong>Tomorrow</strong> and <strong>Later this week</strong>, each with the person&apos;s dot. Tap a chore to tick it; it leaves the list, and the toast has <strong>Undo</strong>. A chore waiting for a parent shows on one line with <strong>Approve</strong>.</P>
+      <P>Setting chores up is under <strong>Manage</strong>: every chore with its switch, points and category, the filters, and Group by Person. <strong>Done</strong> goes back to the list.</P>
       <H2>How It Works</H2>
       <Ul>
         <Li>A parent creates a chore with a frequency and point value</Li>
@@ -374,6 +483,8 @@ function ChoresHelp() {
         <Li>A parent approves. Points are awarded and the next due date advances</Li>
         <Li>If a parent completes it, it&apos;s auto-approved</Li>
       </Ul>
+      <H2>Chores for Pets</H2>
+      <P>Add pets in Settings &gt; Family Members, under Pets. A chore or reminder can then be <strong>For</strong> a pet: a person does it, and the pet is who it is for. A daily chore can be done up to four times a day (<strong>Times a day</strong>), for feeding morning and evening. <strong>Pets, done today</strong> on the Chores page shows who did each one and when.</P>
       <H2>Reset Day</H2>
       <P>Each chore can have a custom reset day. For weekly chores, choose which day of the week (Sun-Sat). Set this in the Add/Edit Chore modal.</P>
     </>
@@ -400,16 +511,17 @@ function GoalsHelp() {
 function ShoppingHelp() {
   return (
     <>
-      <P>Manage multiple shopping lists with categories and per-person tracking.</P>
+      <P>Manage multiple shopping lists, sorted by category.</P>
       <Ul>
         <Li><strong>Multiple lists</strong>: Groceries, Hardware, General, etc.</Li>
-        <Li><strong>Categories</strong>: Produce, Dairy, Bakery, Meat, etc.</Li>
-        <Li><strong>Group by person</strong>: See who requested each item</Li>
-        <Li><strong>Reorder categories</strong>: Drag category headers to match your store layout (desktop)</Li>
-        <Li><strong>Edit / Delete</strong>: Each row has always-visible pencil and trash buttons. Deletes are immediate (the Undo button only reverses a check-off)</Li>
+        <Li><strong>Categories</strong>: Produce, Dairy, Bakery, Meat, etc. Adding an item asks which category it goes in</Li>
+        <Li><strong>Cross off</strong>: Tap anywhere on an item. Crossed-off items fold into <strong>Checked off</strong>; tap one there to put it back</Li>
+        <Li><strong>Edit / Delete</strong>: The pencil at the end of a row edits the item, and <strong>Delete</strong> is inside</Li>
+        <Li><strong>Manage</strong>: The categories, one row each in your order. Drag a row to match your store layout (press and hold on a touchscreen), change its emoji or name, choose whether this list shows it, or remove it. <strong>Add category</strong> is at the foot</Li>
         <Li><strong>Scan barcodes</strong>: Add items with a USB scanner or the camera scanner on the Shopping page</Li>
         <Li><strong>Send to Kroger</strong>: Push unchecked items to your Kroger / Mariano&apos;s online cart (see the Kroger help section)</Li>
-        <Li><strong>Shopping mode</strong>: Tap the expand icon for a full-screen, in-store view</Li>
+        <Li><strong>Shopping mode</strong>: Tap the expand icon for a full-screen, in-store view with your progress through the list</Li>
+        <Li><strong>On a phone</strong>, Scan Barcode, Send to Kroger and Shopping mode are in the page&apos;s menu (…)</Li>
         <Li><strong>Sync</strong> with Microsoft To Do (configure per-list in Settings &gt; Integrations)</Li>
       </Ul>
     </>
@@ -426,7 +538,8 @@ function MealsHelp() {
         <Li><strong>Drag meals between days</strong> to reschedule (touch supported)</Li>
         <Li><strong>Mark as cooked</strong> to track what&apos;s been prepared</Li>
         <Li>Days follow your <strong>Week Starts On</strong> setting (Settings &gt; General)</Li>
-        <Li><strong>Sync a meal plan</strong> from Tandoor or Mealie via the <strong>Add ▾</strong> menu</Li>
+        <Li>On a dashboard, a Meals widget too small for the whole week opens at the next meal: the next one today not yet eaten, or the first meal of the next day that has one. Meals that are over are greyed and sit above it; scroll up to see them. A meal is over an hour after its time (the time set on it, or else breakfast 7am, lunch 12pm, snack 3pm, dinner 6pm). As the day goes on the list follows; after you scroll it, it goes back about 30 seconds after you stop. The Meals page still shows the whole week.</Li>
+        <Li><strong>Sync a meal plan</strong> with Tandoor or Mealie from the <strong>Add ▾</strong> menu (on a phone, the <strong>…</strong> menu). The review lists what changed there and, with a token that can write, the changes made in Prism to send back</Li>
       </Ul>
     </>
   );
@@ -453,9 +566,9 @@ function BirthdaysHelp() {
       <H2>Where birthdays come from</H2>
       <P>You don&apos;t enter birthdays into Prism. It reads them from the calendars and contacts you already keep, so they stay correct in one place.</P>
       <Ul>
-        <Li><strong>Your calendars</strong> — any all-day event with &quot;birthday&quot; or &quot;anniversary&quot; in the title, on any connected calendar (Google, iCloud/CalDAV, iCal subscription, or a local Prism calendar)</Li>
-        <Li><strong>Your contacts</strong> — the birthday field on iCloud/CardDAV contacts. Tick &quot;contact birthdays&quot; when connecting iCloud; this is how iPhone birthdays arrive</Li>
-        <Li><strong>Google Contacts</strong> — Google&apos;s own generated birthday calendar</Li>
+        <Li><strong>Your calendars</strong>: any all-day event with &quot;birthday&quot; or &quot;anniversary&quot; in the title, on any connected calendar (Google, iCloud/CalDAV, iCal subscription, or a local Prism calendar)</Li>
+        <Li><strong>Your contacts</strong>: the birthday field on iCloud/CardDAV contacts. Tick &quot;contact birthdays&quot; when connecting iCloud; this is how iPhone birthdays arrive</Li>
+        <Li><strong>Google Contacts</strong>: Google&apos;s own generated birthday calendar</Li>
       </Ul>
       <H2>Adding one Prism can&apos;t find</H2>
       <P>Put it on a calendar and Prism picks it up on the next sync. Your own local Prism calendar works fine for this.</P>
@@ -465,13 +578,14 @@ function BirthdaysHelp() {
         <Li>Add the year in brackets to show their age: <em>Grandma&apos;s Birthday (1948)</em>. Without a year you still get the date, just no age</Li>
       </Ul>
       <H2>Anniversaries and milestones</H2>
-      <P>Anniversaries work the same way — include the word <strong>anniversary</strong> in the title.</P>
+      <P>Anniversaries work the same way: include the word <strong>anniversary</strong> in the title.</P>
       <P>Milestones have no obvious keyword, so Prism looks for the shape instead: an all-day event that <strong>repeats every year</strong> and carries a <strong>year</strong> in the title, like <em>Ana and Ben (2005)</em>.</P>
       <P>If you keep a calendar where <em>everything</em> is a life event, open <strong>Manage calendars</strong> and turn on <strong>&quot;Treat every all-day event here as a birthday or milestone&quot;</strong>. Then titles need no keyword at all.</P>
       <H2>Removing one</H2>
-      <P>Deleting a birthday in Prism keeps it deleted — it won&apos;t reappear on the next sync, even though the calendar event still exists. Delete the calendar event too if you want it gone everywhere.</P>
+      <P>Tap a row in the Birthdays widget to remove it; it takes a parent&apos;s PIN. A birthday removed in Prism stays removed: it won&apos;t reappear on the next sync, even though the calendar event still exists. Delete the calendar event too if you want it gone everywhere.</P>
+      <P>To bring one back, open <strong>Manage calendars</strong>: <strong>Birthdays &amp; milestones</strong> lists the removed ones, each with Restore.</P>
       <H2>What Prism ignores</H2>
-      <P>Read-only calendars you subscribe to (school terms, public holidays) are skipped, so things like &quot;No School — Martin Luther King&apos;s Birthday&quot; don&apos;t become family birthdays. Titles such as &quot;birthday party&quot; or &quot;prep for Sam&apos;s birthday&quot; are ignored too, since they describe something happening near a birthday rather than the day itself.</P>
+      <P>Read-only calendars you subscribe to (school terms, public holidays) are skipped, so things like &quot;No School: Martin Luther King&apos;s Birthday&quot; don&apos;t become family birthdays. Titles such as &quot;birthday party&quot; or &quot;prep for Sam&apos;s birthday&quot; are ignored too, since they describe something happening near a birthday rather than the day itself.</P>
     </>
   );
 }
@@ -506,13 +620,14 @@ function PhotosHelp() {
       <P>Photo gallery with local uploads plus OneDrive and Immich sync.</P>
       <Ul>
         <Li><strong>Gallery</strong>: Browse all photos with lightbox view; filter to <strong>Favorites</strong></Li>
-        <Li><strong>Slideshow</strong>: Auto-rotating display for screensaver and away mode</Li>
+        <Li><strong>Slideshow</strong>: Auto-rotating display for the resting screen and away mode. Each photo fades into the next with a slow Ken Burns zoom</Li>
         <Li><strong>Sources</strong>: Local uploads, OneDrive, or Immich. Synced sources refresh automatically about every 30 minutes</Li>
         <Li><strong>Tag for:</strong> In the lightbox, toggle where each photo may appear: <strong>Wallpaper</strong>, <strong>Gallery</strong>, and/or <strong>Screensaver</strong></Li>
         <Li><strong>Bulk select</strong> (desktop): Select many photos to show in / remove from Prism at once</Li>
         <Li><strong>Below-HD indicator</strong>: A resolution dot flags low-resolution photos so you can filter them out of wallpapers</Li>
       </Ul>
       <P>Manage sources and set a static wallpaper or screensaver in Settings &gt; Photos.</P>
+      <P>In Settings &gt; Appearance, the <strong>Background Wallpaper</strong> card has <strong>Show when photos were taken</strong> (a short line in a free corner), <strong>Show where photos were taken</strong>, and <strong>On this day</strong>, which shows photos from earlier years on this date more often.</P>
     </>
   );
 }
@@ -522,8 +637,8 @@ function AwayModeHelp() {
     <>
       <P>Privacy overlay for when the dashboard is unattended. Shows a photo slideshow with clock and weather.</P>
       <Ul>
-        <Li><strong>Activate</strong>: Tap the palm tree icon in the dashboard header</Li>
-        <Li><strong>Auto-activate</strong>: Configure the timer in Settings &gt; Appearance &gt; Timers &amp; Auto-Activation</Li>
+        <Li><strong>Activate</strong>: More &gt; This screen &gt; <strong>Away mode</strong> (on a phone, More &gt; Screens &gt; <strong>Away mode</strong>)</Li>
+        <Li><strong>Auto-activate</strong>: The <strong>Away mode</strong> card in Settings &gt; Appearance sets how long nobody touches a screen before it turns on, for every screen</Li>
         <Li><strong>Exit</strong>: Tap anywhere, then enter a parent PIN</Li>
       </Ul>
     </>
@@ -535,7 +650,7 @@ function BabysitterHelp() {
     <>
       <P>Caregiver information overlay showing emergency contacts, house info, child details, and house rules.</P>
       <Ul>
-        <Li><strong>Activate</strong>: Tap the babysitter icon in the dashboard header</Li>
+        <Li><strong>Activate</strong>: More &gt; This screen &gt; <strong>Babysitter mode</strong> (on a phone, More &gt; Screens &gt; <strong>Babysitter mode</strong>)</Li>
         <Li><strong>Exit</strong>: Tap anywhere, then enter a parent PIN</Li>
         <Li><strong>Configure</strong>: Settings &gt; Babysitter Info</Li>
         <Li>Also available at <strong>/babysitter</strong> without login</Li>
@@ -547,18 +662,30 @@ function BabysitterHelp() {
 function ScreensaverHelp() {
   return (
     <>
-      <P>Auto-activates when the device is idle. Shows a photo slideshow with optional widgets.</P>
+      <P>When nobody touches a screen for a while, it goes idle. What it shows idle and at night is the screen&apos;s own, whichever dashboard is up, set in More &gt; Edit layout &gt; Through the day.</P>
       <Ul>
-        <Li><strong>Configure timeout</strong>: Settings &gt; Appearance &gt; Timers &amp; Auto-Activation (Screensaver &gt; Activate after). Options are 30s, 1m, 2m, 10m, 1h, or Never (default 2m)</Li>
-        <Li><strong>Background</strong>: Photos, a <strong>Night sky</strong> (the stars, Milky Way and moon as they are outside now, naming one constellation at a time), or photos by day and the night sky after dark. Settings &gt; Appearance &gt; Screensaver &gt; Background</Li>
-        <Li><strong>Photo rotation</strong>: Set the &quot;Rotate photos every&quot; interval, or pin one static photo</Li>
-        <Li><strong>Edit layout</strong>: In dashboard edit mode, toggle &quot;Screensaver&quot;</Li>
+        <Li><strong>Rest after</strong>: in Screen, how long the screen waits: 30 seconds, 1 minute, 2 minutes (the default), 10 minutes, 1 hour, or Never rests</Li>
+        <Li><strong>Resting</strong>: This dashboard, Photos, or a <strong>Night sky</strong> (the stars, Milky Way and moon as they are outside now, naming one constellation at a time)</Li>
+        <Li><strong>At night</strong>: Dim this dashboard, Night sky, Photos or Screen off, from dusk to dawn or at set times</Li>
+        <Li><strong>Motion and photo rotation</strong>: Through the day &gt; More &gt; <strong>Screensaver motion</strong> has the transition effect and how often the photo changes</Li>
+        <Li><strong>Arranging it</strong>: Resting &gt; See it, then Widgets. The arrangement is saved with the dashboard, so a change made on another device reaches the screen within a minute, without a reload</Li>
+        <Li><strong>Aurora</strong>: Settings &gt; Appearance &gt; <strong>Night sky</strong> can say when aurora may be visible, on every screen</Li>
       </Ul>
+      <P>A phone never rests. An app installed on a wall screen (added to its home screen) rests only once it has a name: More &gt; Edit layout &gt; Screen &gt; <strong>Name this device</strong>.</P>
       <H2>Palettes</H2>
       <P>
         <strong>Settings &gt; Appearance &gt; Palette</strong> changes the colours. The
-        palette applies to every screen in the house; light and dark stay per-screen,
-        since that depends on the room a screen is in.
+        palette applies to every screen in the house. Light or dark is set for each
+        screen, since that depends on the room it is in: in its editor, More &gt; Edit
+        layout &gt; Screen &gt; <strong>Light or dark</strong>, or on the screen in
+        Settings &gt; Appearance. A named screen is Light or Dark, never following a
+        system setting, so a laptop editing it draws it as the screen does. A browser
+        that is not named can also follow its system.
+      </P>
+      <P>
+        Settings &gt; Appearance &gt; <strong>New screens start as</strong> (Light or Dark)
+        is what a screen named with no choice of its own starts as, and what a browser
+        nobody named uses. Screens already named keep theirs.
       </P>
       <P>
         If a palette ever makes Prism hard to read, add <code>?theme=default</code> to the
@@ -566,9 +693,9 @@ function ScreensaverHelp() {
       </P>
       <H2>Signing out when nobody is there</H2>
       <P>
-        Under the same Timers section, <strong>Sign out after</strong> controls how long
-        the display can sit untouched before it stops being signed in as whoever last
-        used it. Thirty minutes by default; you can change it or turn it off.
+        <strong>Sign out after</strong>, in More &gt; Edit layout &gt; Look &gt; This screen,
+        controls how long the display can sit untouched before it stops being signed in as
+        whoever last used it. Thirty minutes by default; you can change it or turn it off.
       </P>
       <P>
         Nothing disappears when it happens. The calendar, tasks and messages stay on
@@ -583,11 +710,11 @@ function ScreensaverHelp() {
 function SettingsHelp({ isMobile }: { isMobile: boolean }) {
   return (
     <>
-      <P>Configure Prism to fit your family&apos;s needs. Open Settings from the navigation to find these sections:</P>
+      <P>Configure Prism to fit your family&apos;s needs. Open Settings from More to find these sections:</P>
       <H3>Family Members</H3>
-      <P>Add, edit, or remove members. Set names, colors, avatars, and roles.</P>
+      <P>Add, edit, or remove members. Set names, colors, avatars, roles, and whether each signs in with a PIN or an alphanumeric PIN (<strong>Signs in with</strong>: PIN or Passcode). Pets are added here too.</P>
       <H3>Security</H3>
-      <P>Set or change each member&apos;s PIN (4 or 6 digits). Generate API tokens for external integrations. Each token carries a <strong>scope</strong>; pick the smallest that works (&quot;Voice API only (recommended)&quot; for Alexa / Home Assistant, or &quot;Full access (legacy)&quot;).</P>
+      <P>Set or change each member&apos;s PIN (4 or 6 digits) or passcode (6 to 12 letters and numbers). <strong>Require the PIN for every change</strong> decides whether a wall can tick without one (see Roles &amp; Permissions). <strong>Signed-in devices</strong> keeps this device signed in, and signs out any other device signed in as you. Generate API tokens for external integrations. Each token carries a <strong>scope</strong>; pick the smallest that works (&quot;Voice API only (recommended)&quot; for Alexa / Home Assistant, or &quot;Full access (legacy)&quot;).</P>
       <H3>General</H3>
       <Ul>
         <Li><strong>Weather location</strong>: Set by ZIP / postal code</Li>
@@ -596,25 +723,38 @@ function SettingsHelp({ isMobile }: { isMobile: boolean }) {
       <H3>Integrations</H3>
       <P>One place to connect providers (Google, Microsoft, Apple iCloud / CalDAV, Kroger, and more) shown as provider cards. Task, Shopping, and Wish List sync are configured per-list inside the Microsoft or Google card. (Old &quot;Connected Accounts&quot; / &quot;Task Sync&quot; / &quot;Shopping Sync&quot; links redirect here.)</P>
       <H3>Appearance</H3>
+      <P>Three groups:</P>
       <Ul>
-        <Li><strong>Theme &amp; palette</strong>: Light, Dark, or System, plus seasonal themes</Li>
-        {!isMobile && <Li><strong>Timers &amp; Auto-Activation</strong>: Screensaver and Away Mode idle timers, photo rotation</Li>}
-        {!isMobile && <Li><strong>Auto-Hide Navigation</strong>: Hide nav after inactivity</Li>}
+        <Li><strong>Look</strong>: Color Scheme (this screen&apos;s Light or Dark, System too on a browser that is not named, New screens start as, and the palette) and Seasonal Theme</Li>
+        <Li><strong>Background and away</strong>: Background Wallpaper, Away mode and Night sky</Li>
+        <Li><strong>All screens</strong>: Units and Language</Li>
       </Ul>
+      <P>A screen&apos;s own settings, like how long it waits before going idle, its orientation, performance and on-screen keyboard, are in its editor: More &gt; Edit layout on the screen, or More &gt; Edit a screen from a phone.</P>
       {!isMobile && (
         <>
           <H3>Text Size</H3>
           <P>How large everything reads on each dashboard. It scales the whole board at once, separately from the per-widget text size in the layout editor, and does not change other pages.</P>
         </>
       )}
-      <H3>Displays</H3>
-      <P>Name each screen from the screen itself, for example &quot;Kitchen&quot;, and see every named screen and whether it is on. A named screen keeps its screensaver, performance, keyboard and screen-shape settings with its name, so a reset browser can take them back with <em>Or this is an existing screen</em>. Each screen can open on its own dashboard. A browser nobody named works as before.</P>
+      <H3>Screens</H3>
+      <P>Every named screen, whether it is online, and the dashboard it shows. <strong>Rename</strong> or <strong>Remove</strong> a screen here. <strong>Edit</strong> opens any screen&apos;s editor with a live picture of it; from a phone, More &gt; Edit a screen gets there too. To name a device, open the editor on it and go to Screen. A named screen keeps its settings with its name, so a reset browser can take them back. A browser nobody named works as before.</P>
+      <H3>This Screen</H3>
+      <P>More &gt; Edit layout &gt; Look &gt; <strong>This screen</strong> holds the screen&apos;s own settings:</P>
+      <Ul>
+        <Li><strong>Performance</strong>: Auto, Full, Reduced or Minimal</Li>
+        <Li><strong>On-screen keyboard</strong>: Use household setting, Always or Never</Li>
+        <Li><strong>Orientation</strong>: Detect, Landscape or Portrait</Li>
+        <Li><strong>Auto-hide navigation</strong>: whether the bar hides behind the Menu tab on a dashboard</Li>
+        <Li><strong>Sign out after</strong>: how long it stays signed in untouched</Li>
+      </Ul>
       <H3>Photos</H3>
       <P>Add photo sources (OneDrive, Immich), pick sync folders, and set a static wallpaper or screensaver photo.</P>
       <H3>Bus Tracking</H3>
-      <P>Connect Gmail and discover bus routes for the Bus Tracker widget (see the Bus Tracking help section).</P>
+      <P>Connect Gmail and discover bus routes for the Bus Tracker widget, and set each route&apos;s <strong>Minutes to walk to the stop</strong> (see the Bus Tracking help section).</P>
       <H3>Input</H3>
-      <P>On-screen touch keyboard, voice-to-text, and USB / camera barcode scanning options.</P>
+      <P>The household&apos;s on-screen keyboard (<strong>Enable on-screen keyboard</strong>), voice-to-text, and USB / camera barcode scanning options. Each screen can override the keyboard in Look &gt; This screen.</P>
+      <H3>Features</H3>
+      <P>Turn pages on or off, and choose which pages sit on the bar (<strong>On the dock</strong>): Home and up to five more. The rest are in More. Dashboard and Settings are always visible, and a hidden page can still be reached by its address.</P>
       <H3>Babysitter Info</H3>
       <P>Emergency contacts, house info, and rules shown in Babysitter Mode.</P>
       <H3>Backups &amp; Data</H3>
@@ -632,17 +772,17 @@ function IntegrationsHelp() {
       <H2>Google Calendar</H2>
       <P>Connect in Settings &gt; Integrations (Google card). <strong>Two-way sync</strong>: events you add, edit, or delete in Prism are pushed back to the connected Google calendar.</P>
       <H2>Microsoft To Do</H2>
-      <P>Bidirectional sync for Tasks, Shopping Lists, and Wish Lists, with newest-wins conflict resolution. Connect the Microsoft card, then turn on sync per-list inside that card.</P>
+      <P>Bidirectional sync for Tasks, Shopping Lists, and Wish Lists, with newest-wins conflict resolution. Connect the Microsoft card, then turn on sync per-list inside that card. A task&apos;s steps come in as subtasks.</P>
       <H2>Google Tasks</H2>
-      <P>An alternative task provider. Connect Google Tasks from the Google card and map it to a task list.</P>
+      <P>An alternative task provider. Connect Google Tasks from the Google card and map it to a task list. Subtasks come in under their task.</P>
       <H2>Apple iCloud / CalDAV</H2>
-      <P>Connect iCloud (or any CalDAV server) for calendars, Reminders, and optional contact birthdays. See the <strong>Apple iCloud (CalDAV)</strong> help section for setup. New events and edits you make in Prism are written to the calendar, and deleting a single (non-recurring) synced event removes it there too. New repeating events stay in Prism for now.</P>
+      <P>Connect iCloud (or any CalDAV server) for calendars, Reminders, and optional contact birthdays. See the <strong>Apple iCloud (CalDAV)</strong> help section for setup. New events and edits you make in Prism, repeating events too, are written to the calendar, and deleting a single (non-recurring) synced event removes it there too.</P>
       <H2>Kroger / Mariano&apos;s Cart</H2>
       <P>Push your shopping list to your online Kroger / Mariano&apos;s cart. See the <strong>Kroger / Mariano&apos;s Cart</strong> help section.</P>
       <H2>Gmail Bus Tracking</H2>
       <P>Connect Gmail to read FirstView bus-arrival emails and power the Bus Tracker widget. See the <strong>Bus Tracking</strong> help section.</P>
       <H2>Recipe &amp; Meal Sync (Tandoor / Mealie)</H2>
-      <P>Import recipes and pull in meal plans from a Tandoor or Mealie server using a read-only API token. Start from the Add ▾ menu on the Recipes or Meals page.</P>
+      <P>Import recipes and sync meal plans with a Tandoor or Mealie server. A read-only token brings things in. A token that can write (in Tandoor, the <strong>read write</strong> scope) also sends recipe edits and meal-plan changes made in Prism back, after you review them. Each server says <strong>Reads only</strong> or <strong>Reads and writes</strong>. Start from the Add ▾ menu on the Recipes or Meals page.</P>
       <H2>OneDrive / Immich Photos</H2>
       <P>Sync photos from OneDrive folders or an Immich server. Configure in Settings &gt; Photos. Synced sources refresh automatically about every 30 minutes.</P>
       <H2>Weather</H2>
@@ -673,6 +813,7 @@ function ShortcutsHelp() {
       <div className="space-y-2">
         {[
           ['0-9', 'PIN pad', 'Enter digit'],
+          ['a-z', 'PIN pad', 'Enter a letter of an alphanumeric PIN'],
           ['Backspace', 'PIN pad', 'Delete last digit'],
           ['Escape', 'Modals', 'Close'],
           ['Ctrl+Enter', 'Message edit', 'Save'],
@@ -681,9 +822,12 @@ function ShortcutsHelp() {
           ['Ctrl+U', 'Calendar notes', 'Underline'],
           ['Ctrl+Shift+S', 'Calendar notes', 'Strikethrough'],
           ['Ctrl+Shift+L', 'Calendar notes', 'Bullet list'],
-          ['Ctrl+Shift+M', 'Layout editor', 'Toggle preview mode'],
+          ['Ctrl+Shift+M', 'Layout editor', 'See it at a screen size'],
+          ['Delete', 'Layout editor', 'Remove the selected widget'],
+          ['Backspace', 'Layout editor', 'Remove the selected widget'],
+          ['Arrow keys', 'Layout editor', 'Move the selected widget, or resize it in resize mode'],
         ].map(([key, where, action]) => (
-          <div key={key} className="flex items-center gap-3 text-sm">
+          <div key={`${key} ${where}`} className="flex items-center gap-3 text-sm">
             <kbd className="px-2 py-0.5 rounded bg-muted border border-border text-xs font-mono shrink-0 min-w-[100px] text-center">{key}</kbd>
             <span className="text-muted-foreground shrink-0 w-28">{where}</span>
             <span>{action}</span>
@@ -700,11 +844,11 @@ function TroubleshootingHelp() {
       <H3>Forgot PIN</H3>
       <P>Ask a parent to reset it in Settings &gt; Security &gt; Member PINs.</P>
       <H3>Calendar events not showing</H3>
-      <P>Open the calendar page and tap <strong>Manage</strong>. Is the calendar enabled? Tap &quot;Sync&quot; to force a refresh. Verify the Google / Microsoft / Apple connection is active in Settings &gt; Integrations.</P>
+      <P>Open the Calendar page and choose <strong>Manage calendars</strong> in the View menu. Is the calendar enabled? Tap &quot;Sync Now&quot; to force a refresh. Verify the Google / Microsoft / Apple connection is active in Settings &gt; Integrations.</P>
       <H3>Tasks/Shopping not syncing</H3>
       <P>Verify Microsoft (or Google) is connected in Settings &gt; Integrations. Check that sync is enabled on the list. Tap &quot;Sync All&quot; to force a refresh.</P>
       <H3>Widget not loading</H3>
-      <P>Refresh the page. Toggle the widget off and on in edit mode. Clear browser cache if stuck.</P>
+      <P>Refresh the page. Turn the widget off and on in More &gt; Edit layout &gt; Widgets. Clear browser cache if stuck.</P>
     </>
   );
 }
@@ -714,12 +858,14 @@ function RecipesHelp() {
     <>
       <P>A recipe library you can scale, shop from, and drop onto the meal planner.</P>
       <H2>Adding Recipes</H2>
+      <P>Start from the <strong>Add ▾</strong> menu (on a phone, the <strong>…</strong> menu; the round button adds one by hand).</P>
       <Ul>
         <Li><strong>Import from URL</strong>: Paste a recipe web address and Prism pulls in the details</Li>
         <Li><strong>Import from Paprika</strong>: Upload a Paprika export file</Li>
-        <Li><strong>Paste text</strong>: Paste raw recipe text and Prism structures it</Li>
-        <Li><strong>Add manually</strong>: Fill in the form, including an optional photo</Li>
-        <Li><strong>Sync from Tandoor / Mealie</strong>: Connect a server with a read-only API token; the review screen pre-selects adds and updates while removals are opt-in, and re-syncing is safe to repeat</Li>
+        <Li><strong>Paste recipe text</strong>: Paste raw recipe text and Prism structures it</Li>
+        <Li><strong>Create manually</strong>: Fill in the form, including an optional photo</Li>
+        <Li><strong>Sync from Tandoor / Mealie</strong>: Connect a server with an API token; the review screen pre-selects adds and updates while removals are opt-in, and re-syncing is safe to repeat</Li>
+        <Li><strong>Sending edits back</strong>: With a token that can write, edits made in Prism to a synced recipe (name, description, servings, times, ingredients and steps) are offered in the review to send back. Each server says <strong>Reads only</strong> or <strong>Reads and writes</strong></Li>
       </Ul>
       <H2>Using a Recipe</H2>
       <Ul>
@@ -769,6 +915,7 @@ function BusHelp() {
         <Li><strong>Connect Gmail</strong>: In Settings &gt; Bus Tracking, connect the Gmail account that receives FirstView emails (optionally set a Gmail label to narrow the search)</Li>
         <Li><strong>Discover routes</strong>: Prism scans for FirstView emails and creates the routes it finds, each with its stop</Li>
         <Li><strong>Bus Tracker widget</strong>: Add the Bus Tracker widget to a dashboard to see predicted arrival times</Li>
+        <Li><strong>When to leave</strong>: Give a route its <strong>Minutes to walk to the stop</strong> in Settings &gt; Bus Tracking, and the Now &amp; Next widget adds a <strong>Leave</strong> line with how long until you should go (&quot;in 5 min&quot;, or &quot;now&quot;)</Li>
       </Ul>
       <H2>Live Map</H2>
       <P>With a live position provider set up (a small program you run that posts the bus&apos;s position to Prism), the widget turns into a map while a trip runs: the route driven so far as a solid line, the road still to come as a dashed one, each stop with its actual or projected time, and the bus as a dot pointing the way it is heading. A card over the map shows the arrival time at your stop, how late the bus is running, and how many stops are done. A small widget shows the card alone.</P>
@@ -784,7 +931,7 @@ function BusHelp() {
 function InputHelp() {
   return (
     <>
-      <P>Kiosk-friendly input options for touchscreens and shared displays. Configure these in Settings &gt; Input.</P>
+      <P>Kiosk-friendly input options for touchscreens and shared displays. Configure these in Settings &gt; Input. Each screen can turn the on-screen keyboard on or off for itself in More &gt; Edit layout &gt; Look &gt; This screen (<strong>On-screen keyboard</strong>: Use household setting, Always or Never).</P>
       <Ul>
         <Li><strong>On-screen keyboard</strong>: A touch keyboard appears automatically when you tap a text field</Li>
         <Li><strong>Voice-to-text</strong>: Tap the mic key on the keyboard to dictate instead of typing</Li>
@@ -807,7 +954,8 @@ function CalDAVHelp() {
       <H2>What syncs</H2>
       <Ul>
         <Li>Calendars and events; Reminders (as tasks); optional contact <strong>birthdays</strong></Li>
-        <Li>Read-only for creates and edits, but <strong>deleting a single (non-recurring) synced event in Prism removes it from the source too</strong>. This is destructive upstream. Recurring series only delete locally.</Li>
+        <Li>New events and edits made in Prism reach the CalDAV server, repeating events too. For one occurrence of a repeating event, a change to its text goes to the whole series, and a change to its time stays in Prism</Li>
+        <Li><strong>Deleting a single (non-recurring) synced event in Prism removes it from the server too</strong>. This is destructive upstream. Deleting a repeating event removes it only in Prism.</Li>
       </Ul>
     </>
   );

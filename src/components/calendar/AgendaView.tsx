@@ -11,14 +11,12 @@ import {
 } from 'date-fns';
 import { useTranslations } from 'next-intl';
 import { Calendar, UtensilsCrossed } from 'lucide-react';
-import { Badge } from '@/components/ui';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/calendar';
 import type { DayBucket } from '@/lib/hooks/useWeekViewData';
 import { useDayDroppable, getMealTime, getChoreTime, getTaskTime, parseTimeOfDay, formatTimeOfDay, type OverlayItemRef } from './cells';
-import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 import { useTimeFormat } from '@/components/providers';
 import {
   eventOccursOnDisplayDay,
@@ -33,20 +31,9 @@ import { withoutEndedEvents } from '@/lib/utils/pastEvents';
 import { usePastEventsMode } from '@/lib/hooks/usePastEventsMode';
 import { eventsOverlappingRange } from '@/lib/utils/calendarRange';
 import { useDateLabels, type DateLabels } from '@/lib/hooks/useDateLabels';
+import { useStartAtNext } from '@/lib/hooks/useStartAtNext';
+import { startAnchor, type StartEntry } from '@/lib/utils/startAtNext';
 import { isNoSchoolEvent, isWeekend } from '@/lib/utils/noSchoolDays';
-
-function formatAgendaDayHeader(
-  date: Date,
-  displayTimezone: string,
-  t: (key: string, values?: Record<string, string | number | Date>) => string,
-  d: DateLabels,
-): string {
-  const displayNow = toDisplayDate(new Date(), displayTimezone);
-  const dayName = d.fullDate(date);
-  if (isSameDay(date, displayNow)) return t('dayHeader', { label: t('today'), date: dayName });
-  if (isSameDay(date, addDays(displayNow, 1))) return t('dayHeader', { label: t('tomorrow'), date: dayName });
-  return dayName;
-}
 
 const MEAL_FALLBACK_COLOR = '#10b981';
 const CHORE_FALLBACK_COLOR = '#f59e0b';
@@ -65,6 +52,9 @@ export interface AgendaViewProps {
   mealColor?: string;
   /** Click handler for meal/chore/task overlay rows (opens edit modal). */
   onItemClick?: (ref: OverlayItemRef) => void;
+  /** Open scrolled to the next event, the ones that are over above it
+   *  (#1369). The dashboard widget sets it; the Calendar page does not. */
+  startAtNext?: boolean;
 }
 
 /**
@@ -78,8 +68,6 @@ type AgendaRow = {
   sortMinutes: number;
   /** Whether this row has no time-of-day (renders "All day" / "—"). */
   floating: boolean;
-  /** True only for calendar all-day events, which intentionally stay filled. */
-  filled?: boolean;
   /** Optional drag id (`meal:<id>` etc.). Read-only for events. */
   dragId?: string;
   stripeColor: string;
@@ -92,6 +80,12 @@ type AgendaRow = {
   ended?: boolean;
   /** A timed event happening right now (#806): gets a "Now" tag. */
   inProgress?: boolean;
+  /** An event that is over, whether or not it is dimmed (startAnchor). */
+  over?: boolean;
+  /** A timed event that starts this day: the only kind of row the list can
+   *  open at. All-day and continuing events are the day's backdrop, and
+   *  meals, chores and tasks are not events. */
+  startCandidate?: boolean;
   /** Translated "Now", carried on the row so the item needs no hook. */
   nowLabel?: string;
   pendingApproval?: boolean;
@@ -124,8 +118,9 @@ export function AgendaView({
   enableDnd = false,
   mealColor,
   onItemClick,
+  startAtNext = false,
 }: AgendaViewProps) {
-  const { displayTimezone } = useTimeFormat();
+  const { displayTimezone, timeFormat } = useTimeFormat();
   const t = useTranslations('calendar');
   const cards = displayMode === 'cards';
   const { mode: pastEvents } = usePastEventsMode();
@@ -152,7 +147,7 @@ export function AgendaView({
       )))
     .sort((a, b) => compareAgendaEvents(a, b, displayTimezone));
 
-  const eventsByDay: Array<{ date: Date; events: CalendarEvent[]; bucket?: DayBucket }> = [];
+  const eventsByDay: Array<{ date: Date; dayKey: string; rows: AgendaRow[]; noSchool: boolean }> = [];
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const dayEvents = filteredEvents.filter(e => eventOccursOnDisplayDay(
@@ -164,11 +159,21 @@ export function AgendaView({
     ));
     const bucket = bucketsByDate?.get(format(date, 'yyyy-MM-dd'));
     const hasOverlay = bucket && (bucket.meals.length + bucket.chores.length + bucket.tasks.length > 0);
-    const isNoSchool = isWeekend(date) || dayEvents.some(isNoSchoolEvent);
-    if (dayEvents.length > 0 || hasOverlay || isNoSchool) {
-      eventsByDay.push({ date, events: dayEvents, bucket });
+    const noSchool = !isSameDay(date, startDate) && (isWeekend(date) || dayEvents.some(isNoSchoolEvent));
+    if (dayEvents.length > 0 || hasOverlay || noSchool) {
+      const rows = buildAgendaRows({ date, events: dayEvents, bucket, onEventClick, mealColor, onItemClick, timeFormat, displayTimezone, t, now, dimEnded: pastEvents === 'dim' });
+      eventsByDay.push({ date, dayKey: format(date, 'yyyy-MM-dd'), rows, noSchool });
     }
   }
+
+  // Where the list opens (#1369): the next event in progress or yet to start.
+  const entries: StartEntry[] = eventsByDay.flatMap(({ dayKey, rows }) => rows.map((row) => ({
+    key: `${dayKey}:${row.key}`,
+    group: `day-${dayKey}`,
+    over: Boolean(row.over),
+    candidate: Boolean(row.startCandidate),
+  })));
+  const listRef = useStartAtNext(startAtNext ? startAnchor(entries) : null);
 
   if (eventsByDay.length === 0) {
     return (
@@ -180,22 +185,18 @@ export function AgendaView({
   }
 
   return (
-    <div className="overflow-auto h-full -mr-2 pr-2">
+    <div ref={startAtNext ? listRef : undefined} data-agenda-list className="overflow-auto h-full -mr-2 pr-2">
       <div className="flex flex-col gap-(--agenda-group-gap)">
-        {eventsByDay.map(({ date, events: dayEvts, bucket }) => (
+        {eventsByDay.map(({ date, dayKey, rows, noSchool }) => (
           <AgendaDaySection
             key={date.toISOString()}
             date={date}
-            events={dayEvts}
-            bucket={bucket}
+            dayKey={dayKey}
+            rows={rows}
+            noSchool={noSchool}
             maxEvents={maxEventsPerDay}
-            onEventClick={onEventClick}
             cards={cards}
             enableDnd={enableDnd}
-            mealColor={mealColor}
-            onItemClick={onItemClick}
-            now={now}
-            dimEnded={pastEvents === 'dim'}
           />
         ))}
       </div>
@@ -205,70 +206,53 @@ export function AgendaView({
 
 function AgendaDaySection({
   date,
-  events,
-  bucket,
+  dayKey,
+  rows,
+  noSchool,
   maxEvents,
-  onEventClick,
   cards = false,
   enableDnd = false,
-  mealColor,
-  onItemClick,
-  now,
-  dimEnded,
 }: {
   date: Date;
-  events: CalendarEvent[];
-  bucket?: DayBucket;
+  dayKey: string;
+  rows: AgendaRow[];
+  noSchool: boolean;
   maxEvents: number;
-  onEventClick?: (event: CalendarEvent) => void;
   cards?: boolean;
   enableDnd?: boolean;
-  mealColor?: string;
-  onItemClick?: (ref: OverlayItemRef) => void;
-  now: Date;
-  /** Whether ended events are dimmed (the `dim` past-events mode). */
-  dimEnded: boolean;
 }) {
-  const { timeFormat, displayTimezone } = useTimeFormat();
+  const { displayTimezone } = useTimeFormat();
   const t = useTranslations('calendar');
   const d = useDateLabels();
   const droppable = useDayDroppable({ date, enabled: cards && enableDnd });
-  const isCurrentDay = isSameDay(date, toDisplayDate(new Date(), displayTimezone));
-  const isNoSchool = !isCurrentDay && (isWeekend(date) || events.some(isNoSchoolEvent));
-  const rows = buildAgendaRows({ now, date, events, bucket, onEventClick, mealColor, onItemClick, timeFormat, displayTimezone, t, dimEnded });
   const displayRows = maxEvents > 0 ? rows.slice(0, maxEvents) : rows;
   const remainingCount = maxEvents > 0 ? rows.length - maxEvents : 0;
 
   return (
     <div
       ref={cards && enableDnd ? droppable.setNodeRef : undefined}
+      data-scroll-anchor={`day-${dayKey}`}
+      data-no-school={noSchool || undefined}
       data-droppable-day={cards && enableDnd ? droppable.droppableId : undefined}
       className={cn(
         'rounded',
-        cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-sm bg-calendar-today p-1',
+        cards && enableDnd && droppable.isOver && 'ring-2 ring-seasonal-accent shadow-xs bg-card/40 p-1',
       )}
-      style={isNoSchool ? { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' } : undefined}
+      style={noSchool ? { backgroundColor: 'hsl(var(--seasonal-subtle) / 0.9)' } : undefined}
     >
-      <div className="flex items-center gap-2 mb-2">
-        <span
-          data-agenda-day-word
-          className={cn(
-            'text-sm font-semibold',
-            isCurrentDay && 'text-foreground'
-          )}
-        >
-          {formatAgendaDayHeader(date, displayTimezone, t, d)}
+      {/* The day as a word in the display face, the date as quiet meta
+          (#879): "Tomorrow  Nov 6", "Saturday  Nov 8". The normal text
+          colour: a seasonal accent is too light to read on some cards. */}
+      <div className="flex items-baseline gap-2 mb-2">
+        <span className="text-title text-foreground" style={{ fontFamily: 'var(--font-display)' }} data-agenda-day-word>
+          {agendaDayWord(date, displayTimezone, t, d)}
         </span>
-        {isCurrentDay && (
-          <Badge className="text-2xs px-1.5 py-0 bg-calendar-today text-foreground">
-            {t('today')}
-          </Badge>
-        )}
+        <span className="text-caption text-muted-foreground" data-agenda-day-date>{d.monthDay(date)}</span>
       </div>
 
       <div className="flex flex-col gap-(--agenda-row-gap) pl-2 border-l-2 border-border">
         {displayRows.map((row) => (
-          <AgendaRowItem key={row.key} row={row} cards={cards} />
+          <AgendaRowItem key={row.key} row={row} anchor={`${dayKey}:${row.key}`} cards={cards} />
         ))}
         {remainingCount > 0 && (
           <div className="text-xs text-muted-foreground pl-2">
@@ -316,6 +300,7 @@ function buildAgendaRows({
       displayTimezone,
     );
     const floating = allDay || !startsToday;
+    const over = isCalendarEventPast(event.startTime, event.endTime, event.allDay, now, displayTimezone);
     rows.push({
       key: `event-${event.id}`,
       sortMinutes: floating
@@ -323,7 +308,6 @@ function buildAgendaRows({
         : toDisplayDate(event.startTime, displayTimezone).getHours() * 60
           + toDisplayDate(event.startTime, displayTimezone).getMinutes(),
       floating,
-      filled: allDay,
       stripeColor: event.color,
       timeLabel: allDay
         ? t('allDay')
@@ -332,7 +316,9 @@ function buildAgendaRows({
           : t('continues'),
       title: event.title,
       subtitle: event.location,
-      ended: dimEnded && isCalendarEventPast(event.startTime, event.endTime, event.allDay, now, displayTimezone),
+      ended: dimEnded && over,
+      over,
+      startCandidate: !floating,
       inProgress: isInProgress(event, now),
       nowLabel: t('now'),
       onClick: onEventClick ? () => onEventClick(event) : undefined,
@@ -404,24 +390,18 @@ function formatTimeLabel(hhmm: string, timeFormat: TimeFormat): string {
   return formatTimeOfDay(hhmm, timeFormat);
 }
 
-function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean }) {
+function AgendaRowItem({ row, anchor, cards = false }: { row: AgendaRow; anchor: string; cards?: boolean }) {
   const draggable = useDraggable({
     id: row.dragId ?? `__static__:${row.key}`,
     disabled: !row.dragId,
     data: { dragId: row.dragId },
   });
 
-  const eventColorStyle = cards
-    ? { borderLeft: `3px solid ${row.stripeColor}` }
-    : row.filled
-      ? inlineAllDayEventStyle(row.stripeColor, 3)
-      : inlineTimedEventStyle(row.stripeColor, 3);
-
   const transformStyle: React.CSSProperties = {
     transform: CSS.Translate.toString(draggable.transform),
     touchAction: row.dragId ? 'none' : undefined,
     zIndex: draggable.isDragging ? 50 : undefined,
-    ...eventColorStyle,
+    ...(cards ? { borderLeft: `3px solid ${row.stripeColor}` } : eventTintStyle(row.stripeColor, 'border')),
   };
 
   const Tag: 'button' | 'div' = row.onClick ? 'button' : 'div';
@@ -430,6 +410,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
     <Tag
       ref={row.dragId ? draggable.setNodeRef : undefined}
       onClick={row.onClick}
+      data-scroll-anchor={anchor}
       data-ended={row.ended || undefined}
       type={Tag === 'button' ? 'button' : undefined}
       style={transformStyle}
@@ -438,8 +419,8 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
       className={cn(
         'relative w-full text-left flex items-start gap-2 rounded p-(--agenda-row-padding)',
         cards
-          ? 'border-border bg-calendar-surface border shadow-sm hover:bg-accent text-foreground'
-          : 'hover:opacity-90',
+          ? 'bg-card/85 backdrop-blur-xs border border-border/40 shadow-xs hover:bg-card text-foreground'
+          : 'hover:brightness-95',
         'transition-colors touch-action-manipulation',
         row.dragId && 'cursor-grab active:cursor-grabbing',
         draggable.isDragging && 'opacity-60 ring-2 ring-seasonal-accent shadow-xl',
@@ -465,7 +446,7 @@ function AgendaRowItem({ row, cards = false }: { row: AgendaRow; cards?: boolean
             </span>
           )}
         </div>
-        <div className={cn('flex items-center gap-1 text-sm font-medium', cards ? 'text-foreground' : 'text-inherit', row.muted && 'line-through')}>
+        <div className={cn('flex items-center gap-1 text-sm font-medium', 'text-foreground', row.muted && 'line-through')}>
           {row.dragId?.startsWith('meal:') && (
             <UtensilsCrossed aria-hidden className="h-3 w-3 shrink-0" style={cards ? { color: row.stripeColor } : undefined} />
           )}

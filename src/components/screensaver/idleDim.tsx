@@ -1,21 +1,15 @@
 'use client';
 
-import { useMemo, useSyncExternalStore } from 'react';
-import { addDays, startOfDay } from 'date-fns';
-import type { CalendarEvent } from '@/types/calendar';
-import { useCalendarEvents } from '@/lib/hooks/useCalendarEvents';
-import { useHiddenHours, visibleHours, type HiddenHoursSettings } from '@/lib/hooks/useHiddenHours';
-import { useLocalDateKey } from '@/lib/hooks/useLocalDateKey';
-import { useStoredString, writeStored } from '@/lib/hooks/useStoredValue';
+import { levelFromDim, type NightLevel } from '@/lib/screenDay';
+import { useScreenDay } from './useScreenDay';
 
 /**
- * Dim when idle (#691): the idle screen darkens during the hours the calendar
- * hides, so a screen left on all night is not a lamp in the room.
+ * Dim when idle (#691): at night the idle screen darkens, so a screen left on
+ * all night is not a lamp in the room.
  *
- * The hours are not a setting of their own. Settings > Calendars > Calendar
- * Hours already says when the household is not up, either a fixed range or
- * auto-fit around the day's events, so one change there moves both. How dark
- * is per screen: a bedroom may want more than the kitchen.
+ * Night, and how much darker, are the screen's own (#1345), kept in its day
+ * (lib/screenDay): a bedroom may want more than the kitchen, and a switch to
+ * another dashboard changes neither.
  *
  * A web page cannot turn the panel's backlight down or off; it can only draw
  * black over everything. On an OLED panel that is real dimming. On an LCD the
@@ -23,8 +17,6 @@ import { useStoredString, writeStored } from '@/lib/hooks/useStoredValue';
  *
  * Applies to both idle screens, the separate screensaver and a calm dashboard.
  */
-
-const LEVEL_KEY = 'prism-screensaver-dim';
 
 /** How much darker, as the opacity of the black drawn over the screen. */
 export const DIM_LEVELS: { raw: string; label: string }[] = [
@@ -43,83 +35,40 @@ export function dimLevel(raw: string | null): number {
   return Number(known?.raw ?? DEFAULT_DIM_LEVEL);
 }
 
-/** Today on the screen's own clock, as the calendar's day view reads it. */
-function dayOf(at: Date): { from: Date; to: Date } {
-  const from = startOfDay(at);
-  return { from, to: addDays(from, 1) };
+/** How dark the idle screen is: the level at night, 0 by day. */
+export function dimAt(levelRaw: string | null, night: boolean): number {
+  return night ? dimLevel(levelRaw) : 0;
+}
+
+/** A level in percent as the raw value the choices use. */
+export function rawOfLevel(level: NightLevel): string {
+  return String(level / 100);
 }
 
 /**
- * How dark the idle screen is at `at`: the level during the hours the calendar
- * hides, 0 otherwise. Follows the hidden range whether or not the calendar's
- * own clock button is showing it, since that button is about the view.
+ * How much darker this screen goes at night, as one of the raw choices, and
+ * setting it, which writes the screen's day with the new level.
  */
-export function dimAt(
-  levelRaw: string | null,
-  hours: HiddenHoursSettings,
-  events: CalendarEvent[],
-  at: Date,
-): number {
-  const shown = visibleHours({ ...hours, enabled: true }, events, dayOf(at));
-  return shown.includes(at.getHours()) ? 0 : dimLevel(levelRaw);
-}
-
-/** When the screen dims, as words for Settings. */
-export function describeDimHours(hours: HiddenHoursSettings): string {
-  if (hours.mode === 'auto-fit') {
-    const buffer = `${hours.bufferHours} hour${hours.bufferHours === 1 ? '' : 's'}`;
-    return `before the day's first timed event and after its last, with ${buffer} either side (outside 8 am to 7 pm on a day without any)`;
-  }
-  const hour = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'am' : 'pm'}`;
-  return `from ${hour(hours.startHour)} to ${hour(hours.endHour)}`;
-}
-
-const setLevel = (raw: string) => writeStored(LEVEL_KEY, raw);
-
 export function useIdleDimSetting() {
-  const raw = useStoredString(LEVEL_KEY);
+  const { day, setDay } = useScreenDay();
   return {
-    level: DIM_LEVELS.some((l) => l.raw === raw) ? raw! : DEFAULT_DIM_LEVEL,
-    setLevel,
+    level: rawOfLevel(day.nightLevel),
+    setLevel: (raw: string) => {
+      const level = levelFromDim(raw);
+      if (level !== null) setDay({ ...day, nightLevel: level });
+    },
   };
 }
-
-/** Re-checked every half minute, so the hours start and end on time. */
-function subscribeMinute(onChange: () => void): () => void {
-  const timer = setInterval(onChange, 30_000);
-  return () => clearInterval(timer);
-}
-const currentMinute = () => Math.floor(Date.now() / 60_000);
-const noSubscribe = () => () => {};
 
 /**
  * The black layer itself, over everything and never in the way of a tap.
  *
  * It eases in slowly, so the room notices the screen settling rather than a
- * switch, and lifts quickly on a touch. While idle it checks the time each
- * half minute, so a screen already idle when the hours begin dims then.
+ * switch, and lifts quickly on a touch. How dark comes from the screen's
+ * scene (`screenStateAt`, #1344), rechecked each minute, so a screen already
+ * idle at dusk dims then.
  */
-export function IdleDim({ idle }: { idle: boolean }) {
-  const { level } = useIdleDimSetting();
-  const dims = dimLevel(level) > 0;
-  const { settings: hours } = useHiddenHours();
-  // Today's events, fetched only when auto-fit needs them. The key changes
-  // at local midnight, which is what moves the window on.
-  const dateKey = useLocalDateKey();
-  const today = useMemo(() => dayOf(new Date()), [dateKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const { events } = useCalendarEvents({
-    rangeStart: today.from,
-    rangeEnd: today.to,
-    useDemoFallback: false,
-    autoSyncMinutes: 0,
-    enabled: dims && hours.mode === 'auto-fit',
-  });
-
-  const on = idle && dims;
-  // Only keeps time while it could be dark; read fresh on going idle.
-  const minute = useSyncExternalStore(on ? subscribeMinute : noSubscribe, currentMinute, () => 0);
-
-  const opacity = on ? dimAt(level, hours, events, new Date(minute * 60_000)) : 0;
+export function IdleDim({ opacity }: { opacity: number }) {
   return (
     <div
       aria-hidden

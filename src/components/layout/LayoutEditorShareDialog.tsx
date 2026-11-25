@@ -5,9 +5,10 @@ import { useState } from 'react';
 import { validateCommunityLayout } from '@/lib/community/validateLayout';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
 import { WIDGET_REGISTRY } from '@/components/widgets/widgetRegistry';
-import { getWidgetType } from '@/lib/utils/widgetInstances';
 import { downloadJson, slugify } from '@/lib/utils/downloadJson';
 import { useResetOn } from '@/lib/hooks/useResetOn';
+import { getWidgetType } from '@/lib/utils/widgetInstances';
+import { EXPORT_VERSION } from './LayoutEditorTypes';
 
 interface ExportWidget {
   i: string;
@@ -75,7 +76,7 @@ export function LayoutEditorShareDialog({
 
   const buildExportData = (): LayoutExportV2 => ({
     type: 'prism-layout',
-    version: 3,
+    version: EXPORT_VERSION,
     mode,
     name: layoutName || (mode === 'screensaver' ? 'Screensaver' : 'Dashboard'),
     description: '',
@@ -84,8 +85,8 @@ export function LayoutEditorShareDialog({
     screenSizes: [],
     orientation: 'landscape',
     widgets: currentWidgets
-      .filter((w) => w.visible !== false)
-      .map((widget) => {
+      .filter(w => w.visible !== false)
+      .map(widget => {
         const widgetType = getWidgetType(widget);
         const reg = WIDGET_REGISTRY[widgetType];
         const exported: ExportWidget = {
@@ -116,10 +117,7 @@ export function LayoutEditorShareDialog({
       description: shareForm.description,
       author: shareForm.author,
       orientation: shareForm.orientation,
-      tags: shareForm.tags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tags: shareForm.tags.split(',').map(t => t.trim()).filter(Boolean),
     };
 
     const result = validateCommunityLayout(submissionData, { communitySubmission: true });
@@ -157,18 +155,11 @@ export function LayoutEditorShareDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-100 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-    >
-      <div
-        className="mx-4 w-full max-w-2xl space-y-3 rounded-lg border border-border bg-popover p-4 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-popover border border-border rounded-lg shadow-xl p-4 max-w-2xl w-full mx-4 space-y-3" onClick={e => e.stopPropagation()}>
         <div className="text-sm font-medium">Share to Community</div>
         <p className="text-xs text-muted-foreground">
-          Submit your layout to the Prism community gallery. This opens a GitHub Issue with your
-          layout data.
+          Submit your layout to the Prism community gallery. This opens a GitHub Issue with your layout data.
           No GitHub account? Download the file and send it however you like. It loads through More → Import.
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -177,8 +168,8 @@ export function LayoutEditorShareDialog({
             <input
               type="text"
               value={shareForm.name}
-              onChange={(e) => setShareForm((f) => ({ ...f, name: e.target.value }))}
-              className="w-full rounded-md border border-border bg-muted px-2 py-1 text-sm focus:outline-hidden focus:ring-1 focus:ring-primary"
+              onChange={e => setShareForm(f => ({ ...f, name: e.target.value }))}
+              className="w-full px-2 py-1 text-sm bg-muted border border-border rounded-md focus:outline-hidden focus:ring-1 focus:ring-primary"
               maxLength={100}
             />
           </div>
@@ -187,8 +178,8 @@ export function LayoutEditorShareDialog({
             <input
               type="text"
               value={shareForm.author}
-              onChange={(e) => setShareForm((f) => ({ ...f, author: e.target.value }))}
-              className="w-full rounded-md border border-border bg-muted px-2 py-1 text-sm focus:outline-hidden focus:ring-1 focus:ring-primary"
+              onChange={e => setShareForm(f => ({ ...f, author: e.target.value }))}
+              className="w-full px-2 py-1 text-sm bg-muted border border-border rounded-md focus:outline-hidden focus:ring-1 focus:ring-primary"
               maxLength={50}
             />
           </div>
@@ -198,22 +189,22 @@ export function LayoutEditorShareDialog({
           <input
             type="text"
             value={shareForm.description}
-            onChange={(e) => setShareForm((f) => ({ ...f, description: e.target.value }))}
-            className="w-full rounded-md border border-border bg-muted px-2 py-1 text-sm focus:outline-hidden focus:ring-1 focus:ring-primary"
+            onChange={e => setShareForm(f => ({ ...f, description: e.target.value }))}
+            className="w-full px-2 py-1 text-sm bg-muted border border-border rounded-md focus:outline-hidden focus:ring-1 focus:ring-primary"
           />
         </div>
         <div className="flex items-center gap-4">
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Orientation *</label>
             <div className="flex gap-1">
-              {(['landscape', 'portrait'] as const).map((orient) => (
+              {(['landscape', 'portrait'] as const).map(orient => (
                 <button
                   key={orient}
-                  onClick={() => setShareForm((f) => ({ ...f, orientation: orient }))}
-                  className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                  onClick={() => setShareForm(f => ({ ...f, orientation: orient }))}
+                  className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
                     shareForm.orientation === orient
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-muted hover:bg-accent'
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-muted border-border hover:bg-accent'
                   }`}
                 >
                   {orient}
@@ -227,24 +218,22 @@ export function LayoutEditorShareDialog({
           <input
             type="text"
             value={shareForm.tags}
-            onChange={(e) => setShareForm((f) => ({ ...f, tags: e.target.value }))}
+            onChange={e => setShareForm(f => ({ ...f, tags: e.target.value }))}
             placeholder="e.g. family, minimal, kitchen"
-            className="w-full rounded-md border border-border bg-muted px-2 py-1 text-sm focus:outline-hidden focus:ring-1 focus:ring-primary"
+            className="w-full px-2 py-1 text-sm bg-muted border border-border rounded-md focus:outline-hidden focus:ring-1 focus:ring-primary"
           />
         </div>
         {shareErrors.length > 0 && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2">
+          <div className="bg-destructive/10 border border-destructive/30 rounded-md p-2">
             {shareErrors.map((err, i) => (
-              <p key={i} className="text-xs text-destructive">
-                {err}
-              </p>
+              <p key={i} className="text-xs text-destructive">{err}</p>
             ))}
           </div>
         )}
-        <div className="flex justify-end gap-2">
+        <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
-            className="rounded-md bg-muted px-3 py-1.5 text-sm transition-colors hover:bg-accent"
+            className="px-3 py-1.5 text-sm rounded-md bg-muted hover:bg-accent transition-colors"
           >
             Cancel
           </button>
@@ -256,7 +245,7 @@ export function LayoutEditorShareDialog({
           </button>
           <button
             onClick={handleShareSubmit}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
+            className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Open GitHub Issue
           </button>

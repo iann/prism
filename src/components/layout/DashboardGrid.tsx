@@ -35,8 +35,7 @@ import { AwayModeToggle } from '@/components/away-mode';
 import { BabysitterModeToggle } from '@/components/babysitter-mode';
 import { PerformanceModeBadge } from '@/components/layout/PerformanceModeBadge';
 import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
-import { Eraser, RefreshCw } from 'lucide-react';
-import { startScreenCleaning } from '@/lib/hooks/useScreenCleaning';
+import { RefreshCw } from 'lucide-react';
 import { MORE_TILE } from '@/lib/constants/dock';
 
 
@@ -157,8 +156,10 @@ export function DashboardLayout({
         className
       )}
     >
-      {/* Main content area is owned by AppShell; keep this wrapper non-semantic. */}
-      <div className="flex-1 overflow-hidden">{children}</div>
+      {/* Main content area */}
+      <main className="flex-1 overflow-hidden">
+        {children}
+      </main>
     </div>
   );
 }
@@ -213,56 +214,14 @@ export function DashboardHeader({
   const hidden = uiHidden || measureHideChrome;
   return (
     <header className={cn(
-      'wall-dashboard-header',
       // 'relative z-10' is load-bearing: WallpaperBackground is fixed at z-0,
       // and without our own stacking context the toolbar would paint underneath
-      // it whenever backdrop-blur is disabled (e.g. perf mode).
-      'relative z-10 shrink-0 bg-card dark:bg-card/95 backdrop-blur-xs dark:backdrop-blur-sm px-4 transition-all duration-500 ease-in-out overflow-hidden',
+      // it whenever backdrop-blur-sm is disabled (e.g. perf mode).
+      'relative z-10 shrink-0 bg-card/95 backdrop-blur-xs px-4 transition-all duration-500 ease-in-out overflow-hidden',
       hidden ? 'opacity-0 max-h-0 py-0' : 'max-h-20 py-2 delay-200'
-    )} data-chrome-hidden={hidden ? 'true' : undefined}>
+    )}>
       <div className="flex items-center justify-end gap-2">
-        {onEditClick && (
-          <button
-            onClick={onEditClick}
-            className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
-            aria-label="Edit layout"
-          >
-            <GridEditIcon />
-          </button>
-        )}
-
-        <button
-          onClick={() => window.location.reload()}
-          className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
-          aria-label="Refresh page"
-        >
-          <RefreshCw className="h-5 w-5" />
-        </button>
-
-        <PerformanceModeBadge />
-        <BabysitterModeToggle />
-        <AwayModeToggle />
-
-        <button
-          onMouseDown={(e) => { e.stopPropagation(); }}
-          onClick={(e) => { e.stopPropagation(); startScreenCleaning(); }}
-          className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
-          aria-label="Clean screen"
-          title="Clean screen"
-        >
-          <Eraser className="h-5 w-5" aria-hidden="true" />
-        </button>
-
-        {onScreensaverClick && (
-          <button
-            onMouseDown={(e) => { e.stopPropagation(); }}
-            onClick={(e) => { e.stopPropagation(); onScreensaverClick(); }}
-            className="wall-header-action touch-target rounded-xl p-2 transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
-            aria-label="Start screensaver"
-          >
-            <ScreensaverIcon />
-          </button>
-        )}
+        <ScreenJobs onEditClick={onEditClick} onScreensaverClick={onScreensaverClick} />
       </div>
     </header>
   );

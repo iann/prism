@@ -27,7 +27,6 @@ import {
   Monitor,
   Type,
   Wand2,
-  PartyPopper,
   ChevronLeft,
 } from 'lucide-react';
 import { PrismIcon } from '@/components/ui/PrismIcon';
@@ -54,7 +53,6 @@ import { InputSection } from './sections/InputSection';
 import { FeaturesSection } from './sections/FeaturesSection';
 import { TelemetryCard } from './sections/TelemetryCard';
 import { ActivityLogSection } from './sections/ActivityLogSection';
-import { PartyModeSection } from './sections/PartyModeSection';
 
 import { DisplaysSection } from './sections/DisplaysSection';
 import { TextSizeSection } from './sections/TextSizeSection';
@@ -66,51 +64,7 @@ import { useResetOn } from '@/lib/hooks/useResetOn';
 
 // Exported hooks (consumed by other components)
 
-const DISPLAY_CONTEXTS_STORAGE_KEY = 'prism-display-contexts';
 const TARGET_RESOLUTION_STORAGE_KEY = 'prism-target-resolution';
-const ORIENTATION_OVERRIDE_KEY = 'prism-orientation-override';
-
-interface DisplayContextFilters {
-  gallery: { orientation: ('landscape' | 'portrait' | 'square')[]; usage: ('gallery' | 'all')[] };
-  wallpaper: { orientation: ('landscape' | 'portrait' | 'square')[]; usage: ('wallpaper' | 'all')[] };
-  screensaver: { orientation: ('landscape' | 'portrait' | 'square')[]; usage: ('screensaver' | 'all')[] };
-}
-const defaultDisplayContexts: DisplayContextFilters = {
-  gallery: { orientation: ['landscape', 'portrait', 'square'], usage: ['gallery', 'all'] },
-  wallpaper: { orientation: ['landscape'], usage: ['wallpaper', 'all'] },
-  screensaver: { orientation: ['landscape'], usage: ['screensaver', 'all'] },
-};
-
-export function useDisplayContextFilters() {
-  const [filters, setFiltersState] = React.useState<DisplayContextFilters>(() => {
-    if (typeof window === 'undefined') return defaultDisplayContexts;
-    try {
-      const stored = localStorage.getItem(DISPLAY_CONTEXTS_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : defaultDisplayContexts;
-    } catch { return defaultDisplayContexts; }
-  });
-
-  const setFilters = React.useCallback((f: DisplayContextFilters) => {
-    setFiltersState(f);
-    localStorage.setItem(DISPLAY_CONTEXTS_STORAGE_KEY, JSON.stringify(f));
-  }, []);
-
-  return { filters, setFilters };
-}
-
-export function useOrientationOverride() {
-  const [override, setOverrideState] = React.useState<'auto' | 'landscape' | 'portrait'>(() => {
-    if (typeof window === 'undefined') return 'auto';
-    return (localStorage.getItem(ORIENTATION_OVERRIDE_KEY) as 'auto' | 'landscape' | 'portrait') || 'auto';
-  });
-
-  const setOverride = React.useCallback((v: 'auto' | 'landscape' | 'portrait') => {
-    setOverrideState(v);
-    localStorage.setItem(ORIENTATION_OVERRIDE_KEY, v);
-  }, []);
-
-  return { override, setOverride };
-}
 
 export function useTargetResolution() {
   const [resolution, setResState] = React.useState<{ width: number; height: number }>(() => {
@@ -247,12 +201,11 @@ export function SettingsView() {
   const sections = [
     { id: 'account', label: 'Account & Profile', icon: User },
     { id: 'family', label: 'Family Members', icon: Users },
-    { id: 'party-mode', label: 'Party Mode', icon: PartyPopper },
     { id: 'general', label: 'General', icon: SlidersHorizontal },
     { id: 'integrations', label: 'Integrations', icon: Link2 },
     // Calendar management moved onto the Calendar page (Manage calendars button).
     { id: 'display', label: 'Appearance', icon: Palette },
-    { id: 'displays', label: 'Displays', icon: Monitor },
+    { id: 'displays', label: 'Screens', icon: Monitor },
     { id: 'photos', label: 'Photos', icon: ImageIcon },
     { id: 'bus', label: 'Bus Tracking', icon: Bus },
     { id: 'input', label: 'Input', icon: KeyboardIcon },
@@ -268,7 +221,7 @@ export function SettingsView() {
   return (
     <PageWrapper>
       <div className="h-page flex flex-col">
-        <header className="shrink-0 border-b border-border bg-card dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm px-4 safe-area-top">
+        <header className="shrink-0 border-b border-border bg-card px-4 safe-area-top md:bg-card/85 md:backdrop-blur-xs">
           <div className="flex items-center gap-4 h-16">
             {backName ? (
               <Button variant="ghost" size="sm" asChild>
@@ -296,7 +249,8 @@ export function SettingsView() {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <nav className="hidden md:landscape:block w-64 shrink-0 overflow-y-auto border-r border-border bg-card dark:bg-card/85 backdrop-blur-xs dark:backdrop-blur-sm p-4">
+          {/* Scrolls on its own when the window is short (#843). */}
+          <nav className="hidden md:landscape:block w-64 shrink-0 overflow-y-auto border-r border-border bg-card/85 backdrop-blur-xs p-4">
             <div className="space-y-1">
               {sections.map((section) => {
                 const Icon = section.icon;
@@ -319,7 +273,9 @@ export function SettingsView() {
 
           </nav>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          {/* Scrolls up and down only: a section a little too wide for a phone
+              let the whole page drag sideways in the iPhone app. */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6" data-settings-scroller>
             {/*
               Section selector for phones and portrait screens. The sidebar
               above shows only on a landscape screen md and wider: on a portrait
@@ -345,14 +301,13 @@ export function SettingsView() {
               </select>
             </div>
             {/* Sections use the whole width they are given. A 42rem cap cut
-                screen names in Settings > Displays down to one letter on a
+                screen names in Settings > Screens down to one letter on a
                 1080p screen, with half of it left empty beside them. On a wide
                 screen Appearance lays its cards out in columns of its own. */}
             <div>
               <InsecurePageNotice />
               {activeSection === 'account' && <AccountSection />}
               {activeSection === 'family' && <FamilySection />}
-              {activeSection === 'party-mode' && <PartyModeSection />}
               {activeSection === 'integrations' && <IntegrationsSection />}
               {activeSection === 'displays' && <DisplaysSection />}
               {activeSection === 'text-size' && <TextSizeSection />}

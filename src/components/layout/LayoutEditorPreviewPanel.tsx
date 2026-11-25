@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { LayoutPreview } from './LayoutPreview';
 import type { WidgetConfig } from '@/lib/hooks/useLayouts';
-import type { ScreenSafeZones } from '@/lib/hooks/useScreenSafeZones';
 
 interface LayoutEditorPreviewPanelProps {
   visibleWidgets: WidgetConfig[];
@@ -13,11 +12,6 @@ interface LayoutEditorPreviewPanelProps {
   gridScrollX: number;
   gridVisibleCols: number;
   scrollToGridRef?: React.MutableRefObject<((row: number, col?: number) => void) | null>;
-  screenGuideOrientation: 'landscape' | 'portrait';
-  effectiveEnabledSizes: string[];
-  onToggleSize?: (size: string) => void;
-  allSizeNames: string[];
-  zones: ScreenSafeZones;
   validation: { errors: string[]; warnings: string[] };
 }
 
@@ -29,27 +23,22 @@ export function LayoutEditorPreviewPanel({
   gridScrollX,
   gridVisibleCols,
   scrollToGridRef,
-  screenGuideOrientation,
-  effectiveEnabledSizes,
-  onToggleSize,
-  allSizeNames,
-  zones,
   validation,
 }: LayoutEditorPreviewPanelProps) {
+  const previewWidgets = visibleWidgets.map(w => ({ i: w.i, x: w.x, y: w.y, w: w.w, h: w.h }));
+
   return (
-    <div className="space-y-3 p-3">
-      <div className="flex items-start gap-2">
+    <div className="p-3 space-y-3">
+      {/* INTERACTIVE canvas mini-map — the one real, scrollable canvas. */}
+      <div>
+        <div className="flex items-baseline justify-between mb-1.5">
+          <p className="text-3xs font-medium text-muted-foreground uppercase tracking-wide">Canvas</p>
+          <span className="text-4xs text-muted-foreground/70">click to scroll</span>
+        </div>
         <LayoutPreview
-          widgets={visibleWidgets.map((w) => ({
-            i: w.i,
-            type: w.type,
-            x: w.x,
-            y: w.y,
-            w: w.w,
-            h: w.h,
-          }))}
-          width={200}
-          height={200}
+          widgets={previewWidgets}
+          width={280}
+          height={180}
           highlightWidget={focusedWidget}
           showLabels={true}
           showGrid={true}
@@ -58,59 +47,26 @@ export function LayoutEditorPreviewPanel({
           visibleCols={gridVisibleCols}
           scrollX={gridScrollX}
           onScrollTo={(row, col) => scrollToGridRef?.current?.(row, col)}
-          screenGuideOrientation={screenGuideOrientation}
-          enabledSizes={effectiveEnabledSizes}
-          safeZones={zones}
         />
-        <div className="flex flex-col gap-1">
-          {allSizeNames.map((size) => {
-            const zone = zones[screenGuideOrientation].find((z) => z.name === size);
-            const isEnabled = effectiveEnabledSizes.includes(size);
-            return (
-              <button
-                key={size}
-                onClick={() => onToggleSize?.(size)}
-                className={`whitespace-nowrap rounded px-1.5 py-0.5 text-xs transition-colors ${
-                  isEnabled ? 'text-white' : 'text-muted-foreground/50 line-through'
-                }`}
-                style={{
-                  backgroundColor: isEnabled ? zone?.color : 'transparent',
-                  border: `1px solid ${zone?.color || '#666'}`,
-                }}
-              >
-                {size}
-              </button>
-            );
-          })}
-          <span className="mt-1 text-[12px] leading-tight text-muted-foreground">
-            Click map
-            <br />
-            to scroll
-          </span>
-        </div>
       </div>
 
       {/* No per-device thumbnails (#1324): the dashboard stretches to fill its
           screen, so they all looked alike. Shown at, on the canvas, shows any
           screen's size full size. */}
       {validation.errors.length > 0 && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2">
-          <p className="mb-0.5 text-xs font-medium text-destructive">
+        <div className="bg-destructive/10 border border-destructive/30 rounded-md p-2">
+          <p className="text-xs font-medium text-destructive mb-0.5">
             {validation.errors.length} issue{validation.errors.length > 1 ? 's' : ''}
           </p>
           {validation.errors.map((err, i) => (
-            <p key={i} className="text-xs leading-tight text-destructive/80">
-              {err}
-            </p>
+            <p key={i} className="text-xs text-destructive/80 leading-tight">{err}</p>
           ))}
         </div>
       )}
       {validation.warnings.length > 0 && validation.errors.length === 0 && (
-        <div className="rounded-md border border-warning/30 bg-warning/10 p-2">
+        <div className="bg-warning/10 border border-warning/30 rounded-md p-2">
           {validation.warnings.map((w, i) => (
-            <p key={i} className="text-xs leading-tight text-warning">
-              {w}
-            </p>
+            <p key={i} className="text-xs text-warning leading-tight">{w}</p>
           ))}
         </div>
       )}

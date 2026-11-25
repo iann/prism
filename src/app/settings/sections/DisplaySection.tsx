@@ -1,44 +1,26 @@
 'use client';
 
+import { PHOTO_DATE_SETTING, PHOTO_ON_THIS_DAY_SETTING, PHOTO_PLACE_SETTING } from '@/lib/photos/caption';
 import { useState, useEffect, useCallback } from 'react';
-import { Sun, Moon, Monitor, Share2, Store, Sunset } from 'lucide-react';
+import { Sun, Moon, Monitor, Share2, Store, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/components/providers';
 import { useAppLocale, APP_LOCALES } from '@/components/providers/LocaleProvider';
 import { useSeasonalTheme } from '@/lib/hooks/useSeasonalTheme';
 import { MONTH_NAMES, seasonalPalettes } from '@/lib/themes/seasonalThemes';
-import {
-  useWallpaperSettings,
-  useAutoOrientationSetting,
-  useScreensaverInterval,
-} from '@/components/layout/WallpaperBackground';
 import { ThemeShareDialog } from '@/components/settings/ThemeShareDialog';
 import { CommunityThemeGallery } from '@/components/settings/CommunityThemeGallery';
 import { ThemeImportButton } from '@/components/settings/ThemeImportButton';
-import { useScreenOrientation } from '@/lib/hooks/useScreenOrientation';
-import { useOrientationOverride } from '../SettingsView';
-import { useScreensaverTimeout } from '@/lib/hooks/useScreensaverTimeout';
-import { useScreensaverMotion, type ScreensaverMotion } from '@/components/screensaver/useScreensaverMotion';
-import { useLocalCopy } from '@/lib/hooks/useLocalCopy';
-import { DIM_LEVELS, describeDimHours, useIdleDimSetting } from '@/components/screensaver/idleDim';
-import { useHiddenHours } from '@/lib/hooks/useHiddenHours';
-import { useIdleLogoutSetting, IDLE_LOGOUT_OPTIONS } from '@/lib/hooks/useIdleLogout';
-import { useAutoHideUI } from '@/lib/hooks/useAutoHideUI';
+import { useWallpaperSettings, useAutoOrientationSetting } from '@/components/layout/WallpaperBackground';
 import { useAwayModeTimeout } from '@/lib/hooks/useAwayModeTimeout';
-import { usePerformanceMode } from '@/lib/hooks/usePerformanceMode';
-import { appThemes, isAppThemeId } from '@/lib/themes/appThemes';
-import {
-  MAX_SUNSET_OFFSET_MINUTES,
-  MIN_SUNSET_OFFSET_MINUTES,
-  normalizeSunsetOffsetMinutes,
-} from '@/lib/themes/sunsetTheme';
-import type { PerfLevel, PerfMode } from '@/lib/perfLevel';
+import { AWAY_AUTO_OPTIONS } from '@/lib/awayMode/autoAfter';
 import { AURORA_SETTING } from '@/lib/integrations/aurora';
+import { DEFAULT_MODE_SETTING_KEY } from '@/lib/looks';
+import { isNamedScreen } from '@/lib/displays/namedScreen';
+import { useHydrated } from '@/lib/hooks/useStoredValue';
 
 function getCurrentMonthNum(): number {
   return new Date().getMonth() + 1;
@@ -47,37 +29,45 @@ function getCurrentMonthNum(): number {
 function SectionDivider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 pt-2">
-      <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
         {label}
       </span>
-      <div className="h-px flex-1 bg-border" />
+      <div className="flex-1 h-px bg-border" />
     </div>
   );
 }
 
+/**
+ * A rarely changed setting, folded to one line with its current value (#1017);
+ * a tap opens it. Native <details>, so it works with the keyboard and reader.
+ */
+function FoldCard({ id, title, value, children }: { id: string; title: string; value: string; children: React.ReactNode }) {
+  return (
+    <details className="group rounded-xl border bg-card text-card-foreground" data-fold={id}>
+      <summary className="flex min-h-[56px] cursor-pointer list-none items-center gap-3 px-6 [&::-webkit-details-marker]:hidden">
+        <span className="font-semibold">{title}</span>
+        <span className="ml-auto text-sm text-muted-foreground" data-fold-value>{value}</span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
+      <div className="border-t [&>*]:rounded-none [&>*]:border-0 [&>*]:shadow-none">{children}</div>
+    </details>
+  );
+}
+
 export function DisplaySection() {
-  const {
-    theme,
-    setTheme,
-    sunsetOffsetMinutes,
-    setSunsetOffsetMinutes,
-    colorTheme,
-    resolvedTheme,
-    palette: activePalette,
-    palettes,
-    setPalette,
-    installedThemes,
-  } = useTheme();
+  const { theme, setTheme, resolvedTheme, palette: activePalette, palettes, setPalette, installedThemes } = useTheme();
   const { seasonalTheme, setSeasonalTheme, palette } = useSeasonalTheme();
-  // A local copy of the saved offset: typing changes it, and a saved change
-  // from elsewhere starts the field over.
-  const [sunsetOffsetInput, setSunsetOffsetInput] = useLocalCopy(String(sunsetOffsetMinutes));
   const [sharing, setSharing] = useState(false);
   const [browsing, setBrowsing] = useState(false);
+  // The palette in use as one row; the full set only when changing it (#1017).
+  const [choosing, setChoosing] = useState(false);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  // Read after hydrating: the marker is a cookie the server render cannot see.
+  const named = useHydrated() && isNamedScreen();
 
   const mode: 'auto' | 'manual' | 'off' =
-    seasonalTheme === 'none' ? 'off' : seasonalTheme === 'auto' ? 'auto' : 'manual';
+    seasonalTheme === 'none' ? 'off' :
+    seasonalTheme === 'auto' ? 'auto' : 'manual';
 
   const setMode = (m: 'auto' | 'manual' | 'off') => {
     if (m === 'off') setSeasonalTheme('none');
@@ -89,102 +79,34 @@ export function DisplaySection() {
     <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-bold">Appearance</h2>
-        <p className="text-muted-foreground">Customize how the dashboard looks and behaves</p>
+        <p className="text-muted-foreground">
+          Customize how the dashboard looks and behaves
+        </p>
       </div>
 
-      <SectionDivider label="Theme" />
-      {/* A section spreads across the width rather than running down it:
-          Seasonal Theme sits beside Color Scheme instead of below it. The
-          divider stays full width so the grouping still reads as one thing. */}
+      <SectionDivider label="Look" />
+      <div data-appearance-group="look" className="flex flex-col gap-4">
+
+      {/* Seasonal Theme sits beside Color Scheme rather than below it. */}
       <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
 
       <Card>
         <CardHeader>
-          <CardTitle>Palette</CardTitle>
-          <CardDescription>
-            Sets the background, widget surfaces, calendars, controls, borders, and accent colors
-            throughout Prism.
-          </CardDescription>
-          <div className="flex gap-2 pt-1">
-            <Button variant="outline" size="sm" onClick={() => setBrowsing(true)}>
-              <Store className="mr-1 h-4 w-4" />
-              Browse community themes
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setSharing(true)}>
-              <Share2 className="mr-1 h-4 w-4" />
-              Share palette
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {palettes.map((preset) => {
-            const colors = preset[resolvedTheme];
-            const personalColors = isAppThemeId(preset.id) ? appThemes[preset.id][resolvedTheme] : null;
-            const previewColor = (token: string) =>
-              personalColors?.[`--${token}`] ?? colors[token as keyof typeof colors] ?? '0 0% 50%';
-            const swatches = personalColors
-              ? ['widget-calendar', 'widget-planning', 'widget-family', 'widget-info']
-              : ['background', 'card', 'primary', 'accent'];
-            const selected = activePalette.id === preset.id || colorTheme === preset.id;
-            return (
-              <button
-                type="button"
-                key={preset.id}
-                aria-pressed={selected}
-                onClick={() => setPalette(preset.id)}
-                className={cn(
-                  'rounded-xl border p-3 text-left transition-all',
-                  selected
-                    ? 'border-primary ring-2 ring-primary/25'
-                    : 'border-border hover:border-primary dark:hover:border-primary/50'
-                )}
-              >
-                <div
-                  className="mb-3 flex h-14 items-end gap-1.5 rounded-lg border p-2"
-                  style={{
-                    backgroundColor: `hsl(${previewColor('background')})`,
-                    borderColor: `hsl(${previewColor('border')})`,
-                  }}
-                >
-                  {swatches.map((token) => (
-                    <span
-                      key={token}
-                      className="h-8 flex-1 rounded-sm"
-                      style={{ backgroundColor: `hsl(${previewColor(token)})` }}
-                    />
-                  ))}
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="block text-sm font-semibold">{preset.name}</span>
-                  {installedThemes.some((theme) => theme.id === preset.id) && (
-                    <span className="text-[10px] text-muted-foreground">Community</span>
-                  )}
-                </div>
-                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                  {preset.description}
-                </span>
-              </button>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Brightness</CardTitle>
-          <CardDescription>
-            Use a light or dark version of the selected palette, or let Prism follow the sun at your
-            weather location.
+          <CardTitle>Color Scheme</CardTitle>
+          <CardDescription data-color-scheme-scope>
+            {named
+              ? 'Light or dark for this screen, kept with it. Also in its editor: More > Edit layout > Screen.'
+              : 'Light or dark for this browser.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-3">
+          <div className="flex gap-3" role="group" aria-label="Light or dark">
             <Button
               variant={theme === 'light' ? 'default' : 'outline'}
               onClick={() => setTheme('light')}
               className="flex-1"
             >
-              <Sun className="mr-2 h-4 w-4" />
+              <Sun className="h-4 w-4 mr-2" />
               Light
             </Button>
             <Button
@@ -192,76 +114,32 @@ export function DisplaySection() {
               onClick={() => setTheme('dark')}
               className="flex-1"
             >
-              <Moon className="mr-2 h-4 w-4" />
+              <Moon className="h-4 w-4 mr-2" />
               Dark
             </Button>
-            <Button
-              variant={theme === 'system' ? 'default' : 'outline'}
-              onClick={() => setTheme('system')}
-              className="flex-1"
-            >
-              <Monitor className="mr-2 h-4 w-4" />
-              System
-            </Button>
-            <Button
-              variant={theme === 'sunset' ? 'default' : 'outline'}
-              onClick={() => setTheme('sunset')}
-              className="flex-1"
-            >
-              <Sunset className="mr-2 h-4 w-4" />
-              Sunset
-            </Button>
+            {/* A named screen keeps Light or Dark (#1340): a laptop editing it
+                cannot know what the screen's own system prefers. */}
+            {!named && (
+              <Button
+                variant={theme === 'system' ? 'default' : 'outline'}
+                onClick={() => setTheme('system')}
+                className="flex-1"
+              >
+                <Monitor className="h-4 w-4 mr-2" />
+                System
+              </Button>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Sunset mode stays light during the day and switches to dark after sunset, returning to
-            light at sunrise. It uses the location configured under General settings.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem] sm:items-end">
-            <div>
-              <Label htmlFor="sunset-offset">Dark mode offset</Label>
-              <p id="sunset-offset-help" className="mt-1 text-xs text-muted-foreground">
-                Positive values start dark mode after sunset; negative values start it before
-                sunset.
-              </p>
-            </div>
-            <div className="relative">
-              <Input
-                id="sunset-offset"
-                type="number"
-                min={MIN_SUNSET_OFFSET_MINUTES}
-                max={MAX_SUNSET_OFFSET_MINUTES}
-                step={1}
-                value={sunsetOffsetInput}
-                aria-describedby="sunset-offset-help"
-                onChange={(event) => {
-                  setSunsetOffsetInput(event.target.value);
-                }}
-                onBlur={() => {
-                  const value = Number(sunsetOffsetInput);
-                  if (sunsetOffsetInput.trim() === '' || !Number.isFinite(value)) {
-                    setSunsetOffsetInput(String(sunsetOffsetMinutes));
-                    return;
-                  }
 
-                  const normalizedValue = normalizeSunsetOffsetMinutes(value);
-                  setSunsetOffsetInput(String(normalizedValue));
-                  setSunsetOffsetMinutes(normalizedValue);
-                }}
-                className="pr-12"
-              />
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
-                min
-              </span>
-            </div>
-          </div>
+          <NewScreensStartAs />
 
           <div className="mt-6 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-48 flex-1">
                 <h4 className="text-sm font-medium">Palette</h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Applies to every screen in the house. Light and dark above stay
-                  per-screen.
+                  Applies to every screen in the house. Light or dark is each
+                  screen&apos;s own, or this browser&apos;s on one that is not named.
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap justify-end gap-2">
@@ -285,7 +163,23 @@ export function DisplaySection() {
                 ))}
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            {(() => {
+              const preview = resolvedTheme === 'dark' ? activePalette.dark : activePalette.light;
+              return (
+                <div className="flex min-h-[56px] items-center gap-3 rounded-lg border border-border px-3" data-palette-current>
+                  <div className="flex gap-1.5">
+                    {(['background', 'card', 'primary', 'accent', 'destructive'] as const).map((tok) => (
+                      <span key={tok} className="h-6 w-6 rounded border border-black/10" style={{ backgroundColor: `hsl(${preview[tok]})` }} />
+                    ))}
+                  </div>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{activePalette.name}</span>
+                  <Button variant="outline" size="sm" onClick={() => setChoosing(!choosing)} aria-expanded={choosing} data-palette-change>
+                    {choosing ? 'Done' : 'Change'}
+                  </Button>
+                </div>
+              );
+            })()}
+            {choosing && <div className="grid grid-cols-2 gap-3" data-palette-grid>
               {palettes.map((p) => {
                 const preview = resolvedTheme === 'dark' ? p.dark : p.light;
                 return (
@@ -325,7 +219,7 @@ export function DisplaySection() {
                   </button>
                 );
               })}
-            </div>
+            </div>}
           </div>
         </CardContent>
       </Card>
@@ -339,7 +233,9 @@ export function DisplaySection() {
       <Card>
         <CardHeader>
           <CardTitle>Seasonal Theme</CardTitle>
-          <CardDescription>Add seasonal color accents to the dashboard</CardDescription>
+          <CardDescription>
+            Add seasonal color accents to the dashboard
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3">
@@ -356,20 +252,20 @@ export function DisplaySection() {
           </div>
 
           {palette && (
-            <div className="flex items-center gap-3 rounded-md border border-border p-3">
+            <div className="flex items-center gap-3 p-3 rounded-md border border-border">
               <div className="flex gap-1.5">
                 <div
-                  className="h-6 w-6 rounded-full"
+                  className="w-6 h-6 rounded-full"
                   style={{ backgroundColor: `hsl(${palette.light.accent})` }}
                   title="Accent"
                 />
                 <div
-                  className="h-6 w-6 rounded-full"
+                  className="w-6 h-6 rounded-full"
                   style={{ backgroundColor: `hsl(${palette.light.highlight})` }}
                   title="Highlight"
                 />
                 <div
-                  className="h-6 w-6 rounded-full border border-border"
+                  className="w-6 h-6 rounded-full border border-border"
                   style={{ backgroundColor: `hsl(${palette.light.subtle})` }}
                   title="Subtle"
                 />
@@ -391,14 +287,14 @@ export function DisplaySection() {
                     key={month}
                     onClick={() => setSeasonalTheme(month)}
                     className={cn(
-                      'flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors',
+                      'flex items-center gap-2 px-3 py-2 rounded-md text-sm border transition-colors',
                       selected
                         ? 'border-foreground bg-accent text-accent-foreground'
                         : 'border-border hover:bg-accent/50'
                     )}
                   >
                     <div
-                      className="h-3 w-3 rounded-full shrink-0"
+                      className="w-3 h-3 rounded-full shrink-0"
                       style={{ backgroundColor: `hsl(${p.light.accent})` }}
                     />
                     {name.slice(0, 3)}
@@ -411,33 +307,32 @@ export function DisplaySection() {
       </Card>
 
       </div>
-      <SectionDivider label="Wallpaper & Display" />
-      {/* A section spreads across the width rather than running down it:
-          Seasonal Theme sits beside Color Scheme instead of below it. The
-          divider stays full width so the grouping still reads as one thing. */}
-      <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
-
-      <PerformanceModeCard />
-
-      <OrientationCard />
-
-      <WallpaperSettingsCard />
-
       </div>
-      <SectionDivider label="Behavior" />
-      {/* A section spreads across the width rather than running down it:
-          Seasonal Theme sits beside Color Scheme instead of below it. The
-          divider stays full width so the grouping still reads as one thing. */}
-      <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
 
-      <ScreensaverCard />
-      <TimersCard />
-
-      <WeatherUnitsCard />
-
-      <LanguageCard />
-
+      {/* Grouped by what a person is doing (#1017). */}
+      <SectionDivider label="Background and away" />
+      <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start" data-appearance-group="background">
+        <WallpaperSettingsCard />
+        <AwayModeCard />
+        <NightSkyCard />
       </div>
+
+      <SectionDivider label="All screens" />
+      <div className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start" data-appearance-group="household">
+        {/* Rarely changed: folded to one line with the current value. */}
+        <div className="flex flex-col gap-3">
+          <WeatherUnitsCard />
+          <LanguageCard />
+        </div>
+      </div>
+
+      {/* One screen's own settings live in that screen's editor (#1159), opened from More (#1313). */}
+      <p className="text-sm text-muted-foreground" data-screen-settings-moved>
+        One screen&apos;s own settings, like when it rests, the screensaver, orientation, performance
+        and the on-screen keyboard, are in that screen&apos;s editor: choose More &gt; Edit layout on
+        the screen, or choose it in{' '}
+        <a href="/settings?section=displays" className="underline">Settings &gt; Screens</a> from a phone.
+      </p>
     </div>
   );
 }
@@ -460,12 +355,13 @@ function LanguageCard() {
   );
 
   return (
+    <FoldCard id="language" title="Language" value={APP_LOCALES.find((l) => l.value === locale)?.label ?? locale}>
     <Card>
       <CardHeader>
-        <CardTitle>Language <span className="text-xs font-normal text-muted-foreground">(early preview)</span></CardTitle>
         <CardDescription>
           The dashboard&apos;s display language. English is the default; other languages fall back to English
           for anything not yet translated. Only part of the UI is translated so far — this is an early preview.
+          All screens.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -489,6 +385,7 @@ function LanguageCard() {
         </div>
       </CardContent>
     </Card>
+    </FoldCard>
   );
 }
 
@@ -498,8 +395,8 @@ function WeatherUnitsCard() {
 
   useEffect(() => {
     fetch('/api/settings')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
         const value = data?.settings?.weather as { units?: 'imperial' | 'metric' } | undefined;
         setUnits(value?.units === 'metric' ? 'metric' : 'imperial');
       })
@@ -515,21 +412,18 @@ function WeatherUnitsCard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'weather', value: { units: next } }),
       });
-    } catch {
-      /* ignore — UI already updated optimistically */
-    }
+    } catch { /* ignore — UI already updated optimistically */ }
     setSaving(false);
   }, []);
 
   if (units === null) return null;
 
   return (
+    <FoldCard id="units" title="Units" value={units === 'metric' ? 'Metric' : 'Imperial'}>
     <Card>
       <CardHeader>
-        <CardTitle>Units</CardTitle>
         <CardDescription>
-          Imperial shows °F, mph, and inches. Metric shows °C, km/h, and mm. Applies to every place
-          weather is rendered (widget, mobile cards, away mode, babysitter mode) and to the live bus speed.
+          Imperial shows °F, mph, and inches. Metric shows °C, km/h, and mm. Applies to weather everywhere it is shown (widget, mobile cards, away mode, babysitter mode) and to the live bus speed. All screens.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -541,8 +435,8 @@ function WeatherUnitsCard() {
             disabled={saving}
             onClick={() => save('imperial')}
             className={cn(
-              'rounded-sm px-3 py-1.5 text-sm transition-colors',
-              units === 'imperial' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+              'px-3 py-1.5 text-sm rounded-sm transition-colors',
+              units === 'imperial' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
             )}
           >
             Imperial (°F, mph)
@@ -554,8 +448,8 @@ function WeatherUnitsCard() {
             disabled={saving}
             onClick={() => save('metric')}
             className={cn(
-              'rounded-sm px-3 py-1.5 text-sm transition-colors',
-              units === 'metric' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+              'px-3 py-1.5 text-sm rounded-sm transition-colors',
+              units === 'metric' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
             )}
           >
             Metric (°C, km/h)
@@ -563,104 +457,10 @@ function WeatherUnitsCard() {
         </div>
       </CardContent>
     </Card>
+    </FoldCard>
   );
 }
 
-function TimersCard() {
-  const { autoHideEnabled, setAutoHideEnabled } = useAutoHideUI();
-  const { timeout: awayTimeout, setTimeout: setAwayTimeout } = useAwayModeTimeout();
-  const [idleLogout, setIdleLogout] = useIdleLogoutSetting();
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Timers &amp; Auto-Activation</CardTitle>
-        <CardDescription>
-          Auto-hide, away mode, and how long a signed-in session lasts
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Sign out */}
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">Signed-in session</h4>
-          <div className="flex items-center gap-3 pl-2">
-            <span className="text-sm text-muted-foreground">Sign out after</span>
-            <select
-              value={idleLogout}
-              onChange={(e) => setIdleLogout(Number(e.target.value))}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
-            >
-              {IDLE_LOGOUT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <p className="text-xs text-muted-foreground pl-2">
-            After this long untouched, the display stops being signed in as
-            whoever last used it. The dashboard stays readable; adding or
-            changing anything asks for a PIN. This screen only.
-          </p>
-        </div>
-
-        <div className="border-t border-border" />
-
-        {/* Auto-Hide Navigation */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-medium">Auto-Hide Navigation</h4>
-              <p className="text-xs text-muted-foreground">
-                Hide nav and toolbar after 10s of inactivity
-              </p>
-            </div>
-            <Switch
-              checked={autoHideEnabled}
-              onCheckedChange={setAutoHideEnabled}
-            />
-          </div>
-        </div>
-
-        <div className="border-t border-border" />
-
-        {/* Away Mode */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Away Mode Auto-Activation</h4>
-          <div className="flex items-center gap-3 pl-2">
-            <span className="text-sm text-muted-foreground">Activate after</span>
-            <select
-              value={awayTimeout}
-              onChange={(e) => setAwayTimeout(Number(e.target.value))}
-              className="rounded border border-border bg-background px-2 py-1 text-sm"
-            >
-              <option value={0}>Never (manual only)</option>
-              <option value={4}>4 hours</option>
-              <option value={8}>8 hours</option>
-              <option value={12}>12 hours</option>
-              <option value={24}>1 day</option>
-              <option value={48}>2 days</option>
-              <option value={72}>3 days</option>
-              <option value={168}>1 week</option>
-            </select>
-            <span className="text-sm text-muted-foreground">of no interaction</span>
-          </div>
-          <p className="pl-2 text-xs text-muted-foreground">
-            After the specified idle time, Away Mode activates automatically for privacy.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * The screensaver's own card.
- *
- * These controls used to be an <h4> inside "Timers & Auto-Activation", between
- * the sign-out timer and the away-mode timer. Everything worked, but nobody
- * could find it: "screensaver" is not a timer, and the one place people look
- * for it — the screensaver editor — didn't mention it either. Giving it a card
- * with its own name is the whole fix.
- */
 /**
  * Aurora on the night sky, for the whole household: one switch, because it is
  * one forecast, fetched by the server for the household location.
@@ -708,285 +508,104 @@ function AuroraToggle() {
   );
 }
 
-export function ScreensaverCard() {
-  const { timeout: ssTimeout, setTimeout: setSsTimeout } = useScreensaverTimeout();
-  const { interval: photoInterval, setInterval: setPhotoInterval } = useScreensaverInterval();
-  const {
-    motion, setMotion,
-    interval: motionInterval, setInterval: setMotionInterval,
-    floor, setFloor, ceiling, setCeiling, outlines, setOutlines,
-    shortcut, setShortcut, drift, setDrift,
-    carbonation, setCarbonation, waterClear, setWaterClear, wobble, setWobble, speed, setSpeed,
-  } = useScreensaverMotion();
-  const { level: dimLevel, setLevel: setDimLevel } = useIdleDimSetting();
-  const { settings: calendarHours } = useHiddenHours();
+/**
+ * The household's starting light or dark (#1340): a screen named with no
+ * choice of its own copies it once, and a browser nobody named uses it until
+ * it chooses. Light or Dark only, as a named screen keeps; a household that
+ * never chose follows each device's system, as before.
+ */
+export function NewScreensStartAs() {
+  const [mode, setMode] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    let live = true;
+    fetch('/api/settings')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (live) setMode((data?.settings?.[DEFAULT_MODE_SETTING_KEY] as string | undefined) ?? null); })
+      .catch(() => { if (live) setMode(null); });
+    return () => { live = false; };
+  }, []);
+
+  const save = useCallback(async (next: 'light' | 'dark') => {
+    setMode(next);
+    try {
+      await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: DEFAULT_MODE_SETTING_KEY, value: next }),
+      });
+    } catch { /* shown already; the next load reads what was kept */ }
+  }, []);
+
+  if (mode === undefined) return null;
 
   return (
-    <Card id="screensaver-settings">
+    <div className="mt-6" data-new-screens-start-as>
+      <h4 className="text-sm font-medium" id="new-screens-start-as">New screens start as</h4>
+      <div className="mt-2 flex gap-3" role="group" aria-labelledby="new-screens-start-as">
+        {(['light', 'dark'] as const).map((m) => (
+          <Button key={m} variant={mode === m ? 'default' : 'outline'} aria-pressed={mode === m}
+            onClick={() => void save(m)} className="flex-1">
+            {m === 'light' ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+            {m === 'light' ? 'Light' : 'Dark'}
+          </Button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground mt-1">
+        {mode === 'light' || mode === 'dark'
+          ? 'A screen named from now on starts as this, unless its browser already chose. Browsers that are not named use it too. Screens already named keep theirs.'
+          : 'Not chosen: a new screen starts as its own system prefers.'}
+      </p>
+    </div>
+  );
+}
+
+/** The night sky's household switches, in a card of their own since the screensaver card left (#1159). */
+function NightSkyCard() {
+  return (
+    <Card>
       <CardHeader>
-        <CardTitle>Screensaver</CardTitle>
-        <CardDescription>
-          When it starts, how the widgets come and go, and how often the photo changes
-        </CardDescription>
+        <CardTitle>Night sky</CardTitle>
+        <CardDescription>All screens. Whether the night sky shows, and when, is chosen for each dashboard in its editor.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-          <div className="flex items-center gap-3 pl-2">
-            <span className="text-sm text-muted-foreground">Activate after</span>
-            <select
-              value={ssTimeout}
-              onChange={(e) => setSsTimeout(Number(e.target.value))}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
-            >
-              <option value={30}>30 seconds</option>
-              <option value={60}>1 minute</option>
-              <option value={120}>2 minutes</option>
-              <option value={600}>10 minutes</option>
-              <option value={3600}>1 hour</option>
-              <option value={0}>Never</option>
-            </select>
-          </div>
-          <p className="text-xs text-muted-foreground pl-2">
-            Photos or the night sky behind it is chosen for each dashboard, in the layout editor.
-          </p>
-          <AuroraToggle />
-          <div className="flex items-center gap-3 pl-2">
-            <span className="text-sm text-muted-foreground">Widget transition effect</span>
-            <select
-              value={motion}
-              onChange={(e) => setMotion(e.target.value as ScreensaverMotion)}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
-            >
-              <option value="off">None</option>
-              <option value="fade">Fade</option>
-              <option value="smoke">Smoke</option>
-              <option value="liquid">Fill and drain</option>
-              <option value="fireworks">Fireworks</option>
-            </select>
-          </div>
-          {motion !== 'off' && (
-            <div className="flex items-center gap-3 pl-2">
-              <span className="text-sm text-muted-foreground">Change every</span>
-              <select
-                value={motionInterval}
-                onChange={(e) => setMotionInterval(Number(e.target.value))}
-                className="border border-border rounded px-2 py-1 text-sm bg-background"
-              >
-                <option value={10}>10 seconds</option>
-                <option value={20}>20 seconds</option>
-                <option value={45}>45 seconds</option>
-                <option value={90}>1.5 minutes</option>
-                <option value={300}>5 minutes</option>
-              </select>
-            </div>
-          )}
-          {motion !== 'off' && (
-            <div className="flex items-center gap-3 pl-2 flex-wrap">
-              <span className="text-sm text-muted-foreground">Show at least</span>
-              <select
-                value={floor}
-                onChange={(e) => setFloor(Number(e.target.value))}
-                className="border border-border rounded px-2 py-1 text-sm bg-background"
-              >
-                {[1, 2, 3, 4, 5, 6, 8].map((n) => (
-                  <option key={n} value={n}>{n} widget{n === 1 ? '' : 's'}</option>
-                ))}
-              </select>
-              <span className="text-sm text-muted-foreground">and at most</span>
-              <select
-                value={ceiling}
-                onChange={(e) => setCeiling(Number(e.target.value))}
-                className="border border-border rounded px-2 py-1 text-sm bg-background"
-              >
-                <option value={0}>no limit</option>
-                {[2, 3, 4, 5, 6, 8, 10, 12].map((n) => (
-                  <option key={n} value={n}>{n} widgets</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {/* Outlines show with or without a transition effect, so this is
-              not under motion !== 'off' like the controls above. */}
-          <label className="flex items-center gap-3 pl-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!outlines}
-              onChange={(e) => setOutlines(!e.target.checked)}
-              className="rounded border-border"
-            />
-            <span className="text-sm text-muted-foreground">Hide widget outlines</span>
-          </label>
-          <div className="flex items-center gap-3 pl-2">
-            <span className="text-sm text-muted-foreground">Transition length</span>
-            <select
-              value={speed}
-              onChange={(e) => setSpeed(Number(e.target.value))}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
-            >
-              <option value={0.5}>Brisk</option>
-              <option value={1}>Normal</option>
-              <option value={1.6}>Slow</option>
-              <option value={2.4}>Very slow</option>
-            </select>
-          </div>
-          {motion === 'liquid' && (
-            <>
-              <label className="flex items-center gap-3 pl-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={carbonation}
-                  onChange={(e) => setCarbonation(e.target.checked)}
-                  className="rounded border-border"
-                />
-                <span className="text-sm text-muted-foreground">Carbonation</span>
-              </label>
-              <label className="flex items-center gap-3 pl-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={waterClear}
-                  onChange={(e) => setWaterClear(e.target.checked)}
-                  className="rounded border-border"
-                />
-                <span className="text-sm text-muted-foreground">Keep text clear of the waterline</span>
-              </label>
-              <p className="text-xs text-muted-foreground pl-2">
-                Adds space above the content in each widget so the surface sits over empty
-                room rather than across the first line of text. Off, the water covers
-                the top of what the widget is showing — which is either the effect or a
-                fault, depending on taste.
-              </p>
-              <div className="flex items-center gap-3 pl-2">
-                <span className="text-sm text-muted-foreground">Surface wobble</span>
-                <select
-                  value={wobble}
-                  onChange={(e) => setWobble(Number(e.target.value))}
-                  className="border border-border rounded px-2 py-1 text-sm bg-background"
-                >
-                  <option value={0}>None</option>
-                  <option value={0.5}>Slight</option>
-                  <option value={1}>Normal</option>
-                  <option value={1.8}>Choppy</option>
-                </select>
-              </div>
-            </>
-          )}
-          <label className="flex items-center gap-3 pl-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={drift}
-              onChange={(e) => setDrift(e.target.checked)}
-              className="rounded border-border"
-            />
-            <span className="text-sm text-muted-foreground">Drift</span>
-          </label>
-          <p className="text-xs text-muted-foreground pl-2">
-            Moves the widgets a few pixels in a slow figure eight while the display is
-            idle, so no edge or line of text sits on the same pixels for months. It
-            applies to the screensaver and to a dashboard that fades to a calm view of
-            itself.
-          </p>
-          <div className="flex items-center gap-3 pl-2 flex-wrap">
-            <span className="text-sm text-muted-foreground">Dim when idle</span>
-            <select
-              aria-label="Dim when idle"
-              value={dimLevel}
-              onChange={(e) => setDimLevel(e.target.value)}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
-            >
-              {DIM_LEVELS.map((l) => <option key={l.raw} value={l.raw}>{l.label}</option>)}
-            </select>
-          </div>
-          <p className="text-xs text-muted-foreground pl-2" data-dim-hours>
-            Darkens the idle screen during the hours the calendar hides:{' '}
-            {describeDimHours(calendarHours)}. Those hours are set for every screen on the{' '}
-            <a href="/calendar" className="underline">Calendar</a> page, under Manage &gt; Calendar
-            Hours; how dark is set per screen. A touch brings back full brightness. A web page
-            cannot change the screen&apos;s own brightness or power.
-          </p>
-          <label className="flex items-center gap-3 pl-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={shortcut}
-              onChange={(e) => setShortcut(e.target.checked)}
-              className="rounded border-border"
-            />
-            <span className="text-sm text-muted-foreground">
-              Show a settings shortcut on the screensaver
-            </span>
-          </label>
-          <p className="text-xs text-muted-foreground pl-2">
-            Puts a faint Prism mark in the top-left of the screensaver. Tapping it opens
-            these effect settings without leaving the display — useful while you are
-            deciding which one you like.
-          </p>
-          <p className="text-xs text-muted-foreground pl-2">
-            Showing some widgets at a time and swapping them gives the screensaver slow
-            movement, and keeps a static image off the panel. About two thirds are shown
-            at once, within the limits above.
-          </p>
-          <div className="flex items-center gap-3 pl-2">
-            <span className="text-sm text-muted-foreground">Rotate photos every</span>
-            <select
-              value={photoInterval}
-              onChange={(e) => setPhotoInterval(Number(e.target.value))}
-              className="border border-border rounded px-2 py-1 text-sm bg-background"
-            >
-              <option value={5}>5 seconds</option>
-              <option value={10}>10 seconds</option>
-              <option value={15}>15 seconds</option>
-              <option value={30}>30 seconds</option>
-              <option value={60}>1 minute</option>
-              <option value={300}>5 minutes</option>
-              <option value={600}>10 minutes</option>
-              <option value={3600}>1 hour</option>
-              <option value={0}>Never (static)</option>
-            </select>
-          </div>
+      <CardContent>
+        <AuroraToggle />
       </CardContent>
     </Card>
   );
 }
 
-const PERF_CHOICES: { mode: PerfMode; label: string; detail: string }[] = [
-  { mode: 'auto', label: 'Auto', detail: 'Starts at Full and steps down by itself if fades on this screen stutter.' },
-  { mode: 'full', label: 'Full', detail: 'Everything: blur, celebrations, moving night sky, photo slideshow.' },
-  { mode: 'reduced', label: 'Reduced', detail: 'No blur, no full-screen celebrations or particle effects, a still night sky.' },
-  { mode: 'minimal', label: 'Minimal', detail: 'Reduced, plus one static photo, slower refreshes, and near-instant fades.' },
-];
-
-const LEVEL_LABEL: Record<PerfLevel, string> = { full: 'Full', reduced: 'Reduced', minimal: 'Minimal' };
-
-function PerformanceModeCard() {
-  const { mode, level, setMode } = usePerformanceMode();
+/**
+ * How long until Away turns itself on: one value for the household (#1159),
+ * since Away is one switch for the whole house.
+ */
+function AwayModeCard() {
+  const { timeout, setTimeout, ready, error } = useAwayModeTimeout();
   return (
-    <Card>
+    <Card data-away-card>
       <CardHeader>
-        <CardTitle>Performance</CardTitle>
-        <CardDescription>
-          How much visual work this screen does. Lighter levels suit thin clients and older mini PCs.
-        </CardDescription>
+        <CardTitle>Away mode</CardTitle>
+        <CardDescription>All screens</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2" role="radiogroup" aria-label="Performance">
-        {PERF_CHOICES.map(choice => (
-          <label key={choice.mode} className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="radio"
-              name="perf-mode"
-              value={choice.mode}
-              checked={mode === choice.mode}
-              onChange={() => setMode(choice.mode)}
-              className="mt-1"
-            />
-            <span>
-              <span className="text-sm font-medium">
-                {choice.label}
-                {choice.mode === 'auto' && mode === 'auto' && (
-                  <span className="font-normal text-muted-foreground"> (now running: {LEVEL_LABEL[level]})</span>
-                )}
-              </span>
-              <span className="block text-xs text-muted-foreground mt-0.5">{choice.detail}</span>
-            </span>
-          </label>
-        ))}
+      <CardContent className="space-y-2">
+        <label className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-muted-foreground">Turn on after</span>
+          <select
+            aria-label="Turn Away mode on after"
+            value={timeout}
+            disabled={!ready}
+            onChange={(e) => void setTimeout(Number(e.target.value))}
+            className="border border-border rounded px-2 py-1 text-sm bg-background"
+          >
+            {AWAY_AUTO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <span className="text-sm text-muted-foreground">with nobody touching a screen</span>
+        </label>
+        {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+        <p className="text-xs text-muted-foreground">
+          While Away is on, every screen shows only the clock, the weather and photos, until someone
+          turns it off with a PIN.
+        </p>
       </CardContent>
     </Card>
   );
@@ -1000,12 +619,17 @@ function WallpaperSettingsCard() {
     <Card>
       <CardHeader>
         <CardTitle>Background Wallpaper</CardTitle>
-        <CardDescription>Show a rotating photo behind the dashboard</CardDescription>
+        <CardDescription>
+          Show a rotating photo behind the dashboard
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Enable wallpaper</span>
-          <Switch checked={enabled} onCheckedChange={setEnabled} />
+          <Switch
+            checked={enabled}
+            onCheckedChange={setEnabled}
+          />
         </div>
         {enabled && (
           <>
@@ -1014,7 +638,7 @@ function WallpaperSettingsCard() {
               <select
                 value={interval}
                 onChange={(e) => setInterval(Number(e.target.value))}
-                className="rounded border border-border bg-background px-2 py-1 text-sm"
+                className="border border-border rounded px-2 py-1 text-sm bg-background"
               >
                 <option value={30}>30 seconds</option>
                 <option value={60}>1 minute</option>
@@ -1032,8 +656,12 @@ function WallpaperSettingsCard() {
                   Only show landscape photos on landscape screens and portrait on portrait screens
                 </p>
               </div>
-              <Switch checked={autoOrientation} onCheckedChange={setAutoOrientation} />
+              <Switch
+                checked={autoOrientation}
+                onCheckedChange={setAutoOrientation}
+              />
             </div>
+            <PhotoCaptionSettings />
           </>
         )}
       </CardContent>
@@ -1041,47 +669,53 @@ function WallpaperSettingsCard() {
   );
 }
 
-function OrientationCard() {
-  const detectedOrientation = useScreenOrientation();
-  const { override: orientationOverride, setOverride: setOrientationOverride } =
-    useOrientationOverride();
-  const effectiveOrientation =
-    orientationOverride === 'auto' ? detectedOrientation : orientationOverride;
-
+/**
+ * When and where photos were taken, on the wall and the screensaver (#958).
+ * Household settings: the date shows unless turned off; the place only when
+ * turned on, because finding it sends a photo's rough location to
+ * OpenStreetMap's geocoder.
+ */
+function PhotoCaptionSettings() {
+  const [values, setValues] = useState<{ date: boolean; place: boolean; onThisDay: boolean } | null>(null);
+  useEffect(() => {
+    fetch('/api/settings').then((r) => (r.ok ? r.json() : null)).then((d) => setValues({
+      date: d?.settings?.[PHOTO_DATE_SETTING] !== false,
+      place: d?.settings?.[PHOTO_PLACE_SETTING] === true,
+      onThisDay: d?.settings?.[PHOTO_ON_THIS_DAY_SETTING] === true,
+    })).catch(() => setValues({ date: true, place: false, onThisDay: false }));
+  }, []);
+  const save = async (key: string, field: 'date' | 'place' | 'onThisDay', value: boolean) => {
+    const before = values;
+    setValues((v) => (v ? { ...v, [field]: value } : v));
+    const res = await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) }).catch(() => null);
+    if (!res?.ok) setValues(before);
+  };
+  if (!values) return null;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Screen Orientation</CardTitle>
-        <CardDescription>
-          Detected orientation is used for photo filtering and wallpaper matching
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">Current:</span>
-          <span className="text-sm font-medium capitalize">{effectiveOrientation}</span>
-          {orientationOverride === 'auto' && (
-            <span className="text-xs text-muted-foreground">(detected)</span>
-          )}
+    <>
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-sm font-medium">Show when photos were taken</span>
+          <p className="text-xs text-muted-foreground">A short line in a free corner, like &ldquo;March 2019&rdquo;</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Override:</span>
-          {(['auto', 'landscape', 'portrait'] as const).map((opt) => (
-            <button
-              key={opt}
-              onClick={() => setOrientationOverride(opt)}
-              className={cn(
-                'rounded-md border px-2.5 py-1 text-xs capitalize transition-colors',
-                orientationOverride === opt
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-accent/50'
-              )}
-            >
-              {opt}
-            </button>
-          ))}
+        <Switch checked={values.date} onCheckedChange={(v) => void save(PHOTO_DATE_SETTING, 'date', v)} aria-label="Show when photos were taken" />
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <span className="text-sm font-medium">Show where photos were taken</span>
+          <p className="text-xs text-muted-foreground">
+            Names the town for photos that have a location. To find it, Prism sends the photo&rsquo;s rough location (to about a kilometre) to OpenStreetMap, once per photo.
+          </p>
         </div>
-      </CardContent>
-    </Card>
+        <Switch checked={values.place} onCheckedChange={(v) => void save(PHOTO_PLACE_SETTING, 'place', v)} aria-label="Show where photos were taken" />
+      </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-sm font-medium">On this day</span>
+          <p className="text-xs text-muted-foreground">On a date with photos from earlier years, show those more often</p>
+        </div>
+        <Switch checked={values.onThisDay} onCheckedChange={(v) => void save(PHOTO_ON_THIS_DAY_SETTING, 'onThisDay', v)} aria-label="On this day" />
+      </div>
+    </>
   );
 }

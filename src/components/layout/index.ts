@@ -22,8 +22,6 @@ export type {
 export { AppShell } from './AppShell';
 export type { AppShellProps } from './AppShell';
 
-export { NetworkStatusIndicator } from './NetworkStatusIndicator';
-
 export { PageWrapper } from './PageWrapper';
 export type { PageWrapperProps } from './PageWrapper';
 

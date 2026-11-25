@@ -2,10 +2,12 @@
  * @jest-environment jsdom
  */
 /**
- * A named screen following its time-of-day rules while it stays on (#692):
- * which dashboard it shows on opening, when someone picks another by hand, and
- * when the layout is being edited. The change waiting for an untouched screen,
- * and the morph, are measured in the browser (e2e/display-registry.spec.ts).
+ * A named screen following its own dashboard and switches while it stays on
+ * (#692, #1282): which dashboard it shows on opening, at set times and at bus
+ * time, when someone picks another by hand (until the screen next goes idle,
+ * #1342), and when the layout is being edited. A device nobody named shows
+ * the default and switches nothing. The change waiting for an untouched screen, and the morph, are measured in the
+ * browser (e2e/display-registry.spec.ts).
  */
 import * as React from 'react';
 import { act, renderHook } from '@testing-library/react';
@@ -21,6 +23,24 @@ jest.mock('@/lib/hooks/useVisibilityPolling', () => ({
   useVisibilityPolling: (callback: () => void) => { check = callback; },
 }));
 
+// Whether the screen has gone idle, as the Screensaver publishes it; the test says when.
+const mockIdle = { value: false, listeners: new Set<() => void>() };
+jest.mock('@/components/screensaver/useScreenIdle', () => ({
+  useScreenIdle: () => jest.requireActual<typeof import('react')>('react').useSyncExternalStore(
+    (l: () => void) => { mockIdle.listeners.add(l); return () => { mockIdle.listeners.delete(l); }; },
+    () => mockIdle.value,
+  ),
+}));
+function goIdle(value: boolean) {
+  act(() => {
+    mockIdle.value = value;
+    for (const l of mockIdle.listeners) l();
+  });
+}
+
+/** The bus routes the status endpoint answers with. */
+let routes: Array<{ scheduledTime: string; activeDays: number[] }> = [];
+
 const HOME = '11111111-1111-4111-8111-111111111111';
 const MORNING = '22222222-2222-4222-8222-222222222222';
 const EVENING = '33333333-3333-4333-8333-333333333333';
@@ -33,6 +53,7 @@ const LAYOUTS = [layout(HOME, null), layout(MORNING, 'morning', { fontScale: 120
 const at = (hhmm: string) => new Date(`2026-11-02T${hhmm}:00Z`).getTime();
 
 let useScreenSchedule: typeof import('../useScreenSchedule').useScreenSchedule;
+let isStayingAwake: typeof import('@/lib/hooks/stayAwake').isStayingAwake;
 
 beforeEach(() => {
   // The hook remembers the first open of a page load at module level, so each
@@ -41,14 +62,23 @@ beforeEach(() => {
     jest.doMock('react', () => React);
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     ({ useScreenSchedule } = require('../useScreenSchedule'));
+    // The same fresh copy the hook writes to.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    ({ isStayingAwake } = require('@/lib/hooks/stayAwake'));
   });
   jest.useFakeTimers();
+  window.history.replaceState(null, '', '/');
   localStorage.clear();
-  localStorage.setItem('prism:display-sync-base', JSON.stringify({ displayId: 'screen', dashboardId: null, settings: {}, settingsUpdatedAt: null }));
-  localStorage.setItem('prism-screen-schedule', JSON.stringify([
-    { days: [1, 2, 3, 4, 5], from: '07:00', to: '08:00', dashboardId: MORNING },
-  ]));
+  plan({ dashboardId: null, switches: [{ when: 'times', days: [1, 2, 3, 4, 5], from: '07:00', to: '08:00', dashboardId: MORNING }] });
+  routes = [];
+  mockIdle.value = false;
+  global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ routes }) })) as never;
 });
+
+/** This browser is a named screen with this dashboard and these switches. */
+function plan(p: { dashboardId: string | null; switches: unknown[] }) {
+  localStorage.setItem('prism:display-sync-base', JSON.stringify({ displayId: 'screen', ...p, settings: {}, settingsUpdatedAt: null }));
+}
 afterEach(() => jest.useRealTimers());
 
 function open(routeSlug: string | undefined, now: string, editing = { current: false }) {
@@ -81,7 +111,7 @@ describe('useScreenSchedule', () => {
     expect(result.current.slug).toBeUndefined();
   });
 
-  it('an Interlude switches a screen on Today too, at its start (#1152)', () => {
+  it('a switch changes a screen on Today too, at its start (#1152)', () => {
     const today = [layout(HOME, null, { view: 'today' } as Partial<Layout>), ...LAYOUTS.slice(1)];
     jest.setSystemTime(at('06:59'));
     const { result } = renderHook(() => useScreenSchedule({ routeSlug: undefined, layouts: today, loading: false, editing: { current: false } }));
@@ -104,6 +134,39 @@ describe('useScreenSchedule', () => {
     expect(result.current.slug).toBe('evening');
     tick('08:00');
     expect(result.current.slug).toBeUndefined();
+  });
+
+  it('a dashboard picked by hand returns to the screen\'s own when it goes idle, with no switches (#1342)', () => {
+    plan({ dashboardId: null, switches: [] });
+    const { result } = open(undefined, '12:00');
+    act(() => result.current.pick('evening'));
+    tick('13:00');
+    expect(result.current.slug).toBe('evening');
+    goIdle(true);
+    tick('13:01');
+    expect(result.current.slug).toBeUndefined();
+    // Woken and picked again: it stays until the next idle.
+    goIdle(false);
+    act(() => result.current.pick('evening'));
+    tick('14:00');
+    expect(result.current.slug).toBe('evening');
+    goIdle(true);
+    tick('14:01');
+    expect(result.current.slug).toBeUndefined();
+  });
+
+  it('a dashboard picked by hand returns to the switch in force when it goes idle (#1342)', () => {
+    const { result } = open(undefined, '07:10');
+    expect(result.current.slug).toBe('morning');
+    act(() => result.current.pick('evening'));
+    tick('07:30');
+    expect(result.current.slug).toBe('evening');
+    // Touched a moment ago, but gone idle: nobody is at the screen.
+    jest.setSystemTime(at('07:31'));
+    act(() => { window.dispatchEvent(new Event('pointerdown')); });
+    goIdle(true);
+    tick('07:31');
+    expect(result.current.slug).toBe('morning');
   });
 
   it('a dashboard opened later from inside the app counts as picked by hand', () => {
@@ -137,9 +200,107 @@ describe('useScreenSchedule', () => {
     expect(result.current.slug).toBe('morning');
   });
 
-  it('a browser that is not a named screen ignores a leftover schedule', () => {
-    localStorage.removeItem('prism:display-sync-base');
-    const { result } = open(undefined, '07:10');
+  describe('a device nobody named', () => {
+    beforeEach(() => localStorage.removeItem('prism:display-sync-base'));
+
+    it('shows the default on the home page and switches nothing', () => {
+      const { result } = open(undefined, '07:10');
+      expect(result.current.slug).toBeUndefined();
+      tick('07:30');
+      expect(result.current.slug).toBeUndefined();
+    });
+
+    it('keeps a dashboard opened at its own address', () => {
+      const { result } = open('evening', '07:10');
+      expect(result.current.slug).toBe('evening');
+      tick('07:30');
+      expect(result.current.slug).toBe('evening');
+    });
+  });
+
+  it('shows its own dashboard outside every switch', () => {
+    plan({ dashboardId: EVENING, switches: [{ when: 'times', days: [1, 2, 3, 4, 5], from: '07:00', to: '08:00', dashboardId: MORNING }] });
+    const { result } = open(undefined, '12:00');
+    expect(result.current.slug).toBe('evening');
+    tick('07:00');
+    expect(result.current.slug).toBe('morning');
+  });
+
+  it('at bus time it shows the bus dashboard, morning and afternoon, and its own outside it', async () => {
+    plan({ dashboardId: null, switches: [{ when: 'bus', dashboardId: MORNING }] });
+    // Due at the stop at 7:45 and 15:30 on weekdays (the household zone here is UTC).
+    routes = [{ scheduledTime: '07:45', activeDays: [1, 2, 3, 4, 5] }, { scheduledTime: '15:30', activeDays: [1, 2, 3, 4, 5] }];
+    const { result } = open(undefined, '07:00');
+    await act(async () => {});
+    expect(global.fetch).toHaveBeenCalledWith('/api/bus-tracking/status');
+    tick('07:14');
     expect(result.current.slug).toBeUndefined();
+    tick('07:15');
+    expect(result.current.slug).toBe('morning');
+    tick('08:00');
+    expect(result.current.slug).toBe('morning');
+    tick('08:01');
+    expect(result.current.slug).toBeUndefined();
+    tick('15:00');
+    expect(result.current.slug).toBe('morning');
+    tick('15:46');
+    expect(result.current.slug).toBeUndefined();
+  });
+
+  it('reads no bus times when it has no bus switch', async () => {
+    open(undefined, '07:10');
+    await act(async () => {});
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  describe('a switch that keeps the screen awake (#1347)', () => {
+    // A run due at the stop at 7:15 on weekdays: bus time is 6:45 to 7:30.
+    beforeEach(() => { routes = [{ scheduledTime: '07:15', activeDays: [1, 2, 3, 4, 5] }]; });
+
+    it('a bus switch starting at 6:45 wakes an idle screen, on its dashboard, and lets it idle again after', async () => {
+      plan({ dashboardId: null, switches: [{ when: 'bus', dashboardId: MORNING }] });
+      const { result } = open(undefined, '06:30');
+      await act(async () => {});
+      goIdle(true);
+      tick('06:44');
+      expect(isStayingAwake()).toBe(false);
+      tick('06:45');
+      expect(result.current.slug).toBe('morning');
+      expect(isStayingAwake()).toBe(true);
+      // Awake now (the idle timer wakes it, see useIdleDetection), and still on the plan, not a pick.
+      goIdle(false);
+      tick('07:30');
+      expect(isStayingAwake()).toBe(true);
+      tick('07:31');
+      expect(isStayingAwake()).toBe(false);
+      expect(result.current.slug).toBeUndefined();
+    });
+
+    it('a set-times switch does not, unless it says to', () => {
+      plan({ dashboardId: null, switches: [{ when: 'times', days: [1, 2, 3, 4, 5], from: '06:45', to: '07:30', dashboardId: MORNING }] });
+      const { result } = open(undefined, '06:30');
+      goIdle(true);
+      tick('06:45');
+      expect(result.current.slug).toBe('morning');
+      expect(isStayingAwake()).toBe(false);
+    });
+
+    it('a set-times switch that says to, does; a bus switch that says not to, does not', async () => {
+      plan({ dashboardId: null, switches: [{ when: 'times', days: [1, 2, 3, 4, 5], from: '06:45', to: '07:00', dashboardId: MORNING, staysAwake: true }] });
+      const first = open(undefined, '06:30');
+      goIdle(true);
+      tick('06:45');
+      expect(isStayingAwake()).toBe(true);
+      first.unmount();
+      // Gone with the page.
+      expect(isStayingAwake()).toBe(false);
+
+      plan({ dashboardId: null, switches: [{ when: 'bus', dashboardId: MORNING, staysAwake: false }] });
+      const second = open(undefined, '06:30');
+      await act(async () => {});
+      tick('06:50');
+      expect(second.result.current.slug).toBe('morning');
+      expect(isStayingAwake()).toBe(false);
+    });
   });
 });
