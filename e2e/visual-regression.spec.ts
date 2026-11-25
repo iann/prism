@@ -389,6 +389,12 @@ test.describe('Visual regression', () => {
         // `/settings#family` just renders the default section.
         await page.goto(`/settings?section=${section}`);
         await expectPainted(page, page.getByRole('heading', { name: SECTION_HEADINGS[section] }));
+        if (section === 'display') {
+          // This household preference is fetched after the Appearance section
+          // renders. Its arrival changes the card height and pushes the
+          // "All screens" group below the viewport, so wait before capturing.
+          await page.locator('[data-new-screens-start-as]').waitFor({ state: 'visible', timeout: 30_000 });
+        }
         await page.waitForTimeout(800);
 
         await expect(page).toHaveScreenshot(`settings-${section}-${theme}.png`, SCREENSHOT_OPTIONS);
