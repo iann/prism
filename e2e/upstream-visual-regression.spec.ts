@@ -96,6 +96,8 @@ test.describe('Upstream visual regression', () => {
     await expect(startScreensaver).toBeVisible({ timeout: 30_000 });
     await waitForStableUi(page, 700);
     await startScreensaver.click();
+    await expect(page.locator('[data-dock-more-panel]')).toBeHidden();
+    await expect(page.locator('[data-screensaver]')).toHaveCSS('opacity', '1');
     await expect(page.getByRole('button', { name: 'Screensaver settings' })).toBeVisible();
 
     await expect(page).toHaveScreenshot('upstream-screensaver-dark.png', {

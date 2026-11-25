@@ -352,6 +352,14 @@ export function Dock({ mode, user, onLogin, onLogout, screenJobs, cardTools = fa
         <DialogContent
           className="max-w-2xl"
           data-dock-more-panel
+          onClickCapture={(event) => {
+            // A dashboard supplies its own ScreenJobs node. When its
+            // screensaver action runs, clear More at the same time so the
+            // panel cannot remain above the screensaver overlay.
+            if (event.target instanceof Element && event.target.closest('[data-screen-job="screensaver"]')) {
+              setMoreOpen(false);
+            }
+          }}
           // Once More has gone, start what This phone asked for.
           onCloseAutoFocus={(e) => {
             const event = pendingPhoneJob.current;

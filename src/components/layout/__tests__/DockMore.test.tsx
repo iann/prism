@@ -115,6 +115,25 @@ describe('the More panel (#1257)', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('closes More when dashboard screen jobs start the screensaver', () => {
+    const started = jest.fn();
+    window.addEventListener('prism:screensaver', started);
+    render(
+      <Dock
+        mode="page"
+        user={null}
+        screenJobs={<button data-screen-job="screensaver" onClick={() => window.dispatchEvent(new Event('prism:screensaver'))}>Screensaver</button>}
+      />,
+    );
+    fireEvent.click(document.querySelector('[data-dock-more]')!);
+    const panel = document.querySelector<HTMLElement>('[data-dock-more-panel]')!;
+    fireEvent.click(job(panel, 'screensaver')!);
+
+    expect(document.querySelector('[data-dock-more-panel]')).toBeNull();
+    expect(started).toHaveBeenCalledTimes(1);
+    window.removeEventListener('prism:screensaver', started);
+  });
+
   it('a page that brings its own jobs keeps them', () => {
     render(<Dock mode="wall" user={null} screenJobs={<button data-screen-job="own">Own</button>} />);
     fireEvent.click(document.querySelector('[data-dock-menu]')!);
