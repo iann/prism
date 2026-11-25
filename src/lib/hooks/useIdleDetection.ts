@@ -5,6 +5,7 @@ import { useIsPWA } from './useIsPWA';
 import { isStayingAwake, subscribeStayAwake } from './stayAwake';
 import { resolveAwayAutoAfter } from '@/lib/awayMode/autoAfter';
 import { isNamedScreen } from '@/lib/displays/namedScreen';
+import { isScreenCleaningActive, useScreenCleaningActive } from './useScreenCleaning';
 
 const STORAGE_KEY = 'prism-screensaver-timeout';
 const LAST_ACTIVITY_KEY = 'prism-last-activity';
@@ -55,12 +56,15 @@ function swallowRestOfTap() {
 
 export function useIdleDetection(initialTimeout?: number) {
   const isPWA = useIsPWA();
+  const isCleaning = useScreenCleaningActive();
   const [timeout, setTimeoutValue] = useState(() => initialTimeout ?? getStoredTimeout());
   const [isIdle, setIsIdle] = useState(false);
   const forcedRef = useRef(false);
   const isIdleRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const awayModeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const awayCheckAbortsRef = useRef<Set<AbortController>>(new Set());
+  const wasCleaningRef = useRef(false);
 
   // The dismiss listener reads this, so it knows whether a touch woke the screen.
   useEffect(() => {
@@ -81,8 +85,10 @@ export function useIdleDetection(initialTimeout?: number) {
   const restartCountdown = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
-    if (timeout > 0 && !isStayingAwake()) {
-      timerRef.current = setTimeout(() => setIsIdle(true), timeout * 1000);
+    if (timeout > 0 && !isStayingAwake() && !isScreenCleaningActive()) {
+      timerRef.current = setTimeout(() => {
+        if (!isScreenCleaningActive()) setIsIdle(true);
+      }, timeout * 1000);
     }
   }, [timeout]);
 
@@ -108,6 +114,26 @@ export function useIdleDetection(initialTimeout?: number) {
     setIsIdle(false);
     resetTimer();
   }, [resetTimer]);
+
+  // Cleaning temporarily protects the screen from input. Pause its idle timer,
+  // count the start as fresh activity for Away Mode, and resume a full timeout
+  // afterwards. An already idle display stays idle throughout the cleaning.
+  useEffect(() => {
+    if (isCleaning) {
+      wasCleaningRef.current = true;
+      updateLastActivity();
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+      awayCheckAbortsRef.current.forEach((controller) => controller.abort());
+      awayCheckAbortsRef.current.clear();
+      return;
+    }
+
+    if (wasCleaningRef.current) {
+      wasCleaningRef.current = false;
+      if (!isIdleRef.current && !(isPWA && !isNamedScreen())) restartCountdown();
+    }
+  }, [isCleaning, isPWA, restartCountdown]);
 
   const forceIdle = useCallback(() => {
     forcedRef.current = true;
@@ -216,33 +242,42 @@ export function useIdleDetection(initialTimeout?: number) {
     }
 
     const checkAwayMode = async () => {
+      if (isScreenCleaningActive()) return;
+      const controller = new AbortController();
+      awayCheckAbortsRef.current.add(controller);
       try {
         // Ask the server first. Activity is per-browser, but Away Mode is one
         // switch for the whole house, so the decision cannot be made from local
         // state alone: someone turning it off at the wall display has to count
         // against every other client's idle clock, or the most neglected tab in
         // the house wins and turns it straight back on.
-        const stateRes = await fetch('/api/away-mode');
+        const stateRes = await fetch('/api/away-mode', { signal: controller.signal });
+        if (controller.signal.aborted || isScreenCleaningActive()) return;
         if (!stateRes.ok) return;
         const state = await stateRes.json();
+        if (controller.signal.aborted || isScreenCleaningActive()) return;
         if (state.enabled) return;
-        const awayModeTimeout = await resolveAwayAutoAfter(state);
-        if (awayModeTimeout <= 0) return;
+        const awayModeTimeout = await resolveAwayAutoAfter(state, (input, init) =>
+          fetch(input, { ...init, signal: controller.signal })
+        );
+        if (controller.signal.aborted || isScreenCleaningActive() || awayModeTimeout <= 0) return;
 
         const disabledAt = state.disabledAt ? Date.parse(state.disabledAt) : 0;
         const lastActivity = Math.max(getLastActivity(), Number.isNaN(disabledAt) ? 0 : disabledAt);
         const hoursSinceActivity = (Date.now() - lastActivity) / (1000 * 60 * 60);
 
         if (hoursSinceActivity >= awayModeTimeout) {
-          await fetch('/api/away-mode', {
+          const response = await fetch('/api/away-mode', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled: true, autoActivated: true }),
           });
-          window.dispatchEvent(new Event('prism:away-mode-change'));
+          if (response.ok) window.dispatchEvent(new Event('prism:away-mode-change'));
         }
       } catch {
         // Ignore errors - away mode is optional
+      } finally {
+        awayCheckAbortsRef.current.delete(controller);
       }
     };
 
@@ -252,6 +287,8 @@ export function useIdleDetection(initialTimeout?: number) {
     checkAwayMode();
 
     return () => {
+      awayCheckAbortsRef.current.forEach((controller) => controller.abort());
+      awayCheckAbortsRef.current.clear();
       if (awayModeTimerRef.current) {
         clearInterval(awayModeTimerRef.current);
         awayModeTimerRef.current = null;

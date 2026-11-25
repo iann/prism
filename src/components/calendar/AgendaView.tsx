@@ -3,6 +3,7 @@
 import { useNow } from '@/lib/hooks/useNow';
 import { isInProgress } from '@/lib/calendar/nowNext';
 import { eventTintStyle } from '@/lib/design/eventStyle';
+import { inlineAllDayEventStyle, inlineTimedEventStyle } from './eventStyles';
 import {
   format,
   isSameDay,
@@ -71,6 +72,8 @@ type AgendaRow = {
   /** Optional drag id (`meal:<id>` etc.). Read-only for events. */
   dragId?: string;
   stripeColor: string;
+  isEvent?: boolean;
+  allDay?: boolean;
   timeLabel: string;
   title: string;
   subtitle?: string;
@@ -309,6 +312,8 @@ function buildAgendaRows({
           + toDisplayDate(event.startTime, displayTimezone).getMinutes(),
       floating,
       stripeColor: event.color,
+      isEvent: true,
+      allDay,
       timeLabel: allDay
         ? t('allDay')
         : startsToday
@@ -401,7 +406,13 @@ function AgendaRowItem({ row, anchor, cards = false }: { row: AgendaRow; anchor:
     transform: CSS.Translate.toString(draggable.transform),
     touchAction: row.dragId ? 'none' : undefined,
     zIndex: draggable.isDragging ? 50 : undefined,
-    ...(cards ? { borderLeft: `3px solid ${row.stripeColor}` } : eventTintStyle(row.stripeColor, 'border')),
+    ...(cards
+      ? { borderLeft: `3px solid ${row.stripeColor}` }
+      : row.isEvent
+        ? row.allDay
+          ? inlineAllDayEventStyle(row.stripeColor, 3)
+          : inlineTimedEventStyle(row.stripeColor, 3)
+        : eventTintStyle(row.stripeColor, 'border')),
   };
 
   const Tag: 'button' | 'div' = row.onClick ? 'button' : 'div';
@@ -419,7 +430,7 @@ function AgendaRowItem({ row, anchor, cards = false }: { row: AgendaRow; anchor:
       className={cn(
         'relative w-full text-left flex items-start gap-2 rounded p-(--agenda-row-padding)',
         cards
-          ? 'bg-card/85 backdrop-blur-xs border border-border/40 shadow-xs hover:bg-card text-foreground'
+          ? 'bg-calendar-surface border border-border shadow-sm hover:bg-calendar-surface text-foreground'
           : 'hover:brightness-95',
         'transition-colors touch-action-manipulation',
         row.dragId && 'cursor-grab active:cursor-grabbing',

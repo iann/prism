@@ -44,6 +44,8 @@ test.describe('Upstream regression contracts', () => {
     await waitForStableUi(page);
 
     await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
+    // Less-used routes are kept under More on the responsive page dock.
+    await page.getByRole('button', { name: 'More', exact: true }).click();
     const hrefs = await page.locator('a[href]').evaluateAll((anchors) =>
       anchors
         .map((anchor) => (anchor as HTMLAnchorElement).getAttribute('href'))

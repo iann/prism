@@ -12,9 +12,7 @@ jest.mock('@/components/providers', () => ({
   useTimeFormat: () => ({ timeFormat: '12h', displayTimezone: 'UTC' }),
 }));
 
-jest.mock('@/lib/hooks/useCalendarEvents', () => ({
-  useCalendarSources: () => ({ calendars: [{ provider: 'google' }], loading: false }),
-}));
+jest.mock('@/lib/hooks/useCalendarEvents', () => ({ useCalendarSources: jest.fn() }));
 
 jest.mock('@/lib/hooks', () => ({
   useCalendarEvents: jest.fn(),
@@ -75,6 +73,11 @@ jest.mock('../CalendarWidgetControls', () => ({
   CalendarWidgetControls: () => <div data-testid="calendar-controls" />,
 }));
 
+jest.mock('@/components/calendar/ConnectCalendarInvite', () => ({
+  ...jest.requireActual('@/components/calendar/ConnectCalendarInvite'),
+  ConnectCalendarInvite: () => <div data-testid="connect-calendar-invite" />,
+}));
+
 jest.mock('@/components/calendar/AgendaView', () => ({
   AgendaView: () => <div data-testid="agenda-view" />,
 }));
@@ -86,6 +89,7 @@ jest.mock('@/components/calendar/MonthView', () => ({
 }));
 
 import { useCalendarEvents, useCalendarFilter, useCalendarNotes } from '@/lib/hooks';
+import { useCalendarSources } from '@/lib/hooks/useCalendarEvents';
 import { useCalendarWidgetPrefs } from '@/lib/hooks/useCalendarWidgetPrefs';
 import { useDayBucketsForRange } from '@/lib/hooks/useDayBucketsForRange';
 import { useWeekMutations } from '@/lib/hooks/useWeekMutations';
@@ -121,6 +125,12 @@ const calendarPrefs = {
 
 beforeEach(() => {
   mockUseAutoHideUI.mockReturnValue({ uiHidden: false });
+  jest.mocked(useCalendarSources).mockReturnValue({
+    calendars: [{ provider: 'google' }] as never,
+    loading: false,
+    error: null,
+    refresh: jest.fn(),
+  });
   jest.mocked(useCalendarWidgetPrefs).mockReturnValue(calendarPrefs);
   jest.mocked(useCalendarEvents).mockReturnValue({
     events: [],
@@ -251,5 +261,29 @@ describe('CalendarWidget resize hint', () => {
     );
 
     expect(screen.queryByText(/resize widget/i)).toBeNull();
+  });
+});
+
+describe('CalendarWidget with shared event data', () => {
+  it('does not show the connect invite over shared events on local calendars', async () => {
+    jest.mocked(useCalendarSources).mockReturnValue({
+      calendars: [{ provider: 'local' }] as never,
+      loading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
+    const event = {
+      id: 'shared-event',
+      title: 'Shared event',
+      startTime: new Date('2026-07-30T12:00:00Z'),
+      endTime: new Date('2026-07-30T13:00:00Z'),
+      allDay: false,
+      color: '#2563eb',
+    };
+
+    await renderCalendarWidget(<CalendarWidget events={[event] as never[]} loading={false} />);
+
+    expect(screen.queryByTestId('connect-calendar-invite')).toBeNull();
+    expect(screen.getByTestId('agenda-view')).not.toBeNull();
   });
 });

@@ -556,9 +556,11 @@ test.describe('3 Months folds a busy day', () => {
         expect(box.spill, `${at}: nothing drawn past the cell`).toBe(0);
         // Shown plus folded is every event that day (6 added, plus any seeded).
         expect(box.chips + Number(box.label!.slice(1))).toBeGreaterThanOrEqual(6);
-        // Folding only when out of room: the space left under the trigger is
-        // less than one more event would need.
-        if (box.chips > 0) expect(box.free, `${at}: folded with room to spare`).toBeLessThan(box.chipHeight);
+        // Folding only when out of room: allow the same half-pixel rounding
+        // tolerance used for spill checks on the measured boxes.
+        if (box.chips > 0) {
+          expect(box.free, `${at}: folded with room to spare`).toBeLessThan(box.chipHeight + 0.5);
+        }
       }
     } finally {
       for (const id of created) await page.request.delete(`/api/events/${id}`);

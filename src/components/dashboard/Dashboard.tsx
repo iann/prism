@@ -50,6 +50,7 @@ import type { ChoreLike } from '@/lib/today/quietLines';
 import { useEventSheet } from '@/components/calendar/useEventSheet';
 import { usePinFreeEveryday, useWhoDidIt } from './useEveryday';
 import { WidgetErrorBoundary } from '@/components/dashboard/WidgetErrorBoundary';
+import { BirthdayCelebration, PartyModeButton } from '@/components/birthday';
 import { WidgetExpandProvider, useWidgetExpand } from '@/components/dashboard/WidgetExpandProvider';
 import { useDashboardData } from './useDashboardData';
 import { useDashboardLayout, editLink } from './useDashboardLayout';
@@ -497,6 +498,8 @@ export function Dashboard({
           showWallpaper={phoneToday}
           cardTools={!phoneToday}
         >
+          <BirthdayCelebration celebrations={data.birthdays.birthdays} />
+          <PartyModeButton celebrations={data.birthdays.birthdays} />
           {phoneToday ? (
             <WidgetErrorBoundary>
               <PhoneToday
@@ -547,6 +550,8 @@ export function Dashboard({
           />
         }
       >
+        <BirthdayCelebration celebrations={data.birthdays.birthdays} />
+        <PartyModeButton celebrations={data.birthdays.birthdays} />
         <DashboardLayout className={className}>
           {/* On the wall in landscape the dock's More has these (#922). */}
           {/* While editing, the editing bar at the foot is the only control (#1151). */}

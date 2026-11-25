@@ -267,12 +267,26 @@ describe('surface class contracts', () => {
     );
 
     expect(alphaCards).toEqual([
+      // Help section buttons use a quiet surface over the page background.
+      'src/app/help/HelpView.tsx:bg-card/85',
+      // The settings navigation is a translucent surface at larger widths.
+      'src/app/settings/SettingsView.tsx:bg-card/85',
       // Shopping's Manage view keeps the list surface readable over a busy page.
       'src/app/shopping/ShoppingManage.tsx:bg-card/85',
+      // A day section gets a translucent highlight while it is a drop target.
+      'src/components/calendar/AgendaView.tsx:bg-card/40',
       // A screen's own status strip is a transient overlay.
       'src/components/displays/DisplayHeartbeat.tsx:bg-card/90',
-      // The shared subpage header uses the theme surface with a restrained translucent veil.
-      'src/components/layout/SubpageHeader.tsx:bg-card/85',
+      // The editing toolbar stays legible over the dashboard while it is open.
+      'src/components/layout/DashboardGrid.tsx:bg-card/95',
+      // Filter controls and the measure toolbar float over their pages.
+      'src/components/layout/FilterBar.tsx:bg-card/85',
+      'src/components/layout/FilterBar.tsx:bg-card/85',
+      'src/components/layout/LayoutEditorMeasureBar.tsx:bg-card/90',
+      // These surfaces are samples of the selected widget fill style.
+      'src/components/layout/WidgetStylePanel.tsx:bg-card/80',
+      'src/components/layout/WidgetStylePanel.tsx:bg-card/85',
+      'src/components/layout/WidgetStylePanel.tsx:bg-card/85',
       // Goal celebration is a transient overlay over a deliberately dark scrim.
       'src/components/ui/GoalCelebration.tsx:bg-card/95',
       // Shared cards use the theme surface with a restrained translucent veil.
@@ -308,8 +322,6 @@ describe('surface class contracts', () => {
       'src/components/layout/CoordinateEditor.tsx:border-border/50',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
       'src/components/layout/LayoutPreview.tsx:border-border/30',
-      'src/components/layout/SideNav.tsx:border-border/45',
-      'src/components/layout/SubpageHeader.tsx:border-border/45',
       // Theme gallery card boundary is decorative.
       'src/components/settings/CommunityThemeGallery.tsx:border-border/70',
       // Today's quiet-line divider is decorative.
@@ -331,10 +343,6 @@ describe('surface class contracts', () => {
       /(?:^|[\s'"])(?<className>text-\[(?:8|9|10|11)px\])(?=$|[\s'"])/gm
     );
 
-    expect(subTwelveText).toEqual([
-      'src/app/settings/sections/DisplaySection.tsx:text-[10px]',
-      'src/components/layout/MobileFab.tsx:text-[10px]',
-      'src/components/layout/MobileNav.tsx:text-[10px]',
-    ]);
+    expect(subTwelveText).toEqual([]);
   });
 });

@@ -27,8 +27,8 @@ describe('dashboard birthday celebration integration', () => {
     expect(
       mobileBranch.match(/<PartyModeButton celebrations=\{data\.birthdays\.birthdays\} \/>/g)
     ).toHaveLength(1);
-    expect(mobileBranch.indexOf('<BirthdayCelebration celebrations=')).toBeLessThan(
-      mobileBranch.indexOf('<LCARSFrame')
+    expect(mobileBranch.indexOf('<AppShell')).toBeLessThan(
+      mobileBranch.indexOf('<BirthdayCelebration celebrations=')
     );
     expect(
       desktopBranch.match(/<BirthdayCelebration celebrations=\{data\.birthdays\.birthdays\} \/>/g)
@@ -40,9 +40,9 @@ describe('dashboard birthday celebration integration', () => {
       desktopBranch.indexOf('<DashboardLayout')
     );
 
-    // Both standard and LCARS dashboards stay on these same responsive paths;
-    // the celebration is a child of AppShell, outside either content wrapper.
-    expect(mobileBranch).toContain('<LCARSFrame');
+    // Both standard and LCARS dashboards stay on these responsive paths;
+    // AppShell owns the LCARS chrome around the same dashboard content.
+    expect(mobileBranch).toContain('<AppShell');
     expect(desktopBranch).toContain('<DashboardLayout');
   });
 });

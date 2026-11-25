@@ -23,7 +23,7 @@
     "touchscreen"
   ],
   "scripts": {
-    "dev": "next dev --webpack --port ${PORT:-3005}",
+    "dev": "next dev --turbopack --port ${PORT:-3005}",
     "dev:webpack": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",

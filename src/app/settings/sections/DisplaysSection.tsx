@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { formatDistance } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useFetchOnMount } from '@/lib/hooks/useFetchOnMount';
-import { useLayouts } from '@/lib/hooks/useLayouts';
+import { useLayouts, type Layout } from '@/lib/hooks/useLayouts';
 import type { ScreenSettings } from '@/lib/displays/screenSettings';
 import { screenSummary } from '@/lib/displays/screenSummary';
 import { useUrlParam } from '@/lib/hooks/useUrlParam';
@@ -58,7 +58,8 @@ export function DisplaysSection() {
   // "Last seen 3 hours ago" is measured from when the list was fetched.
   const [fetchedAt, setFetchedAt] = useState(0);
 
-  const { layouts } = useLayouts();
+  const { layouts, saveLayout } = useLayouts();
+  const [mediaPlayerConfigured, setMediaPlayerConfigured] = useState<boolean | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const editedId = useUrlParam('edited');
   const { timeFormat } = useTimeFormat();
@@ -71,8 +72,8 @@ export function DisplaysSection() {
       const list = await fetch('/api/displays');
       if (list.ok) {
         const data = await list.json();
-        setDisplays(data.displays);
-        setCurrentId(data.currentId);
+        setDisplays(Array.isArray(data.displays) ? data.displays : []);
+        setCurrentId(typeof data.currentId === 'string' ? data.currentId : null);
         setFetchedAt(Date.now());
       }
     } finally {
@@ -81,6 +82,18 @@ export function DisplaysSection() {
   }, []);
 
   useFetchOnMount(load);
+
+  useEffect(() => {
+    let live = true;
+    void fetch('/api/integrations/home-assistant/config-status')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Unavailable');
+        return response.json();
+      })
+      .then((status) => { if (live) setMediaPlayerConfigured(status?.configured === true); })
+      .catch(() => { if (live) setMediaPlayerConfigured(false); });
+    return () => { live = false; };
+  }, []);
 
   const run = async (action: () => Promise<Response>) => {
     setBusy(true);
@@ -115,6 +128,24 @@ export function DisplaysSection() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ dashboardId }),
   }));
+
+  const setMediaPlayerPlayback = async (layout: Layout, enabled: boolean) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await saveLayout({
+        ...layout,
+        floatingCardSettings: {
+          ...layout.floatingCardSettings,
+          mediaPlayerPlayback: { enabled },
+        },
+      });
+    } catch {
+      setError('That did not work. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const rename = async (id: string) => {
     const ok = await run(() => fetch(`/api/displays/${id}`, {
@@ -243,6 +274,35 @@ export function DisplaysSection() {
               </li>
             ))}
           </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Media player playback</CardTitle>
+          <CardDescription>Choose which dashboards show the Home Assistant now-playing card.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {layouts.map((layout) => {
+            const enabled = layout.floatingCardSettings?.mediaPlayerPlayback?.enabled
+              ?? layout.floatingCardSettings?.appleTvPlayback?.enabled
+              ?? true;
+            return (
+              <label key={layout.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  aria-label={`Show media-player playback card on ${layout.name}`}
+                  checked={enabled}
+                  disabled={mediaPlayerConfigured !== true || busy}
+                  onChange={(event) => void setMediaPlayerPlayback(layout, event.target.checked)}
+                />
+                <span>{layout.name}</span>
+              </label>
+            );
+          })}
+          {mediaPlayerConfigured === false && (
+            <p className="text-sm text-muted-foreground">Configure Home Assistant to enable playback cards.</p>
+          )}
         </CardContent>
       </Card>
     </div>

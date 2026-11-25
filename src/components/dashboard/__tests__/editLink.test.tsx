@@ -11,10 +11,19 @@ import { useDashboardLayout, editLink } from '../useDashboardLayout';
 import type { Layout, WidgetConfig } from '@/lib/hooks/useLayouts';
 
 let activeUser: { role: string } | null = null;
+let mockEditsOnCanvas = false;
+const mockRouter = { push: jest.fn(), replace: jest.fn() };
 jest.mock('@/components/providers/AuthProvider', () => ({
   useAuth: () => ({ activeUser, requireAuth: jest.fn() }),
 }));
-jest.mock('next/navigation', () => ({ usePathname: () => window.location.pathname }));
+jest.mock('next/navigation', () => ({
+  usePathname: () => window.location.pathname,
+  useRouter: () => mockRouter,
+}));
+jest.mock('@/lib/displays/editPlace', () => ({
+  editorLink: (id: string) => `/edit/${id}`,
+  editsOnCanvas: () => mockEditsOnCanvas,
+}));
 
 const widgets: WidgetConfig[] = [{ i: 'clock', x: 0, y: 0, w: 4, h: 4, visible: true }];
 const kitchen = { id: 'k', slug: 'kitchen', name: 'Kitchen', isDefault: false, widgets, screensaverWidgets: null } as unknown as Layout;
@@ -29,6 +38,9 @@ const layouts = {
 beforeEach(() => {
   localStorage.clear();
   activeUser = null;
+  mockEditsOnCanvas = false;
+  mockRouter.push.mockClear();
+  mockRouter.replace.mockClear();
 });
 
 describe('opening a dashboard in edit mode from a link', () => {
@@ -36,13 +48,23 @@ describe('opening a dashboard in edit mode from a link', () => {
     expect(editLink('/d/kitchen')).toBe('/d/kitchen?edit=1');
   });
 
-  it('opens a parent straight into edit mode, then drops ?edit from the address', () => {
+  it('opens a parent in the canvas frame, then drops ?edit from the address', () => {
     activeUser = { role: 'parent' };
     window.history.replaceState(null, '', editLink('/d/kitchen'));
     const { result } = renderHook(() => useDashboardLayout(layouts, 'kitchen'));
     expect(result.current.isEditing).toBe(true);
     expect(result.current.editingWidgets).toEqual(widgets);
     expect(window.location.search).toBe('');
+  });
+
+  it('routes a parent into the canvas editor outside its frame', () => {
+    activeUser = { role: 'parent' };
+    mockEditsOnCanvas = true;
+    window.history.replaceState(null, '', editLink('/d/kitchen'));
+    const { result } = renderHook(() => useDashboardLayout(layouts, 'kitchen'));
+
+    expect(mockRouter.replace).toHaveBeenCalledWith('/edit/k');
+    expect(result.current.isEditing).toBe(false);
   });
 
   it('does not open edit mode for anyone but a parent', () => {

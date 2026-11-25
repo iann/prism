@@ -20,6 +20,7 @@ jest.mock('@/components/screensaver/calmMode', () => ({ useCalmIdle: () => false
 jest.mock('@/lib/hooks/useHiddenPages', () => ({ useHiddenPages: () => ({ filterNavItems: <T,>(i: T) => i, dockPages: null }) }));
 jest.mock('@/lib/hooks/useReturnSlug', () => ({ useReturnSlug: () => null }));
 jest.mock('@/components/providers/AuthProvider', () => ({ useAuth: () => ({ activeUser: null, requireAuth: jest.fn() }) }));
+jest.mock('@/components/providers', () => ({ useTheme: () => ({ colorTheme: 'prism' }) }));
 jest.mock('@/components/layout/DashboardGrid', () => ({ ScreenJobs: () => null }));
 jest.mock('@/components/dashboard/useDashboardLayout', () => ({ editLink: (h: string) => h }));
 jest.mock('@/components/layout/WallpaperBackground', () => ({ WallpaperBackground: () => null }));
