@@ -15,6 +15,7 @@ import {
   hideDevOverlay,
   setClientFlags,
   verifySettingsViaAPI,
+  waitForCalendarContent,
   waitForStableUi,
 } from './helpers/upstream';
 
@@ -53,7 +54,7 @@ test.describe('Upstream visual regression', () => {
       await loginViaAPI(page, parentName);
       const slug = await getDefaultDashboardSlug(page);
       await page.goto(`/d/${slug}/weekend`);
-      await expect(page.getByText('Forest Park trails')).toBeVisible();
+      await expect(page.getByText('Forest Park trails')).toBeVisible({ timeout: 60_000 });
       await waitForStableUi(page, 900);
 
       await expect(page).toHaveScreenshot(`upstream-weekend-${theme}.png`, {
@@ -73,6 +74,7 @@ test.describe('Upstream visual regression', () => {
       await loginViaAPI(page, parentName);
       await page.goto('/calendar');
       await expect(page.getByRole('button', { name: 'Sync paused' })).toBeVisible();
+      await waitForCalendarContent(page);
       await waitForStableUi(page, 800);
 
       await expect(page).toHaveScreenshot(`upstream-calendar-sync-health-${theme}.png`, {
@@ -99,6 +101,9 @@ test.describe('Upstream visual regression', () => {
     await expect(page.locator('[data-dock-more-panel]')).toBeHidden();
     await expect(page.locator('[data-screensaver]')).toHaveCSS('opacity', '1');
     await expect(page.getByRole('button', { name: 'Screensaver settings' })).toBeVisible();
+    // The grid's lazy widget imports show a visible "Loading..." fallback.
+    // Keep that fallback out of the screensaver baseline.
+    await expect(page.locator('[data-screensaver]').getByText('Loading...', { exact: true })).toHaveCount(0, { timeout: 30_000 });
 
     await expect(page).toHaveScreenshot('upstream-screensaver-dark.png', {
       ...SCREENSHOT_OPTIONS,

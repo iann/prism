@@ -50,7 +50,7 @@ import { test, expect, Page, type Locator } from '@playwright/test';
 import { loginViaAPI, verifySettingsPinViaAPI } from './helpers/auth';
 import { resetAll } from './helpers/reset';
 import { runTestDb } from './helpers/testDb';
-import { hideDevOverlay } from './helpers/upstream';
+import { hideDevOverlay, waitForCalendarContent } from './helpers/upstream';
 
 /**
  * Pull a seeded parent's name directly from the DB.
@@ -156,18 +156,6 @@ async function waitForDashboardWidgets(page: Page) {
   // missing when network goes idle. Its data is masked from the shot.
   await page.locator('.widget-cell[data-widget="tasks"]').waitFor({ state: 'attached', timeout: 60_000 });
   await page.waitForTimeout(800);
-}
-
-/** Wait for the active calendar view to replace its first-load skeleton. */
-async function waitForCalendarContent(page: Page) {
-  // All successful calendar views share this wrapper. View-specific markers
-  // are unreliable here: week and multi-week views may have no spanning
-  // events, while month and agenda use entirely different DOM structures.
-  const content = page.locator('.wall-calendar-content > .h-full');
-  await content.waitFor({ state: 'visible', timeout: 60_000 });
-  // The wrapper appears as soon as data loads; Suspense can still be showing
-  // the lazy view's spinner inside it. Wait for that fallback to be replaced.
-  await expect(content.locator('.animate-spin')).toHaveCount(0, { timeout: 60_000 });
 }
 
 /**

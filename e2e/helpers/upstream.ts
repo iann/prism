@@ -39,6 +39,13 @@ export async function getDefaultDashboardSlug(page: Page): Promise<string> {
   return slug;
 }
 
+/** Wait until the calendar page has replaced its first-load and Suspense spinners. */
+export async function waitForCalendarContent(page: Page) {
+  const content = page.locator('.wall-calendar-content > .h-full');
+  await content.waitFor({ state: 'visible', timeout: 60_000 });
+  await expect(content.locator('.animate-spin')).toHaveCount(0, { timeout: 60_000 });
+}
+
 /** Verify the parent-only Settings gate after the normal display login. */
 export async function verifySettingsViaAPI(page: Page, parentName: string) {
   const member = (await getFamilyMembers(page)).find((candidate) => candidate.name === parentName);
