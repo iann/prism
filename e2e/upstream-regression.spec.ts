@@ -163,6 +163,7 @@ test.describe('Upstream regression contracts', () => {
     await page.goto('/');
     await waitForStableUi(page, 700);
 
+    await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('button', { name: 'Start screensaver' }).click();
     const settingsButton = page.getByRole('button', { name: 'Screensaver settings' });
     await expect(settingsButton).toBeVisible();
