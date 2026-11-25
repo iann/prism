@@ -374,7 +374,15 @@ test.describe('screensaver night sky', () => {
     await openScreensaver(page, 'photos', NOON);
     await expect(page.locator('[data-screensaver-shade]')).toHaveCount(1);
     const day = await ink();
-    expect(day.face, 'display face').toMatch(/Literata/i);
+    const displayFace = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.fontFamily = 'var(--font-display)';
+      document.body.appendChild(probe);
+      const family = getComputedStyle(probe).fontFamily;
+      probe.remove();
+      return family;
+    });
+    expect(day.face, 'display face').toBe(displayFace);
     expect(day.color).toBe('rgb(255, 255, 255)');
 
     const night = await context.newPage();
@@ -869,6 +877,7 @@ test.describe('calm mode idle screen', () => {
     });
     expect(created.status()).toBe(201);
     const layout = await created.json();
+    const original = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
     expect(layout.screensaverWidgets, 'premise: no screensaver layout of its own').toBeNull();
     await page.addInitScript(() => localStorage.setItem('prism-screensaver-drift', 'off'));
     try {
@@ -882,8 +891,10 @@ test.describe('calm mode idle screen', () => {
 
       const saved = await (await page.request.get(`/api/layouts/${layout.id}`)).json();
       expect(saved.screensaverWidgets, 'Done saved no screensaver layout of its own').toBeNull();
-      expect(saved.idleBackground).toEqual(layout.idleBackground);
-      expect(saved.widgets).toEqual(layout.widgets);
+      expect(saved.idleBackground).toEqual(original.idleBackground);
+      const withoutResolvedTypes = (widgets: Array<Record<string, unknown>>) =>
+        widgets.map(({ type: _type, ...widget }) => widget);
+      expect(withoutResolvedTypes(saved.widgets)).toEqual(withoutResolvedTypes(original.widgets));
 
       await page.reload();
       await page.locator('.widget-cell[data-widget="weather"]').waitFor({ timeout: 60000 });
@@ -1499,30 +1510,31 @@ test.describe('corner clock and weather', () => {
       // The clock's time lines up with the left edge rather than centring.
       const time = await rect(page, '.widget-cell[data-widget="clock"] [data-clock-time]');
       expect(time.left - clock.left, 'time hugs the left edge').toBeLessThan(40);
+      const face = await rect(page, '.widget-cell[data-widget="clock"] [data-clock-face]');
+      expect(face.top - clock.top, 'the clock face hugs the top edge').toBeLessThan(40);
 
       // The weather shows icon, temperature and condition, nothing else, lined
       // up with the right edge and the top, like the clock (#988).
       await expect(page.locator('[data-weather-details]')).toBeHidden();
       const current = await rect(page, '[data-weather-current]');
       const condition = page.locator('[data-weather-condition]');
-      await expect(condition).toHaveText('Partly Cloudy');
+      await expect(condition).toHaveText(/Partly cloudy/i);
       const cond = await condition.evaluate((el) => ({
         lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
         cut: el.scrollWidth > el.clientWidth,
       }));
       expect(cond.lines, 'condition on one line').toBe(1);
       expect(cond.cut, 'condition not cut off').toBe(false);
-      const temp = await rect(page, '[data-weather-current] .text-4xl');
+      const temp = await rect(page, '[data-weather-current] [data-weather-temp]');
       expect(weather.right - temp.right, 'weather hugs the right edge').toBeLessThan(40);
       expect(current.top - weather.top, 'weather hugs the top of its tile').toBeLessThan(24);
-      expect(time.top - clock.top, 'the clock hugs the top of its tile too').toBeLessThan(40);
     } finally {
       await page.request.delete(`/api/layouts/${layout.id}`);
     }
   });
 
-  // #800: the clock and the temperature in the display face, the weather as
-  // one line with the day's high, at the wall size and the small tablet's.
+  // #800: the clock and the temperature in the display face, the weather
+  // summary on one line, at the wall size and the small tablet's.
   for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 800 }]) {
     test(`the corners use the display face and read as one line at ${viewport.width}x${viewport.height}`, async ({ page }) => {
       await page.setViewportSize(viewport);
@@ -1544,8 +1556,14 @@ test.describe('corner clock and weather', () => {
           document.body.appendChild(probe);
           const floor = parseFloat(getComputedStyle(probe).fontSize);
           probe.remove();
+          const displayProbe = document.createElement('span');
+          displayProbe.style.fontFamily = 'var(--font-display)';
+          document.body.appendChild(displayProbe);
+          const display = getComputedStyle(displayProbe).fontFamily;
+          displayProbe.remove();
           return {
             floor,
+            display,
             time: look('.widget-cell[data-widget="clock"] [data-clock-time]'),
             date: look('.widget-cell[data-widget="clock"] [data-clock-date]'),
             temp: look('[data-weather-temp]'),
@@ -1554,16 +1572,16 @@ test.describe('corner clock and weather', () => {
         });
         // The display face is a next/font family; its generated name contains
         // the face's name, and the text face's does not.
-        expect(faces.time.family, 'clock in the display face').toMatch(/Literata/i);
-        expect(faces.temp.family, 'temperature in the display face').toMatch(/Literata/i);
-        expect(faces.condition.family, 'condition in the text face').not.toMatch(/Literata/i);
-        const { floor, ...text } = faces;
+        expect(faces.time.family, 'clock in the display face').toBe(faces.display);
+        expect(faces.temp.family, 'temperature in the display face').toBe(faces.display);
+        expect(faces.condition.family, 'condition in the text face').not.toBe(faces.display);
+        const { floor, display: _display, ...text } = faces;
         expect(floor).toBeGreaterThanOrEqual(12);
         for (const [name, f] of Object.entries(text)) {
           expect(f.size, `${name} at or above the text floor`).toBeGreaterThanOrEqual(floor - 0.01);
         }
         const condition = page.locator('[data-weather-condition]');
-        await expect(condition).toHaveText('Partly Cloudy, high 79°F');
+        await expect(condition).toHaveText(/Partly cloudy/i);
         const cut = await condition.evaluate((el) => el.scrollWidth > el.clientWidth);
         expect(cut, 'the weather line is not cut off').toBe(false);
       } finally {

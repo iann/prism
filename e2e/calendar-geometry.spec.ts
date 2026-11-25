@@ -822,6 +822,9 @@ test.describe('agenda widget starts at the next event', () => {
       await page.addInitScript(() => {
         localStorage.setItem('prism-calendar-view', 'agenda');
         localStorage.setItem('prism-calendar-display-mode', 'inline');
+        // This case checks the agenda rollover, not performance mode. Keep its
+        // clock poll at the normal 30 seconds regardless of saved preferences.
+        localStorage.setItem('prism-perf-mode', 'full');
       });
       await page.clock.install({ time: T });
       await page.goto(`/d/${layout.slug}`);

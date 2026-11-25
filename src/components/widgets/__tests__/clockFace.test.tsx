@@ -37,7 +37,7 @@ describe('the clock face', () => {
     const { time } = face();
     expect(time.className).toMatch(/\bfont-medium\b/);
     expect(time.className).toMatch(/\btabular-nums\b/);
-    expect(time.style.fontFamily).toBe('var(--font-numeral)');
+    expect(time.style.fontFamily).toBe('var(--font-display)');
   });
 
   it('draws seconds small and dimmed after the minutes', () => {

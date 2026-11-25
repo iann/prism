@@ -815,7 +815,11 @@ export const WeatherWidget = React.memo(function WeatherWidget({
       error={error}
       className={className}
     >
-      <div className={cn('@container flex flex-col gap-3 h-full overflow-hidden', isVertical ? 'pb-2' : '', currentOnly && 'justify-center')}>
+      <div className={cn(
+        '@container flex flex-col gap-3 h-full overflow-hidden',
+        isVertical ? 'pb-2' : '',
+        currentOnly && 'justify-center in-data-[align-y=top]:justify-start in-data-[align-y=bottom]:justify-end',
+      )}>
 
         {/* CURRENT CONDITIONS */}
         <CurrentConditions
@@ -1108,7 +1112,13 @@ function CurrentConditions({
               className="flex items-baseline gap-2"
             >
               <div className="flex items-center gap-2">
-                <div className="text-5xl font-bold leading-none">{temp}</div>
+                <div
+                  className="text-5xl font-bold leading-none"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                  data-weather-temp
+                >
+                  {temp}
+                </div>
                 {currentSource === 'pirate' && (
                   <span
                     data-testid="weather-fallback-indicator"

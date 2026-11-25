@@ -467,7 +467,7 @@ test.describe('Attention notices', () => {
       const wall = await wallContext.newPage();
       await verifySettingsPinViaAPI(wall, parent.name);
       // Signed in, the family list carries ids.
-      const author = await getFirstParent(wall);
+      const authorId = getSeededParentId();
       await nameThisScreen(wall, HALL);
       // Notices are on the screen's editing bar, under More.
       await wall.goto('/?edit=1');
@@ -485,7 +485,7 @@ test.describe('Attention notices', () => {
       await expect(wall.getByTestId('attention-panel')).toHaveCount(0);
 
       for (const text of [`First ${tag}`, `Second ${tag}`]) {
-        const res = await wall.request.post('/api/messages', { data: { message: text, authorId: author.id } });
+        const res = await wall.request.post('/api/messages', { data: { message: text, authorId } });
         expect(res.status()).toBe(201);
         posted.push((await res.json()).id);
         await wall.waitForTimeout(1_100);
@@ -527,7 +527,7 @@ test.describe('Attention notices', () => {
       await wall.evaluate(() => window.dispatchEvent(new Event('prism:screensaver')));
       await expect(wall.getByTestId('attention-panel')).toHaveAttribute('data-idle', 'true');
       await expect.poll(brightness, { timeout: 5_000 }).toBeLessThan(60);
-      const res = await wall.request.post('/api/messages', { data: { message: `Third ${tag}`, authorId: author.id } });
+      const res = await wall.request.post('/api/messages', { data: { message: `Third ${tag}`, authorId } });
       expect(res.status()).toBe(201);
       posted.push((await res.json()).id);
       // Within the panel's own half-minute check, well before the widgets' two.
