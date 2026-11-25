@@ -1221,6 +1221,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: f590618e
 
+144. **Profile avatars in the navigation dock**
+
+    Restored profile images and emoji avatars to the Dock sign-in/sign-out
+    controls after the upstream navigation refactor removed avatar rendering.
+
+    Commit: 8f87dd59
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
