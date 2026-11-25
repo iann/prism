@@ -428,7 +428,8 @@ test.describe('Visual regression', () => {
       await waitForQuiet(page);
       await page.waitForTimeout(600);
 
-      await expectPainted(page);
+      await expectPainted(page, page.locator('.widget-cell[data-widget="tasks"]'));
+      await waitForDashboardWidgets(page);
       await expect(page).toHaveScreenshot(`login-landing-${theme}.png`, {
         ...SCREENSHOT_OPTIONS,
         mask: dynamicMasks(page),
