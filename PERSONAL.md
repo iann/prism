@@ -1251,6 +1251,14 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 003216f5
 
+148. **Use native emoji fonts on Linux dashboards**
+
+    Removes the bundled Noto emoji webfont, which Chromium on the kitchen Pi
+    selected but rendered blank. The dashboard now uses the working platform
+    font and the CSS emoji generic fallback.
+
+    Commit: da84a56d
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
