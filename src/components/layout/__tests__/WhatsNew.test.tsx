@@ -19,7 +19,10 @@ function openNote() {
   return note!;
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  document.cookie = `${WHATS_NEW_SEEN_KEY}=; Max-Age=0; Path=/`;
+});
 afterEach(() => jest.useRealTimers());
 
 describe("What's new note (#1308)", () => {
@@ -62,5 +65,44 @@ describe("What's new note (#1308)", () => {
     render(<WhatsNew />);
     act(() => { jest.advanceTimersByTime(600); });
     expect(document.querySelector('[data-whats-new]')).toBeNull();
+  });
+
+  it('does not return after a reload, even without pressing Got it', () => {
+    jest.useFakeTimers();
+    const first = render(<WhatsNew />);
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(document.querySelector('[data-whats-new]')).not.toBeNull();
+    first.unmount();
+    // The screen reloads with the note still open; the note was already shown.
+    render(<WhatsNew />);
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(document.querySelector('[data-whats-new]')).toBeNull();
+  });
+
+  it('stays away when only the cookie remembers it', () => {
+    localStorage.clear();
+    document.cookie = `${WHATS_NEW_SEEN_KEY}=${WHATS_NEW.id}; Path=/`;
+    jest.useFakeTimers();
+    render(<WhatsNew />);
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(document.querySelector('[data-whats-new]')).toBeNull();
+  });
+
+  it('does not open where the browser can keep no marker, rather than repeat every load', () => {
+    const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage refused');
+    });
+    const ownCookie = Object.getOwnPropertyDescriptor(document, 'cookie');
+    Object.defineProperty(document, 'cookie', { configurable: true, get: () => '', set: () => {} });
+    try {
+      jest.useFakeTimers();
+      render(<WhatsNew />);
+      act(() => { jest.advanceTimersByTime(600); });
+      expect(document.querySelector('[data-whats-new]')).toBeNull();
+    } finally {
+      setItem.mockRestore();
+      if (ownCookie) Object.defineProperty(document, 'cookie', ownCookie);
+      else delete (document as { cookie?: string }).cookie;
+    }
   });
 });

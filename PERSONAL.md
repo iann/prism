@@ -1259,6 +1259,16 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: da84a56d
 
+149. **A What's new note that stays dismissed**
+
+    Keeps the one-time note's seen marker in a first-party cookie as well as
+    localStorage, remembers it as soon as the note appears instead of only on
+    "Got it", and shows no note at all where the browser can keep neither
+    marker. A reload or restart with the note still open no longer brings it
+    back on every load; the list stays in Help.
+
+    Commit: 5a60d002
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the

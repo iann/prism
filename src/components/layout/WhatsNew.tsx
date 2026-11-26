@@ -4,6 +4,10 @@
  * The one-time "What's new" note (#1032, #1308): after an update, each screen
  * shows what is new in the release, once, with a link to the full changelog.
  * Never on a fresh install (setup marks it seen). Help keeps the same list.
+ *
+ * A screen that reloads or restarts with the note still open must not get it
+ * again, so it is remembered the moment it appears; a browser that cannot keep
+ * that memory gets no note rather than one on every load.
  */
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -49,7 +53,13 @@ export function WhatsNew() {
     const asked = new URLSearchParams(window.location.search).has('whats-new');
     if (!(asked || !automated) || !whatsNewUnseen()) return;
     // A beat after the page settles, not over its first paint.
-    const t = setTimeout(() => setOpen(true), 600);
+    const t = setTimeout(() => {
+      // Remember it the moment it appears, not only on "Got it": a screen that
+      // reloads or restarts with the note still open came back every time.
+      // A browser that cannot keep the marker gets no note at all, so it can
+      // never be trapped into showing on every load.
+      if (markWhatsNewSeen()) setOpen(true);
+    }, 600);
     return () => clearTimeout(t);
   }, []);
   const close = () => { markWhatsNewSeen(); setOpen(false); };
