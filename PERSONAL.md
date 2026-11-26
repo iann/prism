@@ -1235,6 +1235,15 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: 03909726
 
+146. **Emoji fallback across the dashboard font stack**
+
+    Moves explicit platform and Noto emoji fonts ahead of generic families in
+    the shared sans stack. The prior fallback was scoped to `.wall-display`,
+    which the current dashboard does not render, while generic system fonts
+    could resolve emoji before the Noto font was considered.
+
+    Commit: baca0ba8
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
