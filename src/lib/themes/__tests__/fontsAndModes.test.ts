@@ -97,9 +97,11 @@ describe('display face role', () => {
     expect(themeCss(theme({ font: 'sans', numeralFont: 'mono' }))).toContain('--theme-font-display:var(--font-mono-theme), var(--font-serif)');
   });
 
-  it('falls back to the serif face, never to the text face', () => {
+  it('keeps emoji fallback ahead of generic serif faces', () => {
     const css = readFileSync(join(__dirname, '../../../styles/globals.css'), 'utf8');
-    expect(css).toMatch(/--font-display:\s*var\(--theme-font-display, var\(--font-serif, Literata\)\), Georgia,/);
+    expect(css).toMatch(
+      /--font-display:\s*var\(--theme-font-display, var\(--font-serif, Literata\)\), Apple Color Emoji,\s*Segoe UI Emoji, Noto Color Emoji, Georgia,/,
+    );
   });
 });
 
