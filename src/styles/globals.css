@@ -96,11 +96,13 @@
      numeral face of its own (--theme-font-numeral, set by applyTheme). */
   --font-numeral: var(--theme-font-numeral, var(--font-sans));
   /* The display face (#800): the clock, the temperature and page and sheet
-     titles. Literata, unless a theme names a numeral face of its own
-     (--theme-font-display, set by applyTheme). Everything else stays sans. */
+     titles. Keep emoji ahead of generic serif families so event titles drawn
+     in this role still fall back to the color emoji font. Literata, unless a
+     theme names a numeral face of its own (--theme-font-display, set by
+     applyTheme). Everything else stays sans. */
   --font-display:
-    var(--theme-font-display, var(--font-serif, Literata)), Georgia,
-    Times New Roman, serif;
+    var(--theme-font-display, var(--font-serif, Literata)), Apple Color Emoji,
+    Segoe UI Emoji, Noto Color Emoji, Georgia, Times New Roman, serif;
   --font-mono:
     JetBrains Mono, Menlo, Monaco, Consolas, Liberation Mono, Courier New,
     monospace;

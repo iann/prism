@@ -1244,6 +1244,13 @@ upstream-sync-only commits are omitted unless they changed behavior.
 
     Commit: baca0ba8
 
+147. **Emoji fallback for dashboard display titles**
+
+    Adds platform and Noto emoji fallbacks to the display font role, which is
+    used by the wall dashboard's next-event title and other themed headings.
+
+    Commit: 003216f5
+
 ## Superseded personal iterations
 
 These are retained for historical context but should not be described as the
