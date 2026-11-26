@@ -31,10 +31,61 @@ export function whatsNewRuns(item: string): Array<{ text: string; bold: boolean 
 /** Per screen: the id of the last list seen here. */
 export const WHATS_NEW_SEEN_KEY = 'prism-whats-new-seen';
 
-export function markWhatsNewSeen(): void {
-  try { localStorage.setItem(WHATS_NEW_SEEN_KEY, WHATS_NEW.id); } catch { /* shown again next time */ }
+/**
+ * A wall screen is named and set up once, so the marker is kept for years.
+ * localStorage alone was not enough: a screen that loses it (or cannot write
+ * it) showed the note on every reload or restart.
+ */
+const SEEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10;
+
+function readSeenCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const prefix = `${WHATS_NEW_SEEN_KEY}=`;
+  for (const part of document.cookie.split(';')) {
+    const item = part.trim();
+    if (!item.startsWith(prefix)) continue;
+    try { return decodeURIComponent(item.slice(prefix.length)); } catch { return null; }
+  }
+  return null;
+}
+
+/** Write the same marker as a cookie, and report whether it was really kept. */
+function writeSeenCookie(): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie =
+      `${WHATS_NEW_SEEN_KEY}=${encodeURIComponent(WHATS_NEW.id)}; ` +
+      `Max-Age=${SEEN_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secure}`;
+    return readSeenCookie() === WHATS_NEW.id;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Remember that this screen has seen this release's list, in both places a
+ * browser can keep it. Returns whether either one actually kept it: a screen
+ * that can keep neither would show the note again on every load, so it is
+ * better to leave the note in Help than to repeat it forever.
+ */
+export function markWhatsNewSeen(): boolean {
+  let kept = false;
+  try {
+    localStorage.setItem(WHATS_NEW_SEEN_KEY, WHATS_NEW.id);
+    kept = localStorage.getItem(WHATS_NEW_SEEN_KEY) === WHATS_NEW.id;
+  } catch {
+    // The cookie may still be kept.
+  }
+  // Write both, so clearing one does not bring the note back.
+  return writeSeenCookie() || kept;
 }
 
 export function whatsNewUnseen(): boolean {
-  try { return localStorage.getItem(WHATS_NEW_SEEN_KEY) !== WHATS_NEW.id; } catch { return false; }
+  try {
+    if (localStorage.getItem(WHATS_NEW_SEEN_KEY) === WHATS_NEW.id) return false;
+  } catch {
+    // Ask the cookie instead.
+  }
+  return readSeenCookie() !== WHATS_NEW.id;
 }
